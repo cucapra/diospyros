@@ -2,9 +2,11 @@
 
 (require "dsp-insts.rkt"
          "matrix-utils.rkt"
-         racket/trace)
+         racket/trace
+         rosette/solver/smt/boolector)
 
-(current-bitwidth 5)
+(current-solver (boolector))
+(current-bitwidth 8)
 
 ;; Interface to the data movememnt synthesis code.
 (struct spec (inputs outputs) #:transparent)
@@ -36,9 +38,10 @@
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define C-elements (make-vector (* A-rows B-cols) 0))
-  (define reg-size 2)
-  (define iterations 4)
+  (define reg-size 4)
+  (define iterations 5)
 
+  ; Symbolic shuffle matrices for each iteration.
   (match-define (list shufs-C shufs-A shufs-B)
     (build-list
       3
@@ -46,14 +49,17 @@
         (build-list iterations
                     (lambda (_) (make-symbolic-vector reg-size))))))
 
+  ; The "zero" register so vector registers can have empty values.
+  (define zero (vector 0))
+
   (for ([shuf-C shufs-C]
         [shuf-A shufs-A]
         [shuf-B shufs-B])
     ; Fill each register using shuffles
     (define-values (reg-acc reg-A reg-B)
       (values (vector-shuffle C-elements shuf-C)
-              (vector-shuffle A-elements shuf-A)
-              (vector-shuffle B-elements shuf-B)))
+              (vector-select A-elements zero shuf-A)
+              (vector-select B-elements zero shuf-B)))
 
     (define compute
       (vector-mac reg-acc reg-A reg-B))
@@ -68,17 +74,19 @@
             (list 'shufs-A shufs-A)
             (list 'shufs-B shufs-B))))
 
-(define A (make-symbolic-matrix 2 2))
-(define B (make-symbolic-matrix 2 2))
+(define A (make-symbolic-matrix 2 3))
+(define B (make-symbolic-matrix 3 3))
 (match-define (spec inps C-spec) (matrix-multiply-spec A B))
 (define-values (C-sketch shufs) (matrix-mul-sketch A B))
 ;(pretty-print '------------------------)
-;(pretty-print C-spec)
+(pretty-print A)
+(pretty-print B)
+(pretty-print C-spec)
 ;(pretty-print C-sketch)
 (define model
   (time
     (synthesize
       #:forall inps
       #:guarantee (assert (equal? C-spec C-sketch)))))
+;(pretty-print model)
 (pretty-print (if (sat? model) (evaluate shufs model) model))
-
