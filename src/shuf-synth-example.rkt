@@ -4,6 +4,8 @@
          "matrix-utils.rkt"
          racket/trace)
 
+(current-bitwidth 5)
+
 ;; Interface to the data movememnt synthesis code.
 (struct spec (inputs outputs) #:transparent)
 
@@ -30,14 +32,12 @@
   (spec (flatten (map vector->list (list A-elements B-elements)))
         (matrix-elements C)))
 
-;(pretty-print (matrix-multiply-spec 2 3 3 3))
-
 (define (matrix-mul-sketch mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define C-elements (make-vector (* A-rows B-cols) 0))
-  (define reg-size 4)
-  (define iterations 3)
+  (define reg-size 2)
+  (define iterations 4)
 
   (match-define (list shufs-C shufs-A shufs-B shuf-stores-C)
     (build-list
@@ -58,10 +58,12 @@
 
     (define compute
       (vector-mac reg-acc reg-A reg-B))
+    ;(pretty-print `(,reg-acc ,reg-A ,reg-B ,compute))
+    ;(pretty-print '----------------------)
 
     ; XXX(rachit): The shuffled store and set into C seems too flexible.
     ; We can probably constraint the load and store to be the same.
-    (vector-shuffle-set! C-elements shuf-store-C compute))
+    (vector-shuffle-set! C-elements shuf-C compute))
 
   (values C-elements
           (list
@@ -70,13 +72,17 @@
             (list 'shufs-B shufs-B)
             (list 'stores-C shuf-stores-C))))
 
-(define A (make-symbolic-matrix 2 3))
-(define B (make-symbolic-matrix 3 3))
+(define A (make-symbolic-matrix 2 2))
+(define B (make-symbolic-matrix 2 2))
 (match-define (spec inps C-spec) (matrix-multiply-spec A B))
 (define-values (C-sketch shufs) (matrix-mul-sketch A B))
-(pretty-print C-spec)
-(time
-  (pretty-print
-    (evaluate shufs (solve (assert (equal? C-spec C-sketch))))))
+;(pretty-print '------------------------)
+;(pretty-print C-spec)
+;(pretty-print C-sketch)
+(define model
+  (time
+    (synthesize
+      #:forall inps
+      #:guarantee (assert (equal? C-spec C-sketch)))))
+(pretty-print (if (sat? model) (evaluate shufs model) model))
 
-'done
