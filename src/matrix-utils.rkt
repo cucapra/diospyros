@@ -22,6 +22,15 @@
     (define-symbolic* v integer?)
     v))
 
+; Ensure that indices only access reg-count or fewer registers.
+(define (make-symbolic-indices-restriced size reg-count)
+  (define vec (make-symbolic-vector size))
+  (define registers (map (lambda (sym) (floor (/ sym size)))
+                         (vector->list vec)))
+  (define registers-used (length (remove-duplicates registers)))
+  (assert (<= registers-used reg-count))
+  vec)
+
 (define (make-symbolic-matrix rows cols)
   (matrix rows cols (make-symbolic-vector (* rows cols))))
 
