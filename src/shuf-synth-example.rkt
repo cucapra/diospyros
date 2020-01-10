@@ -39,17 +39,16 @@
   (define reg-size 2)
   (define iterations 4)
 
-  (match-define (list shufs-C shufs-A shufs-B shuf-stores-C)
+  (match-define (list shufs-C shufs-A shufs-B)
     (build-list
-      4
+      3
       (lambda (_)
         (build-list iterations
                     (lambda (_) (make-symbolic-vector reg-size))))))
 
   (for ([shuf-C shufs-C]
         [shuf-A shufs-A]
-        [shuf-B shufs-B]
-        [shuf-store-C shuf-stores-C])
+        [shuf-B shufs-B])
     ; Fill each register using shuffles
     (define-values (reg-acc reg-A reg-B)
       (values (vector-shuffle C-elements shuf-C)
@@ -61,16 +60,13 @@
     ;(pretty-print `(,reg-acc ,reg-A ,reg-B ,compute))
     ;(pretty-print '----------------------)
 
-    ; XXX(rachit): The shuffled store and set into C seems too flexible.
-    ; We can probably constraint the load and store to be the same.
     (vector-shuffle-set! C-elements shuf-C compute))
 
   (values C-elements
           (list
             (list 'shufs-C shufs-C)
             (list 'shufs-A shufs-A)
-            (list 'shufs-B shufs-B)
-            (list 'stores-C shuf-stores-C))))
+            (list 'shufs-B shufs-B))))
 
 (define A (make-symbolic-matrix 2 2))
 (define B (make-symbolic-matrix 2 2))
