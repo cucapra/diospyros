@@ -3,6 +3,7 @@
 (require "dsp-insts.rkt"
          "matrix-utils.rkt"
          racket/trace
+         rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
 (current-solver (boolector))
@@ -38,8 +39,8 @@
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define C-elements (make-vector (* A-rows B-cols) 0))
-  (define reg-size 4)
-  (define iterations 5)
+  (define reg-size 6)
+  (define iterations 4)
 
   ; Symbolic shuffle matrices for each iteration.
   (match-define (list shufs-C shufs-A shufs-B)
@@ -75,7 +76,7 @@
             (list 'shufs-B shufs-B))))
 
 (define A (make-symbolic-matrix 2 3))
-(define B (make-symbolic-matrix 3 3))
+(define B (make-symbolic-matrix 3 4))
 (match-define (spec inps C-spec) (matrix-multiply-spec A B))
 (define-values (C-sketch shufs) (matrix-mul-sketch A B))
 ;(pretty-print '------------------------)
