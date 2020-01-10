@@ -3,7 +3,8 @@
 (require rackunit
          rackunit/text-ui)
 
-(provide vector-shuffle)
+(provide vector-shuffle
+         vector-select)
 
 ;; Define set of instructions commonly found in DSP architectures.
 
