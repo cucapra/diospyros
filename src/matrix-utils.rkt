@@ -18,17 +18,21 @@
   (vector-set! elements (+ (* cols row) col) val))
 
 (define (make-symbolic-vector size)
-  (for/vector ([sym (in-range size)])
+  (for/vector ([_ (in-range size)])
     (define-symbolic* v integer?)
     v))
-
 ; Ensure that indices only access reg-count or fewer registers.
-(define (make-symbolic-indices-restriced size reg-count)
+(define (make-symbolic-indices-restriced size reg-limit reg-upper-bound)
   (define vec (make-symbolic-vector size))
-  (define registers (map (lambda (sym) (floor (/ sym size)))
-                         (vector->list vec)))
-  (define registers-used (length (remove-duplicates registers)))
-  (assert (<= registers-used reg-count))
+
+  ; Check how many distinct registers these indices fall within.
+  (define reg-used (make-vector reg-upper-bound #f))
+  (for ([i (in-range size)])
+    (define reg (quotient (vector-ref vec i) size))
+    (vector-set! reg-used reg #t))
+
+  (define registers-used (count identity (vector->list reg-used)))
+  (assert (<= registers-used reg-limit))
   vec)
 
 (define (make-symbolic-matrix rows cols)

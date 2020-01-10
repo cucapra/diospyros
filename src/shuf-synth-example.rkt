@@ -47,6 +47,7 @@
   (define iterations (exact-ceiling (/ (* A-rows A-cols B-cols) reg-size)))
 
   ; Symbolic shuffle matrices for each iteration.
+  (define reg-upper-bound (exact-ceiling (/ (* A-cols (max A-rows B-cols)) reg-size)))
   (match-define (list shufs-C shufs-A shufs-B)
     (build-list
       3
@@ -54,7 +55,8 @@
         (build-list iterations
                     (lambda (_)
                       (make-symbolic-indices-restriced reg-size
-                                                       shuffle-reg-count))))))
+                                                       shuffle-reg-count
+                                                       reg-upper-bound))))))
   
   ; The "zero" register so vector registers can have empty values.
   (define zero (vector 0))
