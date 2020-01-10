@@ -40,7 +40,10 @@
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define C-elements (make-vector (* A-rows B-cols) 0))
   (define reg-size 6)
-  (define iterations 4)
+
+  ; For now, iterations are the total number of multiples divided by the
+  ; register size.
+  (define iterations (exact-ceiling (/ (* A-rows A-cols B-cols) reg-size)))
 
   ; Symbolic shuffle matrices for each iteration.
   (match-define (list shufs-C shufs-A shufs-B)
