@@ -39,15 +39,18 @@
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define C-elements (make-vector (* A-rows B-cols) 0))
-  (define reg-size 6)
+  (define reg-size 4)
   (define shuffle-reg-count 2)
 
   ; For now, iterations are the total number of multiplies divided by the
   ; register size.
-  (define iterations (exact-ceiling (/ (* A-rows A-cols B-cols) reg-size)))
+  (define iterations
+    (exact-ceiling (/ (* A-rows A-cols B-cols) reg-size)))
 
   ; Symbolic shuffle matrices for each iteration.
-  (define reg-upper-bound (exact-ceiling (/ (* A-cols (max A-rows B-cols)) reg-size)))
+  (define reg-upper-bound
+    (exact-ceiling (/ (* A-cols (max A-rows B-cols)) reg-size)))
+
   (match-define (list shufs-C shufs-A shufs-B)
     (build-list
       3
@@ -57,7 +60,7 @@
                       (make-symbolic-indices-restriced reg-size
                                                        shuffle-reg-count
                                                        reg-upper-bound))))))
-  
+
   ; The "zero" register so vector registers can have empty values.
   (define zero (vector 0))
 
