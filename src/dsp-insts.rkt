@@ -18,7 +18,7 @@
             "VECTOR-SHUFFLE: idx larger than elements in input vector")
     (vector-ref inp idx)))
 
-;; VECTOR-SHUFFLE-STORE: store vals[i] into out-vec[idxs[i]]
+;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]
 (define (vector-shuffle-set! out-vec idxs vals)
   (assert (= (vector-length idxs) (vector-length vals))
           "VECTOR-SHUFFLE-SET: length mismatch")

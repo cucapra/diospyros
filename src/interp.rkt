@@ -19,7 +19,7 @@
 ; Shuffle instructions inside memory.
 (struct vec-shuffle (id inp idxs) #:transparent)
 (struct vec-select (id inp1 inp2 idxs) #:transparent)
-(struct vec-shuffle-set! (id inp idxs) #:transparent)
+(struct vec-shuffle-set! (out-vec inp idxs) #:transparent)
 
 ; Apply functions on vectors.
 (struct vec-app (id f inps) #:transparent)
@@ -33,7 +33,7 @@
     (hash-ref env key))
 
   (for ([inst (prog-insts program)])
-    (match
+    (match inst
       [(vec-load id start end)
        (env-set! id (vector-copy memory
                                  start
@@ -48,14 +48,42 @@
                                  (env-ref idxs)))]
       [(vec-select id inp1 inp2 idxs)
        (env-set! id (vector-select
-                      (env-ref inp1)
-                      (env-ref inp2)
-                      (env-ref idxs)))]
-      [(vec-shuffle-set! id inp idxs)
-       (env-set! id (vector-shuffle-set!
-                      (env-ref inp)
-                      (env-ref idxs)))]
-      [(vec-app f inps)
-       (apply f (map env-ref inps))]))
+                     (env-ref inp1)
+                     (env-ref inp2)
+                     (env-ref idxs)))]
+      [(vec-shuffle-set! out-vec inp idxs)
+       (vector-shuffle-set!
+        (env-ref out-vec)
+        (env-ref inp)
+        (env-ref idxs))]
+      [(vec-app id f inps)
+       (env-set! id (apply f (map env-ref inps)))]))
 
   memory)
+
+(require (for-syntax racket/base
+                     syntax/parse)
+         racket/syntax
+         racket/stxparam)
+
+(define-syntax (define/prog stx)
+  (define-syntax-class instruction
+    ; #:description "instruction specification"
+    #:datum-literals (=)
+    (pattern
+      (id:expr = inst:id param:expr ...)
+      #:with to-inst #'(inst id param ...))
+    (pattern
+      (inst:id param:expr ...)
+      #:with to-inst #'(inst param ...)))
+
+  (syntax-parse stx
+    ; Parse functions that return values
+    [(_ name:id inst:instruction ...)
+     #'(define name (list inst.to-inst ...))]))
+
+(define/prog p
+  ('x = vec-load 10 20)
+  (vec-unload 'x 20))
+
+p
