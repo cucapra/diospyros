@@ -11,6 +11,9 @@
 
 (define (pointer-to ty) (format "(~a *)" ty))
 
+(define (emit-memory id size)
+    (format "~a ~a[~a]" element-ty id size))
+
 ; A pair: the align variable id and the command
 (define (emit-align id)
   (define align-id (~a "align" id))
@@ -19,8 +22,7 @@
             align-id (pointer-to vector-ty) id))
   (cons align-id cmd))
 
-(define (emit-load dest id start end align)
-  (define size (- end start))
+(define (emit-load dest id size align)
   (define cmd
     (format "PDX_LAV_MXF32_XP(~a, ~a, ~a~a, ~a)"
             dest align (pointer-to vector-ty) id size))
@@ -36,20 +38,21 @@
             shuffle-id  (vector-length idxs) idxs-string))
   (cons shuffle-id cmd))
 
+; XXX(alexa): model these casts explicitly
 ; A list: the shuffle index command and the shuffle itself 
 (define (emit-shuffle id inp idxs)
   (match-define (cons shuffle-id shuffle-idxs) (emit-shuffle-idxs id idxs))
   (define cmd
-    (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), *((xb_vecMx32 *)~a)))"
-            id inp shuffle-id))
+    (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
+            id inp (pointer-to shuffle-idx-ty) shuffle-id))
   (cons shuffle-idxs cmd))
 
 ; A list: the shuffle index command and the select itself 
 (define (emit-select id inp1 inp2 idxs)
   (match-define (cons shuffle-id shuffle-idxs) (emit-shuffle-idxs id idxs))
   (define cmd
-    (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), PDX_MOV_MX32_FROM_MXF32(~a), *((xb_vecMx32 *)~a)))"
-            id inp2 inp1 shuffle-id))
+    (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
+            id inp2 inp1 (pointer-to shuffle-idx-ty) shuffle-id))
   (cons shuffle-idxs cmd))
 
 ; XXX(alexa): add tests

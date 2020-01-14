@@ -1,6 +1,8 @@
 #lang rosette
 
-(require "dsp-insts.rkt"
+(require "ast.rkt"
+         "dsp-insts.rkt"
+         "emit-c.rkt"
          "matrix-utils.rkt"
          "prog-sketch.rkt"
          racket/trace
@@ -9,6 +11,8 @@
 
 (current-solver (boolector))
 (current-bitwidth 8)
+
+(define reg-size 4)
 
 ;; Interface to the data movememnt synthesis code.
 (struct spec (inputs outputs) #:transparent)
@@ -40,7 +44,6 @@
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define C-elements (make-vector (* A-rows B-cols) 0))
-  (define reg-size 4)
   (define shuffle-reg-count 2)
 
   ; For now, iterations are the total number of multiplies divided by the
@@ -88,7 +91,7 @@
             (list 'shufs-B shufs-B))))
 
 (define A (make-symbolic-matrix 2 3))
-(define B (make-symbolic-matrix 3 4))
+(define B (make-symbolic-matrix 3 3))
 (match-define (spec inps C-spec) (matrix-multiply-spec A B))
 (define-values (C-sketch shufs) (matrix-mul-sketch A B))
 ;(pretty-print '------------------------)
@@ -103,3 +106,64 @@
       #:guarantee (assert (equal? C-spec C-sketch)))))
 ;(pretty-print model)
 (pretty-print (if (sat? model) (evaluate shufs model) model))
+
+; Create an AST program for this completed sketch
+(define (ast-prog)
+  (match-define (matrix A-rows A-cols A-elements) A)
+  (match-define (matrix B-rows B-cols B-elements) B)
+  (define A-size (* A-rows A-cols))
+  (define B-size (* B-rows B-cols))
+  (define C-size (* A-rows B-cols))
+  (define memory-size (+ A-size B-size C-size))
+
+  (define (load-vectors name size offset)
+    (for/vector ([i (in-range 0 size reg-size)])
+      (define load-size (cond
+                          [(< (+ i reg-size) size) reg-size]
+                          [else (modulo size reg-size)]))
+      (define id (format "load~a_~a" name i))
+      (vec-load id (+ offset i) load-size)))
+
+  (define (id-for-idx loads idx)
+    (match-define (vec-load id _ _) (vector-ref loads idx)) id)
+  (define A-loads (load-vectors "A" A-size 0))
+  (define B-loads (load-vectors "B" B-size A-size))
+  (define C-loads (load-vectors "C" (+ A-size B-size) C-size))
+
+  (match-define (list (cons _ (list shufs-C))
+                      (cons _ (list shufs-A))
+                      (cons _ (list shufs-B))) (evaluate shufs model))
+
+  (define move-compute
+    (for/list ([shuf-A shufs-A]
+               [shuf-B shufs-B]
+               [shuf-C shufs-C])
+
+      (define (shuffle-or-select id loads shufs)
+        (define ordered-reg-used
+          (sort (remove-duplicates (map (curry reg-of reg-size)
+                                        (vector->list shufs))) <))
+        (match (length ordered-reg-used)
+          [1
+           (vec-shuffle id (id-for-idx loads (first ordered-reg-used)) shufs)]
+          [2
+           (define truncated-shufs
+             (vector-map (lambda (i) (if (< i reg-size) i (+ (modulo i reg-size) reg-size)))
+                         shufs))
+           (define (vec-select-partial r1 r2) (vec-select id r1 r2 truncated-shufs))
+           (apply vec-select-partial (map (curry id-for-idx loads) ordered-reg-used))])
+        )
+    
+      (list (shuffle-or-select "shuffledA" A-loads shuf-A)
+            (shuffle-or-select "shuffledB" B-loads shuf-B)
+            (vec-app "mac" vector-mac (list "shuffledA" "shuffledB")))))
+
+  (define p (prog (append (vector->list A-loads)
+                          (vector->list B-loads)
+                          (flatten move-compute))))
+  (cons p memory-size))
+
+(when (sat? model)
+  (match-define (cons p memory) (ast-prog))
+  (pretty-print p)
+  (emit p memory))

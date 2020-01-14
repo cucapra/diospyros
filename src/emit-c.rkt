@@ -2,7 +2,7 @@
 
 (require "dsp-insts.rkt"
          "matrix-utils.rkt"
-         "interp.rkt"
+         "ast.rkt"
          "dsp-api.rkt")
 
 (provide (all-defined-out))
@@ -16,7 +16,7 @@
   (define sep ";\n")
   (string-join cmds sep #:after-last sep))
 
-(define (emit program)
+(define (emit program mem-size)
   (define align-env (make-hash))
   (define (align-env-set! key val)
     (hash-set! align-env key val))
@@ -34,23 +34,22 @@
 
   (define (emit-cmds inst)
     (match inst
-      [(vec-load id start end)
+      [(vec-load id start size)
        (cond
          [(has-align? memory)
           (match-define (align-pos align offset) (align-env-ref memory))
-          (unless (< start end) (error "malformed load range"))
           (unless (= offset start) (error "non-aligning load"))
-          (align-env-set! memory (align-pos align (+ offset (- end start))))
-          (list (emit-load id memory (- start offset) (- end offset) align))]
+          (align-env-set! memory (align-pos align (+ offset size)))
+          (emit-load id memory size align)]
          [else
           (unless (= start 0) (error "non-aligning load"))
           (match-define (cons align cmd) (emit-align memory))
-          (align-env-set! memory (align-pos align end))
-          (list cmd (emit-load id memory start end align))])]
+          (align-env-set! memory (align-pos align size))
+          (list cmd (emit-load id memory size align))])]
       [(vec-unload id start)
-       void]
+       ""]
       [(vec-const id init)
-       void]
+       ""]
       [(vec-shuffle id inp idxs)
        (match-define (cons shuffle-g cmd) (emit-shuffle id inp idxs))
        (add-shuffle-global shuffle-g)
@@ -60,14 +59,15 @@
        (add-shuffle-global shuffle-g)
        cmd]
       [(vec-shuffle-set! out-vec inp idxs)
-       void]
+       ""]
       [(vec-app id f inps)
-       void]))
+       ""]))
 
   (define cmds (flatten
                 (for/list ([inst (prog-insts program)])
     (emit-cmds inst))))
 
+  (display (cmds-to-lines (list (emit-memory "memory" mem-size))))
   (display (cmds-to-lines (unbox shuffle-globals)))
   (display (cmds-to-lines cmds)))
 
@@ -77,4 +77,4 @@
   ('c = vec-shuffle 'a (vector 0 1 2 3))
   ('d = vec-select 'a 'b (vector 0 1 4 5)))
 
-(emit (prog pg))
+;(emit pg 30)
