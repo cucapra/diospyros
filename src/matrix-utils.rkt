@@ -41,4 +41,4 @@
         "REG-USED: calculates correctly"
         (let ([idx-vec (vector 0 7 2 5 6 1)]
               [reg-size 2])
-          (check-equal? 4 (reg-used idx-vec reg-size)))))))
+          (check-equal? 4 (reg-used idx-vec reg-size 4)))))))
