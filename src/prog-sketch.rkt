@@ -3,6 +3,8 @@
 (require "ast.rkt"
          "matrix-utils.rkt")
 
+(provide (all-defined-out))
+
 (define (make-symbolic-vector size)
   (for/vector ([_ (in-range size)])
     (define-symbolic* v integer?)
@@ -10,7 +12,7 @@
 
 (define (make-symbolic-indices-restriced size reg-limit reg-upper-bound)
   (define vec (make-symbolic-vector size))
-  (assert (<= (reg-used vec size) reg-limit))
+  (assert (<= (reg-used vec size reg-upper-bound) reg-limit))
   vec)
 
 (define (make-symbolic-matrix rows cols)

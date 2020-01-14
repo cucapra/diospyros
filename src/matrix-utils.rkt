@@ -24,11 +24,9 @@
 
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.
-(define (reg-used idx-vec reg-size [upper-bound #f])
+(define (reg-used idx-vec reg-size upper-bound)
   ; Check how many distinct registers these indices fall within.
-  (define reg-used
-    (make-vector (or upper-bound
-                     (vector-length idx-vec)) #f))
+  (define reg-used (make-vector upper-bound #f))
   (for ([idx idx-vec])
     (vector-set! reg-used (reg-of reg-size idx) #t))
   (count identity (vector->list reg-used)))
