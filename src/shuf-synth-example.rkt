@@ -2,6 +2,7 @@
 
 (require "dsp-insts.rkt"
          "matrix-utils.rkt"
+         "prog-sketch.rkt"
          racket/trace
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)

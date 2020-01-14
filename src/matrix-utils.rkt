@@ -17,28 +17,21 @@
   (assert (< col cols))
   (vector-set! elements (+ (* cols row) col) val))
 
-(define (make-symbolic-vector size)
-  (for/vector ([_ (in-range size)])
-    (define-symbolic* v integer?)
-    v))
+; Returns 0-indexed register that this index resides in based on the
+; current register size.
+(define (reg-of reg-size idx)
+  (quotient idx reg-size))
 
-;; Returns number of vectors accessed by an index vector assuming each vector
-;; contains reg-size elements.
+; Returns number of vectors accessed by an index vector assuming each vector
+; contains reg-size elements.
 (define (reg-used idx-vec reg-size [upper-bound #f])
   ; Check how many distinct registers these indices fall within.
-  (define reg-used (make-vector (or upper-bound reg-size) #f))
+  (define reg-used
+    (make-vector (or upper-bound
+                     (vector-length idx-vec)) #f))
   (for ([idx idx-vec])
-    (define reg (quotient idx reg-size))
-    (vector-set! reg-used reg #t))
+    (vector-set! reg-used (reg-of reg-size idx) #t))
   (count identity (vector->list reg-used)))
-
-(define (make-symbolic-indices-restriced size reg-limit reg-upper-bound)
-  (define vec (make-symbolic-vector size))
-  (assert (<= (reg-used vec size) reg-limit))
-  vec)
-
-(define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-symbolic-vector (* rows cols))))
 
 (module+ test
   (require rackunit
