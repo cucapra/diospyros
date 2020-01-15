@@ -2,6 +2,8 @@
 
 (require "dsp-insts.rkt"
          "ast.rkt"
+         "matrix-utils.rkt"
+         "prog-sketch.rkt"
          rosette/lib/match)
 
 (provide (all-defined-out))
@@ -17,40 +19,75 @@
   (vector-copy! memory start vec))
 
 ; Interpretation function that takes a program and an external memory.
-; Returns a vector representing the state of the final memory.
-(define (interp program memory)
+; MUTATES the memory in place during program interpretation.
+; Returns the cost of the program using `cost-fn`.
+; `cost-fn` takes an instruction returns an integer value describing the cost
+; of the instruction. It ASSUMES that the instruction does not contain any free
+; variables.
+(define (interp program memory [cost-fn (thunk* 0)])
+  ; The environment mapping for the program.
   (define env (make-hash))
   (define (env-set! key val)
     (hash-set! env key val))
   (define (env-ref key)
     (hash-ref env key))
 
-  (for ([inst (prog-insts program)])
-    (match inst
-      [(vec-load id start size)
-       (env-set! id (read-vec memory start size))]
-      [(vec-unload id start)
-       (write-vec! memory start (env-ref id))]
-      [(vec-const id init)
-       (env-set! id init)]
-      [(vec-shuffle id idxs inp)
-       (env-set! id
-                 (vector-shuffle (env-ref inp)
-                                 (env-ref idxs)))]
-      [(vec-select id idxs inp1 inp2)
-       (env-set! id (vector-select
-                     (env-ref inp1)
-                     (env-ref inp2)
-                     (env-ref idxs)))]
-      [(vec-shuffle-set! out-vec idxs inp)
-       (vector-shuffle-set!
-        (env-ref out-vec)
-        (env-ref inp)
-        (env-ref idxs))]
-      [(vec-app id f inps)
-       (env-set! id (apply f (map env-ref inps)))]))
+  ; Track the cost of the program
+  (define cur-cost 0)
+  (define (incr-cost! val)
+    (set! cur-cost (+ cur-cost val)))
 
-  memory)
+  (for ([inst (prog-insts program)])
+    ;(pretty-print `(,inst ,memory))
+    (define inst-cost
+      (match inst
+        [(vec-load id start size)
+         (env-set! id (read-vec memory start size))
+         (cost-fn inst)]
+        [(vec-unload id start)
+         (write-vec! memory start (env-ref id))
+         (cost-fn inst)]
+        [(vec-const id init)
+         (env-set! id init)
+         (cost-fn inst)]
+        [(vec-shuffle id idxs inp)
+         (let ([inp-val (env-ref inp)]
+               [idxs-val (env-ref idxs)])
+           (env-set! id (vector-shuffle inp-val idxs-val))
+           ; Pass a deferenced version of vec-shuffle to cost-fn
+           (cost-fn (vec-shuffle id idxs-val inp-val)))]
+        [(vec-select id idxs inp1 inp2)
+         (let ([inp1-val (env-ref inp1)]
+               [inp2-val (env-ref inp2)]
+               [idxs-val (env-ref idxs)])
+           (env-set! id (vector-select inp1-val inp2-val idxs-val))
+           (cost-fn (vec-select inp1-val inp2-val idxs-val)))]
+        [(vec-shuffle-set! out-vec idxs inp)
+         (let ([out-vec-val (env-ref out-vec)]
+               [inp-val (env-ref inp)]
+               [idxs-val (env-ref idxs)])
+           (vector-shuffle-set! out-vec-val inp-val idxs-val)
+           (cost-fn (vec-shuffle-set! out-vec-val idxs-val inp-val)))]
+        [(vec-app id f inps)
+         (let ([inps-val (map env-ref inps)])
+           (env-set! id (apply f inps-val))
+           (cost-fn (vec-app id f inps-val)))]
+        [_ (assert #f (~a "unknown instruction " inst))]))
+
+    (incr-cost! inst-cost))
+
+  cur-cost)
+
+
+; Cost of a program is the sum of the registers touched by each indices vector
+; passed to a shuffle-like instruction.
+(define (simple-shuffle-cost reg-upper-bound inst)
+  (match inst
+    [(or (vec-shuffle _ idxs _)
+         (vec-select _ idxs _ _)
+         (vec-shuffle-set! _ idxs _))
+     (reg-used idxs (current-reg-size) reg-upper-bound)]
+    [_ 0]))
 
 (module+ test
   (require rackunit
@@ -79,9 +116,28 @@
         (define/prog p
           ('const = vec-const (vector 0 1 2 3))
           ('idxs = vec-const (vector 3 1 2 0))
-          ('shuf = vec-shuffle 'const 'idxs)
+          ('shuf = vec-shuffle 'idxs 'const)
           (vec-unload 'shuf 0))
         (interp p memory)
         (check-equal? (read-vec memory 0 4) gold))
+
+      (test-case
+        "simple-shuffle-cost calculates cost correctly"
+        (define/prog p
+          ('a = vec-const (vector 0 1 2 3 4 5 6 7))
+          ('i1 = vec-const (vector 1 4 7 5))
+          ('i2 = vec-const (vector 0 3 2 1))
+          ('s1 = vec-shuffle 'i1 'a)
+          ('s2 = vec-shuffle 'i2 'a))
+        (check-equal?
+          (interp p
+                  (make-vector 4)
+                  (curry simple-shuffle-cost 2)) 3)
+        ; cost depends on the current-reg-size
+        (parameterize ([current-reg-size 2])
+          (check-equal?
+            (interp p
+                    (make-vector 4)
+                    (curry simple-shuffle-cost 4)) 5)))
 
       )))
