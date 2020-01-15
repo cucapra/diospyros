@@ -33,16 +33,16 @@
        (write-vec! memory start (env-ref id))]
       [(vec-const id init)
        (env-set! id init)]
-      [(vec-shuffle id inp idxs)
+      [(vec-shuffle id idxs inp)
        (env-set! id
                  (vector-shuffle (env-ref inp)
                                  (env-ref idxs)))]
-      [(vec-select id inp1 inp2 idxs)
+      [(vec-select id idxs inp1 inp2)
        (env-set! id (vector-select
                      (env-ref inp1)
                      (env-ref inp2)
                      (env-ref idxs)))]
-      [(vec-shuffle-set! out-vec inp idxs)
+      [(vec-shuffle-set! out-vec idxs inp)
        (vector-shuffle-set!
         (env-ref out-vec)
         (env-ref inp)

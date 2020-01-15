@@ -14,9 +14,9 @@
 (struct vec-const (id init) #:transparent)
 
 ; Shuffle instructions inside memory.
-(struct vec-shuffle (id inp idxs) #:transparent)
-(struct vec-select (id inp1 inp2 idxs) #:transparent)
-(struct vec-shuffle-set! (out-vec inp idxs) #:transparent)
+(struct vec-shuffle (id idxs inp) #:transparent)
+(struct vec-select (id idxs inp1 inp2) #:transparent)
+(struct vec-shuffle-set! (out-vec idxs inp) #:transparent)
 
 ; Apply functions on vectors.
 (struct vec-app (id f inps) #:transparent)

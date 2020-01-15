@@ -147,24 +147,24 @@
           (cond
             [(< i reg-size) i] ; 1st register
             [else (+ (modulo i reg-size) reg-size)])) ; 2nd register, truncate down
-        
+
+        ; Determine if a select or shuffle
         (match (length ordered-reg-used)
           [1
            (let ([source-id (id-for-idx loads (first ordered-reg-used))])
-             (vec-shuffle id source-id shufs))]
+             (vec-shuffle id shufs source-id))]
           [2
            (define truncated-shufs (vector-map truncate-shuf shufs))
            (cond
              ; Check if this shuffle uses the designated "zero" register
              [(vector-memv size shufs)
               (let ([source-id (id-for-idx loads (first ordered-reg-used))])
-              (vec-select id source-id "zero" truncated-shufs))]
+              (vec-select id truncated-shufs source-id "zero"))]
              ; Otherwise, it's a shuffle between two loads
              [else
-              (define (vec-select-partial r1 r2) (vec-select id r1 r2 truncated-shufs))
-              (apply vec-select-partial (map (curry id-for-idx loads) ordered-reg-used))])])
-        )
-    
+              (define reg-ids (map (curry id-for-idx loads) ordered-reg-used))
+              (apply vec-select id truncated-shufs reg-ids)])]))
+
       (list (shuffle-or-select "shuffledA" A-loads shuf-A A-size)
             (shuffle-or-select "shuffledB" B-loads shuf-B B-size)
             (vec-app "mac" `vector-mac (list "shuffledA" "shuffledB")))))
