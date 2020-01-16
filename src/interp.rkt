@@ -61,7 +61,7 @@
                [inp2-val (env-ref inp2)]
                [idxs-val (env-ref idxs)])
            (env-set! id (vector-select inp1-val inp2-val idxs-val))
-           (cost-fn (vec-select inp1-val inp2-val idxs-val)))]
+           (cost-fn (vec-select id inp1-val inp2-val idxs-val)))]
         [(vec-shuffle-set! out-vec idxs inp)
          (let ([out-vec-val (env-ref out-vec)]
                [inp-val (env-ref inp)]
@@ -125,19 +125,22 @@
         "simple-shuffle-cost calculates cost correctly"
         (define/prog p
           ('a = vec-const (vector 0 1 2 3 4 5 6 7))
+          ('b = vec-const (vector 8 9 10 11 12 13 14 15))
           ('i1 = vec-const (vector 1 4 7 5))
           ('i2 = vec-const (vector 0 3 2 1))
+          ('i3 = vec-const (vector 0 1 8 9))
           ('s1 = vec-shuffle 'i1 'a)
-          ('s2 = vec-shuffle 'i2 'a))
+          ('s2 = vec-shuffle 'i2 'a)
+          ('s2 = vec-select 'i3 'a 'b))
         (check-equal?
           (interp p
                   (make-vector 4)
-                  (curry simple-shuffle-cost 2)) 3)
+                  (curry simple-shuffle-cost 2)) 5)
         ; cost depends on the current-reg-size
         (parameterize ([current-reg-size 2])
           (check-equal?
             (interp p
                     (make-vector 4)
-                    (curry simple-shuffle-cost 4)) 5)))
+                    (curry simple-shuffle-cost 4)) 9)))
 
       )))
