@@ -28,31 +28,37 @@
             dest align (pointer-to vector-ty) id size))
   cmd)
 
-; A pair: the shuffle variable id and the command
-(define (emit-shuffle-idxs id idxs)
-  (define shuffle-id (format "shuffleIdx~a" id))
+; Declare global array variable to initialize a vector
+(define (emit-global-vector id init)
   (define idxs-string
-    (string-join (map number->string (vector->list idxs)) ", "))
-  (define cmd
-    (format "int ~a[~a] _LOCAL_DRAM0_ = { ~a }"
-            shuffle-id  (vector-length idxs) idxs-string))
-  (cons shuffle-id cmd))
+    (string-join (map number->string (vector->list init)) ", "))
+  (define shuffle-id (format "shuffleIdx~a" id))
+  (format "int ~a[~a] _LOCAL_DRAM0_ = { ~a }"
+          shuffle-id  (vector-length init) idxs-string))
 
 ; XXX(alexa): model these casts explicitly
-; A list: the shuffle index command and the shuffle itself 
+; Shuffle (single input) 
 (define (emit-shuffle id inp idxs)
-  (match-define (cons shuffle-id shuffle-idxs) (emit-shuffle-idxs id idxs))
-  (define cmd
-    (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
-            id inp (pointer-to shuffle-idx-ty) shuffle-id))
-  (cons shuffle-idxs cmd))
+  (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
+          id inp (pointer-to shuffle-idx-ty) idxs))
 
-; A list: the shuffle index command and the select itself 
+; Select (two inputs)
 (define (emit-select id inp1 inp2 idxs)
-  (match-define (cons shuffle-id shuffle-idxs) (emit-shuffle-idxs id idxs))
-  (define cmd
-    (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
-            id inp2 inp1 (pointer-to shuffle-idx-ty) shuffle-id))
-  (cons shuffle-idxs cmd))
+  (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
+          id inp2 inp1 (pointer-to shuffle-idx-ty) idxs))
+
+; Intrinsics
+(define (emit-app f inps)
+  (apply (function-ref f) inps))
+
+(define function-env (make-hash))
+(define (declare-function f val)
+  (hash-set! function-env f val))
+(define (function-ref f)
+  (hash-ref function-env f))
+
+(define (emit-vector-mac out inp1 inp2)
+  (format "PDX_MULA_MXF32(~a, ~a, ~a)" out inp1 inp2))
+(declare-function `vector-mac emit-vector-mac)
 
 ; XXX(alexa): add tests

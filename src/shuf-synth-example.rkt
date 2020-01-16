@@ -140,6 +140,8 @@
                [shuf-C shufs-C])
 
       (define (shuffle-or-select id loads shufs size)
+        (define shuffled-id (format "suffled~a" id))
+        (define shuf-id (format "shuf~a" id))
         (define ordered-reg-used
           (sort (remove-duplicates (map (curry reg-of reg-size)
                                         (vector->list shufs))) <))
@@ -147,27 +149,31 @@
           (cond
             [(< i reg-size) i] ; 1st register
             [else (+ (modulo i reg-size) reg-size)])) ; 2nd register, truncate down
+        (define truncated-shufs (vector-map truncate-shuf shufs))
+        (define shuf-decl (vec-const shuf-id truncated-shufs))
 
         ; Determine if a select or shuffle
-        (match (length ordered-reg-used)
+        (define cmd (match (length ordered-reg-used)
           [1
            (let ([source-id (id-for-idx loads (first ordered-reg-used))])
-             (vec-shuffle id shufs source-id))]
+             (vec-shuffle shuffled-id shufs source-id))]
           [2
-           (define truncated-shufs (vector-map truncate-shuf shufs))
            (cond
              ; Check if this shuffle uses the designated "zero" register
              [(vector-memv size shufs)
               (let ([source-id (id-for-idx loads (first ordered-reg-used))])
-              (vec-select id truncated-shufs source-id "zero"))]
+              (vec-select shuffled-id shuf-decl source-id "zero"))]
              ; Otherwise, it's a shuffle between two loads
              [else
               (define reg-ids (map (curry id-for-idx loads) ordered-reg-used))
-              (apply vec-select id truncated-shufs reg-ids)])]))
+              (apply vec-select shuffled-id shuf-decl reg-ids)])]))
+        (cons shuf-decl cmd))
 
-      (list (shuffle-or-select "shuffledA" A-loads shuf-A A-size)
-            (shuffle-or-select "shuffledB" B-loads shuf-B B-size)
-            (vec-app "mac" `vector-mac (list "shuffledA" "shuffledB")))))
+      (flatten
+       (list (shuffle-or-select "A" A-loads shuf-A A-size)
+             (shuffle-or-select "B" B-loads shuf-B B-size)
+             (shuffle-or-select "C" C-loads shuf-C C-size)
+             (vec-app "mac" `vector-mac (list "shuffledC" "shuffledA" "shuffledB"))))))
 
   (define p (prog (append (vector->list A-loads)
                           (vector->list B-loads)

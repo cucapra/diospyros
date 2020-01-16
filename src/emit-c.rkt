@@ -49,19 +49,17 @@
       [(vec-unload id start)
        ""]
       [(vec-const id init)
-       ""]
+       (add-shuffle-global (emit-global-vector id init))
+       (list)]
       [(vec-shuffle id idxs inp)
-       (match-define (cons shuffle-g cmd) (emit-shuffle id inp idxs))
-       (add-shuffle-global shuffle-g)
-       cmd]
+       (emit-shuffle id inp idxs)]
       [(vec-select id idxs inp1 inp2)
-       (match-define (cons shuffle-g cmd) (emit-select id inp1 inp2 idxs))
-       (add-shuffle-global shuffle-g)
-       cmd]
+       (emit-select id inp1 inp2 idxs)]
       [(vec-shuffle-set! out-vec idxs inp)
        ""]
       [(vec-app id f inps)
-       ""]))
+       ;XXX(alexa): handle intrinsics with return values
+       (emit-app f inps)]))
 
   (define cmds (flatten
                 (for/list ([inst (prog-insts program)])
