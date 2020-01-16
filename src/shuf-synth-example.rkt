@@ -147,9 +147,10 @@
           (sort (remove-duplicates (map (curry reg-of reg-size)
                                         (vector->list shufs))) <))
         (define (truncate-shuf i)
+          (define mod (modulo i reg-size)) ; Truncate down
           (cond
-            [(< i reg-size) i] ; 1st register
-            [else (+ (modulo i reg-size) reg-size)])) ; 2nd register, truncate down
+            [(= (reg-of reg-size i) (first ordered-reg-used)) mod] ; 1st register
+            [else (+ mod reg-size)])) ; 2nd register, add reg-size
         (define truncated-shufs (vector-map truncate-shuf shufs))
         (define shuf-decl (vec-const shuf-id truncated-shufs))
 
@@ -157,7 +158,7 @@
         (define cmd (match (length ordered-reg-used)
           [1
            (let ([source-id (id-for-idx loads (first ordered-reg-used))])
-             (vec-shuffle shuffled-id shufs source-id))]
+             (vec-shuffle shuffled-id shuf-id source-id))]
           [2
            (cond
              ; Check if this shuffle uses the designated "zero" register
@@ -176,14 +177,27 @@
              (shuffle-or-select "C" C-loads shuf-C C-size)
              (vec-app "mac" `vector-mac (list "shuffledC" "shuffledA" "shuffledB"))))))
 
-  (define p (prog (append (vector->list A-loads)
-                          (vector->list B-loads)
-                          (vector->list C-loads)
-                          (flatten move-compute))))
+  (define p (prog (flatten
+                   (list (vec-const "zero" (make-vector reg-size 0))
+                         (vector->list A-loads)
+                         (vector->list B-loads)
+                         (vector->list C-loads)
+                         move-compute))))
   (cons p memory-size))
+
+
+; Define function definition mapping for interp.
+(define function-env (make-hash))
+(define (declare-function f val)
+  (hash-set! function-env f val))
+(define (function-ref f)
+  (hash-ref function-env f))
+
+(declare-function `vector-mac vector-mac)
 
 (when (sat? model)
   (match-define (cons p memory-size) (ast-prog))
   (pretty-print p)
-  (interp p (make-vector memory-size 0))
+  (define cost-fn (curry simple-shuffle-cost 3))
+  (interp p (make-vector memory-size 0) cost-fn function-ref)
   (emit p memory-size))

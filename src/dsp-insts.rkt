@@ -15,7 +15,7 @@
 (define (vector-shuffle inp idxs)
   (for/vector ([idx idxs])
     (assert (< idx (vector-length inp))
-            "VECTOR-SHUFFLE: idx larger than elements in input vector")
+            (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" idx inp))
     (vector-ref inp idx)))
 
 ;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]
