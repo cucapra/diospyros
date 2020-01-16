@@ -56,15 +56,18 @@
   (define reg-upper-bound
     (exact-ceiling (/ (* A-cols (max A-rows B-cols)) reg-size)))
 
-  (match-define (list shufs-C shufs-A shufs-B)
-    (build-list
-      3
-      (lambda (_)
+  (define (build-shufs shuffle-reg-count)
+    (lambda (_)
         (build-list iterations
                     (lambda (_)
                       (make-symbolic-indices-restriced reg-size
                                                        shuffle-reg-count
-                                                       reg-upper-bound))))))
+                                                       reg-upper-bound)))))
+
+  (match-define (list shufs-A shufs-B) (build-list 2 (build-shufs 2)))
+  
+  ; Option to use a distinct shuffle reg count for the output. 
+  (define shufs-C ((build-shufs 2) void))
 
   ; The "zero" register so vector registers can have empty values.
   (define zero (vector 0))
@@ -129,7 +132,7 @@
     (match-define (vec-load id _ _) (vector-ref loads idx)) id)
   (define A-loads (load-vectors "A" A-size 0))
   (define B-loads (load-vectors "B" B-size A-size))
-  (define C-loads (load-vectors "C" (+ A-size B-size) C-size))
+  (define C-loads (load-vectors "C" C-size (+ A-size B-size)))
 
   (match-define (list (cons _ (list shufs-C))
                       (cons _ (list shufs-A))
