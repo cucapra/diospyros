@@ -18,13 +18,17 @@
 (define (write-vec! memory start vec)
   (vector-copy! memory start vec))
 
+(define (default-fn-defns f)
+  (raise (format "attempt to apply undefined function ~a" f)))
+
 ; Interpretation function that takes a program and an external memory.
 ; MUTATES the memory in place during program interpretation.
 ; Returns the cost of the program using `cost-fn`.
 ; `cost-fn` takes an instruction returns an integer value describing the cost
 ; of the instruction. It ASSUMES that the instruction does not contain any free
 ; variables.
-(define (interp program memory [cost-fn (thunk* 0)])
+; `fn-defns` is an optional argument to provide external function definitions
+(define (interp program memory [cost-fn (thunk* 0)] [fn-defns default-fn-defns])
   ; The environment mapping for the program.
   (define env (make-hash))
   (define (env-set! key val)
@@ -69,8 +73,9 @@
            (vector-shuffle-set! out-vec-val inp-val idxs-val)
            (cost-fn (vec-shuffle-set! out-vec-val idxs-val inp-val)))]
         [(vec-app id f inps)
-         (let ([inps-val (map env-ref inps)])
-           (env-set! id (apply f inps-val))
+         (let ([inps-val (map env-ref inps)]
+               [fn (fn-defns f)])
+           (env-set! id (apply fn inps-val))
            (cost-fn (vec-app id f inps-val)))]
         [_ (assert #f (~a "unknown instruction " inst))]))
 

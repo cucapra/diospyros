@@ -3,6 +3,7 @@
 (require "ast.rkt"
          "dsp-insts.rkt"
          "emit-c.rkt"
+         "interp.rkt"
          "matrix-utils.rkt"
          "prog-sketch.rkt"
          racket/trace
@@ -140,7 +141,7 @@
                [shuf-C shufs-C])
 
       (define (shuffle-or-select id loads shufs size)
-        (define shuffled-id (format "suffled~a" id))
+        (define shuffled-id (format "shuffled~a" id))
         (define shuf-id (format "shuf~a" id))
         (define ordered-reg-used
           (sort (remove-duplicates (map (curry reg-of reg-size)
@@ -162,11 +163,11 @@
              ; Check if this shuffle uses the designated "zero" register
              [(vector-memv size shufs)
               (let ([source-id (id-for-idx loads (first ordered-reg-used))])
-              (vec-select shuffled-id shuf-decl source-id "zero"))]
+              (vec-select shuffled-id shuf-id source-id "zero"))]
              ; Otherwise, it's a shuffle between two loads
              [else
               (define reg-ids (map (curry id-for-idx loads) ordered-reg-used))
-              (apply vec-select shuffled-id shuf-decl reg-ids)])]))
+              (apply vec-select shuffled-id shuf-id reg-ids)])]))
         (cons shuf-decl cmd))
 
       (flatten
@@ -177,10 +178,12 @@
 
   (define p (prog (append (vector->list A-loads)
                           (vector->list B-loads)
+                          (vector->list C-loads)
                           (flatten move-compute))))
   (cons p memory-size))
 
 (when (sat? model)
-  (match-define (cons p memory) (ast-prog))
+  (match-define (cons p memory-size) (ast-prog))
   (pretty-print p)
-  (emit p memory))
+  (interp p (make-vector memory-size 0))
+  (emit p memory-size))
