@@ -41,9 +41,87 @@
   (spec (flatten (map vector->list (list A-elements B-elements)))
         (matrix-elements C)))
 
-(define (matrix-mul-sketch mat-A mat-B)
+
+; Generate program sketch for matrix multiply
+(define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
+  (match-define (matrix A-rows A-cols _) mat-A)
+  (match-define (matrix B-rows B-cols _) mat-B)
+  ; Program preamble to load the initial vectors and define the "zero" vector.
+  (define preamble
+    (list
+      (vec-const 'Z (vector 0))
+      (vec-load 'A 0 (* A-rows A-cols))
+      (vec-load 'B (* A-rows A-cols) (* B-rows B-cols))
+      (vec-const 'C (make-vector (* A-rows B-cols) 0))))
+
+  ; Compute description for the sketch
+  (define (compute-gen iteration shufs)
+    ; Assumes that shuffle-gen generated three shuffle vectors
+    (match-define (list shuf-A shuf-B shuf-C) shufs)
+    (list
+      (vec-select 'reg-A shuf-A 'A 'Z)
+      (vec-select 'reg-B shuf-B 'B 'Z)
+      (vec-shuffle 'reg-C shuf-C 'C)
+      (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
+      (vec-shuffle-set! 'C shuf-C 'out)))
+
+  ; Shuffle vectors for each iteration
+  (define shuffle-gen
+    (symbolic-shuffle-gen 3))
+
+  ; Write final value of C to memory
+  (define epilogue
+    (list (vec-unload 'C
+                      (+ (* A-rows A-cols)
+                         (* B-rows B-cols)))))
+
+  (prog
+    (append preamble
+            (sketch-compute-shuffle-interleave
+              shuffle-gen
+              compute-gen
+              iterations)
+            epilogue)))
+
+(define (run-matrix-mul-sketch sketch mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
+  (define memory
+    (make-vector (+ (* A-rows A-cols)
+                    (* B-rows B-cols)
+                    (* A-rows B-cols))
+                 0))
+  (write-vec! memory 0 A-elements)
+  (write-vec! memory (vector-length A-elements) B-elements)
+
+  (interp sketch
+          memory
+          #:fn-map (hash 'vec-mac vector-mac))
+
+  (read-vec memory
+            (+ (* A-rows A-cols)
+               (* B-rows B-cols))
+            (* A-rows B-cols)))
+
+
+(parameterize [(current-reg-size 4)]
+  (define A (make-symbolic-matrix 2 3))
+  (define B (make-symbolic-matrix 3 3))
+  (define mmul (matrix-mul-shuffle-sketch A B 5))
+  (define C-sketch (run-matrix-mul-sketch mmul A B))
+  (match-define (spec inps C-spec) (matrix-multiply-spec A B))
+  (define model
+    (time
+      (synthesize
+        #:forall inps
+        #:guarantee (assert (equal? C-spec C-sketch)))))
+  (pretty-print (if (sat? model) (evaluate mmul model) model)))
+
+
+#|
+(define (matrix-mul-sketch mat-A mat-B)
+  (match-define (matrix a-rows a-cols a-elements) mat-a)
+  (match-define (matrix b-rows b-cols b-elements) mat-b)
   (define C-elements (make-vector (* A-rows B-cols) 0))
   (define shuffle-reg-count 2)
 
@@ -65,8 +143,8 @@
                                                        reg-upper-bound)))))
 
   (match-define (list shufs-A shufs-B) (build-list 2 (build-shufs 2)))
-  
-  ; Option to use a distinct shuffle reg count for the output. 
+
+  ; Option to use a distinct shuffle reg count for the output.
   (define shufs-C ((build-shufs 2) void))
 
   ; The "zero" register so vector registers can have empty values.
@@ -110,6 +188,7 @@
       #:guarantee (assert (equal? C-spec C-sketch)))))
 ;(pretty-print model)
 (pretty-print (if (sat? model) (evaluate shufs model) model))
+
 
 ; Create an AST program for this completed sketch
 (define (ast-prog)
@@ -196,6 +275,7 @@
 (define (function-ref f)
   (hash-ref function-env f))
 
+
 (declare-function `vector-mac vector-mac)
 
 (when (sat? model)
@@ -203,4 +283,4 @@
   (pretty-print p)
   (define cost-fn (curry simple-shuffle-cost 3))
   (interp p (make-vector memory-size 0) cost-fn function-ref)
-  (emit p memory-size))
+  (emit p memory-size))|#

@@ -37,11 +37,11 @@
         (compute-thunk i shuffle-names))
       (append shuffle-defs compute)))
 
-  (prog instructions))
+  (flatten instructions))
 
 ; Returns a function that generates `shuf-num` shuffle vectors of size
 ; `reg-size` to be used for a program sketch.
-(define (symbolic-shuffle-gen shuf-num reg-size)
+(define (symbolic-shuffle-gen shuf-num)
   (lambda (iteration)
     (define shuf-names
       (for/list ([n (in-range shuf-num)])
@@ -52,7 +52,7 @@
                          (number->string iteration)))))
     (define insts
       (map (lambda (shuf-name)
-             (vec-const shuf-name (make-symbolic-vector reg-size)))
+             (vec-const shuf-name (make-symbolic-vector (current-reg-size))))
            shuf-names))
     (values insts shuf-names)))
 
