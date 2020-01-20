@@ -25,6 +25,9 @@
 ; Apply functions on vectors.
 (struct vec-app (id f inps) #:transparent)
 
+; Introspection
+(struct vec-print (id) #:transparent)
+
 (require (for-syntax racket/base
                      syntax/parse)
          racket/syntax

@@ -28,7 +28,10 @@
 ; of the instruction. It ASSUMES that the instruction does not contain any free
 ; variables.
 ; `fn-defns` is an optional argument to provide external function definitions
-(define (interp program memory [cost-fn (thunk* 0)] [fn-defns default-fn-defns])
+(define (interp program
+                memory
+                #:cost-fn [cost-fn (thunk* 0)]
+                #:fn-map [fn-map default-fn-defns])
   ; The environment mapping for the program.
   (define env (make-hash))
   (define (env-set! key val)
@@ -70,13 +73,16 @@
          (let ([out-vec-val (env-ref out-vec)]
                [inp-val (env-ref inp)]
                [idxs-val (env-ref idxs)])
-           (vector-shuffle-set! out-vec-val inp-val idxs-val)
+           (vector-shuffle-set! out-vec-val idxs-val inp-val)
            (cost-fn (vec-shuffle-set! out-vec-val idxs-val inp-val)))]
         [(vec-app id f inps)
          (let ([inps-val (map env-ref inps)]
-               [fn (fn-defns f)])
+               [fn (hash-ref fn-map f)])
            (env-set! id (apply fn inps-val))
            (cost-fn (vec-app id f inps-val)))]
+        [(vec-print id)
+         (pretty-print (env-ref id))
+         (cost-fn inst)]
         [_ (assert #f (~a "unknown instruction " inst))]))
 
     (incr-cost! inst-cost))
