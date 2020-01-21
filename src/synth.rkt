@@ -1,5 +1,7 @@
 #lang rosette
 
+(provide (all-defined-out))
+
 ; Synthesize values for sketch given a spec and symbolic arguments.
 ; If a `cost-fn` is specified, run the synthesis procedure in a loop till it
 ; can find a solution as close to `min-cost` as possible.

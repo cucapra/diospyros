@@ -16,9 +16,6 @@
 
 (define reg-size 4)
 
-;; Interface to the data movememnt synthesis code.
-(struct spec (inputs outputs) #:transparent)
-
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
@@ -39,8 +36,7 @@
              (matrix-ref mat-B k j)))))
     (matrix-set! C i j sum))
 
-  (spec (flatten (map vector->list (list A-elements B-elements)))
-        (matrix-elements C)))
+  (matrix-elements C))
 
 
 ; Generate program sketch for matrix multiply
@@ -75,7 +71,7 @@
               compute-gen
               iterations))))
 
-(define (run-matrix-mul-sketch sketch mat-A mat-B #:cost-fn [cost-fn (thunk* 0)])
+(define (run-matrix-mul-sketch sketch mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define env (make-hash))
@@ -85,31 +81,48 @@
   (define cost
     (interp sketch
             env
-            #:cost-fn cost-fn
+            #:cost-fn (curry simple-shuffle-cost 2)
             #:fn-map (hash 'vec-mac vector-mac)))
 
-  (pretty-print cost)
-
-  (hash-ref env 'C))
+  (values (hash-ref env 'C) cost))
 
 
 (parameterize [(current-reg-size 2)]
   (define A (make-symbolic-matrix 2 2))
   (define B (make-symbolic-matrix 2 2))
+
+  ; Generate sketch prog
   (define mmul (matrix-mul-shuffle-sketch A B 4))
-  (define C-sketch (run-matrix-mul-sketch mmul A B))
-  (match-define (spec inps C-spec) (matrix-multiply-spec A B))
+  (define (sketch-func args)
+    (apply (curry run-matrix-mul-sketch mmul) args))
+
+  ; Functionalize spec for minimization prog
+  (define (spec-func args)
+    (apply matrix-multiply-spec args))
+
   (define model
-    (time
-      (synthesize
-        #:forall inps
-        #:guarantee (assert (equal? C-spec C-sketch)))))
-  (define sol
-    (if (sat? model) (evaluate mmul model) model))
-  (pretty-print '-----------)
+    (synth-prog spec-func
+                sketch-func
+                (list A B)
+                #:get-inps (lambda (args) (flatten
+                                            (map matrix-elements args)))
+                #:max-cost 24
+                #:min-cost 12))
+  (pretty-print (evaluate mmul model)))
+
+  ;;(define C-sketch (run-matrix-mul-sketch mmul A B))
+  ;(match-define C-spec (matrix-multiply-spec A B))
+  ;(define model
+    ;(time
+      ;(synthesize
+        ;#:forall inps
+        ;#:guarantee (assert (equal? C-spec C-sketch)))))
+  ;(define sol
+    ;(if (sat? model) (evaluate mmul model) model))
+  ;(pretty-print '-----------)
   ; Calculate solution cost
-  (run-matrix-mul-sketch sol A B
-                         #:cost-fn (curry simple-shuffle-cost 4)))
+  #|(run-matrix-mul-sketch sol A B
+                         #:cost-fn (curry simple-shuffle-cost 4)))|#
 
 
 #|
