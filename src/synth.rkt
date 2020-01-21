@@ -32,7 +32,7 @@
 
     (cond
       [(not (sat? model)) cur-model]
-      [(equal? new-cost min-cost) model]
+      [(<= new-cost min-cost) model]
       [else (loop (sub1 new-cost) model)]))
 
   (loop max-cost))
