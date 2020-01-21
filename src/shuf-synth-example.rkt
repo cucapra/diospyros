@@ -42,11 +42,10 @@
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
   (match-define (matrix A-rows _ _) mat-A)
   (match-define (matrix _ B-cols _) mat-B)
-  ; Program preamble to load the initial vectors and define the "zero" vector.
+  ; Program preamble to define the "zero" vector.
   (define preamble
     (list
-      (vec-const 'Z (vector 0))
-      (vec-const 'C (make-vector (* A-rows B-cols) 0))))
+      (vec-const 'Z (vector 0))))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -76,6 +75,8 @@
   (define env (make-hash))
   (hash-set! env 'A A-elements)
   (hash-set! env 'B B-elements)
+  (hash-set! env 'C (make-vector (* A-rows B-cols)
+                                 0))
 
   (define cost
     (interp sketch
@@ -107,18 +108,6 @@
                                             (map matrix-elements args)))
                 #:max-cost 24
                 #:min-cost 12))
-  (pretty-print (evaluate mmul model)))
 
-  ;;(define C-sketch (run-matrix-mul-sketch mmul A B))
-  ;(match-define C-spec (matrix-multiply-spec A B))
-  ;(define model
-    ;(time
-      ;(synthesize
-        ;#:forall inps
-        ;#:guarantee (assert (equal? C-spec C-sketch)))))
-  ;(define sol
-    ;(if (sat? model) (evaluate mmul model) model))
-  ;(pretty-print '-----------)
-  ; Calculate solution cost
-  #|(run-matrix-mul-sketch sol A B
-                         #:cost-fn (curry simple-shuffle-cost 4)))|#
+  (pretty-print (if (sat? model) (evaluate mmul model) model)))
+
