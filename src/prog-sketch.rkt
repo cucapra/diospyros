@@ -56,7 +56,6 @@
            shuf-names))
     (values insts shuf-names)))
 
-
 ; TODO(rachit): Define a sketch where the compute can use previously defined
 ; shuffle vectors. The sketch should take a parameter `n` that specifies the
 ; "history" of shuffle vectors the compute at iteration `i` can use.
@@ -69,3 +68,27 @@
 ; patterns as long as the compute kernels can commute. To reuse a shuffle
 ; vector that is further away, the synthesizer can simply reorder the
 ; computation.
+(define (sketch-compute-shuffle-interleave-history shuffle-thunk
+                                                   compute-thunk
+                                                   number
+                                                   #:window-size window-size)
+
+  (define (take-window vec start end)
+    (vector-take (vector-drop vec
+                              (max 0 start)
+                              start)
+                 (add1 end)))
+
+  ; Store the names of currently defined shufs
+  (define def-shufs (make-vector number #f))
+
+  (define instructions
+    (for/list ([i (in-range number)])
+      (define-values (shuffle-defs shuffle-names)
+        (shuffle-thunk i))
+      (vector-set! def-shufs i shuffle-names)
+      (define compute
+        (compute-thunk i (take-window (- i window-size) i)))
+      (append (shuffle-defs compute))))
+
+  (flatten instructions))
