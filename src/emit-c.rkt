@@ -34,7 +34,7 @@
 
   (define (emit-cmds inst)
     (match inst
-      [(vec-load id start size)
+      #|[(vec-load id start size)
        (cond
          [(has-align? memory)
           (match-define (align-pos align offset) (align-env-ref memory))
@@ -47,7 +47,7 @@
           (align-env-set! memory (align-pos align size))
           (list cmd (emit-load id memory size align))])]
       [(vec-unload id start)
-       ""]
+       ""]|#
       [(vec-const id init)
        (add-shuffle-global (emit-global-vector id init))
        (list)]
@@ -70,8 +70,8 @@
   (display (cmds-to-lines cmds)))
 
 (define/prog pg
-  ('a = vec-load 0 10)
-  ('b = vec-load 10 20)
+  ;('a = vec-load 0 10)
+  ;('b = vec-load 10 20)
   ('c = vec-shuffle (vector 0 1 2 3) 'a )
   ('d = vec-select (vector 0 1 4 5) 'a 'b))
 

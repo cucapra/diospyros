@@ -10,10 +10,6 @@
 ; A program is a sequence of instructions.
 (struct prog (insts) #:transparent)
 
-; Load and unload vectors from memory.
-(struct vec-load (id start size) #:transparent)
-(struct vec-unload (id start) #:transparent)
-
 ; Set constant vector in memory.
 (struct vec-const (id init) #:transparent)
 
@@ -58,11 +54,11 @@
       (test-case
         "syntax macro generates a valid program"
         (define/prog p
-          ('x = vec-load 10 20)
-          (vec-unload 'x 20))
+          ('x = vec-const (vector 0))
+          (vec-shuffle-set! 'y 'x 20))
         (define prog-gold
           (prog
             `(
-              ,(vec-load 'x 10 20)
-              ,(vec-unload 'x 20))))
+              ,(vec-const 'x (vector 0))
+              ,(vec-shuffle-set! 'y 'x 20))))
         (check-equal? p prog-gold)))))

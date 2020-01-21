@@ -29,11 +29,10 @@
 ; variables.
 ; `fn-defns` is an optional argument to provide external function definitions
 (define (interp program
-                memory
+                env
                 #:cost-fn [cost-fn (thunk* 0)]
                 #:fn-map [fn-map default-fn-defns])
   ; The environment mapping for the program.
-  (define env (make-hash))
   (define (env-set! key val)
     (hash-set! env key val))
   (define (env-ref key)
@@ -45,15 +44,8 @@
     (set! cur-cost (+ cur-cost val)))
 
   (for ([inst (prog-insts program)])
-    ;(pretty-print `(,inst ,memory))
     (define inst-cost
       (match inst
-        [(vec-load id start size)
-         (env-set! id (read-vec memory start size))
-         (cost-fn inst)]
-        [(vec-unload id start)
-         (write-vec! memory start (env-ref id))
-         (cost-fn inst)]
         [(vec-const id init)
          (env-set! id init)
          (cost-fn inst)]
@@ -68,7 +60,7 @@
                [inp2-val (env-ref inp2)]
                [idxs-val (env-ref idxs)])
            (env-set! id (vector-select inp1-val inp2-val idxs-val))
-           (cost-fn (vec-select id inp1-val inp2-val idxs-val)))]
+           (cost-fn (vec-select id idxs-val inp1-val inp2-val)))]
         [(vec-shuffle-set! out-vec idxs inp)
          (let ([out-vec-val (env-ref out-vec)]
                [inp-val (env-ref inp)]
@@ -108,29 +100,24 @@
       "interp tests"
       (test-case
         "Write out constant vector"
-        (define memory
-          (make-vector 4 0))
+        (define env (make-hash))
         (define gold
           (vector 1 2 3 4))
         (define/prog p
-          ('x = vec-const gold)
-          (vec-unload 'x 0))
-        (interp p memory)
-        (check-equal? (read-vec memory 0 4) gold))
+          ('x = vec-const gold))
+        (interp p env)
+        (check-equal? (hash-ref env 'x) gold))
 
       (test-case
         "create shuffled vector"
-        (define memory
-          (make-vector 4 0))
-        (define gold
-          (vector 3 1 2 0))
+        (define env (make-hash))
+        (define gold (vector 3 1 2 0))
         (define/prog p
           ('const = vec-const (vector 0 1 2 3))
           ('idxs = vec-const (vector 3 1 2 0))
-          ('shuf = vec-shuffle 'idxs 'const)
-          (vec-unload 'shuf 0))
-        (interp p memory)
-        (check-equal? (read-vec memory 0 4) gold))
+          ('shuf = vec-shuffle 'idxs 'const))
+        (interp p env)
+        (check-equal? (hash-ref env 'shuf) gold))
 
       (test-case
         "simple-shuffle-cost calculates cost correctly"
@@ -145,13 +132,13 @@
           ('s2 = vec-select 'i3 'a 'b))
         (check-equal?
           (interp p
-                  (make-vector 4)
-                  (curry simple-shuffle-cost 2)) 5)
+                  (make-hash)
+                  #:cost-fn (curry simple-shuffle-cost 2)) 5)
         ; cost depends on the current-reg-size
         (parameterize ([current-reg-size 2])
           (check-equal?
             (interp p
-                    (make-vector 4)
-                    (curry simple-shuffle-cost 4)) 9)))
+                    (make-hash)
+                    #:cost-fn (curry simple-shuffle-cost 4)) 9)))
 
       )))

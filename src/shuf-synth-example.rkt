@@ -44,14 +44,12 @@
 
 ; Generate program sketch for matrix multiply
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
-  (match-define (matrix A-rows A-cols _) mat-A)
-  (match-define (matrix B-rows B-cols _) mat-B)
+  (match-define (matrix A-rows _ _) mat-A)
+  (match-define (matrix _ B-cols _) mat-B)
   ; Program preamble to load the initial vectors and define the "zero" vector.
   (define preamble
     (list
       (vec-const 'Z (vector 0))
-      (vec-load 'A 0 (* A-rows A-cols))
-      (vec-load 'B (* A-rows A-cols) (* B-rows B-cols))
       (vec-const 'C (make-vector (* A-rows B-cols) 0))))
 
   ; Compute description for the sketch
@@ -69,45 +67,35 @@
   (define shuffle-gen
     (symbolic-shuffle-gen 3))
 
-  ; Write final value of C to memory
-  (define epilogue
-    (list (vec-unload 'C
-                      (+ (* A-rows A-cols)
-                         (* B-rows B-cols)))))
-
   (prog
     (append preamble
             (sketch-compute-shuffle-interleave
               shuffle-gen
               compute-gen
-              iterations)
-            epilogue)))
+              iterations))))
 
-(define (run-matrix-mul-sketch sketch mat-A mat-B)
+(define (run-matrix-mul-sketch sketch mat-A mat-B #:cost-fn [cost-fn (thunk* 0)])
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
-  (define memory
-    (make-vector (+ (* A-rows A-cols)
-                    (* B-rows B-cols)
-                    (* A-rows B-cols))
-                 0))
-  (write-vec! memory 0 A-elements)
-  (write-vec! memory (vector-length A-elements) B-elements)
+  (define env (make-hash))
+  (hash-set! env 'A A-elements)
+  (hash-set! env 'B B-elements)
 
-  (interp sketch
-          memory
-          #:fn-map (hash 'vec-mac vector-mac))
+  (define cost
+    (interp sketch
+            env
+            #:cost-fn cost-fn
+            #:fn-map (hash 'vec-mac vector-mac)))
 
-  (read-vec memory
-            (+ (* A-rows A-cols)
-               (* B-rows B-cols))
-            (* A-rows B-cols)))
+  (pretty-print cost)
+
+  (hash-ref env 'C))
 
 
-(parameterize [(current-reg-size 4)]
-  (define A (make-symbolic-matrix 2 3))
-  (define B (make-symbolic-matrix 3 3))
-  (define mmul (matrix-mul-shuffle-sketch A B 5))
+(parameterize [(current-reg-size 2)]
+  (define A (make-symbolic-matrix 2 2))
+  (define B (make-symbolic-matrix 2 2))
+  (define mmul (matrix-mul-shuffle-sketch A B 4))
   (define C-sketch (run-matrix-mul-sketch mmul A B))
   (match-define (spec inps C-spec) (matrix-multiply-spec A B))
   (define model
@@ -115,7 +103,12 @@
       (synthesize
         #:forall inps
         #:guarantee (assert (equal? C-spec C-sketch)))))
-  (pretty-print (if (sat? model) (evaluate mmul model) model)))
+  (define sol
+    (if (sat? model) (evaluate mmul model) model))
+  (pretty-print '-----------)
+  ; Calculate solution cost
+  (run-matrix-mul-sketch sol A B
+                         #:cost-fn (curry simple-shuffle-cost 4)))
 
 
 #|
