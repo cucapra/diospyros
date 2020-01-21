@@ -81,18 +81,18 @@
   (define cost
     (interp sketch
             env
-            #:cost-fn (curry simple-shuffle-cost 2)
+            #:cost-fn (curry simple-shuffle-cost 4)
             #:fn-map (hash 'vec-mac vector-mac)))
 
   (values (hash-ref env 'C) cost))
 
 
-(parameterize [(current-reg-size 2)]
-  (define A (make-symbolic-matrix 2 2))
-  (define B (make-symbolic-matrix 2 2))
+(parameterize [(current-reg-size 4)]
+  (define A (make-symbolic-matrix 2 3))
+  (define B (make-symbolic-matrix 3 3))
 
   ; Generate sketch prog
-  (define mmul (matrix-mul-shuffle-sketch A B 4))
+  (define mmul (matrix-mul-shuffle-sketch A B 5))
   (define (sketch-func args)
     (apply (curry run-matrix-mul-sketch mmul) args))
 
@@ -106,8 +106,8 @@
                 (list A B)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:max-cost 24
-                #:min-cost 12))
+                #:max-cost 40
+                #:min-cost 20))
 
   (pretty-print (if (sat? model) (evaluate mmul model) model)))
 
