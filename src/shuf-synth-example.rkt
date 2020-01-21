@@ -6,6 +6,7 @@
          "interp.rkt"
          "matrix-utils.rkt"
          "prog-sketch.rkt"
+         "synth.rkt"
          racket/trace
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
