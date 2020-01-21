@@ -133,12 +133,12 @@
         (check-equal?
           (interp p
                   (make-hash)
-                  #:cost-fn (curry simple-shuffle-cost 2)) 5)
+                  #:cost-fn (curry simple-shuffle-cost 3)) 5)
         ; cost depends on the current-reg-size
         (parameterize ([current-reg-size 2])
           (check-equal?
             (interp p
                     (make-hash)
-                    #:cost-fn (curry simple-shuffle-cost 4)) 9)))
+                    #:cost-fn (curry simple-shuffle-cost 5)) 7)))
 
       )))
