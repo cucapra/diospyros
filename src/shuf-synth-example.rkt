@@ -37,6 +37,14 @@
 
   (matrix-elements C))
 
+(define (pr v)
+  (pretty-print v)
+  v)
+
+(define (continuous-vec? vec)
+  (let ([i (vector-ref vec 0)])
+    (for ([(el idx) (in-indexed vec)])
+      (assert (pr (equal? el (+ i idx)))))))
 
 ; Generate program sketch for matrix multiply
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
@@ -51,10 +59,13 @@
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
     (match-define (list shuf-A shuf-B shuf-C) shufs)
+
     (list
       (vec-select 'reg-A shuf-A 'A 'Z)
       (vec-select 'reg-B shuf-B 'B 'Z)
       (vec-shuffle 'reg-C shuf-C 'C)
+      ; Uncomment to force the output writes to be continuous.
+      ;(vec-app 'out 'continuous-vec? (list shuf-C))
       (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
       (vec-shuffle-set! 'C shuf-C 'out)))
 
@@ -82,7 +93,8 @@
     (interp sketch
             env
             #:cost-fn (curry simple-shuffle-cost 4)
-            #:fn-map (hash 'vec-mac vector-mac)))
+            #:fn-map (hash 'vec-mac vector-mac
+                           'continuous-vec? continuous-vec?)))
 
   (values (hash-ref env 'C) cost))
 
