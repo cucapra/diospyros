@@ -11,6 +11,9 @@
 (struct prog (insts) #:transparent)
 
 ; Set constant vector in memory.
+(struct vec-extern-decl (id size) #:transparent)
+
+; Set constant vector in memory.
 (struct vec-const (id init) #:transparent)
 
 ; Shuffle instructions inside memory.
@@ -23,6 +26,11 @@
 
 ; Introspection
 (struct vec-print (id) #:transparent)
+
+; Nodes used internally for passes
+
+; Vector load.
+(struct vec-load (id start end))
 
 (require (for-syntax racket/base
                      syntax/parse)

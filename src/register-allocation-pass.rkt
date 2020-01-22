@@ -24,41 +24,56 @@
   (let ([fill (make-vector (- len (vector-length vec)) 0)])
     (vector-append vec fill)))
 
+; Partition a vector into reg-size sections, with an abstract init function.
+; Modifies env and produces a list of new vectors.
+(define (partition-vector env id vec-len reg-size init-fn)
+  ; Map the old id to a nested map of new-ids
+  (let* ([id-map (make-hash)]
+         [new-vecs
+          (for/list ([i (in-range 0 vec-len reg-size)])
+            (let* ([start i]
+                   [end (min vec-len (+ i reg-size))]
+                   [new-init (init-fn start end)]
+                   [new-id (string->symbol
+                            (format "~a_~a_~a" id start end))])
+              ; Add the new vectors to the top level env
+              (hash-set! env new-id new-init)
+              (for ([j (in-range start end 1)])
+                (hash-set! id-map j new-id))
+              (vec-const new-id new-init)))])
+    ; Add the old id as a map to the new ids, by index
+    (hash-set! env id id-map)
+    new-vecs)
+  )
+
 ; Produces 1 or more instructions, modifies env
 (define (alloc-const env reg-size id init)
   (unless (vector? init)
     (error 'alloc-const "failed because ~a is not a vector" init))
   (let ([len (vector-length init)])
-  (cond
-    ; Fill short vectors to register size
-    [(<= len reg-size)
-     (let ([new-init (vector-pad-to init reg-size)])
-       (vector-pad-to init reg-size)
-       (hash-set! env id new-init)
-       (vec-const id new-init))]
-    ; Allocate long vectors to multiple registers
-    [else
-     ; Map the old id to a nested map of new-ids
-     (let* ([id-map (make-hash)]
-       [new-consts 
-        (for/list ([i (in-range 0 len reg-size)])
-          (let* ([start i]
-                 [end (min len (+ i reg-size))]
-                 [section (vector-copy init start end)]
-                 [new-id (string->symbol (format "~a_~a_~a" id start end))]
-                 [new-init (vector-pad-to section reg-size)])
-            ; Add the new vectors to the top level env
-            (hash-set! env new-id new-init)
-            (for ([j (in-range start end 1)])
-              (hash-set! id-map j new-id))
-          (vec-const new-id new-init)))])
-       ; Add the old id as a map to the new ids, by index
-       (hash-set! env id id-map)
-       new-consts)])))
+    (cond
+      ; Fill short vectors to register size
+      [(<= len reg-size)
+       (let ([new-init (vector-pad-to init reg-size)])
+         (vector-pad-to init reg-size)
+         (hash-set! env id new-init)
+         (vec-const id new-init))]
+      ; Allocate long vectors to multiple registers
+      [else
+       (define (copy-init start end)
+         (let ([section (vector-copy init start end)])
+           (vector-pad-to section reg-size)))
+       (partition-vector env id len reg-size copy-init)])))
+
+(define (alloc-extern-decl env reg-size id size)
+  (define (load-init start end)
+    (vec-load id start end))
+  (partition-vector env id len reg-size copy-init))
 
 ; Produces 1 or more instructions, modifies env
 (define (alloc-inst env reg-size inst)
   (match inst
+    [(vec-extern-decl id size) (alloc-extern-decl env reg-size id size)]
     [(vec-const id init) (alloc-const env reg-size id init)]
     [(vec-shuffle id idxs inp) inst]
     [(vec-select id idxs inp1 inp2) inst]
@@ -76,8 +91,11 @@
 ; Test program copied from matmul
 (define p (prog
  (list
+  (vec-extern-decl 'A 6)
+  (vec-extern-decl 'B 9)
   (vec-const 'X '#(0 1 2 3 4 5))
   (vec-const 'Z '#(0))
+  (vec-const `shuf-fake '#(0 1 2 4))
   (vec-const 'shuf0-0 '#(3 1 3 3))
   (vec-const 'shuf1-0 '#(1 3 2 0))
   (vec-const 'shuf2-0 '#(4 0 5 3))

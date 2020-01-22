@@ -19,7 +19,7 @@
   (vector-copy! memory start vec))
 
 (define (default-fn-defns f)
-  (raise (format "attempt to apply undefined function ~a" f)))
+  (error "attempt to apply undefined function ~a" f))
 
 ; Interpretation function that takes a program and an external memory.
 ; MUTATES the memory in place during program interpretation.
@@ -37,6 +37,8 @@
     (hash-set! env key val))
   (define (env-ref key)
     (hash-ref env key))
+  (define (env-has? key)
+    (hash-has-key? env key))
 
   ; Track the cost of the program
   (define cur-cost 0)
@@ -46,6 +48,13 @@
   (for ([inst (prog-insts program)])
     (define inst-cost
       (match inst
+        [(vec-extern-decl id size)
+         (unless (env-has? id)
+           (error "Declared extern vector ~a undefined" id))
+         (let ([def-len (vector-length (env-ref id))])
+           (unless (= def-len size)
+             (error "Mismatch vector size, expected ~a got ~a" size def-len)))
+         (cost-fn inst)]
         [(vec-const id init)
          (env-set! id init)
          (cost-fn inst)]
@@ -135,6 +144,28 @@
           ('shuf = vec-shuffle 'idxs 'const))
         (interp p env)
         (check-equal? (hash-ref env 'shuf) gold))
+
+      (test-case
+       "check external declared vector defined"
+       (define env (make-hash))
+       (hash-set! env `x (make-vector 2 0))
+       (define gold (vector 0 0))
+       (define p (prog (list (vec-extern-decl `x 2))))
+       (interp p env)
+       (check-equal? (hash-ref env `x) gold))
+
+      (test-case
+       "check external declared vector undefined"
+       (define env (make-hash))
+       (define p (prog (list (vec-extern-decl `x 2))))
+       (check-exn exn:fail? (thunk (interp p env))))
+
+      (test-case
+       "check external declared vector wrong size"
+       (define env (make-hash))
+       (hash-set! env `x (make-vector 1 0))
+       (define p (prog (list (vec-extern-decl `x 2))))
+       (check-exn exn:fail? (thunk (interp p env))))
 
       (test-case
         "simple-shuffle-cost calculates cost correctly"
