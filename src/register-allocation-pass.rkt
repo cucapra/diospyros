@@ -1,8 +1,123 @@
 #lang racket
 
-(define (register-allocation prog reg-size)
-  ; TODO: change the program
-  prog)
+(require "ast.rkt"
+         "dsp-insts.rkt"
+         "interp.rkt"
+         "matrix-utils.rkt")
+
+; Determines registersd used and sorts ascending
+(define (ordered-regs-used reg-size shufs)
+  (sort (remove-duplicates (map (curry reg-of reg-size)
+                                (vector->list shufs))) <))
+
+; Truncates shuffles to reference only the accessed registers.
+; reg-size 4,  [0, 1, 8, 9] -> [0, 1, 2, 3]
+(define (truncate-shuf reg-size ordered-regs-used i)
+  (let ([mod (modulo i reg-size)]
+        [offset (* (index-of ordered-regs-used i) reg-size)])
+    (+ mod offset)))
+
+; Pad vector with 0's to given length
+(define (vector-pad-to vec len)
+  (unless (>= len (vector-length vec))
+    (error 'vector-pad-to "failed because ~a is longer than ~a" vec len))
+  (let ([fill (make-vector (- len (vector-length vec)) 0)])
+    (vector-append vec fill)))
+
+; Produces 1 or more instructions, modifies env
+(define (alloc-const env reg-size id init)
+  (unless (vector? init)
+    (error 'alloc-const "failed because ~a is not a vector" init))
+  (let ([len (vector-length init)])
+  (cond
+    ; Fill short vectors to register size
+    [(<= len reg-size)
+     (let ([new-init (vector-pad-to init reg-size)])
+       (vector-pad-to init reg-size)
+       (hash-set! env id new-init)
+       (vec-const id new-init))]
+    ; Allocate long vectors to multiple registers
+    [else 
+     (for/list ([i (in-range 0 len reg-size)])
+       (let* ([start i]
+              [end (min len (+ i reg-size))]
+              [section (vector-copy init start end)]
+              [new-id (string->symbol (format "~a_~a_~a" id start end))]
+              [new-init (vector-pad-to section reg-size)])
+         (hash-set! env new-id new-init)
+         (vec-const new-id new-init)))])))
+
+; Produces 1 or more instructions, modifies env
+(define (alloc-inst env reg-size inst)
+  (match inst
+    [(vec-const id init) (alloc-const env reg-size id init)]
+    [(vec-shuffle id idxs inp) inst]
+    [(vec-select id idxs inp1 inp2) inst]
+    [(vec-shuffle-set! out-vec idxs inp) inst]
+    [(vec-app id f inps) inst]
+    [(vec-print id) inst]
+    [_ (error 'register-allocation "unknown instruction ~a" inst)]))
+
+(define (register-allocation program env reg-size)
+  (define instrs (flatten (map (curry alloc-inst env reg-size)
+                               (prog-insts program))))
+  (prog instrs))
+
+; Test program copied from matmul
+(define p (prog
+ (list
+  (vec-const 'X '#(0 1 2 3 4 5))
+  (vec-const 'Z '#(0))
+  (vec-const 'shuf0-0 '#(3 1 3 3))
+  (vec-const 'shuf1-0 '#(1 3 2 0))
+  (vec-const 'shuf2-0 '#(4 0 5 3))
+  (vec-select 'reg-A 'shuf0-0 'A 'Z)
+  (vec-select 'reg-B 'shuf1-0 'B 'Z)
+  (vec-shuffle 'reg-C 'shuf2-0 'C)
+  (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+  (vec-shuffle-set! 'C 'shuf2-0 'out)
+  (vec-const 'shuf0-1 '#(4 0 0 0))
+  (vec-const 'shuf1-1 '#(3 2 1 0))
+  (vec-const 'shuf2-1 '#(3 2 1 0))
+  (vec-select 'reg-A 'shuf0-1 'A 'Z)
+  (vec-select 'reg-B 'shuf1-1 'B 'Z)
+  (vec-shuffle 'reg-C 'shuf2-1 'C)
+  (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+  (vec-shuffle-set! 'C 'shuf2-1 'out)
+  (vec-const 'shuf0-2 '#(5 4 6 5))
+  (vec-const 'shuf1-2 '#(8 4 5 6))
+  (vec-const 'shuf2-2 '#(5 4 0 3))
+  (vec-select 'reg-A 'shuf0-2 'A 'Z)
+  (vec-select 'reg-B 'shuf1-2 'B 'Z)
+  (vec-shuffle 'reg-C 'shuf2-2 'C)
+  (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+  (vec-shuffle-set! 'C 'shuf2-2 'out)
+  (vec-const 'shuf0-3 '#(2 2 2 2))
+  (vec-const 'shuf1-3 '#(6 9 7 8))
+  (vec-const 'shuf2-3 '#(0 3 1 2))
+  (vec-select 'reg-A 'shuf0-3 'A 'Z)
+  (vec-select 'reg-B 'shuf1-3 'B 'Z)
+  (vec-shuffle 'reg-C 'shuf2-3 'C)
+  (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+  (vec-shuffle-set! 'C 'shuf2-3 'out)
+  (vec-const 'shuf0-4 '#(4 5 1 1))
+  (vec-const 'shuf1-4 '#(5 7 5 4))
+  (vec-const 'shuf2-4 '#(5 4 2 1))
+  (vec-select 'reg-A 'shuf0-4 'A 'Z)
+  (vec-select 'reg-B 'shuf1-4 'B 'Z)
+  (vec-shuffle 'reg-C 'shuf2-4 'C)
+  (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+  (vec-shuffle-set! 'C 'shuf2-4 'out))))
+
+(pretty-print (register-allocation p (make-hash) 4))
+
+
+
+
+
+
+
+
 
 #|
 (define (matrix-mul-sketch mat-A mat-B)
