@@ -7,6 +7,7 @@
          "prog-sketch.rkt"
          "synth.rkt"
          racket/trace
+         racket/generator
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
@@ -80,7 +81,7 @@
               compute-gen
               iterations))))
 
-(define (run-matrix-mul-sketch sketch mat-A mat-B)
+(define (run-matrix-mul-sketch sketch cost-fn mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define env (make-hash))
@@ -92,7 +93,7 @@
   (define cost
     (interp sketch
             env
-            #:cost-fn (curry simple-shuffle-cost 4)
+            #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
                            'continuous-vec? continuous-vec?)))
 
@@ -106,20 +107,36 @@
   ; Generate sketch prog
   (define mmul (matrix-mul-shuffle-sketch A B 5))
   (define (sketch-func args)
-    (apply (curry run-matrix-mul-sketch mmul) args))
+    (apply (curry run-matrix-mul-sketch
+                  mmul
+                  (make-shuffle-unique-cost))
+           args))
 
   ; Functionalize spec for minimization prog
   (define (spec-func args)
     (apply matrix-multiply-spec args))
 
-  (define model
+  (define model-generator
     (synth-prog spec-func
                 sketch-func
                 (list A B)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:max-cost 40
-                #:min-cost 20))
+                #:max-cost 14
+                #:min-cost 0))
 
-  (pretty-print (if (sat? model) (evaluate mmul model) model)))
+  (for ([model (in-producer model-generator (void))])
+    (if (sat? model)
+      (let*-values ([(p) (evaluate mmul model)]
+             [(_ uniq-cost) (run-matrix-mul-sketch p
+                                                   (make-shuffle-unique-cost)
+                                                   A B)]
+             [(_ regs-cost) (run-matrix-mul-sketch p
+                                                   (curry simple-shuffle-cost 4)
+                                                   A B)])
+        (pretty-print p)
+        (pretty-print `(unique-idxs-cost: ,uniq-cost))
+        (pretty-print `(registers-touched-cost: ,regs-cost))
+        (pretty-print '-------------------------------------------------------))
+      (pretty-print model))))
 
