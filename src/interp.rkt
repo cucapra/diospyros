@@ -92,6 +92,23 @@
      (reg-used idxs (current-reg-size) reg-upper-bound)]
     [_ 0]))
 
+; Cost of program is simple-shuffle-cost + number of unique shuffle idxs used.
+(define (make-shuffle-unique-cost reg-upper-bound)
+  (define idxs-def (list))
+  (lambda (inst)
+    (+ (match inst
+         [(or (vec-shuffle _ idxs _)
+              (vec-select _ idxs _ _)
+              (vec-shuffle-set! _ idxs _))
+          ; begin0 evaluate the whole body and returns the value from the first
+          ; expression.
+          (begin0
+            (if (ormap (lambda (el) (equal? el idxs)) idxs-def) 0 1)
+            ; Add this idxs to the currently defined idxs
+            (set! idxs-def (cons idxs idxs-def)))]
+         [_ 0])
+       (simple-shuffle-cost reg-upper-bound inst))))
+
 (module+ test
   (require rackunit
            rackunit/text-ui)
@@ -141,4 +158,35 @@
                     (make-hash)
                     #:cost-fn (curry simple-shuffle-cost 5)) 7)))
 
+      (test-case
+        "shuffle-unique-cost does not increase cost for repeated idxs"
+        (define/prog p
+          ('a = vec-const (vector 0 1 2 3 4 5 6 7))
+          ('b = vec-const (vector 8 9 10 11 12 13 14 15))
+          ('i1 = vec-const (vector 1 2 3 0))
+          ('i2 = vec-const (vector 0 3 2 1))
+          ('i3 = vec-const (vector 0 1 8 9))
+          ('s1 = vec-shuffle 'i1 'a)
+          ('s2 = vec-shuffle 'i1 'a)
+          ('s2 = vec-select 'i3 'a 'b))
+        (check-equal?
+          (interp p
+                  (make-hash)
+                  #:cost-fn (make-shuffle-unique-cost 3)) 6))
+
+      (test-case
+        "shuffle-unique-cost calculates different cost for unique idxs"
+        (define/prog p
+          ('a = vec-const (vector 0 1 2 3 4 5 6 7))
+          ('b = vec-const (vector 8 9 10 11 12 13 14 15))
+          ('i1 = vec-const (vector 1 2 3 0))
+          ('i2 = vec-const (vector 0 3 2 1))
+          ('i3 = vec-const (vector 0 1 8 9))
+          ('s1 = vec-shuffle 'i1 'a)
+          ('s2 = vec-shuffle 'i2 'a)    ; different from previous test
+          ('s2 = vec-select 'i3 'a 'b))
+        (check-equal?
+          (interp p
+                  (make-hash)
+                  #:cost-fn (make-shuffle-unique-cost 3)) 7))
       )))
