@@ -37,15 +37,24 @@
        (hash-set! env id new-init)
        (vec-const id new-init))]
     ; Allocate long vectors to multiple registers
-    [else 
-     (for/list ([i (in-range 0 len reg-size)])
-       (let* ([start i]
-              [end (min len (+ i reg-size))]
-              [section (vector-copy init start end)]
-              [new-id (string->symbol (format "~a_~a_~a" id start end))]
-              [new-init (vector-pad-to section reg-size)])
-         (hash-set! env new-id new-init)
-         (vec-const new-id new-init)))])))
+    [else
+     ; Map the old id to a nested map of new-ids
+     (let* ([id-map (make-hash)]
+       [new-consts 
+        (for/list ([i (in-range 0 len reg-size)])
+          (let* ([start i]
+                 [end (min len (+ i reg-size))]
+                 [section (vector-copy init start end)]
+                 [new-id (string->symbol (format "~a_~a_~a" id start end))]
+                 [new-init (vector-pad-to section reg-size)])
+            ; Add the new vectors to the top level env
+            (hash-set! env new-id new-init)
+            (for ([j (in-range start end 1)])
+              (hash-set! id-map j new-id))
+          (vec-const new-id new-init)))])
+       ; Add the old id as a map to the new ids, by index
+       (hash-set! env id id-map)
+       new-consts)])))
 
 ; Produces 1 or more instructions, modifies env
 (define (alloc-inst env reg-size inst)
@@ -61,6 +70,7 @@
 (define (register-allocation program env reg-size)
   (define instrs (flatten (map (curry alloc-inst env reg-size)
                                (prog-insts program))))
+  (pretty-print env)
   (prog instrs))
 
 ; Test program copied from matmul
@@ -110,14 +120,6 @@
   (vec-shuffle-set! 'C 'shuf2-4 'out))))
 
 (pretty-print (register-allocation p (make-hash) 4))
-
-
-
-
-
-
-
-
 
 #|
 (define (matrix-mul-sketch mat-A mat-B)
