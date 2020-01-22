@@ -30,7 +30,7 @@
 ; Nodes used internally for passes
 
 ; Vector load.
-(struct vec-load (id start end))
+(struct vec-load (id start end) #:transparent)
 
 (require (for-syntax racket/base
                      syntax/parse)

@@ -68,7 +68,7 @@
 (define (alloc-extern-decl env reg-size id size)
   (define (load-init start end)
     (vec-load id start end))
-  (partition-vector env id len reg-size copy-init))
+  (partition-vector env id size reg-size load-init))
 
 ; Produces 1 or more instructions, modifies env
 (define (alloc-inst env reg-size inst)
