@@ -102,21 +102,20 @@
     [_ 0]))
 
 ; Cost of program is simple-shuffle-cost + number of unique shuffle idxs used.
-(define (make-shuffle-unique-cost reg-upper-bound)
+(define (make-shuffle-unique-cost)
   (define idxs-def (list))
   (lambda (inst)
-    (+ (match inst
-         [(or (vec-shuffle _ idxs _)
-              (vec-select _ idxs _ _)
-              (vec-shuffle-set! _ idxs _))
-          ; begin0 evaluate the whole body and returns the value from the first
-          ; expression.
-          (begin0
-            (if (ormap (lambda (el) (equal? el idxs)) idxs-def) 0 1)
-            ; Add this idxs to the currently defined idxs
-            (set! idxs-def (cons idxs idxs-def)))]
-         [_ 0])
-       (simple-shuffle-cost reg-upper-bound inst))))
+    (match inst
+      [(or (vec-shuffle _ idxs _)
+           (vec-select _ idxs _ _)
+           (vec-shuffle-set! _ idxs _))
+       ; begin0 evaluate the whole body and returns the value from the first
+       ; expression.
+       (begin0
+         (if (ormap (lambda (el) (equal? el idxs)) idxs-def) 0 1)
+         ; Add this idxs to the currently defined idxs
+         (set! idxs-def (cons idxs idxs-def)))]
+      [_ 0])))
 
 (module+ test
   (require rackunit
@@ -203,7 +202,7 @@
         (check-equal?
           (interp p
                   (make-hash)
-                  #:cost-fn (make-shuffle-unique-cost 3)) 6))
+                  #:cost-fn (make-shuffle-unique-cost)) 6))
 
       (test-case
         "shuffle-unique-cost calculates different cost for unique idxs"
@@ -219,5 +218,5 @@
         (check-equal?
           (interp p
                   (make-hash)
-                  #:cost-fn (make-shuffle-unique-cost 3)) 7))
+                  #:cost-fn (make-shuffle-unique-cost)) 7))
       )))
