@@ -90,15 +90,16 @@
 
 ; Cost of a program is the sum of the registers touched by each indices vector
 ; passed to a shuffle-like instruction.
-(define (simple-shuffle-cost reg-upper-bound inst)
-  (match inst
-    [(or (vec-shuffle _ idxs _)
-         (vec-select _ idxs _ _)
-         (vec-shuffle-set! _ idxs _))
-     (reg-used idxs (current-reg-size) reg-upper-bound)]
-    [_ 0]))
+(define (make-register-cost reg-upper-bound)
+  (lambda (inst)
+    (match inst
+      [(or (vec-shuffle _ idxs _)
+           (vec-select _ idxs _ _)
+           (vec-shuffle-set! _ idxs _))
+       (reg-used idxs (current-reg-size) reg-upper-bound)]
+      [_ 0])))
 
-; Cost of program is simple-shuffle-cost + number of unique shuffle idxs used.
+; Cost of program is the number of unique shuffle idxs used.
 (define (make-shuffle-unique-cost)
   (define idxs-def (list))
   (lambda (inst)
@@ -164,7 +165,7 @@
        (check-exn exn:fail? (thunk (interp p env))))
 
       (test-case
-        "simple-shuffle-cost calculates cost correctly"
+        "make-register-cost calculates cost correctly"
         (define/prog p
           ('a = vec-const (vector 0 1 2 3 4 5 6 7))
           ('b = vec-const (vector 8 9 10 11 12 13 14 15))
@@ -177,13 +178,13 @@
         (check-equal?
           (interp p
                   (make-hash)
-                  #:cost-fn (curry simple-shuffle-cost 3)) 5)
+                  #:cost-fn (make-register-cost 3)) 5)
         ; cost depends on the current-reg-size
         (parameterize ([current-reg-size 2])
           (check-equal?
             (interp p
                     (make-hash)
-                    #:cost-fn (curry simple-shuffle-cost 5)) 7)))
+                    #:cost-fn (make-register-cost 5)) 7)))
 
       (test-case
         "shuffle-unique-cost does not increase cost for repeated idxs"

@@ -106,10 +106,16 @@
 
   ; Generate sketch prog
   (define mmul (matrix-mul-shuffle-sketch A B 5))
+  (define (cost-fn)
+    (let ([cost-1 (make-shuffle-unique-cost)]
+          [cost-2 (make-register-cost 4)])
+    (lambda (inst)
+      (+ (cost-1 inst) (cost-2 inst)))))
+
   (define (sketch-func args)
     (apply (curry run-matrix-mul-sketch
                   mmul
-                  (make-shuffle-unique-cost))
+                  (cost-fn))
            args))
 
   ; Functionalize spec for minimization prog
@@ -122,7 +128,7 @@
                 (list A B)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:max-cost 14
+                #:max-cost 100
                 #:min-cost 0))
 
   (for ([model (in-producer model-generator (void))])
@@ -132,7 +138,7 @@
                                                    (make-shuffle-unique-cost)
                                                    A B)]
              [(_ regs-cost) (run-matrix-mul-sketch p
-                                                   (curry simple-shuffle-cost 4)
+                                                   (make-register-cost 4)
                                                    A B)])
         (pretty-print p)
         (pretty-print `(unique-idxs-cost: ,uniq-cost))
