@@ -24,9 +24,6 @@
 ; Apply functions on vectors.
 (struct vec-app (id f inps) #:transparent)
 
-; Introspection
-(struct vec-print (id) #:transparent)
-
 ; Nodes used internally for passes
 
 ; Vector load.

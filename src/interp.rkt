@@ -81,9 +81,6 @@
                [fn (hash-ref fn-map f)])
            (env-set! id (apply fn inps-val))
            (cost-fn (vec-app id f inps-val)))]
-        [(vec-print id)
-         (pretty-print (env-ref id))
-         (cost-fn inst)]
         [_ (assert #f (~a "unknown instruction " inst))]))
 
     (incr-cost! inst-cost))

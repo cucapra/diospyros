@@ -88,9 +88,6 @@
      (define-id id)
      (check-defined inps)
      inst]
-    [(vec-print id)
-     (check-defined (list id))
-     inst]
     [_ (error 'register-allocation "unknown instruction ~a" inst)]))
 
 (define (register-allocation program env reg-size)
@@ -107,7 +104,7 @@
   (run-tests
     (test-suite
       "interp tests"
-      
+
       (test-case
         "Pad small vectors"
         (define env (make-hash))
