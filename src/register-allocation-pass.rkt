@@ -7,18 +7,6 @@
 
 (provide (all-defined-out))
 
-; Determines registersd used and sorts ascending
-(define (ordered-regs-used reg-size shufs)
-  (sort (remove-duplicates (map (curry reg-of reg-size)
-                                (vector->list shufs))) <))
-
-; Truncates shuffles to reference only the accessed registers.
-; reg-size 4,  [0, 1, 8, 9] -> [0, 1, 2, 3]
-(define (truncate-shuf reg-size ordered-regs-used i)
-  (let ([mod (modulo i reg-size)]
-        [offset (* (index-of ordered-regs-used i) reg-size)])
-    (+ mod offset)))
-
 ; Pad vector with 0's to given length
 (define (vector-pad-to vec len)
   (unless (>= len (vector-length vec))
@@ -110,3 +98,39 @@
                                (prog-insts program))))
   ;(pretty-print env)
   (prog instrs))
+
+; Testing
+
+(module+ test
+  (require rackunit
+           rackunit/text-ui)
+  (run-tests
+    (test-suite
+      "interp tests"
+      
+      (test-case
+        "Pad small vectors"
+        (define env (make-hash))
+        (define reg-size 4)
+        (define/prog p
+          ('x = vec-const (vector 0)))
+        (define new-p (register-allocation p env reg-size))
+        (define/prog gold
+          ('x = vec-const (vector 0 0 0 0)))
+        (check-equal? new-p gold)
+        (check-equal? (hash-ref env 'x) (vector 0 0 0 0)))
+
+      (test-case
+        "Partition large vectors"
+        (define env (make-hash))
+        (define reg-size 4)
+        (define/prog p
+          ('x = vec-const (vector 0 1 2 3 4 5 6)))
+        (define new-p (register-allocation p env reg-size))
+        (define section-1-gold (vector 0 1 2 3))
+        (define section-2-gold (vector 4 5 6 0))
+        (define/prog gold
+          ('x_0_4 = vec-const section-1-gold)
+          ('x_4_7 = vec-const section-2-gold))
+        (check-equal? new-p gold)
+        (check-equal? (hash-ref (hash-ref env 'x) 0) 'x_0_4)))))
