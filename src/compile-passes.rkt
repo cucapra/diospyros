@@ -6,6 +6,7 @@
   (pretty-print v)
   v)
 
+; Conversion to static single assignment form
 (define (ssa p)
   (define name-map (make-hash))
 
@@ -95,6 +96,135 @@
 
   (prog (flatten new-insts)))
 
+; Get the destination id for an instruction
+(define (get-id i)
+  (match i
+    [(vec-const id _) id]
+    [(vec-shuffle id _ _) id]
+    [(vec-select id _ _ _) id]
+    [(vec-shuffle-set! id _ _) id]
+    ; TODO: functions might mutate/write to args
+    [(vec-app id _ _) id]
+    [_ void]))
+
+; Get the cannonical value for an instruction
+(define (cannonicalize id-to-num i)
+  (match i
+    [(vec-extern-decl id size)
+     ; External declarations should not be deduplicated, so keep id
+     '(`vec-extern-decl id)]
+    [(vec-const id init)
+     '(`vec-const init)]
+    [(vec-shuffle id idxs inp)
+     '(`vec-shuffle (id-to-num idxs) (id-to-num inp))]
+    [(vec-select id idxs inp1 inp2)
+     '(`vec-select (id-to-num idxs) (id-to-num inp1) (id-to-num inp2))]
+    [(vec-shuffle-set! out-vec idxs inp)
+     '(vec-shuffle-set! (id-to-num idxs) (id-to-num inp))]
+    [(vec-app id f inps)
+     '(vec-app f (id-to-num inps))]))
+
+; Local value numbering
+(define (lvn p)
+  ; Process last writes in reverse order
+  (define seen (mutable-set))
+  (define (last-write? inst)
+    (define (check-id id)
+      (cond
+        [(set-member? seen id) #f]
+        [else (set-add! seen id) #t]))
+
+    (let ([id (get-id inst)])
+      (and (not (void? id)) (check-id id))))
+
+  ; Create a list of pairs: last write boolean and the instruction
+  (define (fold-proc i acc) (cons (cons (last-write? i) i) acc))
+  (define last-write-pairs (foldr fold-proc '() (prog-insts p)))
+
+  ; Track numbers
+  (define id-to-num (make-hash))
+  (define cur-num -1)
+  (define (new-num)
+    (set! cur-num (add1 cur-num))
+    cur-num)
+
+  ; Add a id with a fresh number, returns the number
+  (define (add-to-numbering id)
+    (define n (new-num))
+    (hash-set! id-to-num id n)
+    n)
+
+  ; Auxiliary maps
+  (define value-to-num (make-hash))
+  (define (lookup-value val)
+    (hash-ref value-to-num val))
+  (define (mapped-value? val)
+    (hash-has-key? value-to-num val))
+
+  ; Canonical id
+  (define num-to-id (make-hash))
+
+  ; Write all external declarations
+  (for ([i (prog-insts p)])
+    (match i  
+      [(vec-extern-decl id _)
+       (define new-num (add-to-numbering id))
+       (hash-set! num-to-id new-num id)]
+      [_ void]))
+
+  ; Iterate over instructions with their last-write booleans
+  (define new-insts
+    (for/list ([pair last-write-pairs])
+      (match-define (cons last-write i) pair)
+      (define id (get-id i))
+      (define cannonical (cannonicalize (curry hash-ref id-to-num) i))
+      (pretty-print cannonical)
+    
+      ; Writes to destination and it's already mapped
+      (define already-mapped
+        (and (not (void? id)) (mapped-value? cannonical)))
+
+      (cond
+        ; Already computed this value
+        [already-mapped
+         (define num (lookup-value cannonical))
+         (hash-set! id-to-num id num)
+         (list `identity (hash-ref num-to-id num))]
+        ; New, unseen value
+        [else
+         (define new-num (add-to-numbering id))
+         (define new-id
+           (if last-write id ; Keep last write for output
+               (string->symbol (format "lvn_~a" new-num))))
+       
+         ; Save this new value number
+         (hash-set! num-to-id new-num new-id)
+         (hash-set! value-to-num cannonical new-num)
+
+         (define (replace-arg arg-id)
+           (hash-ref num-to-id (hash-ref id-to-num arg-id)))
+       
+         (match i  
+           [(vec-extern-decl _ size)
+            (vec-extern-decl new-id size)]
+           [(vec-const _ init)
+            (vec-const new-id init)]
+           [(vec-shuffle _ idxs inp)
+            (vec-shuffle new-id (replace-arg idxs) (replace-arg inp))]
+           [(vec-select _ idxs inp1 inp2)
+            (vec-select new-id
+                        (replace-arg idxs)
+                        (replace-arg inp1)
+                        (replace-arg inp2))]
+           [(vec-shuffle-set! _ idxs inp)
+            (vec-shuffle-set! new-id (replace-arg idxs) (replace-arg inp))]
+           [(vec-app _ f inps)
+            (vec-app new-id f (map replace-arg inps))])])))
+  
+  (prog new-insts))
+ 
+  
+
 (module+ test
   (require rackunit
            rackunit/text-ui)
@@ -148,6 +278,11 @@
   (run-tests
     (test-suite
       "compiler passes"
+      
       (test-case
         "const-elim remove instructions"
-        (check-equal? (length (prog-insts (pr (const-elim example)))) 36)))))
+        (check-equal? (length (prog-insts (pr (const-elim example)))) 36))
+
+      (test-case
+       "local value numbering"
+       (check-equal? (length (prog-insts (pr (lvn example)))) 44)))))
