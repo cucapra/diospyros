@@ -2,6 +2,58 @@
 
 (require "ast.rkt")
 
+(define (pr v)
+  (pretty-print v)
+  v)
+
+(define (ssa p)
+  (define name-map (make-hash))
+
+  (define cur-var-num -1)
+  (define (new-var)
+    (set! cur-var-num (add1 cur-var-num))
+    (string->symbol (string-append "%"
+                                   (number->string cur-var-num))))
+
+  (define (rename-binding id)
+    ; If `id` was previously defined, map it to a fresh var.
+    (let ([new-name (new-var)])
+      (hash-set! name-map id new-name)
+      new-name))
+
+  (define (rename-use id)
+    (hash-ref name-map id))
+
+  (define new-insts
+    (for/list ([inst (prog-insts p)])
+      (match inst
+        [(vec-extern-decl id _)
+         (hash-set! name-map id id)
+         inst]
+        [(vec-const id init)
+         (vec-const (rename-binding id) init)]
+        [(vec-shuffle id idxs inp)
+         (vec-shuffle (rename-binding id)
+                      (rename-use idxs)
+                      (rename-use inp))]
+        [(vec-select id idxs inp1 inp2)
+         (vec-select (rename-binding id)
+                     (rename-use idxs)
+                     (rename-use inp1)
+                     (rename-use inp2))]
+        [(vec-shuffle-set! out-vec idxs inp)
+         (vec-shuffle-set! (rename-use out-vec)
+                           (rename-use idxs)
+                           (rename-use inp))]
+        [(vec-app id f args)
+         (vec-app (rename-binding id)
+                  f
+                  (map rename-use args))]
+        [_ (error 'ssa (~a "NYI " inst))])))
+
+  (prog new-insts))
+
+
 ; Eliminate variables mapping to the same constants.
 (define (const-elim p)
   ; Map vector const to canonical name.
@@ -11,9 +63,8 @@
   (define (rename id)
     (hash-ref name-map id))
 
-  (match-define (prog insts) p)
   (define new-insts
-    (for/list ([inst insts])
+    (for/list ([inst (prog-insts p)])
       (match inst
         [(vec-const id init)
          ; Remove the declaration if it's already been defined and add mapping
@@ -99,4 +150,4 @@
       "compiler passes"
       (test-case
         "const-elim remove instructions"
-        (check-equal? (length (prog-insts (const-elim example))) 36)))))
+        (check-equal? (length (prog-insts (pr (const-elim example)))) 36)))))
