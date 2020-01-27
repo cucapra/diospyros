@@ -47,11 +47,14 @@
 
 ; Generate program sketch for matrix multiply
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
-  (match-define (matrix A-rows _ _) mat-A)
-  (match-define (matrix _ B-cols _) mat-B)
+  (match-define (matrix A-rows A-cols _) mat-A)
+  (match-define (matrix B-rows B-cols _) mat-B)
   ; Program preamble to define the "zero" vector.
   (define preamble
     (list
+      (vec-extern-decl 'A (* A-rows A-cols))
+      (vec-extern-decl 'B (* B-rows B-cols))
+      (vec-extern-decl 'C (* A-cols B-rows))
       (vec-const 'Z (vector 0))))
 
   ; Compute description for the sketch

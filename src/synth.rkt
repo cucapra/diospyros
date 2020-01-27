@@ -33,7 +33,7 @@
                                       (assert (<= cost cur-cost)))))
           (list)))
 
-      (pretty-print (~a "cpu time: " cpu-time "ms, real time: " real-time "ms"))
+      (pretty-print (~a "cpu time: " (/ cpu-time 1000) "s, real time: " (/ real-time 1000) "s"))
 
       (define model (first synth-res))
 
