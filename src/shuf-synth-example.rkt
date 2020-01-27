@@ -14,8 +14,6 @@
 (current-solver (boolector))
 (current-bitwidth 8)
 
-(define reg-size 4)
-
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
@@ -81,6 +79,8 @@
               compute-gen
               iterations))))
 
+
+; Run a matrix multiply sketch with symbolic inputs.
 (define (run-matrix-mul-sketch sketch cost-fn mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
@@ -100,6 +100,7 @@
   (values (hash-ref env 'C) cost))
 
 
+; Run the synthesis query
 (parameterize [(current-reg-size 4)]
   (define A (make-symbolic-matrix 2 3))
   (define B (make-symbolic-matrix 3 3))
@@ -107,10 +108,10 @@
   ; Generate sketch prog
   (define mmul (matrix-mul-shuffle-sketch A B 5))
   (define (cost-fn)
-    (let ([cost-1 (make-shuffle-unique-cost)]
+    (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
           [cost-2 (make-register-cost 4)])
-    (lambda (inst)
-      (+ (cost-1 inst) (cost-2 inst)))))
+    (lambda (inst env)
+      (+ (cost-1 inst env) (cost-2 inst env)))))
 
   (define (sketch-func args)
     (apply (curry run-matrix-mul-sketch
@@ -133,15 +134,20 @@
 
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
-      (let*-values ([(p) (evaluate mmul model)]
-             [(_ uniq-cost) (run-matrix-mul-sketch p
-                                                   (make-shuffle-unique-cost)
-                                                   A B)]
-             [(_ regs-cost) (run-matrix-mul-sketch p
-                                                   (make-register-cost 4)
-                                                   A B)])
+      (let*-values
+        ([(p) (evaluate mmul model)]
+         [(_ uniq-cost) (run-matrix-mul-sketch p
+                                               (make-shuffle-unique-cost)
+                                               A B)]
+         [(_ regs-cost) (run-matrix-mul-sketch p
+                                               (make-register-cost 4)
+                                               A B)]
+         [(_ class-uniq-cost) (run-matrix-mul-sketch p
+                                                     (make-shuffle-unique-cost prefix-equiv)
+                                                     A B)])
         (pretty-print p)
         (pretty-print `(unique-idxs-cost: ,uniq-cost))
+        (pretty-print `(class-based-unique-idxs-cost: ,class-uniq-cost))
         (pretty-print `(registers-touched-cost: ,regs-cost))
         (pretty-print '-------------------------------------------------------))
       (pretty-print model))))

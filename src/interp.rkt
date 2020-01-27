@@ -4,6 +4,7 @@
          "ast.rkt"
          "matrix-utils.rkt"
          "prog-sketch.rkt"
+         racket/trace
          rosette/lib/match)
 
 (provide (all-defined-out))
@@ -24,9 +25,9 @@
 ; Interpretation function that takes a program and an external memory.
 ; MUTATES the memory in place during program interpretation.
 ; Returns the cost of the program using `cost-fn`.
-; `cost-fn` takes an instruction returns an integer value describing the cost
-; of the instruction. It ASSUMES that the instruction does not contain any free
-; variables.
+; `cost-fn` takes an instruction and the current environment and returns an
+; integer value describing the cost of the instruction. It ASSUMES that the
+; instruction does not contain any free variables.
 ; `fn-defns` is an optional argument to provide external function definitions
 (define (interp program
                 env
@@ -46,44 +47,37 @@
     (set! cur-cost (+ cur-cost val)))
 
   (for ([inst (prog-insts program)])
-    (define inst-cost
-      (match inst
-        [(vec-extern-decl id size)
-         (unless (env-has? id)
-           (error "Declared extern vector ~a undefined" id))
-         (let ([def-len (vector-length (env-ref id))])
-           (unless (= def-len size)
-             (error "Mismatch vector size, expected ~a got ~a" size def-len)))
-         (cost-fn inst)]
-        [(vec-const id init)
-         (env-set! id init)
-         (cost-fn inst)]
-        [(vec-shuffle id idxs inp)
-         (let ([inp-val (env-ref inp)]
-               [idxs-val (env-ref idxs)])
-           (env-set! id (vector-shuffle inp-val idxs-val))
-           ; Pass a deferenced version of vec-shuffle to cost-fn
-           (cost-fn (vec-shuffle id idxs-val inp-val)))]
-        [(vec-select id idxs inp1 inp2)
-         (let ([inp1-val (env-ref inp1)]
-               [inp2-val (env-ref inp2)]
-               [idxs-val (env-ref idxs)])
-           (env-set! id (vector-select inp1-val inp2-val idxs-val))
-           (cost-fn (vec-select id idxs-val inp1-val inp2-val)))]
-        [(vec-shuffle-set! out-vec idxs inp)
-         (let ([out-vec-val (env-ref out-vec)]
-               [inp-val (env-ref inp)]
-               [idxs-val (env-ref idxs)])
-           (vector-shuffle-set! out-vec-val idxs-val inp-val)
-           (cost-fn (vec-shuffle-set! out-vec-val idxs-val inp-val)))]
-        [(vec-app id f inps)
-         (let ([inps-val (map env-ref inps)]
-               [fn (hash-ref fn-map f)])
-           (env-set! id (apply fn inps-val))
-           (cost-fn (vec-app id f inps-val)))]
-        [_ (assert #f (~a "unknown instruction " inst))]))
+    ; Increase the cost based on the current env
+    (incr-cost! (cost-fn inst env))
 
-    (incr-cost! inst-cost))
+    ; Execute the program instruction
+    (match inst
+      [(vec-extern-decl id size)
+       (unless (env-has? id)
+         (error "Declared extern vector ~a undefined" id))
+       (let ([def-len (vector-length (env-ref id))])
+         (unless (= def-len size)
+           (error "Mismatch vector size, expected ~a got ~a" size def-len)))]
+      [(vec-const id init)
+       (env-set! id init)]
+      [(vec-shuffle id idxs inp)
+       (let ([inp-val (env-ref inp)]
+             [idxs-val (env-ref idxs)])
+         (env-set! id (vector-shuffle inp-val idxs-val)))]
+      [(vec-select id idxs inp1 inp2)
+       (env-set! id (vector-select (env-ref inp1)
+                                   (env-ref inp2)
+                                   (env-ref idxs)))]
+      [(vec-shuffle-set! out-vec idxs inp)
+       (let ([out-vec-val (env-ref out-vec)]
+             [inp-val (env-ref inp)]
+             [idxs-val (env-ref idxs)])
+         (vector-shuffle-set! out-vec-val idxs-val inp-val))]
+      [(vec-app id f inps)
+       (let ([inps-val (map env-ref inps)]
+             [fn (hash-ref fn-map f)])
+         (env-set! id (apply fn inps-val)))]
+      [_ (assert #f (~a "unknown instruction " inst))]))
 
   cur-cost)
 
@@ -91,28 +85,39 @@
 ; Cost of a program is the sum of the registers touched by each indices vector
 ; passed to a shuffle-like instruction.
 (define (make-register-cost reg-upper-bound)
-  (lambda (inst)
+  (lambda (inst env)
     (match inst
       [(or (vec-shuffle _ idxs _)
            (vec-select _ idxs _ _)
            (vec-shuffle-set! _ idxs _))
-       (reg-used idxs (current-reg-size) reg-upper-bound)]
+       (reg-used (hash-ref env idxs)
+                 (current-reg-size)
+                 reg-upper-bound)]
       [_ 0])))
 
 ; Cost of program is the number of unique shuffle idxs used.
-(define (make-shuffle-unique-cost)
-  (define idxs-def (list))
-  (lambda (inst)
+; Uses `shuf-name-eq?` on the name of the shuffle to separate them into
+; different equivalence classes.
+(define (make-shuffle-unique-cost [shuf-name-class (thunk* 0)])
+  ; Store the various equivalence classes separately
+  (define idxs-def-class (make-vector 10 (list)))
+
+  (lambda (inst env)
     (match inst
       [(or (vec-shuffle _ idxs _)
            (vec-select _ idxs _ _)
            (vec-shuffle-set! _ idxs _))
-       ; begin0 evaluate the whole body and returns the value from the first
-       ; expression.
-       (begin0
-         (if (ormap (lambda (el) (equal? el idxs)) idxs-def) 0 1)
-         ; Add this idxs to the currently defined idxs
-         (set! idxs-def (cons idxs idxs-def)))]
+       ; If this is equal to any idxs previously defined for its equivalence
+       ; class, it costs nothing.
+       (let* ([conc-idxs (hash-ref env idxs)]
+              [equiv-class (shuf-name-class idxs)]
+              [idxs-def (vector-ref idxs-def-class equiv-class)])
+         (begin0
+           (if (ormap (lambda (el) (equal? el conc-idxs)) idxs-def) 0 1)
+           ; Add to equivalence class
+           (vector-set! idxs-def-class
+                        equiv-class
+                        (cons conc-idxs idxs-def))))]
       [_ 0])))
 
 (module+ test
@@ -200,7 +205,7 @@
         (check-equal?
           (interp p
                   (make-hash)
-                  #:cost-fn (make-shuffle-unique-cost)) 6))
+                  #:cost-fn (make-shuffle-unique-cost)) 2))
 
       (test-case
         "shuffle-unique-cost calculates different cost for unique idxs"
@@ -216,5 +221,5 @@
         (check-equal?
           (interp p
                   (make-hash)
-                  #:cost-fn (make-shuffle-unique-cost)) 7))
+                  #:cost-fn (make-shuffle-unique-cost)) 3))
       )))

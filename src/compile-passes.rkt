@@ -166,7 +166,7 @@
 
   ; Write all external declarations
   (for ([i (prog-insts p)])
-    (match i  
+    (match i
       [(vec-extern-decl id _)
        (define new-num (add-to-numbering id))
        (hash-set! num-to-id new-num id)]
@@ -179,7 +179,7 @@
       (define id (get-id i))
       (define cannonical (cannonicalize (curry hash-ref id-to-num) i))
       (pretty-print cannonical)
-    
+
       ; Writes to destination and it's already mapped
       (define already-mapped
         (and (not (void? id)) (mapped-value? cannonical)))
@@ -196,15 +196,15 @@
          (define new-id
            (if last-write id ; Keep last write for output
                (string->symbol (format "lvn_~a" new-num))))
-       
+
          ; Save this new value number
          (hash-set! num-to-id new-num new-id)
          (hash-set! value-to-num cannonical new-num)
 
          (define (replace-arg arg-id)
            (hash-ref num-to-id (hash-ref id-to-num arg-id)))
-       
-         (match i  
+
+         (match i
            [(vec-extern-decl _ size)
             (vec-extern-decl new-id size)]
            [(vec-const _ init)
@@ -220,10 +220,9 @@
             (vec-shuffle-set! new-id (replace-arg idxs) (replace-arg inp))]
            [(vec-app _ f inps)
             (vec-app new-id f (map replace-arg inps))])])))
-  
+
   (prog new-insts))
- 
-  
+
 
 (module+ test
   (require rackunit
@@ -278,7 +277,7 @@
   (run-tests
     (test-suite
       "compiler passes"
-      
+
       (test-case
         "const-elim remove instructions"
         (check-equal? (length (prog-insts (pr (const-elim example)))) 36))
