@@ -54,10 +54,10 @@
     (match inst
       [(vec-extern-decl id size)
        (unless (env-has? id)
-         (error "Declared extern vector ~a undefined" id))
+         (error 'interp "Declared extern vector ~a undefined" id))
        (let ([def-len (vector-length (env-ref id))])
          (unless (= def-len size)
-           (error "Mismatch vector size, expected ~a got ~a" size def-len)))]
+           (error 'interp "Mismatch vector size, `~a' expected ~a got ~a" id size def-len)))]
       [(vec-const id init)
        (env-set! id init)]
       [(vec-shuffle id idxs inp)
