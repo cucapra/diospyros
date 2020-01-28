@@ -1,11 +1,11 @@
 #lang rosette
 
-(require "ast.rkt"
-         "dsp-insts.rkt"
-         "interp.rkt"
-         "matrix-utils.rkt"
-         "prog-sketch.rkt"
-         "synth.rkt"
+(require "../ast.rkt"
+         "../dsp-insts.rkt"
+         "../interp.rkt"
+         "../matrix-utils.rkt"
+         "../prog-sketch.rkt"
+         "../synth.rkt"
          racket/trace
          racket/generator
          rosette/solver/smt/z3
@@ -54,7 +54,7 @@
     (list
       (vec-extern-decl 'A (* A-rows A-cols))
       (vec-extern-decl 'B (* B-rows B-cols))
-      (vec-extern-decl 'C (* A-cols B-rows))
+      (vec-extern-decl 'C (* A-rows B-cols))
       (vec-const 'Z (vector 0))))
 
   ; Compute description for the sketch
@@ -112,7 +112,7 @@
   (define mmul (matrix-mul-shuffle-sketch A B 5))
   (define (cost-fn)
     (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (make-register-cost 4)])
+          [cost-2 (thunk* 0)])
     (lambda (inst env)
       (+ (cost-1 inst env) (cost-2 inst env)))))
 
