@@ -51,10 +51,8 @@
       [(vec-const id init)
        (add-shuffle-global (emit-global-vector id init))
        (list)]
-      [(vec-shuffle id idxs inp)
-       (emit-shuffle id inp idxs)]
-      [(vec-select id idxs inp1 inp2)
-       (emit-select id inp1 inp2 idxs)]
+      [(vec-shuffle id idxs inps)
+       (emit-shuffle id idxs inps)]
       [(vec-shuffle-set! out-vec idxs inp)
        ""]
       [(vec-app id f inps)
@@ -72,7 +70,7 @@
 (define/prog pg
   ;('a = vec-load 0 10)
   ;('b = vec-load 10 20)
-  ('c = vec-shuffle (vector 0 1 2 3) 'a )
-  ('d = vec-select (vector 0 1 4 5) 'a 'b))
+  ('c = vec-shuffle (vector 0 1 2 3) (list 'a))
+  ('d = vec-shuffle (vector 0 1 4 5) (list 'a 'b)))
 
 ;(emit pg 30)

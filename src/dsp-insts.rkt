@@ -5,18 +5,18 @@
 
 (provide vector-shuffle
          vector-shuffle-set!
-         vector-select
          vector-multiply
          vector-mac)
 
 ;; Define set of instructions commonly found in DSP architectures.
 
 ;; VECTOR SHUFFLE
-(define (vector-shuffle inp idxs)
+(define (vector-shuffle inps idxs)
+  (define all-inp (apply vector-append inps))
   (for/vector ([idx idxs])
-    (assert (< idx (vector-length inp))
-            (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" idx inp))
-    (vector-ref inp idx)))
+    (assert (< idx (vector-length all-inp))
+            (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" idx all-inp))
+    (vector-ref all-inp idx)))
 
 ;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]
 (define (vector-shuffle-set! out-vec idxs vals)
@@ -30,10 +30,6 @@
         [val vals])
     (vector-set! out-vec idx val))
   out-vec)
-
-;; VECTOR SELECT
-(define (vector-select inp1 inp2 idxs)
-  (vector-shuffle (vector-append inp1 inp2) idxs))
 
 ;; VECTOR MULTIPLY
 (define (vector-multiply v1 v2)
@@ -58,11 +54,11 @@
   (test-suite
     "DSP instructions tests"
     (test-case
-      "VECTOR-SHUFFLE: basic example"
+      "VECTOR-SHUFFLE: basic example, one register"
       (let ([inp (vector 0 1 2 3 4)]
             [idxs (vector 1 1 0 3 4 2)]
             [gold (vector 1 1 0 3 4 2)])
-        (check-equal? (vector-shuffle inp idxs) gold)))
+        (check-equal? (vector-shuffle (list inp) idxs) gold)))
 
     (test-case
       "VECTOR-SHUFFLE: synthesize indices"
@@ -74,19 +70,19 @@
       (define idxs-synth
         (evaluate
           idxs
-          (solve (assert (equal? (vector-shuffle inp idxs) out-gold)))))
+          (solve (assert (equal? (vector-shuffle (list inp) idxs) out-gold)))))
       (check-equal? idxs-synth idxs-gold))
 
     (test-case
-      "VECTOR-SELECT basic example"
+      "VECTOR-SHUFFLE: basic example, multiple registers"
       (let ([inp1 (vector 0 1 2 3)]
             [inp2 (vector 10 11 12 13)]
             [idxs (vector 7 7 0 3 2 5)]
             [gold (vector 13 13 0 3 2 11)])
-        (check-equal? (vector-select inp1 inp2 idxs) gold)))
+        (check-equal? (vector-shuffle (list inp1 inp2) idxs) gold)))
 
     (test-case
-      "VECTOR-SHUFFLE-SET: basic example"
+      "VECTOR-SHUFFLE-SET: basic example, one register"
       (let ([out-vec (vector 0 0 0 0)]
             [vals (vector 10 11 12 13)]
             [idxs (vector 3 1 0 2)]

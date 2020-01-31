@@ -73,13 +73,9 @@
     [(vec-const id init)
      (define-id id)
      (alloc-const env reg-size id init)]
-    [(vec-shuffle id idxs inp)
+    [(vec-shuffle id idxs inps)
      (define-id id)
-     (check-defined (list idxs inp))
-     inst]
-    [(vec-select id idxs inp1 inp2)
-     (define-id id)
-     (check-defined (list idxs inp1 inp2))
+     (check-defined (apply list idxs inps))
      inst]
     [(vec-shuffle-set! out-vec idxs inp)
      (check-defined (list idxs inp))
@@ -93,7 +89,6 @@
 (define (register-allocation program env reg-size)
   (define instrs (flatten (map (curry alloc-inst env reg-size)
                                (prog-insts program))))
-  ;(pretty-print env)
   (prog instrs))
 
 ; Testing

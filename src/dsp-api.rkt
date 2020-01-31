@@ -37,15 +37,14 @@
           shuffle-id  (vector-length init) idxs-string))
 
 ; XXX(alexa): model these casts explicitly
-; Shuffle (single input) 
-(define (emit-shuffle id inp idxs)
-  (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
-          id inp (pointer-to shuffle-idx-ty) idxs))
-
-; Select (two inputs)
-(define (emit-select id inp1 inp2 idxs)
-  (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
-          id inp2 inp1 (pointer-to shuffle-idx-ty) idxs))
+; Shuffle
+(define (emit-shuffle id idxs inps)
+  (match (length inps 1)
+    [1
+     (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
+             id (first inps) (pointer-to shuffle-idx-ty) idxs)]
+    [2  (format "~a = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(~a), PDX_MOV_MX32_FROM_MXF32(~a), *(~a~a)))"
+                id (first inps) (second inps) (pointer-to shuffle-idx-ty) idxs)]))
 
 ; Intrinsics
 (define (emit-app f inps)

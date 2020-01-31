@@ -60,14 +60,10 @@
            (error 'interp "Mismatch vector size, `~a' expected ~a got ~a" id size def-len)))]
       [(vec-const id init)
        (env-set! id init)]
-      [(vec-shuffle id idxs inp)
-       (let ([inp-val (env-ref inp)]
+      [(vec-shuffle id idxs inps)
+       (let ([inp-vals (map env-ref inps)]
              [idxs-val (env-ref idxs)])
-         (env-set! id (vector-shuffle inp-val idxs-val)))]
-      [(vec-select id idxs inp1 inp2)
-       (env-set! id (vector-select (env-ref inp1)
-                                   (env-ref inp2)
-                                   (env-ref idxs)))]
+         (env-set! id (vector-shuffle inp-vals idxs-val)))]
       [(vec-shuffle-set! out-vec idxs inp)
        (let ([out-vec-val (env-ref out-vec)]
              [inp-val (env-ref inp)]
@@ -88,7 +84,6 @@
   (lambda (inst env)
     (match inst
       [(or (vec-shuffle _ idxs _)
-           (vec-select _ idxs _ _)
            (vec-shuffle-set! _ idxs _))
        (reg-used (hash-ref env idxs)
                  (current-reg-size)
@@ -105,7 +100,6 @@
   (lambda (inst env)
     (match inst
       [(or (vec-shuffle _ idxs _)
-           (vec-select _ idxs _ _)
            (vec-shuffle-set! _ idxs _))
        ; If this is equal to any idxs previously defined for its equivalence
        ; class, it costs nothing.
@@ -143,7 +137,7 @@
         (define/prog p
           ('const = vec-const (vector 0 1 2 3))
           ('idxs = vec-const (vector 3 1 2 0))
-          ('shuf = vec-shuffle 'idxs 'const))
+          ('shuf = vec-shuffle 'idxs (list 'const)))
         (interp p env)
         (check-equal? (hash-ref env 'shuf) gold))
 
@@ -177,9 +171,9 @@
           ('i1 = vec-const (vector 1 4 7 5))
           ('i2 = vec-const (vector 0 3 2 1))
           ('i3 = vec-const (vector 0 1 8 9))
-          ('s1 = vec-shuffle 'i1 'a)
-          ('s2 = vec-shuffle 'i2 'a)
-          ('s2 = vec-select 'i3 'a 'b))
+          ('s1 = vec-shuffle 'i1 (list 'a))
+          ('s2 = vec-shuffle 'i2 (list 'a))
+          ('s2 = vec-shuffle 'i3 (list 'a 'b)))
         (check-equal?
           (interp p
                   (make-hash)
@@ -199,9 +193,9 @@
           ('i1 = vec-const (vector 1 2 3 0))
           ('i2 = vec-const (vector 0 3 2 1))
           ('i3 = vec-const (vector 0 1 8 9))
-          ('s1 = vec-shuffle 'i1 'a)
-          ('s2 = vec-shuffle 'i1 'a)
-          ('s2 = vec-select 'i3 'a 'b))
+          ('s1 = vec-shuffle 'i1 (list 'a))
+          ('s2 = vec-shuffle 'i1 (list 'a))
+          ('s2 = vec-shuffle 'i3 (list 'a 'b)))
         (check-equal?
           (interp p
                   (make-hash)
@@ -215,9 +209,9 @@
           ('i1 = vec-const (vector 1 2 3 0))
           ('i2 = vec-const (vector 0 3 2 1))
           ('i3 = vec-const (vector 0 1 8 9))
-          ('s1 = vec-shuffle 'i1 'a)
-          ('s2 = vec-shuffle 'i2 'a)    ; different from previous test
-          ('s2 = vec-select 'i3 'a 'b))
+          ('s1 = vec-shuffle 'i1 (list 'a))
+          ('s2 = vec-shuffle 'i2 (list 'a))    ; different from previous test
+          ('s2 = vec-shuffle 'i3 (list 'a 'b)))
         (check-equal?
           (interp p
                   (make-hash)

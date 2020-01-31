@@ -30,22 +30,21 @@
   (match (length ordered-regs)
     [1
      (let ([source-id (hash-ref (hash-ref env (first inps)) (first ordered-regs))])
-       (vec-shuffle id id source-id))]
+       (vec-shuffle id id (list source-id)))]
     [2
      ; Otherwise, it's a shuffle between two loads
      ; TODO: handle nesting correctly
      (define reg-ids (map (curry hash-ref env inps) ordered-regs))
-     (apply vec-select id id reg-ids)]))
-  
+     (apply vec-shuffle id id (list reg-ids))]))
+
 
 ; Produces 1 or more instructions, modifies env
 (define (truncate-select-inst env reg-size inst)
   (match inst
-    [(vec-shuffle id idxs inp)
-     (shuffle-or-select env reg-size id idxs (list inp))]
-    [(vec-select id idxs inp1 inp2)
-     (shuffle-or-select env reg-size id idxs (list inp1 inp2))]
+    [(vec-shuffle id idxs inps)
+     (shuffle-or-select env reg-size id idxs inps)]
     [_ inst]))
+
 
 (define (select-truncation program env reg-size)
   (define instrs (flatten (map (curry truncate-select-inst env reg-size)
@@ -65,41 +64,41 @@
   (vec-const 'shuf0-0 '#(3 1 3 3))
   (vec-const 'shuf1-0 '#(1 3 2 0))
   (vec-const 'shuf2-0 '#(4 0 5 3))
-  (vec-select 'reg-A 'shuf0-0 'A 'Z)
-  (vec-select 'reg-B 'shuf1-0 'B 'Z)
-  (vec-shuffle 'reg-C 'shuf2-0 'C)
+  (vec-shuffle 'reg-A 'shuf0-0 (list 'A 'Z))
+  (vec-shuffle 'reg-B 'shuf1-0 (list 'B 'Z))
+  (vec-shuffle 'reg-C 'shuf2-0 (list 'C))
   (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
   (vec-shuffle-set! 'C 'shuf2-0 'out)
   (vec-const 'shuf0-1 '#(4 0 0 0))
   (vec-const 'shuf1-1 '#(3 2 1 0))
   (vec-const 'shuf2-1 '#(3 2 1 0))
-  (vec-select 'reg-A 'shuf0-1 'A 'Z)
-  (vec-select 'reg-B 'shuf1-1 'B 'Z)
-  (vec-shuffle 'reg-C 'shuf2-1 'C)
+  (vec-shuffle 'reg-A 'shuf0-1 (list 'A 'Z))
+  (vec-shuffle 'reg-B 'shuf1-1 (list 'B 'Z))
+  (vec-shuffle 'reg-C 'shuf2-1 (list 'C))
   (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
   (vec-shuffle-set! 'C 'shuf2-1 'out)
   (vec-const 'shuf0-2 '#(5 4 6 5))
   (vec-const 'shuf1-2 '#(8 4 5 6))
   (vec-const 'shuf2-2 '#(5 4 0 3))
-  (vec-select 'reg-A 'shuf0-2 'A 'Z)
-  (vec-select 'reg-B 'shuf1-2 'B 'Z)
-  (vec-shuffle 'reg-C 'shuf2-2 'C)
+  (vec-shuffle 'reg-A 'shuf0-2 (list 'A 'Z))
+  (vec-shuffle 'reg-B 'shuf1-2 (list 'B 'Z))
+  (vec-shuffle 'reg-C 'shuf2-2 (list 'C))
   (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
   (vec-shuffle-set! 'C 'shuf2-2 'out)
   (vec-const 'shuf0-3 '#(2 2 2 2))
   (vec-const 'shuf1-3 '#(6 9 7 8))
   (vec-const 'shuf2-3 '#(0 3 1 2))
-  (vec-select 'reg-A 'shuf0-3 'A 'Z)
-  (vec-select 'reg-B 'shuf1-3 'B 'Z)
-  (vec-shuffle 'reg-C 'shuf2-3 'C)
+  (vec-shuffle 'reg-A 'shuf0-3 (list 'A 'Z))
+  (vec-shuffle 'reg-B 'shuf1-3 (list 'B 'Z))
+  (vec-shuffle 'reg-C 'shuf2-3 (list 'C))
   (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
   (vec-shuffle-set! 'C 'shuf2-3 'out)
   (vec-const 'shuf0-4 '#(4 5 1 1))
   (vec-const 'shuf1-4 '#(5 7 5 4))
   (vec-const 'shuf2-4 '#(5 4 2 1))
-  (vec-select 'reg-A 'shuf0-4 'A 'Z)
-  (vec-select 'reg-B 'shuf1-4 'B 'Z)
-  (vec-shuffle 'reg-C 'shuf2-4 'C)
+  (vec-shuffle 'reg-A 'shuf0-4 (list 'A 'Z))
+  (vec-shuffle 'reg-B 'shuf1-4 (list 'B 'Z))
+  (vec-shuffle 'reg-C 'shuf2-4 (list 'C))
   (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
   (vec-shuffle-set! 'C 'shuf2-4 'out))))
 
