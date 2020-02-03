@@ -22,6 +22,13 @@
 (define (default-fn-defns f)
   (error "attempt to apply undefined function ~a" f))
 
+(define (align vec)
+  (define len (vector-length vec))
+  (define align-len
+    (* (current-reg-size) (exact-ceiling (/ len (current-reg-size)))))
+  (let ([fill (make-vector (- align-len len) 0)])
+    (vector-append vec fill)))
+
 ; Interpretation function that takes a program and an external memory.
 ; MUTATES the memory in place during program interpretation.
 ; Returns the cost of the program using `cost-fn`.
@@ -35,7 +42,7 @@
                 #:fn-map [fn-map default-fn-defns])
   ; The environment mapping for the program.
   (define (env-set! key val)
-    (hash-set! env key val))
+    (hash-set! env key (align val)))
   (define (env-ref key)
     (hash-ref env key))
   (define (env-has? key)

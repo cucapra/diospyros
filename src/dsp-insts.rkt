@@ -10,7 +10,7 @@
 
 ;; Define set of instructions commonly found in DSP architectures.
 
-;; VECTOR SHUFFLE
+;; VECTOR SHUFFLE: return (append inps)[idxs[i]].
 (define (vector-shuffle inps idxs)
   (define all-inp (apply vector-append inps))
   (for/vector ([idx idxs])
