@@ -4,9 +4,12 @@
          "dsp-insts.rkt"
          "interp.rkt"
          "matrix-utils.rkt"
+         "prog-sketch.rkt"
          "register-allocation-pass.rkt")
 
 (provide (all-defined-out))
+
+(define reg-limit 2)
 
 ; Determines registers used and sorts ascending
 (define (ordered-regs-used reg-size shufs)
@@ -49,6 +52,31 @@
            (define hash-len (length (hash->list inp-val)))
            (inp-id-for-idx env (rest inps) (- idx hash-len))])])]))
 
+(define (nest-shuffles reg-size shufs id idxs inp-ids new-inps)
+  (define input-count (length new-inps))
+  (cond
+    ; We only touch 2 registers, and are done nesting
+    [(<= input-count reg-limit) (vec-shuffle id idxs new-inps)]
+    ; Otherwise, combine the first two inputs into a temporary register
+    [else
+     (define new-shuf-id
+       (string->symbol (format "~a-tmp-~a" idxs input-count)))
+     (define tmp-id
+       (string->symbol (format "~a-tmp-~a" id input-count)))
+     (define new-shuf (make-vector reg-size 0))
+     (for ([i (in-range reg-size)])
+       (define idx (vector-ref shufs i))
+       (cond
+         [(< idx (* reg-limit reg-size))
+          (vector-set! new-shuf i idx)
+          (vector-set! shufs i i)]
+         [else
+          (vector-set! shufs i (- idx reg-size))]))
+     (define shuf-decl (vec-const new-shuf-id new-shuf))
+     (define tmp-shuf (vec-shuffle tmp-id new-shuf-id (take new-inps 2)))
+     (cons shuf-decl (cons tmp-shuf
+           (nest-shuffles reg-size shufs id idxs inp-ids (cons tmp-id (drop new-inps 2)))))]))
+
 (define (shuffle-or-select env reg-size id idxs inps)
   (define shufs (hash-ref env idxs))
   (define ordered-regs (ordered-regs-used reg-size shufs))
@@ -66,8 +94,9 @@
            [idx (vector-ref shufs i)]
            [trunc (+ (modulo idx reg-size) (* position reg-size))])
       (vector-set! shufs i trunc)))
-  
-  (vec-shuffle id idxs new-inps))
+
+  ; Handle cases that require nesting
+  (nest-shuffles reg-size shufs id idxs inp-ids new-inps))
 
 ; Produces 1 or more instructions, modifies env
 (define (truncate-select-inst env reg-size inst)
@@ -131,8 +160,18 @@
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
     (vec-shuffle-set! 'C 'shuf2-4 'out))))
 
-(define env (make-hash))
+(define c-env (make-hash))
 (define reg-size 4)
-(define reg-alloc (register-allocation p env reg-size))
+(define reg-alloc (register-allocation p c-env reg-size))
 
-(pretty-print (select-truncation reg-alloc env reg-size))
+(define new-prog (select-truncation reg-alloc c-env reg-size))
+(pretty-print new-prog)
+
+(match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
+(match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
+(define env (make-hash))
+(hash-set! env 'A A-elements)
+(hash-set! env 'B B-elements)
+(hash-set! env 'C (make-vector (* A-rows B-cols) 0))
+
+(pretty-print (interp new-prog env #:fn-map (hash 'vec-mac vector-mac)))

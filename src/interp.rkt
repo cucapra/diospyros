@@ -67,7 +67,12 @@
          (unless (= def-len size)
            (error 'interp "Mismatch vector size, `~a' expected ~a got ~a" id size def-len)))]
       [(vec-const id init)
-       (env-set! id init)]
+       (match init
+         [(vec-load load-id start end)
+          (define load (make-vector (- end start)))
+          (vector-copy! load 0 (env-ref load-id) start end)
+          (env-set! id load)]
+         [_ (env-set! id init)])]
       [(vec-shuffle id idxs inps)
        (let ([inp-vals (map env-ref inps)]
              [idxs-val (env-ref idxs)])
