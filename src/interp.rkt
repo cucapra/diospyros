@@ -22,6 +22,7 @@
 (define (default-fn-defns f)
   (error "attempt to apply undefined function ~a" f))
 
+; Align vectors by padding to a multiple of current-reg-size
 (define (align vec)
   (define len (vector-length vec))
   (define align-len
