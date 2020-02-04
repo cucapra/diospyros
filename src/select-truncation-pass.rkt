@@ -11,18 +11,14 @@
 
 (define reg-limit 2)
 
-; Determines registers used and sorts ascending
-(define (ordered-regs-used reg-size shufs)
-  (sort (remove-duplicates (map (curry reg-of reg-size)
-                                (vector->list shufs))) <))
-
-; Truncates shuffles to reference only the accessed registers.
-; reg-size 4,  [0, 1, 8, 9] -> [0, 1, 2, 3]
-(define (truncate-shuf reg-size ordered-regs-used i)
-  (let* ([mod (modulo i reg-size)]
-        [reg (reg-of reg-size i)]
-        [offset (* (index-of ordered-regs-used reg) reg-size)])
-    (+ mod offset)))
+(define var-map (make-hash))
+(define (new-var base)
+  (define num
+    (cond
+      [(hash-has-key? var-map base) (add1 (hash-ref var-map base))]
+      [else 0]))
+  (hash-set! var-map base num)
+  (string->symbol (format "~a-~a" base (number->string num))))
 
 ; Map an index to either the input it references, or the allocated register
 ; that now holds that index value
@@ -52,6 +48,7 @@
            (define hash-len (length (hash->list inp-val)))
            (inp-id-for-idx env (rest inps) (- idx hash-len))])])]))
 
+; Handle cases where shuffles touch more registers than the limit
 (define (nest-shuffles reg-size shufs id idxs inp-ids new-inps)
   (define input-count (length new-inps))
   (cond
@@ -59,10 +56,8 @@
     [(<= input-count reg-limit) (vec-shuffle id idxs new-inps)]
     ; Otherwise, combine the first two inputs into a temporary register
     [else
-     (define new-shuf-id
-       (string->symbol (format "~a-tmp-~a" idxs input-count)))
-     (define tmp-id
-       (string->symbol (format "~a-tmp-~a" id input-count)))
+     (define new-shuf-id (new-var idxs))
+     (define tmp-id (new-var (format "~a-tmp" id)))
      (define new-shuf (make-vector reg-size 0))
      (for ([i (in-range reg-size)])
        (define idx (vector-ref shufs i))
@@ -75,38 +70,43 @@
      (define shuf-decl (vec-const new-shuf-id new-shuf))
      (define tmp-shuf (vec-shuffle tmp-id new-shuf-id (take new-inps 2)))
      (cons shuf-decl (cons tmp-shuf
-           (nest-shuffles reg-size shufs id idxs inp-ids (cons tmp-id (drop new-inps 2)))))]))
+                           (nest-shuffles reg-size shufs id idxs inp-ids
+                                          (cons tmp-id (drop new-inps 2)))))]))
 
-(define (shuffle-or-select env reg-size id idxs inps)
+(define (truncate-shuffle env reg-size id idxs inps)
+  ; Declare a new shuffle vector to modify
   (define shufs (hash-ref env idxs))
-  (define ordered-regs (ordered-regs-used reg-size shufs))
-  (define num-regs (length ordered-regs))
+  (define shuf-id (new-var idxs))
+  (define shuf-vec (vector-copy shufs))
+  (define shuf-decl (vec-const shuf-id shuf-vec))
 
   ; Get the allocated register each index falls within
   (define inp-ids
-    (map (curry inp-id-for-idx env inps) (vector->list shufs)))
+    (map (curry inp-id-for-idx env inps) (vector->list shuf-vec)))
   (define new-inps (remove-duplicates inp-ids))
 
   ; Truncate indices based on the register they fall within
   (for ([i (in-range (length inp-ids))])
     (let* ([inp-id (list-ref inp-ids i)]
            [position (index-of new-inps inp-id)]
-           [idx (vector-ref shufs i)]
+           [idx (vector-ref shuf-vec i)]
            [trunc (+ (modulo idx reg-size) (* position reg-size))])
-      (vector-set! shufs i trunc)))
+      (vector-set! shuf-vec i trunc)))
 
   ; Handle cases that require nesting
-  (nest-shuffles reg-size shufs id idxs inp-ids new-inps))
+  (cons shuf-decl (nest-shuffles reg-size shuf-vec id shuf-id inp-ids new-inps)))
 
 ; Produces 1 or more instructions, modifies env
-(define (truncate-select-inst env reg-size inst)
+(define (truncate-shuffle-inst env reg-size inst)
   (match inst
     [(vec-shuffle id idxs inps)
-     (shuffle-or-select env reg-size id idxs inps)]
+     (truncate-shuffle env reg-size id idxs inps)]
+    [(vec-shuffle-set! out-vec idxs inp)
+     inst]
     [_ inst]))
 
-(define (select-truncation program env reg-size)
-  (define instrs (flatten (map (curry truncate-select-inst env reg-size)
+(define (shuffle-truncation program env reg-size)
+  (define instrs (flatten (map (curry truncate-shuffle-inst env reg-size)
                                (prog-insts program))))
   ;(pretty-print env)
   (prog instrs))
@@ -160,11 +160,12 @@
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
     (vec-shuffle-set! 'C 'shuf2-4 'out))))
 
+
 (define c-env (make-hash))
 (define reg-size 4)
 (define reg-alloc (register-allocation p c-env reg-size))
 
-(define new-prog (select-truncation reg-alloc c-env reg-size))
+(define new-prog (shuffle-truncation reg-alloc c-env reg-size))
 (pretty-print new-prog)
 
 (match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
@@ -175,3 +176,4 @@
 (hash-set! env 'C (make-vector (* A-rows B-cols) 0))
 
 (pretty-print (interp new-prog env #:fn-map (hash 'vec-mac vector-mac)))
+(pretty-print (hash-ref env 'C))

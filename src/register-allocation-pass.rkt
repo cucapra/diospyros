@@ -98,7 +98,7 @@
            rackunit/text-ui)
   (run-tests
     (test-suite
-      "interp tests"
+      "register allocation tests"
 
       (test-case
         "Pad small vectors"
