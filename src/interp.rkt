@@ -84,7 +84,7 @@
       [(vec-load dest-id src-id start end)
        (let ([dest (make-vector (current-reg-size) 0)]
              [src (env-ref src-id)])
-         (vector-copy! dest start src 0 (- end start))
+         (vector-copy! dest 0 src start end)
          (env-set! dest-id dest))]
       [(vec-store dest-id src-id start end)
        (let ([dest (env-ref dest-id)]

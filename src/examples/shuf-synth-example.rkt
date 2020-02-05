@@ -52,35 +52,38 @@
   ; Program preamble to define the "zero" vector.
   (define preamble
     (list
-      (vec-extern-decl 'A (* A-rows A-cols))
-      (vec-extern-decl 'B (* B-rows B-cols))
-      (vec-extern-decl 'C (* A-rows B-cols))
-      (vec-const 'Z (vector 0))))
+     (vec-extern-decl 'A (* A-rows A-cols))
+     (vec-extern-decl 'B (* B-rows B-cols))
+     (vec-extern-decl 'C (* A-rows B-cols))
+     (vec-const 'Z (vector 0))))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
     (match-define (list shuf-A shuf-B shuf-C) shufs)
 
+    (define-symbolic* start integer?)
+    (define-symbolic* end integer?)
+
     (list
-      (vec-shuffle'reg-A shuf-A (list 'A 'Z))
-      (vec-shuffle 'reg-B shuf-B (list 'B 'Z))
-      (vec-shuffle 'reg-C shuf-C (list 'C))
-      ; Uncomment to force the output writes to be continuous.
-      ;(vec-app 'out 'continuous-vec? (list shuf-C))
-      (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
-      (vec-shuffle-set! 'C shuf-C 'out)))
+     (vec-shuffle'reg-A shuf-A (list 'A 'Z))
+     (vec-shuffle 'reg-B shuf-B (list 'B 'Z))
+     (vec-load 'reg-C 'C start end)
+     ; Uncomment to force the output writes to be continuous.
+     ;(vec-app 'out 'continuous-vec? (list shuf-C))
+     (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
+     (vec-store 'reg-C 'out start end)))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
     (symbolic-shuffle-gen 3))
 
   (prog
-    (append preamble
-            (sketch-compute-shuffle-interleave
-              shuffle-gen
-              compute-gen
-              iterations))))
+   (append preamble
+           (sketch-compute-shuffle-interleave
+            shuffle-gen
+            compute-gen
+            iterations))))
 
 
 ; Run a matrix multiply sketch with symbolic inputs.
