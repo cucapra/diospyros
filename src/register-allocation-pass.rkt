@@ -25,15 +25,15 @@
           (for/list ([i (in-range 0 vec-len reg-size)])
             (let* ([start i]
                    [end (min vec-len (+ i reg-size))]
-                   [new-init (init-fn start end)]
                    [new-id (string->symbol
-                            (format "~a_~a_~a" id start end))])
+                            (format "~a_~a_~a" id start end))]
+                   [new-init (init-fn new-id start end)])
               ; Add the new vectors to the top level env
               (hash-set! env new-id new-init)
               (for ([j (in-range start end 1)])
                 (hash-set! id-map j new-id))
               (inst-result
-               (vec-const new-id new-init)
+               new-init
                (vec-store id new-id start end))))])
     ; Add the old id as a map to the new ids, by index
     (hash-set! env id id-map)
@@ -55,8 +55,8 @@
          (inst-result (vec-const id new-init) `()))]
       ; Allocate long vectors to multiple registers
       [else
-       (define (load-init start end)
-         (vec-load id start end))
+       (define (load-init dest-id start end)
+         (vec-load dest-id id start end))
        (define results 
          (partition-vector env id len reg-size load-init))
        (inst-result
@@ -64,8 +64,8 @@
         (inst-result-final results))])))
 
 (define (alloc-extern-decl env reg-size id size)
-  (define (load-init start end)
-    (vec-load id start end))
+  (define (load-init dest-id start end)
+    (vec-load dest-id id start end))
   (partition-vector env id size reg-size load-init))
 
 ; Produces 1 or more instructions, modifies env
@@ -137,8 +137,8 @@
         (define section-2-gold (vector 4 5 6 0))
         (define/prog gold
           ('x = vec-const '#(0 1 2 3 4 5 6))
-          (vec-const 'x_0_4 (vec-load 'x 0 4))
-          (vec-const 'x_4_7 (vec-load 'x 4 7))
+          (vec-load 'x_0_4 'x 0 4)
+          (vec-load 'x_4_7 'x 4 7)
           (vec-store 'x 'x_0_4 0 4)
           (vec-store 'x 'x_4_7 4 7))
         (check-equal? new-p gold)

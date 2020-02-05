@@ -26,7 +26,7 @@
 ; Nodes used internally for passes
 
 ; Vector load.
-(struct vec-load (id start end) #:transparent)
+(struct vec-load (dest-id src-id start end) #:transparent)
 
 ; Vector store.
 (struct vec-store (dest-id src-id start end) #:transparent)
