@@ -11,6 +11,7 @@
 
 (define reg-limit 2)
 
+; Fresh name generation for new variables
 (define var-map (make-hash))
 (define (new-var base)
   (define num
@@ -95,6 +96,15 @@
 
   ; Handle cases that require nesting
   (cons shuf-decl (nest-shuffles reg-size shuf-vec id shuf-id inp-ids new-inps)))
+
+(define (truncate-shuffle-set env reg-size out-vec idxs inp)
+  ; Declare a new shuffle vector to modify
+  (define shufs (hash-ref env idxs))
+  (define shuf-id (new-var idxs))
+  (define shuf-vec (vector-copy shufs))
+  (define shuf-decl (vec-const shuf-id shuf-vec))
+
+  void)
 
 ; Produces 1 or more instructions, modifies env
 (define (truncate-shuffle-inst env reg-size inst)

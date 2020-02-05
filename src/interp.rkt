@@ -86,6 +86,10 @@
        (let ([inps-val (map env-ref inps)]
              [fn (hash-ref fn-map f)])
          (env-set! id (apply fn inps-val)))]
+      [(vec-store dest-id src-id start end)
+       (let ([dest (env-ref dest-id)]
+             [src (env-ref src-id)])
+         (vector-copy! dest start src 0 (- end start)))]
       [_ (assert #f (~a "unknown instruction " inst))]))
 
   cur-cost)
