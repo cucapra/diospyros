@@ -1,4 +1,4 @@
-#lang racket
+#lang rosette
 
 (require "dsp-insts.rkt"
          "matrix-utils.rkt"

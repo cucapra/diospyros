@@ -1,4 +1,4 @@
-#lang racket
+#lang rosette
 
 (require "ast.rkt"
          "dsp-insts.rkt"
@@ -57,7 +57,7 @@
       [else
        (define (load-init dest-id start end)
          (vec-load dest-id id start end))
-       (define results 
+       (define results
          (partition-vector env id len reg-size load-init))
        (inst-result
         (cons (vec-const id init) (inst-result-insts results))
@@ -102,7 +102,7 @@
      (list
       (map inst-result-insts results)
       (map inst-result-final results))))
-  
+
   (prog insts))
 
 ; Testing

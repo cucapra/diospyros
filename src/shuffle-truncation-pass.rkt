@@ -1,4 +1,4 @@
-#lang racket
+#lang rosette
 
 (require "ast.rkt"
          "dsp-insts.rkt"
