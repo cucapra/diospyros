@@ -73,7 +73,7 @@
                       (matrix 3 3 gold))))))
 
 
-(define (conv-2d-sketch inp filt iterations)
+#|(define (conv-2d-sketch inp filt iterations)
   (match-define (matrix _ _ I-elements) inp)
   (match-define (matrix _ _ F-elements) filt)
   ; Program preamble to define the "zero" vector.
@@ -110,7 +110,7 @@
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
-            iterations))))
+            iterations))))|#
 
 
 (define (run-sketch sketch cost-fn
@@ -137,7 +137,7 @@
 (define I (make-symbolic-matrix 2 2))
 (define F (make-symbolic-matrix 2 2))
 ; Run the synthesis query
-(parameterize [(current-reg-size 4)]
+#|(parameterize [(current-reg-size 4)]
   (pretty-print I)
   (pretty-print F)
 
@@ -174,7 +174,7 @@
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
       (pretty-print (evaluate mmul model))
-      (pretty-print (~a "failed to find solution: " model)))))
+      (pretty-print (~a "failed to find solution: " model)))))|#
 
 ; ======================================= MANUAL ATTEMPT =================
 (define man-sol
@@ -217,11 +217,18 @@
       (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
       (vec-shuffle-set! 'O 'shuf2-3 'out))))
 
-(define env (make-hash))
-(hash-set! env 'I (matrix-elements I))
-(hash-set! env 'F (matrix-elements F))
-(hash-set! env 'O (make-vector (vector-length (matrix-elements I)) 0))
-(interp man-sol
-        env
-        #:fn-map (hash 'vec-mac vector-mac))
-(pretty-print (hash-ref env 'O))
+(define (sketch-fun I F)
+  (define-values (env _)
+    (interp man-sol
+            (list (cons 'I (matrix-elements I))
+                  (cons 'F (matrix-elements F))
+                  (cons 'O (make-vector (vector-length (matrix-elements I)) 0)))
+            #:fn-map (hash 'vec-mac vector-mac)))
+  (hash-ref env 'O))
+
+; ================= Verify manual solution ======================
+(verify-prog (lambda (args) (apply sketch-fun args))
+             (lambda (args) (matrix-elements
+                              (apply matrix-conv-spec args)))
+             (list I F)
+             #:get-inps flatten)

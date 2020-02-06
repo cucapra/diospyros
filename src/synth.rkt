@@ -4,6 +4,28 @@
 
 (provide (all-defined-out))
 
+; Verify input-output behavior of programs.
+(define (verify-prog spec
+                     sketch
+                     sym-args
+                     #:get-inps get-inps)
+
+  (define spec-out (spec sym-args))
+  (define sketch-out (sketch sym-args))
+  (define sol
+    (verify
+      (assert (equal? (spec sym-args) (sketch sym-args)))))
+
+  (if (unsat? sol)
+    (pretty-print "Verification Succeeded.")
+    (let ([conc-args (evaluate sym-args sol)])
+    (display (~a "Verification Failed.\nSpec output:\n"
+                      (pretty-format (spec conc-args))
+                      "\nSketch output:\n"
+                      (pretty-format (sketch conc-args))
+                      "\nArguments: "
+                      (pretty-format conc-args))))))
+
 ; Synthesize values for sketch given a spec and symbolic arguments.
 ; If a `cost-fn` is specified, run the synthesis procedure in a loop till it
 ; can find a solution as close to `min-cost` as possible.
@@ -20,9 +42,6 @@
       (pretty-print `(current-cost: ,cur-cost))
       (define spec-out (spec sym-args))
       (define-values (sketch-out cost) (sketch sym-args ))
-
-      (pretty-print spec-out)
-      ;(pretty-print sketch-out)
 
       (define-symbolic* c integer?)
       (assert (equal? c cost))
