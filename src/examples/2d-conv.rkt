@@ -134,13 +134,17 @@
 
   (values (hash-ref env 'O) cost))
 
+(define I (make-symbolic-matrix 2 2))
+(define F (make-symbolic-matrix 2 2))
 ; Run the synthesis query
 (parameterize [(current-reg-size 4)]
-  (define I (make-symbolic-matrix 3 3))
-  (define F (make-symbolic-matrix 3 3))
+  (pretty-print I)
+  (pretty-print F)
 
   ; Generate sketch prog
-  (define mmul (conv-2d-sketch I F 6))
+  (define mmul (conv-2d-sketch I F 4))
+
+  ;(pretty-print mmul)
 
   ; Define the cost function
   (define (cost-fn inst env)
@@ -171,3 +175,53 @@
     (if (sat? model)
       (pretty-print (evaluate mmul model))
       (pretty-print (~a "failed to find solution: " model)))))
+
+; ======================================= MANUAL ATTEMPT =================
+(define man-sol
+  (prog
+    (list
+      (vec-extern-decl 'I 4)
+      (vec-extern-decl 'O 4)
+      (vec-extern-decl 'F 4)
+      (vec-const 'Z '#(0))
+      (vec-const 'shuf0-0 (vector 0 0 0 0))
+      (vec-const 'shuf1-0 (vector 3 2 1 0))
+      (vec-const 'shuf2-0 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-0 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-0 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-0 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-0 'out)
+      (vec-const 'shuf0-1 (vector 5 1 2 3))
+      (vec-const 'shuf1-1 (vector 3 3 3 3))
+      (vec-const 'shuf2-1 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-1 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-1 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-1 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-1 'out)
+      (vec-const 'shuf0-2 (vector 5 5 5 1))
+      (vec-const 'shuf1-2 (vector 5 5 5 1))
+      (vec-const 'shuf2-2 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-2 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-2 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-2 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-2 'out)
+      (vec-const 'shuf0-3 (vector 5 5 5 2))
+      (vec-const 'shuf1-3 (vector 5 5 5 2))
+      (vec-const 'shuf2-3 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-3 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-3 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-3 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-3 'out))))
+
+(define env (make-hash))
+(hash-set! env 'I (matrix-elements I))
+(hash-set! env 'F (matrix-elements F))
+(hash-set! env 'O (make-vector (vector-length (matrix-elements I)) 0))
+(interp man-sol
+        env
+        #:fn-map (hash 'vec-mac vector-mac))
+(pretty-print (hash-ref env 'O))

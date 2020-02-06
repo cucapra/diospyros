@@ -21,6 +21,9 @@
       (define spec-out (spec sym-args))
       (define-values (sketch-out cost) (sketch sym-args ))
 
+      (pretty-print spec-out)
+      ;(pretty-print sketch-out)
+
       (define-symbolic* c integer?)
       (assert (equal? c cost))
 
@@ -36,6 +39,7 @@
       (pretty-print (~a "cpu time: " (/ cpu-time 1000.0) "s, real time: " (/ real-time 1000.0) "s"))
 
       (define model (first synth-res))
+      ;(pretty-print model)
 
       (define new-cost
         (if (sat? model)
