@@ -68,11 +68,11 @@
     (list
      (vec-shuffle'reg-A shuf-A (list 'A 'Z))
      (vec-shuffle 'reg-B shuf-B (list 'B 'Z))
-     (vec-load 'reg-C 'C start end)
+     (vec-shuffle 'reg-C shuf-C (list 'C))
      ; Uncomment to force the output writes to be continuous.
      ;(vec-app 'out 'continuous-vec? (list shuf-C))
      (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
-     (vec-store 'reg-C 'out start end)))
+     (vec-shuffle-set! 'C shuf-C 'out)))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
