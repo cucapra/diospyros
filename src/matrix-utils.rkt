@@ -1,20 +1,30 @@
 #lang rosette
 
+(require threading)
+
 (provide (all-defined-out))
 
-;; Matrix implementation and helper methods.
+; Print a matrix
+(define (pr-matrix mat)
+  (match-define (matrix _ cols elements) mat)
+  (let loop ([els (vector->list elements)] [acc (list)])
+    (if (empty? els)
+      acc
+      (loop (drop els cols) (cons (take els cols) acc)))))
+
+; Matrix implementation and helper methods.
 (struct matrix (rows cols elements) #:transparent)
 
 (define (matrix-ref mat row col)
   (match-define (matrix rows cols elements) mat)
-  (assert (< row rows))
-  (assert (< col cols))
+  (assert (and (< row rows) (>= row 0)) (~a "MATRIX-REF: Invalid row " row))
+  (assert (and (< col cols) (>= col 0)) (~a "MATRIX-REF: Invalid col " col))
   (vector-ref elements (+ (* cols row) col)))
 
 (define (matrix-set! mat row col val)
   (match-define (matrix rows cols elements) mat)
-  (assert (< row rows))
-  (assert (< col cols))
+  (assert (and (< row rows) (>= row 0)) (~a "MATRIX-SET!: Invalid row " row))
+  (assert (and (< col cols) (>= col 0)) (~a "MATRIX-SET!: Invalid col " col))
   (vector-set! elements (+ (* cols row) col) val))
 
 ; Returns 0-indexed register that this index resides in based on the

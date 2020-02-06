@@ -19,6 +19,12 @@
   (match-define (matrix i-rows i-cols _) input)
   (match-define (matrix f-rows f-cols _) filter)
 
+  ; Return 0 if the access to the input matrix was out of bounds.
+  (define (safe-access-input row col)
+    (if (and (>= row 0) (>= col 0) (< row i-rows) (< col i-cols))
+      (matrix-ref input row col)
+      0))
+
   (define output
     (matrix i-rows i-cols (make-vector (* i-rows i-cols) 0)))
 
@@ -35,6 +41,32 @@
         (apply +
                (for*/list ([i (in-range f-rows)]
                            [j (in-range f-cols)])
-                 (* (matrix-ref input (+ top-left-x i) (+ top-left-y j))
+                 (* (safe-access-input (+ top-left-x i) (+ top-left-y j))
                     (matrix-ref filter i j))))))
-    (matrix-set! output inp-row inp-col conv-res)))
+    (matrix-set! output inp-row inp-col conv-res))
+
+  output)
+
+(module+ test
+  (require rackunit
+           rackunit/text-ui)
+  (run-tests
+    (test-suite
+      "Convolution test"
+      (test-case
+        "Implementation works"
+        (define input
+          (vector 1 2 3
+                  4 5 6
+                  7 8 9))
+        (define filter
+          (vector -1 -2 -1
+                  0  0  0
+                  1  2  1))
+        (define gold
+          (vector  13  20  17
+                   18  24  18
+                  -13 -20 -17))
+        (check-equal? (matrix-conv-spec (matrix 3 3 input)
+                                        (matrix 3 3 filter))
+                      (matrix 3 3 gold))))))
