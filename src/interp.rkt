@@ -104,8 +104,8 @@
        (let ([inps-val (map env-ref inps)]
              [fn (hash-ref fn-map f)])
          (apply fn inps-val))]
-      [(vec-load dest-id src-id start end)
 
+      [(vec-load dest-id src-id start end)
        (let ([dest (make-vector (current-reg-size) 0)]
              [src (env-ref src-id)])
          (vector-copy! dest 0 src start end)
