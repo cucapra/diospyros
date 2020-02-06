@@ -70,7 +70,7 @@
      (vec-shuffle 'reg-B shuf-B (list 'B 'Z))
      (vec-shuffle 'reg-C shuf-C (list 'C))
      ; Uncomment to force the output writes to be continuous.
-     ;(vec-app 'out 'continuous-vec? (list shuf-C))
+     ;(vec-void-app 'continuous-vec? (list shuf-C))
      (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
      (vec-shuffle-set! 'C shuf-C 'out)))
 

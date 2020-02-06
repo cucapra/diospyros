@@ -20,8 +20,11 @@
 (struct vec-shuffle (id idxs inps) #:transparent)
 (struct vec-shuffle-set! (out-vec idxs inp) #:transparent)
 
-; Apply functions on vectors.
+; Apply functions on vectors (with a result).
 (struct vec-app (id f inps) #:transparent)
+
+; Apply functions on vectors (with no result).
+(struct vec-void-app (f inps) #:transparent)
 
 ; Nodes used internally for passes
 

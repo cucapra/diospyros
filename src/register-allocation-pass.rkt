@@ -92,6 +92,9 @@
      (define-id id)
      (check-defined inps)
      (inst-result inst `())]
+    [(vec-void-app f inps)
+     (check-defined inps)
+     (inst-result inst `())]
     [_ (error 'register-allocation "unknown instruction ~a" inst)]))
 
 (define (register-allocation program env reg-size)

@@ -44,6 +44,8 @@
          (vec-app (rename-binding id)
                   f
                   (map rename-use args))]
+        [(vec-void-app f args)
+         (vec-void-app f (map rename-use args))]
         [_ (error 'ssa (~a "NYI " inst))])))
 
   (prog new-insts))
@@ -83,6 +85,8 @@
         [(vec-app id f args)
          (hash-set! name-map id id)
          (list (vec-app id f (map rename args)))]
+        [(vec-void-app f args)
+        (list (vec-void-app f (map rename args)))]
         [inst (list inst)])))
 
   (prog (flatten new-insts)))
@@ -110,7 +114,9 @@
     [(vec-shuffle-set! out-vec idxs inp)
      '(vec-shuffle-set! (id-to-num idxs) (id-to-num inp))]
     [(vec-app id f inps)
-     '(vec-app f (id-to-num inps))]))
+     '(vec-app f (id-to-num inps))]
+    [(vec-void-app f inps)
+     '(vec-void-app f (id-to-num inps))]))
 
 ; Local value numbering
 (define (lvn p)
@@ -202,7 +208,9 @@
            [(vec-shuffle-set! _ idxs inp)
             (vec-shuffle-set! new-id (replace-arg idxs) (replace-arg inp))]
            [(vec-app _ f inps)
-            (vec-app new-id f (map replace-arg inps))])])))
+            (vec-app new-id f (map replace-arg inps))]
+           [(vec-void-app f inps)
+            (vec-void-app f (map replace-arg inps))])])))
 
   (prog new-insts))
 
