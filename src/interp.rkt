@@ -44,10 +44,19 @@
 ; When `symbolic?` is true, create symbolic vectors for extenally defined
 ; inputs.
 (define (interp program
-                env
+                init-env
                 #:cost-fn [cost-fn (thunk* 0)]
                 #:fn-map [fn-map default-fn-defns]
                 #:symbolic? [symbolic? #f])
+  ; Setup the environment if it is an associative list.
+  (define env
+    (if ((listof pair?) init-env)
+      (let ([new-env (make-hash)])
+        (for ([bind init-env])
+          (hash-set! new-env (car bind) (cdr bind)))
+        new-env)
+      init-env))
+
   ; The environment mapping for the program.
   (define (env-set! key val)
     (hash-set! env key (align val)))
@@ -118,7 +127,7 @@
 
       [_ (assert #f (~a "unknown instruction " inst))]))
 
-  cur-cost)
+  (values env cur-cost))
 
 
 ; Cost of a program is the sum of the registers touched by each indices vector
@@ -217,16 +226,18 @@
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i2 (list 'a))
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
-        (check-equal?
+        (define-values (_ cost)
           (interp p
                   (make-hash)
-                  #:cost-fn (make-register-cost 3)) 5)
+                  #:cost-fn (make-register-cost 3)))
+        (check-equal? cost 5)
         ; cost depends on the current-reg-size
+        (define-values (__ cost-2)
+          (interp p
+                  (make-hash)
+                  #:cost-fn (make-register-cost 5)))
         (parameterize ([current-reg-size 2])
-          (check-equal?
-            (interp p
-                    (make-hash)
-                    #:cost-fn (make-register-cost 5)) 7)))
+          (check-equal? cost-2 5)))
 
       (test-case
         "shuffle-unique-cost does not increase cost for repeated idxs"
@@ -239,10 +250,11 @@
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
-        (check-equal?
+        (define-values (_ cost)
           (interp p
                   (make-hash)
-                  #:cost-fn (make-shuffle-unique-cost)) 2))
+                  #:cost-fn (make-shuffle-unique-cost)))
+        (check-equal? cost 2))
 
       (test-case
         "shuffle-unique-cost calculates different cost for unique idxs"
@@ -255,8 +267,9 @@
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i2 (list 'a))    ; different from previous test
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
-        (check-equal?
+        (define-values (_ cost)
           (interp p
                   (make-hash)
-                  #:cost-fn (make-shuffle-unique-cost)) 3))
+                  #:cost-fn (make-shuffle-unique-cost)))
+        (check-equal? cost 3))
       )))

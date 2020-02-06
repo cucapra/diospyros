@@ -99,7 +99,7 @@
     (hash-set! env 'B B-elements)
     (hash-set! env 'C (make-vector (* A-rows B-cols) 0)))
 
-  (define cost
+  (define-values (_ cost)
     (interp sketch
             env
             #:symbolic? #t
