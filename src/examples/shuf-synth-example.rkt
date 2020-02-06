@@ -85,26 +85,47 @@
             compute-gen
             iterations))))
 
+; Run a matrix multiply sketch with symbolic inputs. If input matrices
+; are missing, interp will generate fresh symbolic values.
+(define (run-matrix-mul-sketch sketch cost-fn
+                               [mat-A #f]
+                               [mat-B #f])
 
-; Run a matrix multiply sketch with symbolic inputs.
-(define (run-matrix-mul-sketch sketch cost-fn mat-A mat-B)
-  (match-define (matrix A-rows A-cols A-elements) mat-A)
-  (match-define (matrix B-rows B-cols B-elements) mat-B)
   (define env (make-hash))
-  (hash-set! env 'A A-elements)
-  (hash-set! env 'B B-elements)
-  (hash-set! env 'C (make-vector (* A-rows B-cols)
-                                 0))
+  (when (and mat-A mat-B)
+    (match-define (matrix A-rows _ A-elements) mat-A)
+    (match-define (matrix _ B-cols B-elements) mat-B)
+    (hash-set! env 'A A-elements)
+    (hash-set! env 'B B-elements)
+    (hash-set! env 'C (make-vector (* A-rows B-cols) 0)))
 
   (define cost
     (interp sketch
             env
+            #:symbolic? #t
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
                            'continuous-vec? continuous-vec?)))
 
   (values (hash-ref env 'C) cost))
 
+; Get statistics on a proposed synthesis solution
+(define (get-statistics sol)
+  (let*-values
+    ([(_ uniq-cost) (run-matrix-mul-sketch
+                      sol
+                      (make-shuffle-unique-cost))]
+     [(_ regs-cost) (run-matrix-mul-sketch
+                      sol
+                      (make-register-cost 4))]
+     [(_ class-uniq-cost) (run-matrix-mul-sketch
+                            sol
+                            (make-shuffle-unique-cost prefix-equiv))])
+    (pretty-print sol)
+    (pretty-print `(unique-idxs-cost: ,uniq-cost))
+    (pretty-print `(class-based-unique-idxs-cost: ,class-uniq-cost))
+    (pretty-print `(registers-touched-cost: ,regs-cost))
+    (pretty-print '-------------------------------------------------------)))
 
 ; Run the synthesis query
 (parameterize [(current-reg-size 4)]
@@ -113,12 +134,15 @@
 
   ; Generate sketch prog
   (define mmul (matrix-mul-shuffle-sketch A B 5))
+
+  ; Define the cost function
   (define (cost-fn)
     (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (thunk* 0)])
+          [cost-2 (make-register-cost 4)])
     (lambda (inst env)
       (+ (cost-1 inst env) (cost-2 inst env)))))
 
+  ; Create function for sketch evaluation
   (define (sketch-func args)
     (apply (curry run-matrix-mul-sketch
                   mmul
@@ -129,6 +153,7 @@
   (define (spec-func args)
     (apply matrix-multiply-spec args))
 
+  ; Get a generator back from the synthesis procedure
   (define model-generator
     (synth-prog spec-func
                 sketch-func
@@ -138,23 +163,9 @@
                 #:max-cost 100
                 #:min-cost 0))
 
+  ; Keep minimizing solution in the synthesis procedure and generating new
+  ; solutions.
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
-      (let*-values
-        ([(p) (evaluate mmul model)]
-         [(_ uniq-cost) (run-matrix-mul-sketch p
-                                               (make-shuffle-unique-cost)
-                                               A B)]
-         [(_ regs-cost) (run-matrix-mul-sketch p
-                                               (make-register-cost 4)
-                                               A B)]
-         [(_ class-uniq-cost) (run-matrix-mul-sketch p
-                                                     (make-shuffle-unique-cost prefix-equiv)
-                                                     A B)])
-        (pretty-print p)
-        (pretty-print `(unique-idxs-cost: ,uniq-cost))
-        (pretty-print `(class-based-unique-idxs-cost: ,class-uniq-cost))
-        (pretty-print `(registers-touched-cost: ,regs-cost))
-        (pretty-print '-------------------------------------------------------))
-      (pretty-print model))))
-
+      (get-statistics (evaluate mmul model))
+      (pretty-print (~a "failed to find solution: " model)))))

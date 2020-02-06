@@ -9,6 +9,10 @@
 
 (provide (all-defined-out))
 
+(define (pr v)
+  (pretty-print v)
+  v)
+
 ; Read a vector of `size` starting at location `start` from `memory`
 (define (read-vec memory start size)
   (vector-copy memory start (+ start size)))
@@ -37,10 +41,13 @@
 ; integer value describing the cost of the instruction. It ASSUMES that the
 ; instruction does not contain any free variables.
 ; `fn-defns` is an optional argument to provide external function definitions
+; When `symbolic?` is true, create symbolic vectors for extenally defined
+; inputs.
 (define (interp program
                 env
                 #:cost-fn [cost-fn (thunk* 0)]
-                #:fn-map [fn-map default-fn-defns])
+                #:fn-map [fn-map default-fn-defns]
+                #:symbolic? [symbolic? #f])
   ; The environment mapping for the program.
   (define (env-set! key val)
     (hash-set! env key (align val)))
@@ -60,36 +67,50 @@
 
     ; Execute the program instruction
     (match inst
+
       [(vec-extern-decl id size)
-       (unless (env-has? id)
-         (error 'interp "Declared extern vector ~a undefined" id))
-       (let ([def-len (vector-length (env-ref id))])
-         (unless (= def-len size)
-           (error 'interp "Mismatch vector size, `~a' expected ~a got ~a" id size def-len)))]
+       ; The identifier is not already bound, create a symbolic vector of the
+       ; correct size and add it to the environment.
+       (if (and symbolic? (not (env-has? id)))
+         (env-set! id (make-vector size))
+         (begin
+           (assert (env-has? id)
+                   (~a "INTERP: missing extern vector: " id))
+           (assert (= (vector-length (env-ref id)) size)
+                   (~a "INTERP: size mistmatch: " id
+                       ". Expected: " size
+                       " Given: " (vector-length (env-ref id))))))]
+
       [(vec-const id init)
        (env-set! id init)]
+
       [(vec-shuffle id idxs inps)
        (let ([inp-vals (map env-ref inps)]
              [idxs-val (env-ref idxs)])
          (env-set! id (vector-shuffle inp-vals idxs-val)))]
+
       [(vec-shuffle-set! out-vec idxs inp)
        (let ([out-vec-val (env-ref out-vec)]
              [inp-val (env-ref inp)]
              [idxs-val (env-ref idxs)])
          (vector-shuffle-set! out-vec-val idxs-val inp-val))]
+
       [(vec-app id f inps)
        (let ([inps-val (map env-ref inps)]
              [fn (hash-ref fn-map f)])
          (env-set! id (apply fn inps-val)))]
+
       [(vec-load dest-id src-id start end)
        (let ([dest (make-vector (current-reg-size) 0)]
              [src (env-ref src-id)])
          (vector-copy! dest 0 src start end)
          (env-set! dest-id dest))]
+
       [(vec-store dest-id src-id start end)
        (let ([dest (env-ref dest-id)]
              [src (env-ref src-id)])
          (vector-copy! dest start src 0 (- end start)))]
+
       [_ (assert #f (~a "unknown instruction " inst))]))
 
   cur-cost)
