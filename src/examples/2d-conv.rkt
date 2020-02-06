@@ -47,6 +47,7 @@
 
   output)
 
+; Tests to check conv implementation
 (module+ test
   (require rackunit
            rackunit/text-ui)
@@ -70,3 +71,103 @@
         (check-equal? (matrix-conv-spec (matrix 3 3 input)
                                         (matrix 3 3 filter))
                       (matrix 3 3 gold))))))
+
+
+(define (conv-2d-sketch inp filt iterations)
+  (match-define (matrix _ _ I-elements) inp)
+  (match-define (matrix _ _ F-elements) filt)
+  ; Program preamble to define the "zero" vector.
+  (define preamble
+    (list
+     (vec-extern-decl 'I (vector-length I-elements))
+     (vec-extern-decl 'O (vector-length I-elements))
+     (vec-extern-decl 'F (vector-length F-elements))
+     (vec-const 'Z (vector 0))))
+
+  ; Compute description for the sketch
+  (define (compute-gen iteration shufs)
+    ; Assumes that shuffle-gen generated three shuffle vectors
+    (match-define (list shuf-I shuf-F shuf-O) shufs)
+
+    (define-symbolic* start integer?)
+    (define-symbolic* end integer?)
+
+    (list
+     (vec-shuffle'reg-I shuf-I (list 'I 'Z))
+     (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
+     (vec-shuffle 'reg-O shuf-O (list 'O))
+     ; Uncomment to force the output writes to be continuous.
+     ;(vec-app 'out 'continuous-vec? (list shuf-O))
+     (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
+     (vec-shuffle-set! 'O shuf-O 'out)))
+
+  ; Shuffle vectors for each iteration
+  (define shuffle-gen
+    (symbolic-shuffle-gen 3))
+
+  (prog
+   (append preamble
+           (sketch-compute-shuffle-interleave
+            shuffle-gen
+            compute-gen
+            iterations))))
+
+
+(define (run-sketch sketch cost-fn
+                    [mat-I #f]
+                    [mat-F #f])
+
+  (define env (make-hash))
+  (when (and mat-I mat-F)
+    (match-define (matrix _ _ I-elements) mat-I)
+    (match-define (matrix _ _ F-elements) mat-F)
+    (hash-set! env 'I I-elements)
+    (hash-set! env 'F F-elements)
+    (hash-set! env 'O (make-vector (vector-length I-elements) 0)))
+
+  (define cost
+    (interp sketch
+            env
+            #:symbolic? #f
+            #:cost-fn cost-fn
+            #:fn-map (hash 'vec-mac vector-mac)))
+
+  (values (hash-ref env 'O) cost))
+
+; Run the synthesis query
+(parameterize [(current-reg-size 4)]
+  (define I (make-symbolic-matrix 3 3))
+  (define F (make-symbolic-matrix 3 3))
+
+  ; Generate sketch prog
+  (define mmul (conv-2d-sketch I F 6))
+
+  ; Define the cost function
+  (define (cost-fn inst env)
+    1)
+
+  ; Create function for sketch evaluation
+  (define (sketch-func args)
+    (apply (curry run-sketch mmul cost-fn)
+           args))
+
+  ; Functionalize spec for minimization prog
+  (define (spec-func args)
+    (apply matrix-conv-spec args))
+
+  ; Get a generator back from the synthesis procedure
+  (define model-generator
+    (synth-prog spec-func
+                sketch-func
+                (list I F)
+                #:get-inps (lambda (args) (flatten
+                                            (map matrix-elements args)))
+                #:max-cost 100
+                #:min-cost 1))
+
+  ; Keep minimizing solution in the synthesis procedure and generating new
+  ; solutions.
+  (for ([model (in-producer model-generator (void))])
+    (if (sat? model)
+      (pretty-print (evaluate mmul model))
+      (pretty-print (~a "failed to find solution: " model)))))
