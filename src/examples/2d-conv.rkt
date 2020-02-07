@@ -192,7 +192,10 @@
                                vector-length
                                (make-vector _ 0))))))
 
-  (values (hash-ref out-env 'O) cost))
+  (values (vector-take (hash-ref out-env 'O)
+                       (vector-length
+                         (matrix-elements I)))
+          cost))
 
 ; Run the synthesis query
 (parameterize [(current-reg-size 4)]
@@ -200,11 +203,11 @@
   ; Define inputs
   (define-values (I F)
     (values
-    (make-symbolic-matrix 2 2)
+    (make-symbolic-matrix 3 3)
     (make-symbolic-matrix 2 2)))
 
   ; Generate sketch prog
-  (define conv-2d (conv-2d-sketch I F 4))
+  (define conv-2d (conv-2d-sketch I F 7))
 
   ; Define cost function
   (define (cost-fn)
@@ -224,6 +227,8 @@
   (define (spec-func args)
     (matrix-elements (apply matrix-conv-spec args)))
 
+  ; Show the shape of the spec
+  (pretty-print (spec-func (list I F)))
 
   ; Get a generator back from the synthesis procedure.
   (define model-generator

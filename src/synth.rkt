@@ -18,7 +18,10 @@
   (assert (vector? sketch-out) "VERIFY-PROG: sketch output is not a vector")
   (assert (equal? (vector-length spec-out)
                   (vector-length sketch-out))
-          "VERIFY-PROG: lengths of sketch and spec outputs don't match.")
+          (format
+            "VERIFY-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
+            (vector-length spec-out)
+            (vector-length sketch-out)))
 
   (define sol
     (verify
@@ -55,7 +58,10 @@
       (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
       (assert (equal? (vector-length spec-out)
                       (vector-length sketch-out))
-              "SYNTH-PROG: lengths of sketch and spec outputs don't match.")
+              (format
+                "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
+                (vector-length spec-out)
+                (vector-length sketch-out)))
 
       (define-symbolic* c integer?)
       (assert (equal? c cost))
