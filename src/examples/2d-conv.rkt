@@ -6,6 +6,7 @@
          "../matrix-utils.rkt"
          "../prog-sketch.rkt"
          "../synth.rkt"
+         threading
          racket/trace
          racket/generator
          rosette/solver/smt/z3
@@ -72,11 +73,77 @@
                                         (matrix 3 3 filter))
                       (matrix 3 3 gold))))))
 
+; ============================ MANUAL ATTEMPT =================
 
-#|(define (conv-2d-sketch inp filt iterations)
+(define man-sol
+  (prog
+    (list
+      (vec-extern-decl 'I 4)
+      (vec-extern-decl 'O 4)
+      (vec-extern-decl 'F 4)
+      (vec-const 'Z '#(0))
+      (vec-const 'shuf0-0 (vector 0 0 0 0))
+      (vec-const 'shuf1-0 (vector 3 2 1 0))
+      (vec-const 'shuf2-0 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-0 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-0 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-0 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-0 'out)
+      (vec-const 'shuf0-1 (vector 4 1 2 3))
+      (vec-const 'shuf1-1 (vector 3 3 3 3))
+      (vec-const 'shuf2-1 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-1 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-1 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-1 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-1 'out)
+      (vec-const 'shuf0-2 (vector 4 4 4 1))
+      (vec-const 'shuf1-2 (vector 4 4 4 1))
+      (vec-const 'shuf2-2 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-2 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-2 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-2 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-2 'out)
+      (vec-const 'shuf0-3 (vector 4 4 4 2))
+      (vec-const 'shuf1-3 (vector 4 4 4 2))
+      (vec-const 'shuf2-3 (vector 0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-3 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-3 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-3 '(O))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-3 'out))))
+
+(define (sol-func I F)
+  (define-values (env _)
+    (interp man-sol
+            (list (cons 'I (matrix-elements I))
+                  (cons 'F (matrix-elements F))
+                  (cons 'O (make-vector (vector-length (matrix-elements I)) 0)))
+            #:fn-map (hash 'vec-mac vector-mac)))
+  (hash-ref env 'O))
+
+(define I (make-symbolic-matrix 2 2))
+(define F (make-symbolic-matrix 2 2))
+
+; ================= Verify manual solution ======================
+(verify-prog (lambda (args) (apply sol-func args))
+             (lambda (args) (matrix-elements
+                              (apply matrix-conv-spec args)))
+             (list I F)
+             #:get-inps (lambda (args)
+                          (~> model
+                              (map (lambda (mat) (matrix-elements mat)) _)
+                              flatten)))
+
+; ==================== Sketch Generation =========================
+
+(define (conv-2d-sketch inp filt iterations)
   (match-define (matrix _ _ I-elements) inp)
   (match-define (matrix _ _ F-elements) filt)
-  ; Program preamble to define the "zero" vector.
+
+  ;Program preamble to define the "zero" vector.
   (define preamble
     (list
      (vec-extern-decl 'I (vector-length I-elements))
@@ -84,7 +151,7 @@
      (vec-extern-decl 'F (vector-length F-elements))
      (vec-const 'Z (vector 0))))
 
-  ; Compute description for the sketch
+  ;Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
     (match-define (list shuf-I shuf-F shuf-O) shufs)
@@ -110,56 +177,51 @@
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
-            iterations))))|#
+            iterations))))
 
-
-(define (run-sketch sketch cost-fn
-                    [mat-I #f]
-                    [mat-F #f])
-
-  (define env (make-hash))
-  (when (and mat-I mat-F)
-    (match-define (matrix _ _ I-elements) mat-I)
-    (match-define (matrix _ _ F-elements) mat-F)
-    (hash-set! env 'I I-elements)
-    (hash-set! env 'F F-elements)
-    (hash-set! env 'O (make-vector (vector-length I-elements) 0)))
-
-  (define cost
+(define (run-sketch sketch cost-fn I F)
+  (define-values (out-env cost)
     (interp sketch
-            env
-            #:symbolic? #f
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mac vector-mac)))
+            #:fn-map (hash 'vec-mac vector-mac)
+            (list (cons 'I (matrix-elements I))
+                  (cons 'F (matrix-elements F))
+                  (cons 'O (~> I
+                               matrix-elements
+                               vector-length
+                               (make-vector _ 0))))))
 
-  (values (hash-ref env 'O) cost))
+  (values (hash-ref out-env 'O) cost))
 
-(define I (make-symbolic-matrix 2 2))
-(define F (make-symbolic-matrix 2 2))
 ; Run the synthesis query
-#|(parameterize [(current-reg-size 4)]
-  (pretty-print I)
-  (pretty-print F)
+(parameterize [(current-reg-size 4)]
+
+  (define I-elements (matrix-elements I))
+  (define F-elements (matrix-elements F))
 
   ; Generate sketch prog
-  (define mmul (conv-2d-sketch I F 4))
+  (define conv-2d (conv-2d-sketch I F 4))
 
-  ;(pretty-print mmul)
-
-  ; Define the cost function
-  (define (cost-fn inst env)
-    1)
+  ; Define cost function
+  (define (cost-fn)
+    (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
+          [cost-2 (make-register-cost 4)])
+      (lambda (inst env)
+        (+ (cost-1 inst env) (cost-2 inst env)))))
 
   ; Create function for sketch evaluation
   (define (sketch-func args)
-    (apply (curry run-sketch mmul cost-fn)
+    (apply (curry run-sketch
+                  conv-2d
+                  (cost-fn))
            args))
 
-  ; Functionalize spec for minimization prog
+  ; Function for spec evaluation
   (define (spec-func args)
-    (apply matrix-conv-spec args))
+    (matrix-elements (apply matrix-conv-spec args)))
 
-  ; Get a generator back from the synthesis procedure
+
+  ; Get a generator back from the synthesis procedure.
   (define model-generator
     (synth-prog spec-func
                 sketch-func
@@ -167,68 +229,10 @@
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
                 #:max-cost 100
-                #:min-cost 1))
+                #:min-cost 0))
 
-  ; Keep minimizing solution in the synthesis procedure and generating new
-  ; solutions.
+  ; Keep generating solutions.
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
-      (pretty-print (evaluate mmul model))
-      (pretty-print (~a "failed to find solution: " model)))))|#
-
-; ======================================= MANUAL ATTEMPT =================
-(define man-sol
-  (prog
-    (list
-      (vec-extern-decl 'I 4)
-      (vec-extern-decl 'O 4)
-      (vec-extern-decl 'F 4)
-      (vec-const 'Z '#(0))
-      (vec-const 'shuf0-0 (vector 0 0 0 0))
-      (vec-const 'shuf1-0 (vector 3 2 1 0))
-      (vec-const 'shuf2-0 (vector 0 1 2 3))
-      (vec-shuffle 'reg-I 'shuf0-0 '(I Z))
-      (vec-shuffle 'reg-F 'shuf1-0 '(F Z))
-      (vec-shuffle 'reg-O 'shuf2-0 '(O))
-      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
-      (vec-shuffle-set! 'O 'shuf2-0 'out)
-      (vec-const 'shuf0-1 (vector 5 1 2 3))
-      (vec-const 'shuf1-1 (vector 3 3 3 3))
-      (vec-const 'shuf2-1 (vector 0 1 2 3))
-      (vec-shuffle 'reg-I 'shuf0-1 '(I Z))
-      (vec-shuffle 'reg-F 'shuf1-1 '(F Z))
-      (vec-shuffle 'reg-O 'shuf2-1 '(O))
-      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
-      (vec-shuffle-set! 'O 'shuf2-1 'out)
-      (vec-const 'shuf0-2 (vector 5 5 5 1))
-      (vec-const 'shuf1-2 (vector 5 5 5 1))
-      (vec-const 'shuf2-2 (vector 0 1 2 3))
-      (vec-shuffle 'reg-I 'shuf0-2 '(I Z))
-      (vec-shuffle 'reg-F 'shuf1-2 '(F Z))
-      (vec-shuffle 'reg-O 'shuf2-2 '(O))
-      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
-      (vec-shuffle-set! 'O 'shuf2-2 'out)
-      (vec-const 'shuf0-3 (vector 5 5 5 2))
-      (vec-const 'shuf1-3 (vector 5 5 5 2))
-      (vec-const 'shuf2-3 (vector 0 1 2 3))
-      (vec-shuffle 'reg-I 'shuf0-3 '(I Z))
-      (vec-shuffle 'reg-F 'shuf1-3 '(F Z))
-      (vec-shuffle 'reg-O 'shuf2-3 '(O))
-      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
-      (vec-shuffle-set! 'O 'shuf2-3 'out))))
-
-(define (sketch-fun I F)
-  (define-values (env _)
-    (interp man-sol
-            (list (cons 'I (matrix-elements I))
-                  (cons 'F (matrix-elements F))
-                  (cons 'O (make-vector (vector-length (matrix-elements I)) 0)))
-            #:fn-map (hash 'vec-mac vector-mac)))
-  (hash-ref env 'O))
-
-; ================= Verify manual solution ======================
-(verify-prog (lambda (args) (apply sketch-fun args))
-             (lambda (args) (matrix-elements
-                              (apply matrix-conv-spec args)))
-             (list I F)
-             #:get-inps flatten)
+      (pretty-print (evaluate conv-2d model))
+      (pretty-print (~a "failed to find solution: " model)))))

@@ -12,6 +12,14 @@
 
   (define spec-out (spec sym-args))
   (define sketch-out (sketch sym-args))
+
+  ; Sanity checks
+  (assert (vector? spec-out) "VERIFY-PROG: spec output is not a vector")
+  (assert (vector? sketch-out) "VERIFY-PROG: sketch output is not a vector")
+  (assert (equal? (vector-length spec-out)
+                  (vector-length sketch-out))
+          "VERIFY-PROG: lengths of sketch and spec outputs don't match.")
+
   (define sol
     (verify
       (assert (equal? (spec sym-args) (sketch sym-args)))))
@@ -43,6 +51,12 @@
       (define spec-out (spec sym-args))
       (define-values (sketch-out cost) (sketch sym-args ))
 
+      (assert (vector? spec-out) "SYNTH-PROG: spec output is not a vector")
+      (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
+      (assert (equal? (vector-length spec-out)
+                      (vector-length sketch-out))
+              "SYNTH-PROG: lengths of sketch and spec outputs don't match.")
+
       (define-symbolic* c integer?)
       (assert (equal? c cost))
 
@@ -55,10 +69,13 @@
                                       (assert (<= cost cur-cost)))))
           (list)))
 
-      (pretty-print (~a "cpu time: " (/ cpu-time 1000.0) "s, real time: " (/ real-time 1000.0) "s"))
+      (pretty-print (~a "cpu time: "
+                        (/ cpu-time 1000.0)
+                        "s, real time: "
+                        (/ real-time 1000.0)
+                        "s"))
 
       (define model (first synth-res))
-      ;(pretty-print model)
 
       (define new-cost
         (if (sat? model)

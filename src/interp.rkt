@@ -23,9 +23,6 @@
 (define (write-vec! memory start vec)
   (vector-copy! memory start vec))
 
-(define (default-fn-defns f)
-  (error "attempt to apply undefined function ~a" f))
-
 ; Align vectors by padding to a multiple of current-reg-size
 (define (align vec)
   (define len (vector-length vec))
@@ -46,7 +43,7 @@
 (define (interp program
                 init-env
                 #:cost-fn [cost-fn (thunk* 0)]
-                #:fn-map [fn-map default-fn-defns]
+                #:fn-map [fn-map (make-hash)]
                 #:symbolic? [symbolic? #f])
   ; Setup the environment if it is an associative list.
   (define env
