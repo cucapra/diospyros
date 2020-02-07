@@ -41,9 +41,10 @@
   v)
 
 (define (continuous-vec? vec)
+  (assert (equal? 0 (modulo (vector-ref vec 0) (current-reg-size))))
   (let ([i (vector-ref vec 0)])
     (for ([(el idx) (in-indexed vec)])
-      (assert (pr (equal? el (+ i idx)))))))
+      (assert (equal? el (+ i idx))))))
 
 ; Generate program sketch for matrix multiply
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
@@ -70,7 +71,7 @@
      (vec-shuffle 'reg-B shuf-B (list 'B 'Z))
      (vec-shuffle 'reg-C shuf-C (list 'C))
      ; Uncomment to force the output writes to be continuous.
-     ;(vec-void-app 'continuous-vec? (list shuf-C))
+     (vec-void-app 'continuous-vec? (list shuf-C))
      (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
      (vec-shuffle-set! 'C shuf-C 'out)))
 
@@ -106,8 +107,8 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
                            'continuous-vec? continuous-vec?)))
-
-  (values (hash-ref env 'C) cost))
+;  (values (hash-ref env 'C) cost))
+  (values (vector-take (hash-ref env 'C) 6) cost))
 
 ; Get statistics on a proposed synthesis solution
 (define (get-statistics sol)
@@ -133,7 +134,7 @@
   (define B (make-symbolic-matrix 3 3))
 
   ; Generate sketch prog
-  (define mmul (matrix-mul-shuffle-sketch A B 5))
+  (define mmul (matrix-mul-shuffle-sketch A B 6))
 
   ; Define the cost function
   (define (cost-fn)
