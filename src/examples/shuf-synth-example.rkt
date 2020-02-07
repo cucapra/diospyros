@@ -88,7 +88,9 @@
 
 ; Run a matrix multiply sketch with symbolic inputs. If input matrices
 ; are missing, interp will generate fresh symbolic values.
-(define (run-matrix-mul-sketch sketch cost-fn
+(define (run-matrix-mul-sketch sketch
+                               C-size
+                               cost-fn
                                [mat-A #f]
                                [mat-B #f])
 
@@ -98,7 +100,7 @@
     (match-define (matrix _ B-cols B-elements) mat-B)
     (hash-set! env 'A A-elements)
     (hash-set! env 'B B-elements)
-    (hash-set! env 'C (make-vector (* A-rows B-cols) 0)))
+    (hash-set! env 'C (make-vector C-size 0)))
 
   (define-values (_ cost)
     (interp sketch
@@ -107,20 +109,23 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
                            'continuous-vec? continuous-vec?)))
-;  (values (hash-ref env 'C) cost))
-  (values (vector-take (hash-ref env 'C) 6) cost))
+
+  (values (vector-take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
-(define (get-statistics sol)
+(define (get-statistics C-size sol)
   (let*-values
     ([(_ uniq-cost) (run-matrix-mul-sketch
                       sol
+                      C-size
                       (make-shuffle-unique-cost))]
      [(_ regs-cost) (run-matrix-mul-sketch
                       sol
+                      C-size
                       (make-register-cost 4))]
      [(_ class-uniq-cost) (run-matrix-mul-sketch
                             sol
+                            C-size
                             (make-shuffle-unique-cost prefix-equiv))])
     (pretty-print sol)
     (pretty-print `(unique-idxs-cost: ,uniq-cost))
@@ -130,8 +135,12 @@
 
 ; Run the synthesis query
 (parameterize [(current-reg-size 4)]
-  (define A (make-symbolic-matrix 2 3))
-  (define B (make-symbolic-matrix 3 3))
+  (define A-rows 2)
+  (define A-cols-B-rows 3)
+  (define B-cols 3)
+  (define A (make-symbolic-matrix A-rows A-cols-B-rows))
+  (define B (make-symbolic-matrix A-cols-B-rows B-cols))
+  (define C-size (* A-rows B-cols))
 
   ; Generate sketch prog
   (define mmul (matrix-mul-shuffle-sketch A B 6))
@@ -147,6 +156,7 @@
   (define (sketch-func args)
     (apply (curry run-matrix-mul-sketch
                   mmul
+                  C-size
                   (cost-fn))
            args))
 
@@ -168,5 +178,5 @@
   ; solutions.
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
-      (get-statistics (evaluate mmul model))
+      (get-statistics C-size (evaluate mmul model))
       (pretty-print (~a "failed to find solution: " model)))))
