@@ -78,14 +78,15 @@
        ; The identifier is not already bound, create a symbolic vector of the
        ; correct size and add it to the environment.
        (if (and symbolic? (not (env-has? id)))
-         (env-set! id (make-vector size))
+         (env-set! id (align (make-vector size)))
          (begin
            (assert (env-has? id)
                    (~a "INTERP: missing extern vector: " id))
            (assert (= (vector-length (env-ref id)) size)
                    (~a "INTERP: size mistmatch: " id
                        ". Expected: " size
-                       " Given: " (vector-length (env-ref id))))))]
+                       " Given: " (vector-length (env-ref id))))
+           (env-set! id (align (env-ref id)))))]
 
       [(vec-const id init)
        (env-set! id init)]
@@ -194,7 +195,7 @@
        "check external declared vector defined"
        (define env (make-hash))
        (hash-set! env `x (make-vector 2 0))
-       (define gold (vector 0 0))
+       (define gold (vector 0 0 0 0))
        (define p (prog (list (vec-extern-decl `x 2))))
        (interp p env)
        (check-equal? (hash-ref env `x) gold))
