@@ -124,18 +124,19 @@
             #:fn-map (hash 'vec-mac vector-mac)))
   (hash-ref env 'O))
 
-(define I (make-symbolic-matrix 2 2))
-(define F (make-symbolic-matrix 2 2))
 
 ; ================= Verify manual solution ======================
-(verify-prog (lambda (args) (apply sol-func args))
-             (lambda (args) (matrix-elements
-                              (apply matrix-conv-spec args)))
-             (list I F)
-             #:get-inps (lambda (args)
-                          (~> model
-                              (map (lambda (mat) (matrix-elements mat)) _)
-                              flatten)))
+(begin
+  (define I (make-symbolic-matrix 2 2))
+  (define F (make-symbolic-matrix 2 2))
+  (verify-prog (lambda (args) (apply sol-func args))
+               (lambda (args) (matrix-elements
+                                (apply matrix-conv-spec args)))
+               (list I F)
+               #:get-inps (lambda (args)
+                            (~> model
+                                (map (lambda (mat) (matrix-elements mat)) _)
+                                flatten))))
 
 ; ==================== Sketch Generation =========================
 
@@ -196,8 +197,11 @@
 ; Run the synthesis query
 (parameterize [(current-reg-size 4)]
 
-  (define I-elements (matrix-elements I))
-  (define F-elements (matrix-elements F))
+  ; Define inputs
+  (define-values (I F)
+    (values
+    (make-symbolic-matrix 2 2)
+    (make-symbolic-matrix 2 2)))
 
   ; Generate sketch prog
   (define conv-2d (conv-2d-sketch I F 4))
