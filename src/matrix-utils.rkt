@@ -41,6 +41,15 @@
     (vector-set! reg-used (reg-of reg-size idx) #t))
   (count identity (vector->list reg-used)))
 
+; Returns whether a vector of indices is continuous and aligned to the register
+; size
+(define (continuous-aligned-vec? reg-size vec)
+  (assert (equal? 0 (modulo (vector-ref vec 0) reg-size)))
+  (let ([i (vector-ref vec 0)])
+    (for ([(el idx) (in-indexed vec)])
+      (assert (equal? el (+ i idx))))))
+
+
 (module+ test
   (require rackunit
            rackunit/text-ui)

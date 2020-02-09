@@ -40,12 +40,6 @@
   (pretty-print v)
   v)
 
-(define (continuous-vec? vec)
-  (assert (equal? 0 (modulo (vector-ref vec 0) (current-reg-size))))
-  (let ([i (vector-ref vec 0)])
-    (for ([(el idx) (in-indexed vec)])
-      (assert (equal? el (+ i idx))))))
-
 ; Generate program sketch for matrix multiply
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
   (match-define (matrix A-rows A-cols _) mat-A)
@@ -71,7 +65,7 @@
      (vec-shuffle 'reg-B shuf-B (list 'B 'Z))
      (vec-shuffle 'reg-C shuf-C (list 'C))
      ; Uncomment to force the output writes to be continuous.
-     (vec-void-app 'continuous-vec? (list shuf-C))
+     (vec-void-app 'continuous-aligned-vec? (list shuf-C))
      (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
      (vec-shuffle-set! 'C shuf-C 'out)))
 
@@ -108,7 +102,8 @@
             #:symbolic? #t
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
-                           'continuous-vec? continuous-vec?)))
+                           'continuous-aligned-vec?
+                           (curry continuous-aligned-vec? (current-reg-size)))))
 
   (values (vector-take (hash-ref env 'C) C-size) cost))
 

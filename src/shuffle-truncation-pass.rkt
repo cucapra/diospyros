@@ -25,7 +25,7 @@
 ; that now holds that index value
 (define (inp-id-for-idx env inps idx)
   (cond
-    [(empty? inps) (error "idx ~a not found in inputs") idx]
+    [(empty? inps) (error (format "idx ~a not found in inputs" idx))]
     [else
      (define inp-id (first inps))
      (define inp-val (hash-ref env inp-id))
@@ -98,13 +98,20 @@
   (cons shuf-decl (nest-shuffles reg-size shuf-vec id shuf-id inp-ids new-inps)))
 
 (define (truncate-shuffle-set env reg-size out-vec idxs inp)
-  ; Declare a new shuffle vector to modify
   (define shufs (hash-ref env idxs))
-  (define shuf-id (new-var idxs))
-  (define shuf-vec (vector-copy shufs))
-  (define shuf-decl (vec-const shuf-id shuf-vec))
+  (unless (continuous-aligned-vec? reg-size shufs)
+    (error (format "Shuffle-set ~a must be continuous and aligned" shufs)))
 
-  void)
+  (define out-val (hash-ref env out-vec))
+  (define dest
+    (cond
+      ; The output is a constant
+      [(vector? out-val)
+       out-vec]
+      ; Output has been mapped across allocated registers
+      [else (hash-ref out-val (vector-ref shufs 0))]))
+
+  (vec-store dest inp 0 reg-size))
 
 ; Produces 1 or more instructions, modifies env
 (define (truncate-shuffle-inst env reg-size inst)
@@ -112,13 +119,12 @@
     [(vec-shuffle id idxs inps)
      (truncate-shuffle env reg-size id idxs inps)]
     [(vec-shuffle-set! out-vec idxs inp)
-     inst]
+     (truncate-shuffle-set env reg-size out-vec idxs inp)]
     [_ inst]))
 
 (define (shuffle-truncation program env reg-size)
   (define instrs (flatten (map (curry truncate-shuffle-inst env reg-size)
                                (prog-insts program))))
-  ;(pretty-print env)
   (prog instrs))
 
 ; Test program copied from matmul
@@ -129,61 +135,92 @@
     (vec-extern-decl 'B 9)
     (vec-extern-decl 'C 6)
     (vec-const 'Z '#(0))
-    (vec-const 'shuf0-0 '#(0 3 1 5))
-    (vec-const 'shuf1-0 '#(0 2 5 6))
-    (vec-const 'shuf2-0 '#(0 5 2 3))
+    (vec-const 'shuf0-0 '#(3 3 1 0))
+    (vec-const 'shuf1-0 '#(1 2 2 2))
+    (vec-const 'shuf2-0 '#(4 5 6 7))
     (vec-shuffle 'reg-A 'shuf0-0 '(A Z))
     (vec-shuffle 'reg-B 'shuf1-0 '(B Z))
     (vec-shuffle 'reg-C 'shuf2-0 '(C))
+    (vec-void-app 'continuous-aligned-vec? '(shuf2-0))
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
     (vec-shuffle-set! 'C 'shuf2-0 'out)
-    (vec-const 'shuf0-1 '#(2 4 2 4))
-    (vec-const 'shuf1-1 '#(6 5 8 3))
-    (vec-const 'shuf2-1 '#(0 5 2 3))
+    (vec-const 'shuf0-1 '#(4 4 4 5))
+    (vec-const 'shuf1-1 '#(4 5 7 6))
+    (vec-const 'shuf2-1 '#(4 5 6 7))
     (vec-shuffle 'reg-A 'shuf0-1 '(A Z))
     (vec-shuffle 'reg-B 'shuf1-1 '(B Z))
     (vec-shuffle 'reg-C 'shuf2-1 '(C))
+    (vec-void-app 'continuous-aligned-vec? '(shuf2-1))
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
     (vec-shuffle-set! 'C 'shuf2-1 'out)
-    (vec-const 'shuf0-2 '#(2 4 2 4))
-    (vec-const 'shuf1-2 '#(7 12 12 4))
-    (vec-const 'shuf2-2 '#(1 3 0 4))
+    (vec-const 'shuf0-2 '#(0 0 0 4))
+    (vec-const 'shuf1-2 '#(0 1 2 3))
+    (vec-const 'shuf2-2 '#(0 1 2 3))
     (vec-shuffle 'reg-A 'shuf0-2 '(A Z))
     (vec-shuffle 'reg-B 'shuf1-2 '(B Z))
     (vec-shuffle 'reg-C 'shuf2-2 '(C))
+    (vec-void-app 'continuous-aligned-vec? '(shuf2-2))
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
     (vec-shuffle-set! 'C 'shuf2-2 'out)
-    (vec-const 'shuf0-3 '#(0 3 1 5))
-    (vec-const 'shuf1-3 '#(1 0 3 7))
-    (vec-const 'shuf2-3 '#(1 3 0 4))
+    (vec-const 'shuf0-3 '#(5 5 5 4))
+    (vec-const 'shuf1-3 '#(7 8 6 5))
+    (vec-const 'shuf2-3 '#(4 5 6 7))
     (vec-shuffle 'reg-A 'shuf0-3 '(A Z))
     (vec-shuffle 'reg-B 'shuf1-3 '(B Z))
     (vec-shuffle 'reg-C 'shuf2-3 '(C))
+    (vec-void-app 'continuous-aligned-vec? '(shuf2-3))
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
     (vec-shuffle-set! 'C 'shuf2-3 'out)
-    (vec-const 'shuf0-4 '#(0 3 1 5))
-    (vec-const 'shuf1-4 '#(2 1 4 8))
-    (vec-const 'shuf2-4 '#(2 4 1 5))
+    (vec-const 'shuf0-4 '#(2 1 2 5))
+    (vec-const 'shuf1-4 '#(6 4 8 6))
+    (vec-const 'shuf2-4 '#(0 1 2 3))
     (vec-shuffle 'reg-A 'shuf0-4 '(A Z))
     (vec-shuffle 'reg-B 'shuf1-4 '(B Z))
     (vec-shuffle 'reg-C 'shuf2-4 '(C))
+    (vec-void-app 'continuous-aligned-vec? '(shuf2-4))
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
-    (vec-shuffle-set! 'C 'shuf2-4 'out))))
-
+    (vec-shuffle-set! 'C 'shuf2-4 'out)
+    (vec-const 'shuf0-5 '#(1 2 1 3))
+    (vec-const 'shuf1-5 '#(3 7 5 0))
+    (vec-const 'shuf2-5 '#(0 1 2 3))
+    (vec-shuffle 'reg-A 'shuf0-5 '(A Z))
+    (vec-shuffle 'reg-B 'shuf1-5 '(B Z))
+    (vec-shuffle 'reg-C 'shuf2-5 '(C))
+    (vec-void-app 'continuous-aligned-vec? '(shuf2-5))
+    (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+    (vec-shuffle-set! 'C 'shuf2-5 'out))))
 
 (define c-env (make-hash))
 (define reg-size 4)
 (define reg-alloc (register-allocation p c-env reg-size))
 
 (define new-prog (shuffle-truncation reg-alloc c-env reg-size))
-(pretty-print new-prog)
 
 (match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
 (match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
-(define env (make-hash))
-(hash-set! env 'A A-elements)
-(hash-set! env 'B B-elements)
-(hash-set! env 'C (make-vector (* A-rows B-cols) 0))
 
-(pretty-print (interp new-prog env #:fn-map (hash 'vec-mac vector-mac)))
-(pretty-print (hash-ref env 'C))
+(define (make-env)
+  (define env (make-hash))
+  (hash-set! env 'A A-elements)
+  (hash-set! env 'B B-elements)
+  (hash-set! env 'C (make-vector (* A-rows B-cols) 0))
+  env)
+
+(define-values (gold-env gold-cost)
+  (interp p (make-env)
+          #:fn-map (hash 'vec-mac
+                         vector-mac
+                         'continuous-aligned-vec?
+                         (curry continuous-aligned-vec? (current-reg-size)))))
+(pretty-print (hash-ref gold-env 'C))
+(define gold-C (vector-take (hash-ref gold-env 'C) 6))
+
+(define-values (new-env new-cost)
+  (interp new-prog (make-env)
+          #:fn-map (hash 'vec-mac
+                         vector-mac
+                         'continuous-aligned-vec?
+                         (curry continuous-aligned-vec? (current-reg-size)))))
+(define new-C (vector-take (hash-ref new-env 'C) 6))
+
+(assert (equal? gold-C new-C))

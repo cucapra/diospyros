@@ -19,12 +19,13 @@
 ; Partition a vector into reg-size sections, with an abstract init function.
 ; Modifies env and produces a list of new vectors.
 (define (partition-vector env id vec-len reg-size init-fn)
+  (define len (* reg-size (exact-ceiling (/ vec-len reg-size))))
   ; Map the old id to a nested map of new-ids
   (let* ([id-map (make-hash)]
          [new-vecs
-          (for/list ([i (in-range 0 vec-len reg-size)])
+          (for/list ([i (in-range 0 len reg-size)])
             (let* ([start i]
-                   [end (min vec-len (+ i reg-size))]
+                   [end (min len (+ i reg-size))]
                    [new-id (string->symbol
                             (format "~a_~a_~a" id start end))]
                    [new-init (init-fn new-id start end)])
@@ -77,7 +78,9 @@
     (hash-set! env id void))
   (match inst
     [(vec-extern-decl id size)
-     (alloc-extern-decl env reg-size id size)]
+     (match-define (inst-result insts final)
+       (alloc-extern-decl env reg-size id size))
+     (inst-result (cons inst insts) final)]
     [(vec-const id init)
      (define-id id)
      (alloc-const env reg-size id init)]
@@ -130,6 +133,20 @@
         (check-equal? (hash-ref env 'x) (vector 0 0 0 0)))
 
       (test-case
+        "External decl"
+        (define env (make-hash))
+        (hash-set! env `x (make-vector 1 1))
+        (define reg-size 4)
+        (define/prog p
+          (vec-extern-decl 'x 1))
+        (define new-p (register-allocation p env reg-size))
+        (define/prog gold
+          (vec-extern-decl 'x 1)
+          (vec-load 'x_0_4 'x 0 4)
+          (vec-store 'x 'x_0_4 0 4))
+        (check-equal? new-p gold))
+
+      (test-case
         "Partition large vectors"
         (define env (make-hash))
         (define reg-size 4)
@@ -141,8 +158,8 @@
         (define/prog gold
           ('x = vec-const '#(0 1 2 3 4 5 6))
           (vec-load 'x_0_4 'x 0 4)
-          (vec-load 'x_4_7 'x 4 7)
+          (vec-load 'x_4_8 'x 4 8)
           (vec-store 'x 'x_0_4 0 4)
-          (vec-store 'x 'x_4_7 4 7))
+          (vec-store 'x 'x_4_8 4 8))
         (check-equal? new-p gold)
         (check-equal? (hash-ref (hash-ref env 'x) 0) 'x_0_4)))))
