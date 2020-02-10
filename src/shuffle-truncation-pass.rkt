@@ -190,37 +190,44 @@
     (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
     (vec-shuffle-set! 'C 'shuf2-5 'out))))
 
-(define c-env (make-hash))
-(define reg-size 4)
-(define reg-alloc (register-allocation p c-env reg-size))
+(module+ test
+  (require rackunit
+           rackunit/text-ui)
+  (run-tests
+   (test-suite
+    "shuffle truncation tests"
+    (test-case
+     "Mat mul example"
+     (define c-env (make-hash))
+     (define reg-size 4)
+     (define reg-alloc (register-allocation p c-env reg-size))
 
-(define new-prog (shuffle-truncation reg-alloc c-env reg-size))
+     (define new-prog (shuffle-truncation reg-alloc c-env reg-size))
 
-(match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
-(match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
+     (match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
+     (match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
 
-(define (make-env)
-  (define env (make-hash))
-  (hash-set! env 'A A-elements)
-  (hash-set! env 'B B-elements)
-  (hash-set! env 'C (make-vector (* A-rows B-cols) 0))
-  env)
+     (define (make-env)
+       (define env (make-hash))
+       (hash-set! env 'A A-elements)
+       (hash-set! env 'B B-elements)
+       (hash-set! env 'C (make-vector (* A-rows B-cols) 0))
+       env)
 
-(define-values (gold-env gold-cost)
-  (interp p (make-env)
-          #:fn-map (hash 'vec-mac
-                         vector-mac
-                         'continuous-aligned-vec?
-                         (curry continuous-aligned-vec? (current-reg-size)))))
-(pretty-print (hash-ref gold-env 'C))
-(define gold-C (vector-take (hash-ref gold-env 'C) 6))
+     (define-values (gold-env gold-cost)
+       (interp p (make-env)
+               #:fn-map (hash 'vec-mac
+                              vector-mac
+                              'continuous-aligned-vec?
+                              (curry continuous-aligned-vec? (current-reg-size)))))
+     (define gold-C (vector-take (hash-ref gold-env 'C) 6))
 
-(define-values (new-env new-cost)
-  (interp new-prog (make-env)
-          #:fn-map (hash 'vec-mac
-                         vector-mac
-                         'continuous-aligned-vec?
-                         (curry continuous-aligned-vec? (current-reg-size)))))
-(define new-C (vector-take (hash-ref new-env 'C) 6))
+     (define-values (new-env new-cost)
+       (interp new-prog (make-env)
+               #:fn-map (hash 'vec-mac
+                              vector-mac
+                              'continuous-aligned-vec?
+                              (curry continuous-aligned-vec? (current-reg-size)))))
+     (define new-C (vector-take (hash-ref new-env 'C) 6))
 
-(assert (equal? gold-C new-C))
+     (check-equal? gold-C new-C)))))
