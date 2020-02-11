@@ -13,34 +13,35 @@
 (define (vector-pad-to vec len)
   (unless (>= len (vector-length vec))
     (error 'vector-pad-to "failed because ~a is longer than ~a" vec len))
-  (let ([fill (make-vector (- len (vector-length vec)) 0)])
-    (vector-append vec fill)))
+  (let ([fill (make-vector len 0)])
+    (vector-copy! fill 0 vec)
+    fill))
 
 ; Partition a vector into reg-size sections, with an abstract init function.
 ; Modifies env and produces a list of new vectors.
 (define (partition-vector env id vec-len init-fn)
   (define len (* (current-reg-size) (exact-ceiling (/ vec-len (current-reg-size)))))
-  ; Map the old id to a nested map of new-ids
-  (let* ([id-map (make-hash)]
-         [new-vecs
-          (for/list ([i (in-range 0 len (current-reg-size))])
-            (let* ([start i]
-                   [end (min len (+ i (current-reg-size)))]
-                   [new-id (string->symbol
-                            (format "~a_~a_~a" id start end))]
-                   [new-init (init-fn new-id start end)])
-              ; Add the new vectors to the top level env
-              (hash-set! env new-id new-init)
-              (for ([j (in-range start end 1)])
-                (hash-set! id-map j new-id))
-              (inst-result
-               new-init
-               (vec-store id new-id start end))))])
-    ; Add the old id as a map to the new ids, by index
-    (hash-set! env id id-map)
-    (inst-result
-     (map inst-result-insts new-vecs)
-     (map inst-result-final new-vecs))))
+  (define id-map (make-hash))
+  (define new-vecs
+    (for/list ([i (in-range 0 len (current-reg-size))])
+      (let* ([start i]
+             [end (min len (+ i (current-reg-size)))]
+             [new-id (string->symbol
+                       (format "~a_~a_~a" id start end))]
+             [new-init (init-fn new-id start end)])
+        ; Add the new vectors to the top level env
+        (hash-set! env new-id new-init)
+        (for ([j (in-range start end 1)])
+          (hash-set! id-map j new-id))
+        (inst-result
+          new-init
+          (vec-store id new-id start end)))))
+
+  ; Add the old id as a map to the new ids, by index
+  (hash-set! env id id-map)
+  (inst-result
+    (map inst-result-insts new-vecs)
+    (map inst-result-final new-vecs)))
 
 ; Produces 1 or more instructions, modifies env
 (define (alloc-const env id init)
@@ -88,14 +89,14 @@
      (define-id id)
      (check-defined (apply list idxs inps))
      (inst-result inst `())]
-    [(vec-shuffle-set! out-vec idxs inp)
+    [(vec-shuffle-set! _ idxs inp)
      (check-defined (list idxs inp))
      (inst-result inst `())]
-    [(vec-app id f inps)
+    [(vec-app id _ inps)
      (define-id id)
      (check-defined inps)
      (inst-result inst `())]
-    [(vec-void-app f inps)
+    [(vec-void-app _ inps)
      (check-defined inps)
      (inst-result inst `())]
     [_ (error 'register-allocation "unknown instruction ~a" inst)]))
@@ -103,16 +104,14 @@
 (define (register-allocation program env)
   (define results (map (curry alloc-inst env) (prog-insts program)))
 
-  (define insts
+  (prog
     (flatten
      (list
       (map inst-result-insts results)
-      (map inst-result-final results))))
+      (map inst-result-final results)))))
 
-  (prog insts))
 
 ; Testing
-
 (module+ test
   (require rackunit
            rackunit/text-ui)
