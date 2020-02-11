@@ -4,11 +4,32 @@
 
 (provide ssa
          const-elim
+         hoist-consts
          lvn)
 
 (define (pr v)
   (pretty-print v)
   v)
+
+; Hoist constants to the start of the program.
+(define (hoist-consts p)
+  (define consts (list))
+  (define (add-const c)
+    (set! consts (cons c consts)))
+
+  ; Walk over instructions and remove constants.
+  (define new-insts
+    (for/list ([inst (prog-insts p)])
+      (match inst
+        [(vec-const id init)
+         (add-const inst)
+         (list)]
+        [inst (list inst)])))
+
+  (prog
+    (append consts
+            (flatten new-insts))))
+
 
 ; Conversion to static single assignment form
 (define (ssa p)
