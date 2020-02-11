@@ -15,46 +15,157 @@
                #:before-first "{"
                #:after-last "}"))
 
+; Track aligning loads from external memories.
+(define (make-load-tracker)
+  ; Track the next location available to be read from a memory.
+  ; For example, if we have (A -> 0, B -> 4) and we read
+  ; 2 values from B and 4 values from A, we'll have (A -> 4, B -> 6).
+  (define loads-done (make-hash))
+
+  ; Do a read from a memory
+  (define (do-read mem start end)
+    (when (not (hash-has-key? mem))
+      (hash-set! loads-done mem 0))
+    (assert (equal? (hash-ref loads-done mem)
+                    start)
+            (format "Out of order read from ~a. Available load location: ~a, Requested: ~a"
+                    mem
+                    (hash-ref loads-done mem)
+                    start))
+    (hash-set! loads-done mem end))
+
+  do-read)
+
+; Returns name for the register used to align loads to memory `id'.
+(define (load-reg-name id)
+  (string-append "load_"
+                 (symbol->string id)))
+
+
+; Generate an aligning load from `src' to `dst'.
+; PDX_LAV_MXF32_XP(dst, (load-reg src) (xb_vecMxf32*)src, (end-start)*reg-size);
+(define (gen-align-load dst src start end)
+  (c-call (c-id "PDX_LAV_MXF32_XP")
+          (list (c-id dst)
+                (load-reg-name src)
+                (c-cast "xb_vecMxf32*"
+                        (c-id src))
+                (c-num (* (current-reg-size)
+                          (- end start))))))
+
+(define (gen-shuffle inst)
+  (match-define (vec-shuffle id idxs inps) inst)
+  (assert (< (length inps) 3)
+          (format
+            "Target doesn't support shuffles with more than two inputs. Invalid instruction: ~a"
+            inst))
+
+  ; Call PDX_MOV_MX32_FROM_MXF32 on the inputs
+  (define args
+    (map (lambda (inp)
+           (c-call (c-id "PDX_MOV_MX32_FROM_MXF32")
+                   (list (c-id inp))))
+         inps))
+
+  (define func-name
+    (case (length inps)
+      [(1) "PDX_SHFL_MX32"]
+      [(2) "PDX_SEL_MX32"]))
+
+
+  (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
+          (list
+            (c-call (c-id func-name)
+                    (append args
+                            (list (c-id idxs)))))))
+
+; Generate code for a vector MAC. Since the target defines VMAC as a mutating
+; function, we have to turn:
+; out = vmac(acc, i1, i2)
+; into:
+; declare out = acc;
+; vmac(out, i1, i2)
+(define (gen-vecmac inst)
+  (match-define (vec-app out 'vec-mac (list v-acc i1 i2)) inst)
+  ; Declare out register.
+  (define out-decl
+    (c-decl "xb_vecMxf32"
+            #f
+            (symbol->string out)
+            #f
+            (c-id v-acc)))
+
+  (define mac
+    (c-call (c-id "PDX_MULA_MXF32")
+            (list
+              (c-id out)
+              (c-id i1)
+              (c-id i2))))
+  (list out-decl
+        mac))
+
+
 (define (tensilica-g3-compile p inputs outputs)
   ; Hoist all the constants to the top of the program.
   (define rprog (reorder-prog p))
   (pretty-print rprog)
 
+  ; Track aligned loads from external memories.
+  (define do-read (make-load-tracker))
+
   (define ast
     (for/list ([inst (prog-insts rprog)])
       (match inst
         [(vec-const id init)
-         (list
-           (c-decl "int"
-                   "_LOCAL_DRAM0_"
-                   (fresh-name "const")
-                   (current-reg-size)
-                   (vector->string init)))]
+         (c-decl "int"
+                 "_LOCAL_DRAM0_"
+                 (fresh-name "const")
+                 (current-reg-size)
+                 (c-bare (vector->string init)))]
 
-        ; For each external declartion, we create a retricted to the input
-        ; for the function arguments of this kernel
+        ; For each external declartion, we create a retricted pointer to the
+        ; input for the function arguments of this kernel and an aligning
+        ; register.
         [(vec-extern-decl id _)
          (let* ([inp-name (fresh-name "input")]
                 [decl
-                 (c-decl "float*"
-                         "__restrict"
-                         (symbol->string id)
-                         #f
-                         inp-name)]
-               [load-name (string-append "load_"
-                                         (symbol->string id))])
+                  (c-decl "float*"
+                          "__restrict"
+                          (symbol->string id)
+                          #f
+                          (c-id inp-name))]
+                [load-name (load-reg-name id)])
 
-         ; If the extern is an input, we create a register for priming loads.
-         (when (findf (lambda (arg) (equal? id arg)) inputs)
-           (cons decl
-                 (list
-                   (c-decl "valign" #f load-name #f #f)
-                   (c-assign load-name
-                             (c-call "PDX_LA_MXF32_PP"
-                                     (list
-                                       (c-cast
-                                         "xb_vecMxf32*"
-                                         inp-name))))))))]
+           ; If the extern is an input, we initialize the register for priming loads.
+           (list
+             decl
+             (c-decl "valign" #f load-name #f #f)
+             (if (findf (lambda (arg) (equal? id arg)) inputs)
+               (c-assign load-name
+                         (c-call (c-id "PDX_LA_MXF32_PP")
+                                 (list
+                                   (c-cast
+                                     "xb_vecMxf32*"
+                                     inp-name))))
+               (list))))]
+
+        ; Assume vec-load is only called for aligned loads out of external
+        ; memories and generate aligning load instructions. If the memory
+        ; is marked as an output, we generate a register with all zeros.
+        [(vec-load dst src start end)
+         (if (findf (lambda (arg) (equal? src arg)) outputs)
+           (c-assign dst
+                     (c-bare (vector->string
+                               (make-vector (current-reg-size) 0))))
+           (gen-align-load dst src start end))]
+
+        [(vec-shuffle _ _ _)
+         (gen-shuffle inst)]
+
+        [(vec-app _ 'vec-mac _) (gen-vecmac inst)]
+
+        [(or (vec-void-app _ _) (vec-app _ _ _)) (list)]
+
         [_ (void)])))
 
   (c-ast (flatten ast)))
