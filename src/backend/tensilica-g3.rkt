@@ -193,4 +193,4 @@
 
         [_ (void)])))
 
-  (c-ast (flatten ast)))
+  (c-ast (c-seq (flatten ast))))

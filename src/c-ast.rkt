@@ -81,7 +81,8 @@
 
 
 (define (to-string prog [tab-size 0])
-  (match (c-ast-prog prog)
+  (match prog
+    [(c-ast prog) (to-string prog)]
     [(c-bare str) str]
     [(c-num num) (number->string num)]
     [(c-id id) id]
@@ -98,7 +99,7 @@
        (if size
          (format "[~a]" size)
          "")
-       (if ann ann "")
+       (if ann (format " ~a" ann) "")
        (if init
          (format " = ~a;" (to-string init))
          ";"))]
@@ -119,7 +120,7 @@
      (string-join (map
                     (lambda (stmt) (to-string stmt tab-size))
                     stmts)
-                  (string-append "\n" (make-string tab-size " ")))]
+                  (string-append "\n" (make-string tab-size #\ )))]
     [(c-if con tr fal)
      (format "if (~a) {\n~a\n} else {\n~a\n}"
              (to-string con tab-size)

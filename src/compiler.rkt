@@ -4,6 +4,7 @@
          "register-allocation-pass.rkt"
          "shuffle-truncation-pass.rkt"
          "compile-passes.rkt"
+         "c-ast.rkt"
          "backend/tensilica-g3.rkt")
 
 ;; Compile a vector program into an executable C++ program
@@ -82,4 +83,4 @@
       (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
       (vec-shuffle-set! 'C 'shuf2-5 'out))))
 
-(pretty-print (tensilica-g3-compile (compile p) (list 'A 'B) (list 'C)))
+(display (to-string (tensilica-g3-compile (compile p) (list 'A 'B) (list 'C))))
