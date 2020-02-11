@@ -9,11 +9,68 @@
 (struct c-ast (prog) #:transparent)
 
 ; expression
+(struct c-id (id)
+  #:transparent
+  #:guard (lambda (id type-name)
+            (cond
+              [(string? id) id]
+              [(symbol? id) (symbol->string id)]
+              [else (error type-name
+                           "Invalid identifier: ~e"
+                           id)])))
+(struct c-num (num)
+  #:transparent
+  #:guard (lambda (num type-name)
+            (cond
+              [(number? num) num]
+              [else (error type-name
+                           "Invalid number: ~e"
+                           num)])))
+; Wrap a bare construct.
+(struct c-bare (str) #:transparent)
+
 (struct c-cast (typ expr) #:transparent)
-(struct c-call (func args) #:transparent)
+(struct c-call (func args)
+  #:transparent
+  #:guard (lambda (func args type-name)
+            (cond
+              [(not (c-id? func))
+               (error type-name
+                      "Function name not an identifier: ~a"
+                      func)]
+              [(not (list? args))
+               (error type-name
+                      "Arguments not in list: ~a. Func: ~a."
+                      args
+                      func)]
+              [else (values func args)])))
 
 ; statements
-(struct c-decl (typ ann id size init) #:transparent)
+(struct c-decl (typ ann id size init)
+  #:transparent
+  #:guard (lambda (typ ann id size init type-name)
+            (cond
+              [(not (or (false? ann)
+                        (string? ann)))
+               (error type-name
+                      "Invalid annotation: ~a. Id: ~a."
+                      ann
+                      id)]
+              [(not (or (false? size)
+                        (number? size)))
+               (error type-name
+                      "Invalid size: ~a. Id: ~a."
+                      size
+                      id)]
+              [(not (or (false? init)
+                        (c-bare? init)
+                        (c-id? init)))
+               (error type-name
+                      "Invalid init: ~a. Id: ~a."
+                      init
+                      id)]
+              [else (values typ ann id size init)])))
+
 (struct c-assign (id expr) #:transparent)
 
 ; scopes & composition
@@ -25,12 +82,16 @@
 
 (define (to-string prog [tab-size 0])
   (match (c-ast-prog prog)
+    [(c-bare str) str]
+    [(c-num num) (number->string num)]
+    [(c-id id) id]
     [(c-cast typ expr)
      (format "(~a ~a)" typ expr)]
     [(c-call func args)
-     (format "~a(~a)" func (~> args
-                               (map (lambda (arg) (to-string arg tab-size)) _)
-                               (string-join _ ", ")))]
+     (format "~a(~a)" (to-string func)
+             (~> args
+                 (map (lambda (arg) (to-string arg tab-size)) _)
+                 (string-join _ ", ")))]
     [(c-decl typ ann id size init)
      (string-append
        (format "~a ~a" typ id)
@@ -39,7 +100,7 @@
          "")
        (if ann ann "")
        (if init
-         (format " = ~a;" init)
+         (format " = ~a;" (to-string init))
          ";"))]
     [(c-assign id expr)
      (format "~a = ~a;" id (to-string expr tab-size))]
