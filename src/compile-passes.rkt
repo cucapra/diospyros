@@ -2,6 +2,10 @@
 
 (require "ast.rkt")
 
+(provide ssa
+         const-elim
+         lvn)
+
 (define (pr v)
   (pretty-print v)
   v)
@@ -35,7 +39,8 @@
          (vec-const (rename-binding id) init)]
         [(vec-shuffle id idxs inps)
          (vec-shuffle (rename-binding id)
-          (map rename-use inps))]
+                      (rename-use idxs)
+                      (map rename-use inps))]
         [(vec-shuffle-set! out-vec idxs inp)
          (vec-shuffle-set! (rename-use out-vec)
                            (rename-use idxs)
@@ -46,6 +51,16 @@
                   (map rename-use args))]
         [(vec-void-app f args)
          (vec-void-app f (map rename-use args))]
+        [(vec-load dest-id src-id start end)
+         (vec-load (rename-binding dest-id)
+                   (rename-use src-id)
+                   start
+                   end)]
+        [(vec-store dest-id src-id start end)
+         (vec-store (rename-use dest-id)
+                    (rename-use src-id)
+                    start
+                    end)]
         [_ (error 'ssa (~a "NYI " inst))])))
 
   (prog new-insts))
