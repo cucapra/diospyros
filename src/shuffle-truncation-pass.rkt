@@ -110,7 +110,7 @@
       ; Output has been mapped across allocated registers
       [else (hash-ref out-val (vector-ref shufs 0))]))
 
-  (vec-store dest inp 0 (current-reg-size)))
+  (vec-write dest inp))
 
 ; Produces 1 or more instructions, modifies env
 (define (truncate-shuffle-inst env inst)

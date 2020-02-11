@@ -123,6 +123,11 @@
              [src (env-ref src-id)])
          (vector-copy! dest start src 0 (- end start)))]
 
+      [(vec-write dst-id src-id)
+       (let ([dest (env-ref dst-id)]
+             [src (env-ref src-id)])
+         (vector-copy! dest 0 src))]
+
       [_ (assert #f (~a "unknown instruction " inst))]))
 
   (values env cur-cost))

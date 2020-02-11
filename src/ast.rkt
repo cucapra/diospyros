@@ -33,6 +33,7 @@
 
 ; Vector store.
 (struct vec-store (dest-id src-id start end) #:transparent)
+(struct vec-write (dst src) #:transparent)
 
 (require (for-syntax racket/base
                      syntax/parse)

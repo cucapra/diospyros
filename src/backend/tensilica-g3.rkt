@@ -3,7 +3,8 @@
 (require "../c-ast.rkt"
          "../ast.rkt"
          "../compile-passes.rkt"
-         "../utils.rkt")
+         "../utils.rkt"
+         racket/trace)
 
 (provide tensilica-g3-compile)
 
@@ -24,7 +25,7 @@
 
   ; Do a read from a memory
   (define (do-read mem start end)
-    (when (not (hash-has-key? mem))
+    (when (not (hash-has-key? loads-done mem))
       (hash-set! loads-done mem 0))
     (assert (equal? (hash-ref loads-done mem)
                     start)
@@ -37,9 +38,9 @@
   do-read)
 
 ; Returns name for the register used to align loads to memory `id'.
-(define (load-reg-name id)
-  (string-append "load_"
-                 (symbol->string id)))
+(define (align-reg-name id)
+  (c-id (string-append "align_"
+                 (symbol->string id))))
 
 
 ; Generate an aligning load from `src' to `dst'.
@@ -47,9 +48,20 @@
 (define (gen-align-load dst src start end)
   (c-call (c-id "PDX_LAV_MXF32_XP")
           (list (c-id dst)
-                (load-reg-name src)
+                (align-reg-name src)
                 (c-cast "xb_vecMxf32*"
                         (c-id src))
+                (c-num (* (current-reg-size)
+                          (- end start))))))
+
+; Generate aligning store into dst from src.
+; PDX_SAV_MXF32_XP(src, (align-reg dst) (xb_vecMxf32*)dst, (end-start)*reg-size)
+(define (gen-align-store dst src start end)
+  (c-call (c-id "PDX_SAV_MXF32_XP")
+          (list (c-id src)
+                (align-reg-name dst)
+                (c-cast "xb_vecMxf32*"
+                        (c-id dst))
                 (c-num (* (current-reg-size)
                           (- end start))))))
 
@@ -111,10 +123,11 @@
   (pretty-print rprog)
 
   ; Track aligned loads from external memories.
-  (define do-read (make-load-tracker))
+  (define do-align-access (make-load-tracker))
 
   (define ast
     (for/list ([inst (prog-insts rprog)])
+      (pretty-print inst)
       (match inst
         [(vec-const id init)
          (c-decl "int"
@@ -134,7 +147,7 @@
                           (symbol->string id)
                           #f
                           (c-id inp-name))]
-                [load-name (load-reg-name id)])
+                [load-name (align-reg-name id)])
 
            ; If the extern is an input, we initialize the register for priming loads.
            (list
@@ -157,7 +170,9 @@
            (c-assign dst
                      (c-bare (vector->string
                                (make-vector (current-reg-size) 0))))
-           (gen-align-load dst src start end))]
+           (begin
+             (do-align-access src start end)
+             (gen-align-load dst src start end)))]
 
         [(vec-shuffle _ _ _)
          (gen-shuffle inst)]
@@ -165,6 +180,16 @@
         [(vec-app _ 'vec-mac _) (gen-vecmac inst)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _)) (list)]
+
+        [(vec-write dst src)
+         (c-assign dst (c-id src))]
+
+        [(vec-store dst src start end)
+         (if (findf (lambda (arg) (equal? dst arg)) outputs)
+           (begin
+             (do-align-access dst start end)
+             (gen-align-store dst src start end))
+           (list))]
 
         [_ (void)])))
 
