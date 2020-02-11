@@ -13,7 +13,7 @@
 (struct c-call (func args) #:transparent)
 
 ; statements
-(struct c-decls (typ ann ids) #:transparent)
+(struct c-decl (typ ann id size init) #:transparent)
 (struct c-assign (id expr) #:transparent)
 
 ; scopes & composition
@@ -31,8 +31,16 @@
      (format "~a(~a)" func (~> args
                                (map (lambda (arg) (to-string arg tab-size)) _)
                                (string-join _ ", ")))]
-    [(c-decls typ ann ids)
-     (format "~a ~a ~a;" typ ann (string-join ids ", "))]
+    [(c-decl typ ann id size init)
+     (string-append
+       (format "~a ~a" typ id)
+       (if size
+         (format "[~a]" size)
+         "")
+       (if ann ann "")
+       (if init
+         (format " = ~a;" init)
+         ";"))]
     [(c-assign id expr)
      (format "~a = ~a;" id (to-string expr tab-size))]
     [(c-func-decl out-typ name args body)

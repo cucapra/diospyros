@@ -4,15 +4,28 @@
 
 (provide ssa
          const-elim
-         hoist-consts
+         reorder-prog
          lvn)
 
 (define (pr v)
   (pretty-print v)
   v)
 
-; Hoist constants to the start of the program.
-(define (hoist-consts p)
+; Force program to have the order:
+; 1. Externs.
+; 2. Aligned loads.
+; 3. Constant declartions.
+; 4. Remaining computation.
+(define (reorder-prog p)
+  ; Externs
+  (define externs (list))
+  (define (add-extern c)
+    (set! externs (cons c externs)))
+  ; Loads
+  (define loads (list))
+  (define (add-load c)
+    (set! loads (cons c loads)))
+  ; Constants
   (define consts (list))
   (define (add-const c)
     (set! consts (cons c consts)))
@@ -21,14 +34,23 @@
   (define new-insts
     (for/list ([inst (prog-insts p)])
       (match inst
-        [(vec-const id init)
+        [(vec-const _ _)
          (add-const inst)
+         (list)]
+        [(vec-load _ _ _ _)
+         (add-load inst)
+         (list)]
+        [(vec-extern-decl _ _)
+         (add-extern inst)
          (list)]
         [inst (list inst)])))
 
   (prog
-    (append consts
-            (flatten new-insts))))
+    (append
+      (reverse externs)
+      (reverse loads)
+      (reverse consts)
+      (flatten new-insts))))
 
 
 ; Conversion to static single assignment form

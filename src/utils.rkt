@@ -49,7 +49,7 @@
     (for ([(el idx) (in-indexed vec)])
       (assert (equal? el (+ i idx))))))
 
-(define (make-name-gen)
+(define (make-name-gen [out-app string->symbol])
   (define var-map (make-hash))
   (lambda (base)
     (define num
@@ -57,7 +57,7 @@
         [(hash-has-key? var-map base) (add1 (hash-ref var-map base))]
         [else 0]))
     (hash-set! var-map base num)
-    (string->symbol (format "~a-~a" base (number->string num)))))
+    (out-app (format "~a_~a" base (number->string num)))))
 
 
 (module+ test
