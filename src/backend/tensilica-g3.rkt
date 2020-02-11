@@ -30,6 +30,9 @@
                    (fresh-name "const")
                    (current-reg-size)
                    (vector->string init)))]
+
+        ; For each external declartion, we create a retricted to the input
+        ; for the function arguments of this kernel
         [(vec-extern-decl id _)
          (let* ([inp-name (fresh-name "input")]
                 [decl
@@ -40,6 +43,8 @@
                          inp-name)]
                [load-name (string-append "load_"
                                          (symbol->string id))])
+
+         ; If the extern is an input, we create a register for priming loads.
          (when (findf (lambda (arg) (equal? id arg)) inputs)
            (cons decl
                  (list
