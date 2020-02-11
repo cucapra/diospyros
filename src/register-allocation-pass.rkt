@@ -5,7 +5,7 @@
          "interp.rkt"
          "matrix-utils.rkt")
 
-(provide (all-defined-out))
+(provide register-allocation)
 
 (struct inst-result (insts final) #:transparent)
 
@@ -18,14 +18,14 @@
 
 ; Partition a vector into reg-size sections, with an abstract init function.
 ; Modifies env and produces a list of new vectors.
-(define (partition-vector env id vec-len reg-size init-fn)
-  (define len (* reg-size (exact-ceiling (/ vec-len reg-size))))
+(define (partition-vector env id vec-len init-fn)
+  (define len (* (current-reg-size) (exact-ceiling (/ vec-len (current-reg-size)))))
   ; Map the old id to a nested map of new-ids
   (let* ([id-map (make-hash)]
          [new-vecs
-          (for/list ([i (in-range 0 len reg-size)])
+          (for/list ([i (in-range 0 len (current-reg-size))])
             (let* ([start i]
-                   [end (min len (+ i reg-size))]
+                   [end (min len (+ i (current-reg-size)))]
                    [new-id (string->symbol
                             (format "~a_~a_~a" id start end))]
                    [new-init (init-fn new-id start end)])
@@ -43,15 +43,15 @@
      (map inst-result-final new-vecs))))
 
 ; Produces 1 or more instructions, modifies env
-(define (alloc-const env reg-size id init)
+(define (alloc-const env id init)
   (unless (vector? init)
     (error 'alloc-const "failed because ~a is not a vector" init))
   (let ([len (vector-length init)])
     (cond
       ; Fill short vectors to register size
-      [(<= len reg-size)
-       (let ([new-init (vector-pad-to init reg-size)])
-         (vector-pad-to init reg-size)
+      [(<= len (current-reg-size))
+       (let ([new-init (vector-pad-to init (current-reg-size))])
+         (vector-pad-to init (current-reg-size))
          (hash-set! env id new-init)
          (inst-result (vec-const id new-init) `()))]
       ; Allocate long vectors to multiple registers
@@ -59,18 +59,18 @@
        (define (load-init dest-id start end)
          (vec-load dest-id id start end))
        (define results
-         (partition-vector env id len reg-size load-init))
+         (partition-vector env id len load-init))
        (inst-result
         (cons (vec-const id init) (inst-result-insts results))
         (inst-result-final results))])))
 
-(define (alloc-extern-decl env reg-size id size)
+(define (alloc-extern-decl env id size)
   (define (load-init dest-id start end)
     (vec-load dest-id id start end))
-  (partition-vector env id size reg-size load-init))
+  (partition-vector env id size load-init))
 
 ; Produces 1 or more instructions, modifies env
-(define (alloc-inst env reg-size inst)
+(define (alloc-inst env inst)
   (define (check-defined ids)
     (for ([id ids])
       (unless (hash-has-key? env id) (error "undefined id ~a" id))))
@@ -79,11 +79,11 @@
   (match inst
     [(vec-extern-decl id size)
      (match-define (inst-result insts final)
-       (alloc-extern-decl env reg-size id size))
+       (alloc-extern-decl env id size))
      (inst-result (cons inst insts) final)]
     [(vec-const id init)
      (define-id id)
-     (alloc-const env reg-size id init)]
+     (alloc-const env id init)]
     [(vec-shuffle id idxs inps)
      (define-id id)
      (check-defined (apply list idxs inps))
@@ -100,8 +100,8 @@
      (inst-result inst `())]
     [_ (error 'register-allocation "unknown instruction ~a" inst)]))
 
-(define (register-allocation program env reg-size)
-  (define results (map (curry alloc-inst env reg-size) (prog-insts program)))
+(define (register-allocation program env)
+  (define results (map (curry alloc-inst env) (prog-insts program)))
 
   (define insts
     (flatten
@@ -123,10 +123,9 @@
       (test-case
         "Pad small vectors"
         (define env (make-hash))
-        (define reg-size 4)
         (define/prog p
           ('x = vec-const (vector 0)))
-        (define new-p (register-allocation p env reg-size))
+        (define new-p (register-allocation p env))
         (define/prog gold
           ('x = vec-const (vector 0 0 0 0)))
         (check-equal? new-p gold)
@@ -136,10 +135,9 @@
         "External decl"
         (define env (make-hash))
         (hash-set! env `x (make-vector 1 1))
-        (define reg-size 4)
         (define/prog p
           (vec-extern-decl 'x 1))
-        (define new-p (register-allocation p env reg-size))
+        (define new-p (register-allocation p env))
         (define/prog gold
           (vec-extern-decl 'x 1)
           (vec-load 'x_0_4 'x 0 4)
@@ -149,10 +147,9 @@
       (test-case
         "Partition large vectors"
         (define env (make-hash))
-        (define reg-size 4)
         (define/prog p
           ('x = vec-const (vector 0 1 2 3 4 5 6)))
-        (define new-p (register-allocation p env reg-size))
+        (define new-p (register-allocation p env ))
         (define section-1-gold (vector 0 1 2 3))
         (define section-2-gold (vector 4 5 6 0))
         (define/prog gold
