@@ -2,7 +2,7 @@
 
 (require "dsp-insts.rkt"
          "ast.rkt"
-         "matrix-utils.rkt"
+         "utils.rkt"
          "prog-sketch.rkt"
          racket/trace
          rosette/lib/match)

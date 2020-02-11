@@ -3,7 +3,7 @@
 (require "ast.rkt"
          "dsp-insts.rkt"
          "interp.rkt"
-         "matrix-utils.rkt")
+         "utils.rkt")
 
 (provide register-allocation)
 

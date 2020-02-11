@@ -3,7 +3,7 @@
 (require "ast.rkt"
          "dsp-insts.rkt"
          "interp.rkt"
-         "matrix-utils.rkt"
+         "utils.rkt"
          "prog-sketch.rkt"
          "register-allocation-pass.rkt"
          threading)
@@ -14,16 +14,6 @@
 (define reg-limit 2)
 
 ; Fresh name generation for new variables
-(define (make-name-gen)
-  (define var-map (make-hash))
-  (lambda (base)
-    (define num
-      (cond
-        [(hash-has-key? var-map base) (add1 (hash-ref var-map base))]
-        [else 0]))
-    (hash-set! var-map base num)
-    (string->symbol (format "~a-~a" base (number->string num)))))
-
 (define new-var (make-name-gen))
 
 ; Map an index to either the input it references, or the allocated register
