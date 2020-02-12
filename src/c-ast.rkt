@@ -44,6 +44,7 @@
                       args
                       func)]
               [else (values func args)])))
+(struct c-deref (expr) #:transparent)
 
 ; statements
 (struct c-decl (typ ann id size init)
@@ -102,6 +103,7 @@
     [(c-bare str) str]
     [(c-num num) (number->string num)]
     [(c-id id) id]
+    [(c-deref expr) (format "*(~a)" (to-string expr))]
     [(c-cast typ expr)
      (format "(~a) ~a" typ (to-string expr))]
     [(c-call func args)

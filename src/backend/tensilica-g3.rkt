@@ -92,13 +92,15 @@
       [(1) "PDX_SHFL_MX32"]
       [(2) "PDX_SEL_MX32"]))
 
+  (define shufl
+    (c-deref (c-cast "xb_vecMx32 *" (c-id idxs))))
 
   (c-assign (c-id id)
             (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
                     (list
                       (c-call (c-id func-name)
                               (append args
-                                      (list (c-id idxs))))))))
+                                      (list shufl)))))))
 
 ; Generate code for a vector MAC. Since the target defines VMAC as a mutating
 ; function, we have to turn:
