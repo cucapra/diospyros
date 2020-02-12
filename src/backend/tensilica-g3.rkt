@@ -10,6 +10,17 @@
 
 (define fresh-name (make-name-gen identity))
 
+(define (make-prefix-id pre)
+  (lambda (id)
+    (c-id (string-append pre
+                         (symbol->string id)))))
+
+; Returns name for the register used to align loads to memory `id'.
+(define align-reg-name (make-prefix-id "align_"))
+
+; Returns the name for an input
+(define input-name (make-prefix-id "input_"))
+
 (define (vector->string vec)
   (string-join (vector->list (vector-map number->string vec))
                ", "
@@ -36,11 +47,6 @@
     (hash-set! loads-done mem end))
 
   do-read)
-
-; Returns name for the register used to align loads to memory `id'.
-(define (align-reg-name id)
-  (c-id (string-append "align_"
-                 (symbol->string id))))
 
 
 ; Generate an aligning load from `src' to `dst'.
@@ -85,11 +91,12 @@
       [(2) "PDX_SEL_MX32"]))
 
 
-  (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
-          (list
-            (c-call (c-id func-name)
-                    (append args
-                            (list (c-id idxs)))))))
+  (c-assign (c-id id)
+            (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
+                    (list
+                      (c-call (c-id func-name)
+                              (append args
+                                      (list (c-id idxs))))))))
 
 ; Generate code for a vector MAC. Since the target defines VMAC as a mutating
 ; function, we have to turn:
@@ -103,7 +110,7 @@
   (define out-decl
     (c-decl "xb_vecMxf32"
             #f
-            (symbol->string out)
+            (c-id out)
             #f
             (c-id v-acc)))
 
@@ -120,19 +127,17 @@
 (define (tensilica-g3-compile p inputs outputs)
   ; Hoist all the constants to the top of the program.
   (define rprog (reorder-prog p))
-  (pretty-print rprog)
 
   ; Track aligned loads from external memories.
   (define do-align-access (make-load-tracker))
 
   (define ast
     (for/list ([inst (prog-insts rprog)])
-      (pretty-print inst)
       (match inst
         [(vec-const id init)
          (c-decl "int"
-                 "_LOCAL_DRAM0_"
-                 (fresh-name "const")
+                 "__attribute__((section(\".dram0.data\")))"
+                 (c-id id)
                  (current-reg-size)
                  (c-bare (vector->string init)))]
 
@@ -140,13 +145,13 @@
         ; input for the function arguments of this kernel and an aligning
         ; register.
         [(vec-extern-decl id _)
-         (let* ([inp-name (fresh-name "input")]
+         (let* ([inp-name (input-name id)]
                 [decl
                   (c-decl "float*"
                           "__restrict"
-                          (symbol->string id)
+                          (c-id id)
                           #f
-                          (c-id inp-name))]
+                          inp-name)]
                 [load-name (align-reg-name id)])
 
            ; If the extern is an input, we initialize the register for priming loads.
@@ -167,7 +172,7 @@
         ; is marked as an output, we generate a register with all zeros.
         [(vec-load dst src start end)
          (if (findf (lambda (arg) (equal? src arg)) outputs)
-           (c-assign dst
+           (c-assign (c-id dst)
                      (c-bare (vector->string
                                (make-vector (current-reg-size) 0))))
            (begin
@@ -182,7 +187,7 @@
         [(or (vec-void-app _ _) (vec-app _ _ _)) (list)]
 
         [(vec-write dst src)
-         (c-assign dst (c-id src))]
+         (c-assign (c-id dst) (c-id src))]
 
         [(vec-store dst src start end)
          (if (findf (lambda (arg) (equal? dst arg)) outputs)

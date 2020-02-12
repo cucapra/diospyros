@@ -47,9 +47,9 @@
 
   (prog
     (append
+      (reverse consts)
       (reverse externs)
       (reverse loads)
-      (reverse consts)
       (flatten new-insts))))
 
 

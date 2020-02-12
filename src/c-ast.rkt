@@ -50,6 +50,14 @@
   #:transparent
   #:guard (lambda (typ ann id size init type-name)
             (cond
+              [(not (string? typ))
+               (error type-name
+                      "Invalid type: ~a."
+                      typ)]
+              [(not (c-id? id))
+               (error type-name
+                      "Invalid identifier: ~a."
+                      id)]
               [(not (or (false? ann)
                         (string? ann)))
                (error type-name
@@ -71,7 +79,15 @@
                       id)]
               [else (values typ ann id size init)])))
 
-(struct c-assign (id expr) #:transparent)
+(struct c-assign (id expr)
+  #:transparent
+  #:guard (lambda (id expr type-name)
+            (cond
+              [(not (c-id? id))
+               (error type-name
+                      "Invalid LHS: ~a"
+                      id)]
+              [else (values id expr)])))
 
 ; scopes & composition
 (struct c-func-decl (out-typ name args body) #:transparent)
@@ -87,7 +103,7 @@
     [(c-num num) (number->string num)]
     [(c-id id) id]
     [(c-cast typ expr)
-     (format "(~a ~a)" typ expr)]
+     (format "(~a) ~a" typ (to-string expr))]
     [(c-call func args)
      (format "~a(~a)" (to-string func)
              (~> args
@@ -95,7 +111,7 @@
                  (string-join _ ", ")))]
     [(c-decl typ ann id size init)
      (string-append
-       (format "~a ~a" typ id)
+       (format "~a ~a" typ (to-string id))
        (if size
          (format "[~a]" size)
          "")
@@ -104,7 +120,7 @@
          (format " = ~a;" (to-string init))
          ";"))]
     [(c-assign id expr)
-     (format "~a = ~a;" id (to-string expr tab-size))]
+     (format "~a = ~a;" (to-string id) (to-string expr tab-size))]
     [(c-func-decl out-typ name args body)
      (format "~a ~a(~a) {\n~a\n}"
              out-typ
@@ -125,4 +141,7 @@
      (format "if (~a) {\n~a\n} else {\n~a\n}"
              (to-string con tab-size)
              (to-string tr tab-size)
-             (to-string fal tab-size))]))
+             (to-string fal tab-size))]
+    [else (error 'to-string
+                 "Invalid AST Node: ~a"
+                 prog)]))
