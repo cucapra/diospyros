@@ -233,7 +233,7 @@
         decl-consts
         (c-func-decl "void"
                      "kernel"
-                     (map (lambda (arg) (cons "float" (c-id-id (input-name arg))))
+                     (map (lambda (arg) (cons "float*" (c-id-id (input-name arg))))
                           (append inputs outputs))
                      body)))))
 
