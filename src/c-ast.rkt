@@ -112,7 +112,8 @@
     [(c-decl typ ann id size init)
      (string-append
        typ
-       (if ann (format " ~a " ann) "")
+       (if ann (format " ~a" ann) "")
+       " "
        (to-string id)
        (if size
          (format "[~a]" size)
