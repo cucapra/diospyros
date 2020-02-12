@@ -184,7 +184,7 @@
            (c-decl "xb_vecMxf32" #f (c-id dst) #f #f)
            (if (findf (lambda (arg) (equal? src arg)) outputs)
              (c-assign (c-id dst)
-                       (c-deref (c-cast "(xb_vecMxf32*)"
+                       (c-deref (c-cast "xb_vecMxf32*"
                                         (c-id 'Z))))
              (begin
                (do-align-access src start end)
