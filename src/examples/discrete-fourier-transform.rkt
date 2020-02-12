@@ -63,8 +63,8 @@
      (vec-shuffle 'reg-x-img shuf-x-img (list 'x-img))
      (vec-shuffle 'reg-P shuf-P (list 'P))
      
-     (vec-const 'idxs-outer (make-vector (current-reg-size) choose-idx))
-     (vec-const 'idxs-inner (make-vector (current-reg-size) choose-idx))
+     (vec-const 'idxs-outer (make-vector (current-reg-size) (choose-idx)))
+     (vec-const 'idxs-inner (make-vector (current-reg-size) (choose-idx)))
      ; TODO: continuous aligned
      (vec-app 'mul-tmp-1 'vec-mul (list 'idxs-outer 'idxs-inner))
      (vec-app 'mul-tmp-2 'vec-mul (list 'mul-tmp-1 '2-pi-div-N))
