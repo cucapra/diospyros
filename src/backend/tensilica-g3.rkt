@@ -136,7 +136,7 @@
                  (current-reg-size)
                  (c-bare (vector->string init)))]
 
-        ; For each external declartion, we create a retricted pointer to the
+        ; For each external declaration, we create a restricted pointer to the
         ; input for the function arguments of this kernel and an aligning
         ; register.
         [(vec-extern-decl id _)

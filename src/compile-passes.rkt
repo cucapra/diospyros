@@ -14,7 +14,7 @@
 ; Force program to have the order:
 ; 1. Externs.
 ; 2. Aligned loads.
-; 3. Constant declartions.
+; 3. Constant declarations.
 ; 4. Remaining computation.
 (define (reorder-prog p)
   ; Externs
@@ -60,7 +60,7 @@
   (define cur-var-num -1)
   (define (new-var)
     (set! cur-var-num (add1 cur-var-num))
-    (string->symbol (string-append "%"
+    (string->symbol (string-append "v_"
                                    (number->string cur-var-num))))
 
   (define (rename-binding id)
@@ -230,7 +230,6 @@
       (match-define (cons last-write i) pair)
       (define id (get-id i))
       (define cannonical (cannonicalize (curry hash-ref id-to-num) i))
-      (pretty-print cannonical)
 
       ; Writes to destination and it's already mapped
       (define already-mapped
@@ -329,8 +328,8 @@
 
       (test-case
         "const-elim remove instructions"
-        (check-equal? (length (prog-insts (pr (const-elim example)))) 36))
+        (check-equal? (length (prog-insts (const-elim example))) 36))
 
       (test-case
        "local value numbering"
-       (check-equal? (length (prog-insts (pr (lvn example)))) 44)))))
+       (check-equal? (length (prog-insts (lvn example))) 44)))))
