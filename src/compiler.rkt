@@ -1,11 +1,17 @@
 #lang rosette
 
 (require "ast.rkt"
+         "backend/tensilica-g3.rkt"
+         "c-ast.rkt"
+         "compile-passes.rkt"
+         "dsp-insts.rkt"
+         "interp.rkt"
+         "prog-sketch.rkt"
          "register-allocation-pass.rkt"
          "shuffle-truncation-pass.rkt"
-         "compile-passes.rkt"
-         "c-ast.rkt"
-         "backend/tensilica-g3.rkt")
+         "utils.rkt"
+         rackunit
+         rackunit/text-ui)
 
 ;; Compile a vector program into an executable C++ program
 (define (compile p)
@@ -84,3 +90,36 @@
       (vec-shuffle-set! 'C 'shuf2-5 'out))))
 
 (display (to-string (tensilica-g3-compile (compile p) (list 'A 'B) (list 'C))))
+
+(run-tests
+ (test-suite
+  "compile tests"
+  (test-case
+   "Mat mul example"
+
+   (match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
+   (match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
+
+   (define (make-env)
+     (define env (make-hash))
+     (hash-set! env 'A A-elements)
+     (hash-set! env 'B B-elements)
+     (hash-set! env 'C (make-vector (* A-rows B-cols) 0))
+     env)
+
+   (define-values (gold-env _)
+     (interp p (make-env)
+             #:fn-map (hash 'vec-mac
+                            vector-mac
+                            'continuous-aligned-vec?
+                            (curry continuous-aligned-vec?
+                                   (current-reg-size)))))
+
+   (define-values (env __)
+     (interp (compile p) (make-env)
+             #:fn-map (hash 'vec-mac
+                            vector-mac
+                            'continuous-aligned-vec?
+                            (curry continuous-aligned-vec? (current-reg-size)))))
+   (check-equal? (vector-take (hash-ref gold-env 'C) 6)
+                 (vector-take (hash-ref env 'C) 6)))))
