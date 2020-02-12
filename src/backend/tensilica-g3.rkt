@@ -52,24 +52,26 @@
 ; Generate an aligning load from `src' to `dst'.
 ; PDX_LAV_MXF32_XP(dst, (load-reg src) (xb_vecMxf32*)src, (end-start)*reg-size);
 (define (gen-align-load dst src start end)
-  (c-call (c-id "PDX_LAV_MXF32_XP")
-          (list (c-id dst)
-                (align-reg-name src)
-                (c-cast "xb_vecMxf32*"
-                        (c-id src))
-                (c-num (* (current-reg-size)
-                          (- end start))))))
+  (c-stmt
+    (c-call (c-id "PDX_LAV_MXF32_XP")
+            (list (c-id dst)
+                  (align-reg-name src)
+                  (c-cast "xb_vecMxf32*"
+                          (c-id src))
+                  (c-num (* (current-reg-size)
+                            (- end start)))))))
 
 ; Generate aligning store into dst from src.
 ; PDX_SAV_MXF32_XP(src, (align-reg dst) (xb_vecMxf32*)dst, (end-start)*reg-size)
 (define (gen-align-store dst src start end)
-  (c-call (c-id "PDX_SAV_MXF32_XP")
+  (c-stmt
+    (c-call (c-id "PDX_SAV_MXF32_XP")
           (list (c-id src)
                 (align-reg-name dst)
                 (c-cast "xb_vecMxf32*"
                         (c-id dst))
                 (c-num (* (current-reg-size)
-                          (- end start))))))
+                          (- end start)))))))
 
 (define (gen-shuffle inst)
   (match-define (vec-shuffle id idxs inps) inst)
@@ -115,11 +117,12 @@
             (c-id v-acc)))
 
   (define mac
-    (c-call (c-id "PDX_MULA_MXF32")
+    (c-stmt
+      (c-call (c-id "PDX_MULA_MXF32")
             (list
               (c-id out)
               (c-id i1)
-              (c-id i2))))
+              (c-id i2)))))
   (list out-decl
         mac))
 

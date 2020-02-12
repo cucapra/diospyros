@@ -94,7 +94,7 @@
 (struct c-scope (body) #:transparent)
 (struct c-seq (stmts) #:transparent)
 (struct c-if (con tr fal) #:transparent)
-
+(struct c-stmt (expr) #:transparent)
 
 (define (to-string prog [tab-size 0])
   (match prog
@@ -142,6 +142,8 @@
              (to-string con tab-size)
              (to-string tr tab-size)
              (to-string fal tab-size))]
+    [(c-stmt expr)
+     (format "~a;" (to-string expr))]
     [else (error 'to-string
                  "Invalid AST Node: ~a"
                  prog)]))
