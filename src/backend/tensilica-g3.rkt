@@ -137,7 +137,7 @@
 
   ; Add the 'zero' constant vector
   (define all-consts
-    (cons (vec-const 'Z (make-vector 0 (current-reg-size)))
+    (cons (vec-const 'Z (make-vector (current-reg-size) 0))
           consts))
 
   ; Track aligned loads from external memories.
@@ -184,8 +184,8 @@
            (c-decl "xb_vecMxf32" #f (c-id dst) #f #f)
            (if (findf (lambda (arg) (equal? src arg)) outputs)
              (c-assign (c-id dst)
-                       (c-bare (vector->string
-                                 (make-vector (current-reg-size) 0))))
+                       (c-deref (c-cast "(xb_vecMxf32*)"
+                                        (c-id 'Z))))
              (begin
                (do-align-access src start end)
                (gen-align-load dst src start end))))]
