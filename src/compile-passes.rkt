@@ -45,12 +45,13 @@
          (list)]
         [inst (list inst)])))
 
-  (prog
-    (append
-      (reverse consts)
-      (reverse externs)
-      (reverse loads)
-      (flatten new-insts))))
+  (values
+    (reverse consts)
+    (prog
+      (append
+        (reverse externs)
+        (reverse loads)
+        (flatten new-insts)))))
 
 
 ; Conversion to static single assignment form

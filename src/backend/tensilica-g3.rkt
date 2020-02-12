@@ -133,20 +133,22 @@
 
 (define (tensilica-g3-compile p inputs outputs)
   ; Hoist all the constants to the top of the program.
-  (define rprog (reorder-prog p))
+  (define-values (consts rprog) (reorder-prog p))
+
+  ; Add the 'zero' constant vector
+  (define all-consts
+    (cons (vec-const 'Z (make-vector 0 (current-reg-size)))
+          consts))
 
   ; Track aligned loads from external memories.
   (define do-align-access (make-load-tracker))
 
-  (define ast
+  (define body-lst
     (for/list ([inst (prog-insts rprog)])
       (match inst
         [(vec-const id init)
-         (c-decl "int"
-                 "__attribute__((section(\".dram0.data\")))"
-                 (c-id id)
-                 (current-reg-size)
-                 (c-bare (vector->string init)))]
+         (error 'tensilica-g3-compile
+                "Constanst should not be present in the body")]
 
         ; For each external declaration, we create a restricted pointer to the
         ; input for the function arguments of this kernel and an aligning
@@ -205,6 +207,33 @@
              (gen-align-store dst src start end))
            (list))]
 
-        [_ (void)])))
+        [_  (error 'tensilica-g3-compile
+                   "Cannot compile instruction: ~a"
+                   inst)])))
 
-  (c-ast (c-seq (flatten ast))))
+  (define body (c-seq (flatten body-lst)))
+
+  (define decl-consts
+    (c-seq
+      (for/list ([inst all-consts])
+        (match inst
+          [(vec-const id init)
+           (c-decl "int"
+                   "__attribute__((section(\".dram0.data\")))"
+                   (c-id id)
+                   (current-reg-size)
+                   (c-bare (vector->string init)))]
+          [_ (error 'tensilica-g3-compile
+                    "Expected vec-const. Received: ~a"
+                    inst)]))))
+
+  (c-ast
+    (c-seq
+      (list
+        decl-consts
+        (c-func-decl "void"
+                     "kernel"
+                     (map (lambda (arg) (cons "float" (c-id-id (input-name arg))))
+                          (append inputs outputs))
+                     body)))))
+

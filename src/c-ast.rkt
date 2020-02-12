@@ -93,7 +93,15 @@
 ; scopes & composition
 (struct c-func-decl (out-typ name args body) #:transparent)
 (struct c-scope (body) #:transparent)
-(struct c-seq (stmts) #:transparent)
+(struct c-seq (stmts)
+  #:transparent
+  #:guard (lambda (stmts type-name)
+            (cond
+              [(not (list? stmts))
+               (error type-name
+                      "Not a list: ~a"
+                      stmts)]
+              [else (values stmts)])))
 (struct c-if (con tr fal) #:transparent)
 (struct c-stmt (expr) #:transparent)
 
@@ -130,7 +138,10 @@
              out-typ
              name
              (~> args
-                 (map (lambda (arg) (to-string arg tab-size)) _)
+                 (map (lambda (arg) (string-append
+                                      (car arg)
+                                      " "
+                                      (cdr arg))) _)
                  (string-join _ ", "))
              (to-string body (+ (current-nest) tab-size)))]
     [(c-scope body)
