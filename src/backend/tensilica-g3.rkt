@@ -174,13 +174,15 @@
         ; memories and generate aligning load instructions. If the memory
         ; is marked as an output, we generate a register with all zeros.
         [(vec-load dst src start end)
-         (if (findf (lambda (arg) (equal? src arg)) outputs)
-           (c-assign (c-id dst)
-                     (c-bare (vector->string
-                               (make-vector (current-reg-size) 0))))
-           (begin
-             (do-align-access src start end)
-             (gen-align-load dst src start end)))]
+         (list
+           (c-decl "xb_vecMxf32" #f (c-id dst) #f #f)
+           (if (findf (lambda (arg) (equal? src arg)) outputs)
+             (c-assign (c-id dst)
+                       (c-bare (vector->string
+                                 (make-vector (current-reg-size) 0))))
+             (begin
+               (do-align-access src start end)
+               (gen-align-load dst src start end))))]
 
         [(vec-shuffle _ _ _)
          (gen-shuffle inst)]
