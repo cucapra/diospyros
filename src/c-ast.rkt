@@ -111,11 +111,12 @@
                  (string-join _ ", ")))]
     [(c-decl typ ann id size init)
      (string-append
-       (format "~a ~a" typ (to-string id))
+       typ
+       (if ann (format " ~a " ann) "")
+       (to-string id)
        (if size
          (format "[~a]" size)
          "")
-       (if ann (format " ~a" ann) "")
        (if init
          (format " = ~a;" (to-string init))
          ";"))]
