@@ -95,14 +95,19 @@
   (define shufl
     (c-deref (c-cast "xb_vecMx32 *" (c-id idxs))))
 
+  ; Selects require a reverse in input argument order
+  (define ordered-args
+    (case (length inps)
+      [(1) (append args (list shufl))]
+      [(2) (append (reverse args) (list shufl))]))
+
   (list
-    (c-decl "xb_vecMxf32" #f (c-id id) #f #f)
-    (c-assign (c-id id)
-              (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
-                      (list
-                        (c-call (c-id func-name)
-                                (append args
-                                        (list shufl))))))))
+   (c-decl "xb_vecMxf32" #f (c-id id) #f #f)
+   (c-assign (c-id id)
+             (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
+                     (list
+                      (c-call (c-id func-name)
+                              ordered-args))))))
 
 ; Generate code for a vector MAC. Since the target defines VMAC as a mutating
 ; function, we have to turn:
