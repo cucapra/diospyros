@@ -3,7 +3,7 @@
 (require "ast.rkt"
          "dsp-insts.rkt"
          "interp.rkt"
-         "matrix-utils.rkt")
+         "utils.rkt")
 
 (provide register-allocation)
 
@@ -74,7 +74,7 @@
 (define (alloc-inst env inst)
   (define (check-defined ids)
     (for ([id ids])
-      (unless (hash-has-key? env id) (error "undefined id ~a" id))))
+      (unless (hash-has-key? env id) (error 'alloc-inst "undefined id ~a" id))))
   (define (define-id id)
     (hash-set! env id void))
   (match inst

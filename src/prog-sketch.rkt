@@ -1,7 +1,7 @@
 #lang rosette
 
 (require "ast.rkt"
-         "matrix-utils.rkt"
+         "utils.rkt"
          threading)
 
 (provide (all-defined-out))

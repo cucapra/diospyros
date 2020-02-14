@@ -2,7 +2,7 @@
 
 (require "dsp-insts.rkt"
          "ast.rkt"
-         "matrix-utils.rkt"
+         "utils.rkt"
          "prog-sketch.rkt"
          racket/trace
          rosette/lib/match)
@@ -122,6 +122,11 @@
        (let ([dest (env-ref dest-id)]
              [src (env-ref src-id)])
          (vector-copy! dest start src 0 (- end start)))]
+
+      [(vec-write dst-id src-id)
+       (let ([dest (env-ref dst-id)]
+             [src (env-ref src-id)])
+         (vector-copy! dest 0 src))]
 
       [_ (assert #f (~a "unknown instruction " inst))]))
 

@@ -152,7 +152,9 @@
   ; solutions.
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
-      (pretty-print (evaluate sketch model))
+      (begin
+        (pretty-print "MODEL")
+        (pretty-print (evaluate sketch model)))
       (pretty-print (~a "failed to find solution: " model)))))
 
 

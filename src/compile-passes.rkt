@@ -2,9 +2,57 @@
 
 (require "ast.rkt")
 
+(provide ssa
+         const-elim
+         reorder-prog
+         lvn)
+
 (define (pr v)
   (pretty-print v)
   v)
+
+; Force program to have the order:
+; 1. Externs.
+; 2. Aligned loads.
+; 3. Constant declarations.
+; 4. Remaining computation.
+(define (reorder-prog p)
+  ; Externs
+  (define externs (list))
+  (define (add-extern c)
+    (set! externs (cons c externs)))
+  ; Loads
+  (define loads (list))
+  (define (add-load c)
+    (set! loads (cons c loads)))
+  ; Constants
+  (define consts (list))
+  (define (add-const c)
+    (set! consts (cons c consts)))
+
+  ; Walk over instructions and remove constants.
+  (define new-insts
+    (for/list ([inst (prog-insts p)])
+      (match inst
+        [(vec-const _ _)
+         (add-const inst)
+         (list)]
+        [(vec-load _ _ _ _)
+         (add-load inst)
+         (list)]
+        [(vec-extern-decl _ _)
+         (add-extern inst)
+         (list)]
+        [inst (list inst)])))
+
+  (values
+    (reverse consts)
+    (prog
+      (append
+        (reverse externs)
+        (reverse loads)
+        (flatten new-insts)))))
+
 
 ; Conversion to static single assignment form
 (define (ssa p)
@@ -13,7 +61,7 @@
   (define cur-var-num -1)
   (define (new-var)
     (set! cur-var-num (add1 cur-var-num))
-    (string->symbol (string-append "%"
+    (string->symbol (string-append "v_"
                                    (number->string cur-var-num))))
 
   (define (rename-binding id)
@@ -35,7 +83,8 @@
          (vec-const (rename-binding id) init)]
         [(vec-shuffle id idxs inps)
          (vec-shuffle (rename-binding id)
-          (map rename-use inps))]
+                      (rename-use idxs)
+                      (map rename-use inps))]
         [(vec-shuffle-set! out-vec idxs inp)
          (vec-shuffle-set! (rename-use out-vec)
                            (rename-use idxs)
@@ -46,6 +95,16 @@
                   (map rename-use args))]
         [(vec-void-app f args)
          (vec-void-app f (map rename-use args))]
+        [(vec-load dest-id src-id start end)
+         (vec-load (rename-binding dest-id)
+                   (rename-use src-id)
+                   start
+                   end)]
+        [(vec-store dest-id src-id start end)
+         (vec-store (rename-use dest-id)
+                    (rename-use src-id)
+                    start
+                    end)]
         [_ (error 'ssa (~a "NYI " inst))])))
 
   (prog new-insts))
@@ -172,7 +231,6 @@
       (match-define (cons last-write i) pair)
       (define id (get-id i))
       (define cannonical (cannonicalize (curry hash-ref id-to-num) i))
-      (pretty-print cannonical)
 
       ; Writes to destination and it's already mapped
       (define already-mapped
@@ -271,8 +329,8 @@
 
       (test-case
         "const-elim remove instructions"
-        (check-equal? (length (prog-insts (pr (const-elim example)))) 36))
+        (check-equal? (length (prog-insts (const-elim example))) 36))
 
       (test-case
        "local value numbering"
-       (check-equal? (length (prog-insts (pr (lvn example)))) 44)))))
+       (check-equal? (length (prog-insts (lvn example))) 44)))))

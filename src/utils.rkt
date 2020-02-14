@@ -49,6 +49,16 @@
     (for ([(el idx) (in-indexed vec)])
       (assert (equal? el (+ i idx))))))
 
+(define (make-name-gen [out-app string->symbol])
+  (define var-map (make-hash))
+  (lambda (base)
+    (define num
+      (cond
+        [(hash-has-key? var-map base) (add1 (hash-ref var-map base))]
+        [else 0]))
+    (hash-set! var-map base num)
+    (out-app (format "~a_~a" base (number->string num)))))
+
 
 (module+ test
   (require rackunit
@@ -62,3 +72,5 @@
               [reg-size 2]
               [upper-bound 4])
           (check-equal? 4 (reg-used idx-vec reg-size upper-bound)))))))
+
+

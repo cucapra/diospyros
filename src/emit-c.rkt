@@ -1,7 +1,7 @@
 #lang rosette
 
 (require "dsp-insts.rkt"
-         "matrix-utils.rkt"
+         "utils.rkt"
          "ast.rkt"
          "dsp-api.rkt")
 
