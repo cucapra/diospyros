@@ -165,7 +165,7 @@
      (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
      (vec-shuffle 'reg-O shuf-O (list 'O))
      ; Uncomment to force the output writes to be continuous.
-     ;(vec-void-app 'continuous-vec? (list shuf-O))
+     (vec-void-app 'continuous-vec? (list shuf-O))
      (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
      (vec-shuffle-set! 'O shuf-O 'out)))
 
@@ -209,7 +209,7 @@
     (make-symbolic-matrix 2 2)))
 
   ; Generate sketch prog
-  (define conv-2d (conv-2d-sketch I F 7))
+  (define conv-2d (conv-2d-sketch I F 10))
 
   ; Define cost function
   (define (cost-fn)
