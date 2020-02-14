@@ -9,6 +9,7 @@
          threading
          racket/trace
          racket/generator
+         rosette/lib/angelic
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
@@ -161,22 +162,23 @@ details have changed.
      (vec-extern-decl 'O (vector-length I-elements) output-tag)
      (vec-const 'Z (vector 0))))
 
+  (define-values (partitioned-out-ids partitioned-out)
+    (partition-vector 'O (vector-length I-elements)))
+
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
     (match-define (list shuf-I shuf-F shuf-O) shufs)
 
-    (define-symbolic* start integer?)
-    (define-symbolic* end integer?)
-
     (list
      (vec-shuffle'reg-I shuf-I (list 'I 'Z))
      (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
-     (vec-shuffle 'reg-O shuf-O (list 'O))
+     (vec-decl 'reg-O (current-reg-size))
+     (vec-write 'reg-O (apply choose* partitioned-out-ids))
      ; Uncomment to force the output writes to be continuous.
      (vec-void-app 'continuous-vec? (list shuf-O))
      (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
-     (vec-shuffle-set! 'O shuf-O 'out)))
+     (vec-write (apply choose* partitioned-out-ids) 'out)))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -184,12 +186,14 @@ details have changed.
 
   (prog
    (append preamble
+           partitioned-out
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
             iterations))))
 
 (define (run-sketch sketch cost-fn I F)
+  (pretty-print sketch)
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn
