@@ -151,9 +151,13 @@
   (define body-lst
     (for/list ([inst (prog-insts rprog)])
       (match inst
+
         [(vec-const id init)
          (error 'tensilica-g3-compile
-                "Constanst should not be present in the body")]
+                "Constants should not be present in the body")]
+
+        [(vec-decl id _)
+         (c-decl "xb_vecMxf32" #f (c-id id) #f #f)]
 
         ; For each external declaration, we create a restricted pointer to the
         ; input for the function arguments of this kernel and an aligning
@@ -168,7 +172,8 @@
                           inp-name)]
                 [load-name (align-reg-name id)])
 
-           ; If the extern is an input, we initialize the register for priming loads.
+           ; If the extern is an input, we initialize the register for priming
+           ; loads.
            (list
              decl
              (c-decl "valign" #f load-name #f #f)

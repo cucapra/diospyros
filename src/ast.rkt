@@ -10,11 +10,14 @@
 ; A program is a sequence of instructions.
 (struct prog (insts) #:transparent)
 
-; Set constant vector in memory.
-(struct vec-extern-decl (id size) #:transparent)
-
-; Set constant vector in memory.
+; Vector declaration, no initialization.
 (struct vec-const (id init) #:transparent)
+
+; Set constant vector in memory, with initialization.
+(struct vec-decl (id size) #:transparent)
+
+; Set externally-declared vector in memory, must be loaded from.
+(struct vec-extern-decl (id size) #:transparent)
 
 ; Shuffle instructions inside memory.
 (struct vec-shuffle (id idxs inps) #:transparent)

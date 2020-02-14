@@ -76,7 +76,7 @@
   (define new-insts
     (for/list ([inst (prog-insts p)])
       (match inst
-        [(vec-extern-decl id _)
+        [(or (vec-decl id _) (vec-extern-decl id _))
          (hash-set! name-map id id)
          inst]
         [(vec-const id init)
@@ -133,7 +133,7 @@
              (hash-set! name-map id id)
              (hash-set! const-map init id)
              (list inst)))]
-        [(vec-extern-decl id _)
+        [(or (vec-decl id _) (vec-extern-decl id _))
          (hash-set! name-map id id)
          (list inst)]
         [(vec-shuffle id idxs inps)
@@ -163,9 +163,9 @@
 ; Get the cannonical value for an instruction
 (define (cannonicalize id-to-num i)
   (match i
-    [(vec-extern-decl id size)
-     ; External declarations should not be deduplicated, so keep id
-     '(`vec-extern-decl id)]
+    [(or (vec-decl id size) (vec-extern-decl id size))
+     ; Declarations should not be deduplicated, so keep id
+     '(`vec-decl id)]
     [(vec-const id init)
      '(`vec-const init)]
     [(vec-shuffle id idxs inps)
@@ -217,10 +217,10 @@
   ; Canonical id
   (define num-to-id (make-hash))
 
-  ; Write all external declarations
+  ; Write all declarations
   (for ([i (prog-insts p)])
     (match i
-      [(vec-extern-decl id _)
+      [(or (vec-decl id _) (vec-extern-decl id _))
        (define new-num (add-to-numbering id))
        (hash-set! num-to-id new-num id)]
       [_ void]))
@@ -257,6 +257,8 @@
            (hash-ref num-to-id (hash-ref id-to-num arg-id)))
 
          (match i
+           [(vec-decl _ size)
+            (vec-decl new-id size)]
            [(vec-extern-decl _ size)
             (vec-extern-decl new-id size)]
            [(vec-const _ init)

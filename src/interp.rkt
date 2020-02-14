@@ -74,6 +74,12 @@
     ; Execute the program instruction
     (match inst
 
+      [(vec-const id init)
+       (env-set! id init)]
+
+      [(vec-decl id size)
+       (env-set! id (make-vector (current-reg-size) 0))]
+
       [(vec-extern-decl id size)
        ; The identifier is not already bound, create a symbolic vector of the
        ; correct size and add it to the environment.
@@ -87,9 +93,6 @@
                        ". Expected: " size
                        " Given: " (vector-length (env-ref id))))
            (env-set! id (align (env-ref id)))))]
-
-      [(vec-const id init)
-       (env-set! id init)]
 
       [(vec-shuffle id idxs inps)
        (let ([inp-vals (map env-ref inps)]

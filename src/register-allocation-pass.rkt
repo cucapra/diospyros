@@ -78,6 +78,9 @@
   (define (define-id id)
     (hash-set! env id void))
   (match inst
+    [(vec-decl id _)
+     (define-id id)
+     (inst-result inst `())]
     [(vec-extern-decl id size)
      (match-define (inst-result insts final)
        (alloc-extern-decl env id size))
