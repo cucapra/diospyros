@@ -44,13 +44,12 @@
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
   (match-define (matrix A-rows A-cols _) mat-A)
   (match-define (matrix B-rows B-cols _) mat-B)
-  ; Program preamble to define the "zero" vector.
+  ; Program preamble to define the inputs
   (define preamble
     (list
      (vec-extern-decl 'A (* A-rows A-cols))
      (vec-extern-decl 'B (* B-rows B-cols))
      (vec-extern-decl 'C (* A-rows B-cols))
-     (vec-const 'Z (vector 0))))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -61,8 +60,8 @@
     (define-symbolic* end integer?)
 
     (list
-     (vec-shuffle'reg-A shuf-A (list 'A 'Z))
-     (vec-shuffle 'reg-B shuf-B (list 'B 'Z))
+     (vec-shuffle'reg-A shuf-A (list 'A))
+     (vec-shuffle 'reg-B shuf-B (list 'B))
      (vec-shuffle 'reg-C shuf-C (list 'C))
      ; Uncomment to force the output writes to be continuous.
      (vec-void-app 'continuous-aligned-vec? (list shuf-C))

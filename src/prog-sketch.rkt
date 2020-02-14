@@ -6,18 +6,21 @@
 
 (provide (all-defined-out))
 
-(define (make-symbolic-vector size)
+(define (make-symbolic-vector ty size)
   (for/vector ([_ (in-range size)])
-    (define-symbolic* v integer?)
+    (define-symbolic* v ty)
     v))
 
+(define make-symbolic-int-vector
+  (curry make-symbolic-vector integer?))
+
 (define (make-symbolic-indices-restriced size reg-limit reg-upper-bound)
-  (define vec (make-symbolic-vector size))
+  (define vec (make-symbolic-int-vector size))
   (assert (<= (reg-used vec size reg-upper-bound) reg-limit))
   vec)
 
 (define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-symbolic-vector (* rows cols))))
+  (matrix rows cols (make-symbolic-int-vector (* rows cols))))
 
 ;;=================== SKETCH DEFINITIONS =========================
 
@@ -54,7 +57,7 @@
     (define insts
       (map (lambda (shuf-name)
              (vec-const shuf-name
-                        (make-symbolic-vector (current-reg-size))))
+                        (make-symbolic-int-vector (current-reg-size))))
            shuf-names))
     (values insts shuf-names)))
 
