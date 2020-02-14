@@ -165,7 +165,7 @@
      (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
      (vec-shuffle 'reg-O shuf-O (list 'O))
      ; Uncomment to force the output writes to be continuous.
-     ;(vec-app 'out 'continuous-vec? (list shuf-O))
+     ;(vec-void-app 'continuous-vec? (list shuf-O))
      (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
      (vec-shuffle-set! 'O shuf-O 'out)))
 
@@ -184,7 +184,9 @@
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mac vector-mac)
+            #:fn-map (hash 'vec-mac vector-mac
+                           'continuous-vec?
+                           (curry continuous-aligned-vec? (current-reg-size)))
             (list (cons 'I (matrix-elements I))
                   (cons 'F (matrix-elements F))
                   (cons 'O (~> I
