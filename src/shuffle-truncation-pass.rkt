@@ -72,7 +72,7 @@
        (nest-shuffles shufs id idxs inp-ids
                       (cons tmp-id (drop new-inps 2))))]))
 
-(define (truncate-shuffle env id idxs inps)
+(define (truncate-irregular-shuffle env id idxs inps)
   ; Declare a new shuffle vector to modify
   (define shufs (hash-ref env idxs))
   (define shuf-id (new-var idxs))
@@ -95,6 +95,26 @@
 
   ; Handle cases that require nesting
   (cons shuf-decl (nest-shuffles shuf-vec id shuf-id inp-ids new-inps)))
+
+(define (shuffle-to-write env id shufs inp)
+  (define val (hash-ref env inp))
+  (define src
+    (cond
+      ; The input is a constant
+      [(vector? val) inp]
+      ; The input has been mapped across allocated registers
+      [else (hash-ref val (vector-ref shufs 0))]))
+  (list
+    (vec-decl id (current-reg-size))
+    (vec-write id src)))
+
+(define (truncate-shuffle env id idxs inps)
+  (define shufs (hash-ref env idxs))
+  (if (and (is-continuous-aligned-vec? (current-reg-size) shufs)
+           (eq? (length inps) 1))
+      (shuffle-to-write env id shufs (first inps))
+      (truncate-irregular-shuffle env id idxs inps)))
+
 
 (define (truncate-shuffle-set env out-vec idxs inp)
   (define shufs (hash-ref env idxs))
@@ -206,6 +226,8 @@
 
      (match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
      (match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
+
+     (check-equal? (length (prog-insts new-prog)) 90)
 
      (define (make-env)
        (define env (make-hash))
