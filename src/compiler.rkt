@@ -27,7 +27,7 @@
 
   trunc-prog)
 
-(define p
+(define matrix-multiply
   (prog
     (list
       (vec-extern-decl 'A 6)
@@ -89,7 +89,114 @@
       (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
       (vec-shuffle-set! 'C 'shuf2-5 'out))))
 
-(display (to-string (tensilica-g3-compile (compile p) (list 'A 'B) (list 'C))))
+(define 2d-conv
+  (prog
+    (list
+      (vec-extern-decl 'I 9)
+      (vec-extern-decl 'O 9)
+      (vec-extern-decl 'F 4)
+      (vec-const 'Z '#(0))
+      (vec-const 'shuf0-0 '#(8 8 11 8))
+      (vec-const 'shuf1-0 '#(3 3 3 3))
+      (vec-const 'shuf2-0 '#(8 9 10 11))
+      (vec-shuffle 'reg-I 'shuf0-0 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-0 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-0 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-0))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-0 'out)
+      (vec-const 'shuf0-1 '#(4 5 6 7))
+      (vec-const 'shuf1-1 '#(0 0 5 0))
+      (vec-const 'shuf2-1 '#(0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-1 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-1 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-1 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-1))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-1 'out)
+      (vec-const 'shuf0-2 '#(5 12 14 14))
+      (vec-const 'shuf1-2 '#(2 2 1 2))
+      (vec-const 'shuf2-2 '#(4 5 6 7))
+      (vec-shuffle 'reg-I 'shuf0-2 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-2 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-2 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-2))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-2 'out)
+      (vec-const 'shuf0-3 '#(10 4 5 6))
+      (vec-const 'shuf1-3 '#(5 1 5 1))
+      (vec-const 'shuf2-3 '#(0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-3 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-3 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-3 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-3))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-3 'out)
+      (vec-const 'shuf0-4 '#(3 7 15 8))
+      (vec-const 'shuf1-4 '#(1 5 2 7))
+      (vec-const 'shuf2-4 '#(0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-4 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-4 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-4 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-4))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-4 'out)
+      (vec-const 'shuf0-5 '#(7 5 7 7))
+      (vec-const 'shuf1-5 '#(1 5 2 7))
+      (vec-const 'shuf2-5 '#(4 5 6 7))
+      (vec-shuffle 'reg-I 'shuf0-5 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-5 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-5 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-5))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-5 'out)
+      (vec-const 'shuf0-6 '#(8 8 11 8))
+      (vec-const 'shuf1-6 '#(0 1 1 2))
+      (vec-const 'shuf2-6 '#(4 5 6 7))
+      (vec-shuffle 'reg-I 'shuf0-6 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-6 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-6 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-6))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-6 'out)
+      (vec-const 'shuf0-7 '#(4 5 6 7))
+      (vec-const 'shuf1-7 '#(3 3 3 3))
+      (vec-const 'shuf2-7 '#(4 5 6 7))
+      (vec-shuffle 'reg-I 'shuf0-7 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-7 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-7 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-7))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-7 'out)
+      (vec-const 'shuf0-8 '#(1 2 5 4))
+      (vec-const 'shuf1-8 '#(2 2 1 2))
+      (vec-const 'shuf2-8 '#(0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-8 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-8 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-8 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-8))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-8 'out)
+      (vec-const 'shuf0-9 '#(0 1 2 3))
+      (vec-const 'shuf1-9 '#(3 3 3 3))
+      (vec-const 'shuf2-9 '#(0 1 2 3))
+      (vec-shuffle 'reg-I 'shuf0-9 '(I Z))
+      (vec-shuffle 'reg-F 'shuf1-9 '(F Z))
+      (vec-shuffle 'reg-O 'shuf2-9 '(O))
+      (vec-void-app 'continuous-vec? '(shuf2-9))
+      (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+      (vec-shuffle-set! 'O 'shuf2-9 'out))))
+
+#|
+(display (to-string (tensilica-g3-compile (compile matrix-multiply)
+                                          (list 'A 'B)
+                                          (list 'C))))
+|#
+
+(display (to-string (tensilica-g3-compile (compile 2d-conv)
+                                          (list 'I 'F)
+                                          (list 'O))))
+
 
 (run-tests
  (test-suite
@@ -108,7 +215,7 @@
      env)
 
    (define-values (gold-env _)
-     (interp p (make-env)
+     (interp matrix-multiply (make-env)
              #:fn-map (hash 'vec-mac
                             vector-mac
                             'continuous-aligned-vec?
@@ -116,7 +223,7 @@
                                    (current-reg-size)))))
 
    (define-values (env __)
-     (interp (compile p) (make-env)
+     (interp (compile matrix-multiply) (make-env)
              #:fn-map (hash 'vec-mac
                             vector-mac
                             'continuous-aligned-vec?
