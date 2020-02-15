@@ -158,7 +158,8 @@
 
     (define reg-upper-bound
       (max (quotient (* A-rows A-cols) (current-reg-size))
-           (quotient (* B-rows B-cols) (current-reg-size))))
+           (quotient (* B-rows B-cols) (current-reg-size))
+           (current-reg-size)))
 
     ; Generate sketch prog
     (define mmul (matrix-mul-shuffle-sketch A B iterations))
@@ -189,7 +190,7 @@
                   (list A B)
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
-                  #:max-cost 1000
+                  #:max-cost 500
                   #:min-cost 0))
 
     ; Keep minimizing solution in the synthesis procedure and generating new

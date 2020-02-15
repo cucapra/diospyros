@@ -227,7 +227,8 @@ details have changed.
 
   (define reg-upper-bound
     (max (quotient (* I-rows I-cols) (current-reg-size))
-         (quotient (* F-rows F-cols) (current-reg-size))))
+         (quotient (* F-rows F-cols) (current-reg-size))
+         (current-reg-size)))
 
   ; Define inputs
   (define-values (I F)
@@ -266,7 +267,7 @@ details have changed.
                 (list I F)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:max-cost 100
+                #:max-cost 500
                 #:min-cost 0))
 
   ; Keep generating solutions.
