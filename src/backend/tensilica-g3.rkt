@@ -48,27 +48,33 @@
 
   do-read)
 
+; Track the C type of each id
+(define type-tracker (make-hash))
+(define (type-set id ty)
+  (hash-set! type-tracker (id->string id) ty))
+(define (type-ref id)
+ (hash-ref type-tracker (id->string id)))
 
 ; Generate an aligning load from `src' to `dst'.
-; PDX_LAV_MXF32_XP(dst, (load-reg src) (xb_vecMxf32*)src, (end-start)*reg-size);
+; PDX_LAV_MXF32_XP(dst, (load-reg src) (xb_vecMxf32 *)src, (end-start)*reg-size);
 (define (gen-align-load dst src start end)
   (c-stmt
     (c-call (c-id "PDX_LAV_MXF32_XP")
             (list (c-id dst)
                   (align-reg-name src)
-                  (c-cast "xb_vecMxf32*"
+                  (c-cast "xb_vecMxf32 *"
                           (c-id src))
                   (c-num (* (current-reg-size)
                             (- end start)))))))
 
 ; Generate aligning store into dst from src.
-; PDX_SAV_MXF32_XP(src, (align-reg dst) (xb_vecMxf32*)dst, (end-start)*reg-size)
+; PDX_SAV_MXF32_XP(src, (align-reg dst) (xb_vecMxf32 *)dst, (end-start)*reg-size)
 (define (gen-align-store dst src start end)
   (c-stmt
     (c-call (c-id "PDX_SAV_MXF32_XP")
           (list (c-id src)
                 (align-reg-name dst)
-                (c-cast "xb_vecMxf32*"
+                (c-cast "xb_vecMxf32 *"
                         (c-id dst))
                 (c-num (* (current-reg-size)
                           (- end start)))))))
@@ -83,8 +89,15 @@
   ; Call PDX_MOV_MX32_FROM_MXF32 on the inputs
   (define args
     (map (lambda (inp)
-           (c-call (c-id "PDX_MOV_MX32_FROM_MXF32")
-                   (list (c-id inp))))
+           (match (type-ref inp)
+            ["int *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]
+            ["xb_vecMx32" (c-id inp)]
+            ["xb_vecMxf32"
+              (c-call (c-id "PDX_MOV_MX32_FROM_MXF32")
+                      (list (c-id inp)))]
+            [_ (error 'tensilica-g3-compile
+                      "Missing type for id: ~a"
+                      inp)]))
          inps))
 
   (define func-name
@@ -101,6 +114,7 @@
       [(1) (append args (list shufl))]
       [(2) (append (reverse args) (list shufl))]))
 
+  (type-set id "xb_vecMxf32")
   (list
     (c-decl "xb_vecMxf32" #f (c-id id) #f #f)
     (c-assign (c-id id)
@@ -118,6 +132,7 @@
 (define (gen-vecmac inst)
   (match-define (vec-app out 'vec-mac (list v-acc i1 i2)) inst)
   ; Declare out register.
+  (type-set out "xb_vecMxf32")
   (define out-decl
     (c-decl "xb_vecMxf32"
             #f
@@ -145,6 +160,21 @@
     (cons (vec-const 'Z (make-vector (current-reg-size) 0))
           consts))
 
+  (define decl-consts
+    (c-seq
+      (for/list ([inst all-consts])
+        (match inst
+          [(vec-const id init)
+           (type-set id "int *")
+           (c-decl "int"
+                   "__attribute__((section(\".dram0.data\")))"
+                   (c-id id)
+                   (current-reg-size)
+                   (c-bare (vector->string init)))]
+          [_ (error 'tensilica-g3-compile
+                    "Expected vec-const. Received: ~a"
+                    inst)]))))
+
   ; Track aligned loads from external memories.
   (define do-align-access (make-load-tracker))
 
@@ -157,15 +187,17 @@
                 "Constants should not be present in the body")]
 
         [(vec-decl id _)
+         (type-set id "xb_vecMxf32")
          (c-decl "xb_vecMxf32" #f (c-id id) #f #f)]
 
         ; For each external declaration, we create a restricted pointer to the
         ; input for the function arguments of this kernel and an aligning
         ; register.
         [(vec-extern-decl id _)
+         (type-set id "float *")
          (let* ([inp-name (input-name id)]
                 [decl
-                  (c-decl "float*"
+                  (c-decl "float *"
                           "__restrict"
                           (c-id id)
                           #f
@@ -182,7 +214,7 @@
                          (c-call (c-id "PDX_LA_MXF32_PP")
                                  (list
                                    (c-cast
-                                     "xb_vecMxf32*"
+                                     "xb_vecMxf32 *"
                                      inp-name))))
                (list))))]
 
@@ -190,11 +222,12 @@
         ; memories and generate aligning load instructions. If the memory
         ; is marked as an output, we generate a register with all zeros.
         [(vec-load dst src start end)
+         (type-set dst "xb_vecMxf32")
          (list
            (c-decl "xb_vecMxf32" #f (c-id dst) #f #f)
            (if (findf (lambda (arg) (equal? src arg)) outputs)
              (c-assign (c-id dst)
-                       (c-deref (c-cast "xb_vecMxf32*"
+                       (c-deref (c-cast "xb_vecMxf32 *"
                                         (c-id 'Z))))
              (begin
                (do-align-access src start end)
@@ -223,27 +256,13 @@
 
   (define body (c-seq (flatten body-lst)))
 
-  (define decl-consts
-    (c-seq
-      (for/list ([inst all-consts])
-        (match inst
-          [(vec-const id init)
-           (c-decl "int"
-                   "__attribute__((section(\".dram0.data\")))"
-                   (c-id id)
-                   (current-reg-size)
-                   (c-bare (vector->string init)))]
-          [_ (error 'tensilica-g3-compile
-                    "Expected vec-const. Received: ~a"
-                    inst)]))))
-
   (c-ast
     (c-seq
       (list
         decl-consts
         (c-func-decl "void"
                      "kernel"
-                     (map (lambda (arg) (cons "float*" (c-id-id (input-name arg))))
+                     (map (lambda (arg) (cons "float *" (c-id-id (input-name arg))))
                           (append inputs outputs))
                      body)))))
 

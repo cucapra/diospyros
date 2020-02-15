@@ -4,6 +4,13 @@
 
 (provide (all-defined-out))
 
+; Id to string
+(define (id->string id)
+  (cond
+    [(string? id) id]
+    [(symbol? id) (symbol->string id)]
+    [else (error "Invalid identifier: ~e" id)]))
+
 ; Print a matrix
 (define (pr-matrix mat)
   (match-define (matrix _ cols elements) mat)
