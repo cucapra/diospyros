@@ -162,27 +162,25 @@ details have changed.
      (vec-extern-decl 'O (vector-length I-elements) output-tag)
      (vec-const 'Z (vector 0))))
 
-  (define-values (partitioned-out-ids partitioned-out)
+  (define-values (partitioned-out-ids partitioned-out partitioned-stores)
     (partition-vector 'O (vector-length I-elements)))
 
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
-    (match-define (list shuf-I shuf-F shuf-O) shufs)
+    (match-define (list shuf-I shuf-F) shufs)
 
     (list
      (vec-shuffle'reg-I shuf-I (list 'I 'Z))
      (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
      (vec-decl 'reg-O (current-reg-size))
      (vec-write 'reg-O (apply choose* partitioned-out-ids))
-     ; Uncomment to force the output writes to be continuous.
-     (vec-void-app 'continuous-vec? (list shuf-O))
      (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
      (vec-write (apply choose* partitioned-out-ids) 'out)))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
-    (symbolic-shuffle-gen 3))
+    (symbolic-shuffle-gen 2))
 
   (prog
    (append preamble
@@ -190,7 +188,8 @@ details have changed.
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
-            iterations))))
+            iterations)
+           partitioned-stores)))
 
 (define (run-sketch sketch cost-fn I F)
   (pretty-print sketch)

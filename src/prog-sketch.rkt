@@ -83,8 +83,10 @@
              [end (min len (+ i (current-reg-size)))]
              [new-id (string->symbol
                        (format "~a_~a_~a" id start end))])
-        (list new-id (vec-load new-id id start end)))))
-  (values (map first vals) (map second vals)))
+        (list new-id
+          (vec-load new-id id start end)
+          (vec-store id new-id start end)))))
+  (values (map first vals) (map second vals) (map third vals)))
 
 ; TODO(rachit): Define a sketch where the compute can use previously defined
 ; shuffle vectors. The sketch should take a parameter `n` that specifies the
