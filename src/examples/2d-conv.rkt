@@ -12,8 +12,11 @@
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
+(provide conv2d:keys
+         conv2d:run-experiment)
+
 (current-solver (boolector))
-(current-bitwidth 8)
+(current-bitwidth 10)
 
 ; Given an NxN input matrix, returns a smaller convolved matrix.
 (define (matrix-conv-spec input filter)
@@ -205,22 +208,40 @@ details have changed.
                          (matrix-elements I)))
           cost))
 
+(define conv2d:keys
+  (list 'input-rows 'input-cols
+        'filter-rows 'filter-cols
+        'reg-size
+        'iterations))
+
+(define (conv2d:run-experiment spec)
+  (define I-rows (hash-ref spec 'input-rows))
+  (define I-cols (hash-ref spec 'input-cols))
+  (define F-rows (hash-ref spec 'filter-rows))
+  (define F-cols (hash-ref spec 'filter-cols))
+  (define reg-size (hash-ref spec 'reg-size))
+  (define iterations (hash-ref spec 'iterations))
+
 ; Run the synthesis query
-(parameterize [(current-reg-size 4)]
+(parameterize [(current-reg-size reg-size)]
+
+  (define reg-upper-bound
+    (max (quotient (* I-rows I-cols) (current-reg-size))
+         (quotient (* F-rows F-cols) (current-reg-size))))
 
   ; Define inputs
   (define-values (I F)
     (values
-    (make-symbolic-matrix 3 3)
-    (make-symbolic-matrix 2 2)))
+    (make-symbolic-matrix I-rows I-cols)
+    (make-symbolic-matrix F-rows I-cols)))
 
   ; Generate sketch prog
-  (define conv-2d (conv-2d-sketch I F 10))
+  (define conv-2d (conv-2d-sketch I F iterations))
 
   ; Define cost function
   (define (cost-fn)
     (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (make-register-cost 4)])
+          [cost-2 (make-register-cost reg-upper-bound)])
       (lambda (inst env)
         (+ (cost-1 inst env) (cost-2 inst env)))))
 
@@ -252,4 +273,4 @@ details have changed.
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
       (pretty-print (evaluate conv-2d model))
-      (pretty-print (~a "failed to find solution: " model)))))
+      (pretty-print (~a "failed to find solution: " model))))))

@@ -11,8 +11,11 @@
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
+(provide matrix-mul:keys
+         matrix-mul:run-experiment)
+
 (current-solver (boolector))
-(current-bitwidth 8)
+(current-bitwidth 10)
 
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)
@@ -49,7 +52,7 @@
     (list
      (vec-extern-decl 'A (* A-rows A-cols))
      (vec-extern-decl 'B (* B-rows B-cols))
-     (vec-extern-decl 'C (* A-rows B-cols))
+     (vec-extern-decl 'C (* A-rows B-cols))))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -127,50 +130,71 @@
     (pretty-print `(registers-touched-cost: ,regs-cost))
     (pretty-print '-------------------------------------------------------)))
 
-; Run the synthesis query
-(parameterize [(current-reg-size 4)]
-  (define A-rows 2)
-  (define A-cols-B-rows 3)
-  (define B-cols 3)
-  (define A (make-symbolic-matrix A-rows A-cols-B-rows))
-  (define B (make-symbolic-matrix A-cols-B-rows B-cols))
-  (define C-size (* A-rows B-cols))
 
-  ; Generate sketch prog
-  (define mmul (matrix-mul-shuffle-sketch A B 6))
+; Describe the configuration parameters for this benchmarks
+(define matrix-mul:keys
+  (list 'A-rows 'A-cols 'B-rows 'B-cols 'iterations 'reg-size))
 
-  ; Define the cost function
-  (define (cost-fn)
-    (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (make-register-cost 4)])
-    (lambda (inst env)
-      (+ (cost-1 inst env) (cost-2 inst env)))))
 
-  ; Create function for sketch evaluation
-  (define (sketch-func args)
-    (apply (curry run-matrix-mul-sketch
-                  mmul
-                  C-size
-                  (cost-fn))
-           args))
+; Run matrix multiply experiment with the given spec.
+; Requires that spec be a hash with all the keys describes in matrix-mul:keys.
+(define (matrix-mul:run-experiment spec)
+  (pretty-print (~a "Running matrix multiply with config: " spec))
+  (define A-rows (hash-ref spec 'A-rows))
+  (define A-cols (hash-ref spec 'A-cols))
+  (define B-rows (hash-ref spec 'B-rows))
+  (define B-cols (hash-ref spec 'B-cols))
+  (define iterations (hash-ref spec 'iterations))
+  (define reg-size (hash-ref spec 'reg-size))
 
-  ; Functionalize spec for minimization prog
-  (define (spec-func args)
-    (apply matrix-multiply-spec args))
+  (assert (equal? A-cols B-rows)
+          "matrix-mul:run-experiment: Invalid matrix sizes. A-cols not equal to B-rows")
 
-  ; Get a generator back from the synthesis procedure
-  (define model-generator
-    (synth-prog spec-func
-                sketch-func
-                (list A B)
-                #:get-inps (lambda (args) (flatten
-                                            (map matrix-elements args)))
-                #:max-cost 100
-                #:min-cost 0))
+  ; Run the synthesis query
+  (parameterize [(current-reg-size reg-size)]
+    (define A (make-symbolic-matrix A-rows A-cols))
+    (define B (make-symbolic-matrix B-rows B-cols))
+    (define C-size (* A-rows B-cols))
 
-  ; Keep minimizing solution in the synthesis procedure and generating new
-  ; solutions.
-  (for ([model (in-producer model-generator (void))])
-    (if (sat? model)
-      (get-statistics C-size (evaluate mmul model))
-      (pretty-print (~a "failed to find solution: " model)))))
+    (define reg-upper-bound
+      (max (quotient (* A-rows A-cols) (current-reg-size))
+           (quotient (* B-rows B-cols) (current-reg-size))))
+
+    ; Generate sketch prog
+    (define mmul (matrix-mul-shuffle-sketch A B iterations))
+
+    ; Define the cost function
+    (define (cost-fn)
+      (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
+            [cost-2 (make-register-cost reg-upper-bound)])
+        (lambda (inst env)
+          (+ (cost-1 inst env) (cost-2 inst env)))))
+
+    ; Create function for sketch evaluation
+    (define (sketch-func args)
+      (apply (curry run-matrix-mul-sketch
+                    mmul
+                    C-size
+                    (cost-fn))
+             args))
+
+    ; Functionalize spec for minimization prog
+    (define (spec-func args)
+      (apply matrix-multiply-spec args))
+
+    ; Get a generator back from the synthesis procedure
+    (define model-generator
+      (synth-prog spec-func
+                  sketch-func
+                  (list A B)
+                  #:get-inps (lambda (args) (flatten
+                                              (map matrix-elements args)))
+                  #:max-cost 1000
+                  #:min-cost 0))
+
+    ; Keep minimizing solution in the synthesis procedure and generating new
+    ; solutions.
+    (for ([model (in-producer model-generator (void))])
+      (if (sat? model)
+        (get-statistics C-size (evaluate mmul model))
+        (pretty-print (~a "failed to find solution: " model))))))
