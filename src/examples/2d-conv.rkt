@@ -170,13 +170,22 @@ details have changed.
     ; Assumes that shuffle-gen generated three shuffle vectors
     (match-define (list shuf-I shuf-F) shufs)
 
-    (list
-     (vec-shuffle'reg-I shuf-I (list 'I 'Z))
-     (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
-     (vec-decl 'reg-O (current-reg-size))
-     (vec-write 'reg-O (apply choose* partitioned-out-ids))
-     (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
-     (vec-write (apply choose* partitioned-out-ids) 'out)))
+    (define input-shuffles
+      (list
+       (vec-shuffle'reg-I shuf-I (list 'I 'Z))
+       (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
+       (vec-decl 'reg-O (current-reg-size))))
+
+    (define output-mac
+      (apply choose*
+        (map (lambda (out-reg)
+          (list
+            (vec-write 'reg-O out-reg)
+            (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
+            (vec-write out-reg 'out)))
+        partitioned-out-ids)))
+
+    (append input-shuffles output-mac))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
