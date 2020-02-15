@@ -49,11 +49,17 @@
   do-read)
 
 ; Track the C type of each id
-(define type-tracker (make-hash))
-(define (type-set id ty)
-  (hash-set! type-tracker (id->string id) ty))
-(define (type-ref id)
- (hash-ref type-tracker (id->string id)))
+(define (make-type-tracker)
+
+  (define types (make-hash))
+
+  (define (type-set id ty)
+    (hash-set! types (id->string id) ty))
+
+  (define (type-ref id)
+   (hash-ref types (id->string id)))
+
+  (values type-set type-ref))
 
 ; Generate an aligning load from `src' to `dst'.
 ; PDX_LAV_MXF32_XP(dst, (load-reg src) (xb_vecMxf32 *)src, (end-start)*reg-size);
@@ -79,7 +85,7 @@
                 (c-num (* (current-reg-size)
                           (- end start)))))))
 
-(define (gen-shuffle inst)
+(define (gen-shuffle type-set type-ref inst)
   (match-define (vec-shuffle id idxs inps) inst)
   (assert (< (length inps) 3)
           (format
@@ -129,7 +135,7 @@
 ; into:
 ; declare out = acc;
 ; vmac(out, i1, i2)
-(define (gen-vecmac inst)
+(define (gen-vecmac type-set inst)
   (match-define (vec-app out 'vec-mac (list v-acc i1 i2)) inst)
   ; Declare out register.
   (type-set out "xb_vecMxf32")
@@ -177,6 +183,9 @@
 
   ; Track aligned loads from external memories.
   (define do-align-access (make-load-tracker))
+
+  ; Track types for necessary casts
+  (define-values (type-set type-ref) (make-type-tracker))
 
   (define body-lst
     (for/list ([inst (prog-insts rprog)])
@@ -234,9 +243,9 @@
                (gen-align-load dst src start end))))]
 
         [(vec-shuffle _ _ _)
-         (gen-shuffle inst)]
+         (gen-shuffle type-set type-ref inst)]
 
-        [(vec-app _ 'vec-mac _) (gen-vecmac inst)]
+        [(vec-app _ 'vec-mac _) (gen-vecmac type-set inst)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _)) (list)]
 
