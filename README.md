@@ -5,7 +5,7 @@ Compile code for DSPs.
 ## Prerequisites
 
 - Install Racket > 7.4
-- Install Rosette by running `raco install rosette`.
+- Install Rosette by running `raco pkg install rosette`.
 - Install [Z3][] and [Boolector][].
 
 [z3]: https://github.com/Z3Prover/z3
