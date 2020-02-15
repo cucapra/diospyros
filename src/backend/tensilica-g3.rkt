@@ -161,6 +161,12 @@
   ; Hoist all the constants to the top of the program.
   (define-values (consts rprog) (reorder-prog p))
 
+  ; Track aligned loads from external memories.
+  (define do-align-access (make-load-tracker))
+
+  ; Track types for necessary casts
+  (define-values (type-set type-ref) (make-type-tracker))
+
   ; Add the 'zero' constant vector
   (define all-consts
     (cons (vec-const 'Z (make-vector (current-reg-size) 0))
@@ -180,12 +186,6 @@
           [_ (error 'tensilica-g3-compile
                     "Expected vec-const. Received: ~a"
                     inst)]))))
-
-  ; Track aligned loads from external memories.
-  (define do-align-access (make-load-tracker))
-
-  ; Track types for necessary casts
-  (define-values (type-set type-ref) (make-type-tracker))
 
   (define body-lst
     (for/list ([inst (prog-insts rprog)])
