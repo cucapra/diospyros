@@ -50,7 +50,7 @@
     [else
      ; Create a new temp register.
      (define new-shuf-id (new-var idxs))
-     (define tmp-id (new-var (format "~a-tmp" id)))
+     (define tmp-id (new-var (format "~a_tmp" id)))
      (define new-shuf (make-vector (current-reg-size) 0))
 
      (for ([i (in-range (current-reg-size))])
