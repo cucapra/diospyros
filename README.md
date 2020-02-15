@@ -6,6 +6,7 @@ Compile code for DSPs.
 
 - Install [Racket][] > 7.4
 - Install [Rosette][] by running `raco pkg install rosette`.
+- Install Racket's threading library with `raco pkg install threading`
 - Install [Z3][] and [Boolector][].
 
 [racket]: https://github.com/racket/racket
