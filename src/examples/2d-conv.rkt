@@ -162,20 +162,22 @@ details have changed.
      (vec-extern-decl 'O (vector-length I-elements) output-tag)
      (vec-const 'Z (vector 0))))
 
-  (define-values (partitioned-out-ids partitioned-out partitioned-stores)
+  (define-values (out-reg-ids out-reg-loads out-reg-stores)
     (partition-vector 'O (vector-length I-elements)))
 
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)
-    ; Assumes that shuffle-gen generated three shuffle vectors
+    ; Assumes that shuffle-gen generated two shuffle vectors
     (match-define (list shuf-I shuf-F) shufs)
 
+    ; Shuffle the inputs with symbolic shuffle vectors
     (define input-shuffles
       (list
        (vec-shuffle'reg-I shuf-I (list 'I 'Z))
        (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
        (vec-decl 'reg-O (current-reg-size))))
 
+    ; Use choose* to select an output register to both read and write
     (define output-mac
       (apply choose*
         (map (lambda (out-reg)
@@ -183,7 +185,7 @@ details have changed.
             (vec-write 'reg-O out-reg)
             (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
             (vec-write out-reg 'out)))
-        partitioned-out-ids)))
+        out-reg-ids)))
 
     (append input-shuffles output-mac))
 
@@ -193,12 +195,12 @@ details have changed.
 
   (prog
    (append preamble
-           partitioned-out
+           out-reg-loads
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
             iterations)
-           partitioned-stores)))
+           out-reg-stores)))
 
 (define (run-sketch sketch cost-fn I F)
   (pretty-print sketch)
