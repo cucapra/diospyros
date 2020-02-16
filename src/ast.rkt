@@ -21,7 +21,7 @@
 (struct vec-decl (id size) #:transparent)
 
 ; Set externally-declared vector in memory, must be loaded from.
-; Tag optionally says if this is an input or an output.
+; Tag says if this is an input or an output.
 (struct vec-extern-decl (id size tag) #:transparent)
 
 ; Shuffle instructions inside memory.
