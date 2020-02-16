@@ -67,7 +67,7 @@
 
 (module+ main
   (command-line
-    #:program "Diospyros compiler"
+    #:program "Run and save examples for Diospyros."
     #:once-each
     [("-b" "--benchmark") bench ; name of the benchmark
                           "Name of the benchmark to run."

@@ -13,6 +13,8 @@
          rackunit
          rackunit/text-ui)
 
+(provide compile)
+
 ;; Compile a vector program into an executable C++ program
 (define (compile p)
   ; Make binding environment for register allocation.
@@ -30,9 +32,9 @@
 (define matrix-multiply
   (prog
     (list
-      (vec-extern-decl 'A 6)
-      (vec-extern-decl 'B 9)
-      (vec-extern-decl 'C 6)
+      (vec-extern-decl 'A 6 input-tag)
+      (vec-extern-decl 'B 9 input-tag)
+      (vec-extern-decl 'C 6 output-tag)
       (vec-const 'Z '#(0))
       (vec-const 'shuf0-0 '#(3 3 1 0))
       (vec-const 'shuf1-0 '#(1 2 2 2))
@@ -92,9 +94,9 @@
 (define 2d-conv
   (prog
     (list
-      (vec-extern-decl 'I 9)
-      (vec-extern-decl 'O 9)
-      (vec-extern-decl 'F 4)
+      (vec-extern-decl 'I 9 input-tag)
+      (vec-extern-decl 'O 9 output-tag)
+      (vec-extern-decl 'F 4 input-tag)
       (vec-const 'Z '#(0))
       (vec-const 'shuf0-0 '#(8 8 11 8))
       (vec-const 'shuf1-0 '#(3 3 3 3))

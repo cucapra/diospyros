@@ -2,6 +2,10 @@
 
 (provide (all-defined-out))
 
+(define-values (input-tag output-tag)
+  (values 'extern-input
+          'extern-output))
+
 ; Default register size.
 (define current-reg-size
   (make-parameter 4))
@@ -17,7 +21,8 @@
 (struct vec-decl (id size) #:transparent)
 
 ; Set externally-declared vector in memory, must be loaded from.
-(struct vec-extern-decl (id size) #:transparent)
+; Tag optionally says if this is an input or an output.
+(struct vec-extern-decl (id size tag) #:transparent)
 
 ; Shuffle instructions inside memory.
 (struct vec-shuffle (id idxs inps) #:transparent)

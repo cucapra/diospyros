@@ -155,9 +155,9 @@
   (define p
     (prog
      (list
-      (vec-extern-decl 'A 6)
-      (vec-extern-decl 'B 9)
-      (vec-extern-decl 'C 6)
+      (vec-extern-decl 'A 6 input-tag)
+      (vec-extern-decl 'B 9 input-tag)
+      (vec-extern-decl 'C 6 output-tag)
       (vec-const 'Z '#(0))
       (vec-const 'shuf0-0 '#(3 3 1 0))
       (vec-const 'shuf1-0 '#(1 2 2 2))
