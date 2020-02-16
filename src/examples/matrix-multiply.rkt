@@ -50,9 +50,9 @@
   ; Program preamble to define the inputs
   (define preamble
     (list
-     (vec-extern-decl 'A (* A-rows A-cols))
-     (vec-extern-decl 'B (* B-rows B-cols))
-     (vec-extern-decl 'C (* A-rows B-cols))))
+     (vec-extern-decl 'A (* A-rows A-cols) input-tag)
+     (vec-extern-decl 'B (* B-rows B-cols) input-tag)
+     (vec-extern-decl 'C (* A-rows B-cols) output-tag)))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)

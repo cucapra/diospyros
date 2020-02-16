@@ -81,7 +81,7 @@
     [(vec-decl id _)
      (define-id id)
      (inst-result inst `())]
-    [(vec-extern-decl id size)
+    [(vec-extern-decl id size _)
      (match-define (inst-result insts final)
        (alloc-extern-decl env id size))
      (inst-result (cons inst insts) final)]
@@ -138,10 +138,10 @@
         (define env (make-hash))
         (hash-set! env `x (make-vector 1 1))
         (define/prog p
-          (vec-extern-decl 'x 1))
+          (vec-extern-decl 'x 1 input-tag))
         (define new-p (register-allocation p env))
         (define/prog gold
-          (vec-extern-decl 'x 1)
+          (vec-extern-decl 'x 1 input-tag)
           (vec-load 'x_0_4 'x 0 4)
           (vec-store 'x 'x_0_4 0 4))
         (check-equal? new-p gold))

@@ -80,7 +80,7 @@
       [(vec-decl id size)
        (env-set! id (make-vector (current-reg-size) 0))]
 
-      [(vec-extern-decl id size)
+      [(vec-extern-decl id size _)
        ; The identifier is not already bound, create a symbolic vector of the
        ; correct size and add it to the environment.
        (if (and symbolic? (not (env-has? id)))
@@ -204,21 +204,21 @@
        (define env (make-hash))
        (hash-set! env `x (make-vector 2 0))
        (define gold (vector 0 0 0 0))
-       (define p (prog (list (vec-extern-decl `x 2))))
+       (define p (prog (list (vec-extern-decl `x 2 input-tag))))
        (interp p env)
        (check-equal? (hash-ref env `x) gold))
 
       (test-case
        "check external declared vector undefined"
        (define env (make-hash))
-       (define p (prog (list (vec-extern-decl `x 2))))
+       (define p (prog (list (vec-extern-decl `x 2 input-tag))))
        (check-exn exn:fail? (thunk (interp p env))))
 
       (test-case
        "check external declared vector wrong size"
        (define env (make-hash))
        (hash-set! env `x (make-vector 1 0))
-       (define p (prog (list (vec-extern-decl `x 2))))
+       (define p (prog (list (vec-extern-decl `x 2 input-tag))))
        (check-exn exn:fail? (thunk (interp p env))))
 
       (test-case

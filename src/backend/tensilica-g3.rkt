@@ -27,6 +27,19 @@
                #:before-first "{"
                #:after-last "}"))
 
+; Track the tag associated with vec-extern-decl
+(define (make-arg-tag-tracker)
+  (define map (make-hash))
+  (define (get-arg-tag arg)
+    (hash-ref map arg))
+  (define (set-arg-tag! arg tag)
+    (hash-set! map arg tag))
+  (define (all-args)
+    (hash-keys map))
+  (values get-arg-tag
+          set-arg-tag!
+          all-args))
+
 ; Track aligning loads from external memories.
 (define (make-load-tracker)
   ; Track the next location available to be read from a memory.
@@ -157,12 +170,16 @@
         mac))
 
 
-(define (tensilica-g3-compile p inputs outputs)
+(define (tensilica-g3-compile p)
   ; Hoist all the constants to the top of the program.
   (define-values (consts rprog) (reorder-prog p))
 
   ; Track aligned loads from external memories.
   (define do-align-access (make-load-tracker))
+
+  ; Track inputs and outputs
+  (define-values (get-arg-tag set-arg-tag! all-args)
+    (make-arg-tag-tracker))
 
   ; Track types for necessary casts
   (define-values (type-set type-ref) (make-type-tracker))
@@ -202,8 +219,9 @@
         ; For each external declaration, we create a restricted pointer to the
         ; input for the function arguments of this kernel and an aligning
         ; register.
-        [(vec-extern-decl id _)
+        [(vec-extern-decl id tag)
          (type-set id "float *")
+         (set-arg-tag! id tag)
          (let* ([inp-name (input-name id)]
                 [decl
                   (c-decl "float *"
@@ -218,7 +236,7 @@
            (list
              decl
              (c-decl "valign" #f load-name #f #f)
-             (if (findf (lambda (arg) (equal? id arg)) inputs)
+             (if (equal? input-tag tag)
                (c-assign load-name
                          (c-call (c-id "PDX_LA_MXF32_PP")
                                  (list
@@ -234,7 +252,7 @@
          (type-set dst "xb_vecMxf32")
          (list
            (c-decl "xb_vecMxf32" #f (c-id dst) #f #f)
-           (if (findf (lambda (arg) (equal? src arg)) outputs)
+           (if (equal? (get-arg-tag src) output-tag)
              (c-assign (c-id dst)
                        (c-deref (c-cast "xb_vecMxf32 *"
                                         (c-id 'Z))))
@@ -253,7 +271,7 @@
          (c-assign (c-id dst) (c-id src))]
 
         [(vec-store dst src start end)
-         (if (findf (lambda (arg) (equal? dst arg)) outputs)
+         (if (equal? output-tag (get-arg-tag dst))
            (begin
              (do-align-access dst start end)
              (gen-align-store dst src start end))
@@ -272,6 +290,5 @@
         (c-func-decl "void"
                      "kernel"
                      (map (lambda (arg) (cons "float *" (c-id-id (input-name arg))))
-                          (append inputs outputs))
+                          (all-args))
                      body)))))
-

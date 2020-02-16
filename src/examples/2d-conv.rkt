@@ -82,9 +82,9 @@
 (define man-sol
   (prog
     (list
-      (vec-extern-decl 'I 4)
-      (vec-extern-decl 'O 4)
-      (vec-extern-decl 'F 4)
+      (vec-extern-decl 'I 4 input-tag)
+      (vec-extern-decl 'F 4 input-tag)
+      (vec-extern-decl 'O 4 output-tag)
       (vec-const 'Z '#(0))
       (vec-const 'shuf0-0 (vector 0 0 0 0))
       (vec-const 'shuf1-0 (vector 3 2 1 0))
@@ -156,9 +156,9 @@ details have changed.
   ;Program preamble to define the "zero" vector.
   (define preamble
     (list
-     (vec-extern-decl 'I (vector-length I-elements))
-     (vec-extern-decl 'O (vector-length I-elements))
-     (vec-extern-decl 'F (vector-length F-elements))
+     (vec-extern-decl 'I (vector-length I-elements) input-tag)
+     (vec-extern-decl 'F (vector-length F-elements) input-tag)
+     (vec-extern-decl 'O (vector-length I-elements) output-tag)
      (vec-const 'Z (vector 0))))
 
   ;Compute description for the sketch
