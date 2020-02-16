@@ -85,13 +85,18 @@
 
       (define new-cost
         (if (sat? model)
-          (begin
+          (let ([cost (evaluate c model)])
             ; If a satisfying model was found, yield it back.
-            (yield model)
-            (evaluate c model))
+            (yield model cost)
+            cost)
           cur-cost))
 
       (cond
         [(not (sat? model)) (pretty-print `(final-cost: ,new-cost))]
         [(<= new-cost min-cost) (pretty-print `(final-cost: ,new-cost))]
         [else (loop (sub1 new-cost) model)]))))
+
+(define (sol-producer model-generator)
+  (define (is-done? model cost)
+    (equal? (void) model))
+  (in-producer model-generator is-done?))

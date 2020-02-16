@@ -214,7 +214,7 @@ details have changed.
         'reg-size
         'iterations))
 
-(define (conv2d:run-experiment spec)
+(define (conv2d:run-experiment spec file-writer)
   (define I-rows (hash-ref spec 'input-rows))
   (define I-cols (hash-ref spec 'input-cols))
   (define F-rows (hash-ref spec 'filter-rows))
@@ -271,7 +271,9 @@ details have changed.
                 #:min-cost 0))
 
   ; Keep generating solutions.
-  (for ([model (in-producer model-generator (void))])
+  (for ([(model cost) (sol-producer model-generator)])
     (if (sat? model)
-      (pretty-print (evaluate conv-2d model))
+      (let ([prog (evaluate conv-2d model)])
+        (file-writer prog cost)
+        (pretty-print prog))
       (pretty-print (~a "failed to find solution: " model))))))
