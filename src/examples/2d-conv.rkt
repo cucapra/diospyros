@@ -76,7 +76,26 @@
                   32 37 24))
         (check-equal? (matrix-conv-spec (matrix 3 3 input)
                                         (matrix 2 2 filter))
-                      (matrix 3 3 gold))))))
+                      (matrix 3 3 gold)))
+
+      (test-case
+        "4x4 by 2x2"
+        (define input
+          (vector 0  1  2  3
+                  4  5  6  7
+                  8  9  10 11
+                  12 13 14 15))
+        (define filter
+          (vector 0 1
+                  2 3))
+        (define gold
+          (vector 6  12 18 16
+                  30 36 42 32
+                  54 60 66 48
+                  62 67 72 45))
+        (check-equal? (matrix-conv-spec (matrix 4 4 input)
+                                        (matrix 2 2 filter))
+                      (matrix 4 4 gold))))))
 
 ; ============================ MANUAL ATTEMPT =================
 

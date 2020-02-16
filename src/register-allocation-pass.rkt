@@ -135,7 +135,7 @@
         (add-use inp)]
       [(or (vec-const _ _)
            (vec-decl _ _)
-           (vec-extern-decl _ _)
+           (vec-extern-decl _ _ _)
            (vec-load _ _ _ _)
            (vec-store _ _ _ _)
            (vec-write _ _))
