@@ -219,7 +219,7 @@
         ; For each external declaration, we create a restricted pointer to the
         ; input for the function arguments of this kernel and an aligning
         ; register.
-        [(vec-extern-decl id tag)
+        [(vec-extern-decl id size tag)
          (type-set id "float *")
          (set-arg-tag! id tag)
          (let* ([inp-name (input-name id)]
