@@ -71,7 +71,7 @@
   (partition-vector env id size load-init))
 
 ; Produces 1 or more instructions, modifies env
-(define (alloc-inst env inst)
+(define (alloc-inst env has-vector-uses? inst)
   (define (check-defined ids)
     (for ([id ids])
       (unless (hash-has-key? env id) (error 'alloc-inst "undefined id ~a" id))))
@@ -82,9 +82,14 @@
      (define-id id)
      (inst-result inst `())]
     [(vec-extern-decl id size _)
-     (match-define (inst-result insts final)
-       (alloc-extern-decl env id size))
-     (inst-result (cons inst insts) final)]
+     (if (has-vector-uses? id)
+         (begin
+           (match-define (inst-result insts final)
+           (alloc-extern-decl env id size))
+           (inst-result (cons inst insts) final))
+         (begin
+           (define-id id)
+           (inst-result inst `())))]
     [(vec-const id init)
      (define-id id)
      (alloc-const env id init)]
@@ -102,16 +107,53 @@
     [(vec-void-app _ inps)
      (check-defined inps)
      (inst-result inst `())]
+    [(vec-load dest-id src-id _ _)
+      (define-id dest-id)
+      (check-defined (list src-id))
+     (inst-result inst `())]
+    [(vec-store dest-id src-id _ _)
+      (check-defined (list dest-id src-id))
+     (inst-result inst `())]
+    [(vec-write dst src)
+      (check-defined (list dst src))
+     (inst-result inst `())]
     [_ (error 'register-allocation "unknown instruction ~a" inst)]))
 
+(define (make-has-vector-uses insts)
+  (define vector-uses (mutable-set))
+  (define (has-vector-uses? id)
+    (set-member? vector-uses id))
+  (define (add-use id) (set-add! vector-uses id))
+
+  (for ([inst insts])
+    (match inst
+      [(or (vec-shuffle _ _ inps)
+           (vec-app _ _ inps)
+           (vec-void-app _ inps))
+        (for-each add-use inps)]
+      [(vec-shuffle-set! _ _ inp)
+        (add-use inp)]
+      [(or (vec-const _ _)
+           (vec-decl _ _)
+           (vec-extern-decl _ _)
+           (vec-load _ _ _ _)
+           (vec-store _ _ _ _)
+           (vec-write _ _))
+       void]
+      [_ (assert #f (~a "unknown instruction " inst))]))
+  has-vector-uses?)
+
 (define (register-allocation program env)
-  (define results (map (curry alloc-inst env) (prog-insts program)))
+  (define insts (prog-insts program))
+  (define has-vector-uses? (make-has-vector-uses insts))
+  (define results (map (curry alloc-inst env has-vector-uses?) insts))
 
   (prog
-    (flatten
-     (list
-      (map inst-result-insts results)
-      (map inst-result-final results)))))
+    (remove-duplicates
+      (flatten
+        (list
+          (map inst-result-insts results)
+          (map inst-result-final results))))))
 
 
 ; Testing
@@ -134,15 +176,28 @@
         (check-equal? (hash-ref env 'x) (vector 0 0 0 0)))
 
       (test-case
-        "External decl"
+        "External decl with no vector use"
         (define env (make-hash))
         (hash-set! env `x (make-vector 1 1))
         (define/prog p
           (vec-extern-decl 'x 1 input-tag))
         (define new-p (register-allocation p env))
         (define/prog gold
+          (vec-extern-decl 'x 1 input-tag))
+        (check-equal? new-p gold))
+
+      (test-case
+        "External decl with vector use"
+        (define env (make-hash))
+        (hash-set! env `x (make-vector 1 1))
+        (define/prog p
+          (vec-extern-decl 'x 1 input-tag)
+          (vec-app `out `f (list `x)))
+        (define new-p (register-allocation p env))
+        (define/prog gold
           (vec-extern-decl 'x 1 input-tag)
           (vec-load 'x_0_4 'x 0 4)
+          (vec-app `out `f (list `x))
           (vec-store 'x 'x_0_4 0 4))
         (check-equal? new-p gold))
 
