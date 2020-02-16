@@ -234,7 +234,7 @@ details have changed.
   (define-values (I F)
     (values
     (make-symbolic-matrix I-rows I-cols)
-    (make-symbolic-matrix F-rows I-cols)))
+    (make-symbolic-matrix F-rows F-cols)))
 
   ; Generate sketch prog
   (define conv-2d (conv-2d-sketch I F iterations))
