@@ -5,6 +5,7 @@
          "c-ast.rkt"
          "compile-passes.rkt"
          "dsp-insts.rkt"
+         "synth.rkt"
          "interp.rkt"
          "prog-sketch.rkt"
          "register-allocation-pass.rkt"
@@ -13,19 +14,35 @@
          rackunit
          rackunit/text-ui)
 
-(provide compile)
+(provide compile
+         check-transform-with-fn-map)
+
+; When not #f, uses the fn-map to verify the programs.
+(define check-transform-with-fn-map (make-parameter #f))
+
+(define (allocate-and-truncate prog)
+  ; Make binding environment for register allocation.
+  (define env (make-hash))
+  (define alloc-prog (register-allocation prog env))
+  (define trunc-prog (shuffle-truncation alloc-prog env))
+  trunc-prog)
+
 
 ;; Compile a vector program into an executable C++ program
 (define (compile p)
-  ; Make binding environment for register allocation.
-  (define env (make-hash))
 
   ; Add optimization passes like const elimination.
   (define ssa-prog (ssa p))
   (define elim-prog (const-elim ssa-prog))
-  ;(pretty-print ssa-prog)
-  (define alloc-prog (register-allocation elim-prog env))
-  (define trunc-prog (shuffle-truncation alloc-prog env))
+  (define trunc-prog (allocate-and-truncate elim-prog))
+
+  (when (check-transform-with-fn-map)
+    (assert
+      (equal?
+        (unsat)
+        (verify-prog p
+                     trunc-prog
+                     #:fn-map (check-transform-with-fn-map)))))
 
   trunc-prog)
 
@@ -190,38 +207,22 @@
       (vec-shuffle-set! 'O 'shuf2-9 'out))))
 
 (module+ test
-(run-tests
- (test-suite
-  "compile tests"
-  (test-case
-    "compiler runs"
-    (to-string (tensilica-g3-compile (compile 2d-conv))))
-  (test-case
-   "Mat mul example"
+  (run-tests
+    (test-suite
+      "compile tests"
+      (test-case
+        "compiler runs"
+        (to-string (tensilica-g3-compile (compile 2d-conv))))
+      (test-case
+        "Mat mul example"
 
-   (match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
-   (match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
+        (define fn-map
+          (hash 'vec-mac
+                vector-mac
+                'continuous-aligned-vec?
+                (curry continuous-aligned-vec?
+                       (current-reg-size))))
 
-   (define (make-env)
-     (define env (make-hash))
-     (hash-set! env 'A A-elements)
-     (hash-set! env 'B B-elements)
-     (hash-set! env 'C (make-vector (* A-rows B-cols) 0))
-     env)
-
-   (define-values (gold-env _)
-     (interp matrix-multiply (make-env)
-             #:fn-map (hash 'vec-mac
-                            vector-mac
-                            'continuous-aligned-vec?
-                            (curry continuous-aligned-vec?
-                                   (current-reg-size)))))
-
-   (define-values (env __)
-     (interp (compile matrix-multiply) (make-env)
-             #:fn-map (hash 'vec-mac
-                            vector-mac
-                            'continuous-aligned-vec?
-                            (curry continuous-aligned-vec? (current-reg-size)))))
-   (check-equal? (vector-take (hash-ref gold-env 'C) 6)
-                 (vector-take (hash-ref env 'C) 6))))))
+        (check-equal? (unsat) (verify-prog matrix-multiply
+                                           (compile matrix-multiply)
+                                           #:fn-map fn-map))))))

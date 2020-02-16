@@ -226,8 +226,8 @@ details have changed.
 (parameterize [(current-reg-size reg-size)]
 
   (define reg-upper-bound
-    (max (quotient (* I-rows I-cols) (current-reg-size))
-         (quotient (* F-rows F-cols) (current-reg-size))
+    (max (exact-ceiling (/ (* I-rows I-cols) (current-reg-size)))
+         (exact-ceiling (/ (* F-rows F-cols) (current-reg-size)))
          (current-reg-size)))
 
   ; Define inputs

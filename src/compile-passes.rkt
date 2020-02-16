@@ -5,6 +5,7 @@
 (provide ssa
          const-elim
          reorder-prog
+         get-inputs-and-outputs
          lvn)
 
 (define (pr v)
@@ -53,6 +54,28 @@
         (reverse loads)
         (flatten new-insts)))))
 
+
+; Returns two values:
+; 1. List all vec-extern-decl tagged with input-tag.
+; 2. List all vec-extern-decl tagged with output-tag.
+(define (get-inputs-and-outputs prog)
+  (define ins (list))
+  (define outs (list))
+
+  (for ([inst (prog-insts prog)])
+    (match inst
+      [(vec-extern-decl id size tag)
+       (cond
+         [(equal? tag input-tag)
+          (set! ins (cons inst ins))]
+         [(equal? tag output-tag)
+          (set! outs (cons inst outs))]
+         [else (error 'get-inputs-and-outputs
+                      "Unknown tag: ~a"
+                      tag)])]
+      [_ (void)]))
+
+  (values ins outs))
 
 ; Conversion to static single assignment form
 (define (ssa p)
