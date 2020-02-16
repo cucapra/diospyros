@@ -1,2 +1,4 @@
 compiled/
 *.rkt~
+dios
+dios-example-gen
