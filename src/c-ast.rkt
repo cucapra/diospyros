@@ -12,12 +12,14 @@
 (struct c-id (id)
   #:transparent
   #:guard (lambda (id type-name)
-            (cond
+            (define str (cond
               [(string? id) id]
               [(symbol? id) (symbol->string id)]
               [else (error type-name
                            "Invalid identifier: ~e"
-                           id)])))
+                           id)]))
+            (string-replace str "-" "_")))
+
 (struct c-num (num)
   #:transparent
   #:guard (lambda (num type-name)
