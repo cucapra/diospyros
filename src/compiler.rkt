@@ -189,20 +189,13 @@
       (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
       (vec-shuffle-set! 'O 'shuf2-9 'out))))
 
-#|
-(display (to-string (tensilica-g3-compile (compile matrix-multiply)
-                                          (list 'A 'B)
-                                          (list 'C))))
-|#
-
-(display (to-string (tensilica-g3-compile (compile 2d-conv)
-                                          (list 'I 'F)
-                                          (list 'O))))
-
-
+(module+ test
 (run-tests
  (test-suite
   "compile tests"
+  (test-case
+    "compiler runs"
+    (to-string (tensilica-g3-compile (compile 2d-conv))))
   (test-case
    "Mat mul example"
 
@@ -231,4 +224,4 @@
                             'continuous-aligned-vec?
                             (curry continuous-aligned-vec? (current-reg-size)))))
    (check-equal? (vector-take (hash-ref gold-env 'C) 6)
-                 (vector-take (hash-ref env 'C) 6)))))
+                 (vector-take (hash-ref env 'C) 6))))))

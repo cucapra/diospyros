@@ -40,7 +40,7 @@
         [(vec-load _ _ _ _)
          (add-load inst)
          (list)]
-        [(vec-extern-decl _ _)
+        [(vec-extern-decl _ _ _)
          (add-extern inst)
          (list)]
         [inst (list inst)])))
@@ -76,7 +76,7 @@
   (define new-insts
     (for/list ([inst (prog-insts p)])
       (match inst
-        [(or (vec-decl id _) (vec-extern-decl id _))
+        [(or (vec-decl id _) (vec-extern-decl id _ _))
          (hash-set! name-map id id)
          inst]
         [(vec-const id init)
@@ -133,7 +133,7 @@
              (hash-set! name-map id id)
              (hash-set! const-map init id)
              (list inst)))]
-        [(or (vec-decl id _) (vec-extern-decl id _))
+        [(or (vec-decl id _) (vec-extern-decl id _ _))
          (hash-set! name-map id id)
          (list inst)]
         [(vec-shuffle id idxs inps)
@@ -163,7 +163,7 @@
 ; Get the cannonical value for an instruction
 (define (cannonicalize id-to-num i)
   (match i
-    [(or (vec-decl id size) (vec-extern-decl id size))
+    [(or (vec-decl id size) (vec-extern-decl id size _))
      ; Declarations should not be deduplicated, so keep id
      '(`vec-decl id)]
     [(vec-const id init)
@@ -220,7 +220,7 @@
   ; Write all declarations
   (for ([i (prog-insts p)])
     (match i
-      [(or (vec-decl id _) (vec-extern-decl id _))
+      [(or (vec-decl id _) (vec-extern-decl id _ _))
        (define new-num (add-to-numbering id))
        (hash-set! num-to-id new-num id)]
       [_ void]))
@@ -259,8 +259,8 @@
          (match i
            [(vec-decl _ size)
             (vec-decl new-id size)]
-           [(vec-extern-decl _ size)
-            (vec-extern-decl new-id size)]
+           [(vec-extern-decl _ size tag)
+            (vec-extern-decl new-id size tag)]
            [(vec-const _ init)
             (vec-const new-id init)]
            [(vec-shuffle _ idxs inps)
@@ -281,9 +281,9 @@
   (define example
     (prog
       (list
-        (vec-extern-decl 'A 6)
-        (vec-extern-decl 'B 9)
-        (vec-extern-decl 'C 6)
+        (vec-extern-decl 'A 6 input-tag)
+        (vec-extern-decl 'B 9 input-tag)
+        (vec-extern-decl 'C 6 output-tag)
         (vec-const 'Z '#(0))
         (vec-const 'shuf0-0 '#(3 5 1 2))
         (vec-const 'shuf1-0 '#(0 8 4 8))
