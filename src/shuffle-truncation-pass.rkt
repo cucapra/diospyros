@@ -6,6 +6,7 @@
          "utils.rkt"
          "prog-sketch.rkt"
          "register-allocation-pass.rkt"
+         "synth.rkt"
          threading)
 
 (provide shuffle-truncation)
@@ -142,7 +143,7 @@
     [_ inst]))
 
 (define (shuffle-truncation program env)
-  (~> (curry truncate-shuffle-inst env )
+  (~> (curry truncate-shuffle-inst env)
       (map _ (prog-insts program))
       flatten
       prog))
@@ -223,33 +224,15 @@
      (define reg-alloc (register-allocation p c-env))
 
      (define new-prog (shuffle-truncation reg-alloc c-env))
-
-     (match-define (matrix A-rows A-cols A-elements) (make-symbolic-matrix 2 3))
-     (match-define (matrix B-rows B-cols B-elements) (make-symbolic-matrix 3 3))
+     (define fn-map (hash 'vec-mac
+                          vector-mac
+                          'continuous-aligned-vec?
+                          (curry continuous-aligned-vec? (current-reg-size))))
 
      (check-equal? (length (prog-insts new-prog)) 90)
 
-     (define (make-env)
-       (define env (make-hash))
-       (hash-set! env 'A A-elements)
-       (hash-set! env 'B B-elements)
-       (hash-set! env 'C (make-vector (* A-rows B-cols) 0))
-       env)
+     (define res
+       (verify-prog p new-prog
+                    #:fn-map fn-map))
 
-     (define-values (gold-env gold-cost)
-       (interp p (make-env)
-               #:fn-map (hash 'vec-mac
-                              vector-mac
-                              'continuous-aligned-vec?
-                              (curry continuous-aligned-vec? (current-reg-size)))))
-     (define gold-C (vector-take (hash-ref gold-env 'C) 6))
-
-     (define-values (new-env new-cost)
-       (interp new-prog (make-env)
-               #:fn-map (hash 'vec-mac
-                              vector-mac
-                              'continuous-aligned-vec?
-                              (curry continuous-aligned-vec? (current-reg-size)))))
-     (define new-C (vector-take (hash-ref new-env 'C) 6))
-
-     (check-equal? gold-C new-C)))))
+     (check-equal? (unsat) res)))))
