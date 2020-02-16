@@ -138,7 +138,7 @@
 
 ; Run matrix multiply experiment with the given spec.
 ; Requires that spec be a hash with all the keys describes in matrix-mul:keys.
-(define (matrix-mul:run-experiment spec)
+(define (matrix-mul:run-experiment spec file-writer)
   (pretty-print (~a "Running matrix multiply with config: " spec))
   (define A-rows (hash-ref spec 'A-rows))
   (define A-cols (hash-ref spec 'A-cols))
@@ -195,7 +195,9 @@
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.
-    (for ([model (in-producer model-generator (void))])
+    (for ([(model cost) (in-producer model-generator (void))])
       (if (sat? model)
-        (get-statistics C-size (evaluate mmul model))
+        (let ([prog (evaluate mmul model)])
+          (file-writer prog cost)
+          (get-statistics C-size prog))
         (pretty-print (~a "failed to find solution: " model))))))
