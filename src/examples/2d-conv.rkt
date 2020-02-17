@@ -30,15 +30,20 @@
       (matrix-ref input row col)
       0))
 
+  ; Pad the output to include the edge computations
+  (define output-rows (sub1 (+ i-rows f-rows)))
+  (define output-cols (sub1 (+ i-cols f-cols)))
   (define output
-    (matrix i-rows i-cols (make-vector (* i-rows i-cols) 0)))
+    (matrix output-rows
+            output-cols
+            (make-vector (* output-rows output-cols) 0)))
 
   (define-values (f-center-x f-center-y)
     (values (exact-floor (/ f-rows 2))
             (exact-floor (/ f-cols 2))))
 
-  (for* ([inp-row (in-range i-rows)]
-         [inp-col (in-range i-cols)])
+  (for* ([output-row (in-range output-rows)]
+         [output-col (in-range output-cols)])
 
     (define conv-res
         (apply +
@@ -46,11 +51,11 @@
                            [j (in-range f-cols)])
                  (let* ([filter-x (- f-rows 1 i)]
                         [filter-y (- f-cols 1 j)]
-                        [input-x (+ inp-row (- f-center-x filter-x))]
-                        [input-y (+ inp-col (- f-center-y filter-y))])
+                        [input-x (- output-row filter-x)]
+                        [input-y (- output-col filter-y)])
                    (* (safe-access-input input-x input-y)
                       (matrix-ref filter filter-x filter-y))))))
-    (matrix-set! output inp-row inp-col conv-res))
+    (matrix-set! output output-row output-col conv-res))
 
   output)
 
@@ -71,12 +76,13 @@
           (vector 0 1
                   2 3))
         (define gold
-          (vector 5  11 11
-                  23 29 23
-                  32 37 24))
+          (vector 0  0  1  2
+                  0  5  11 11
+                  6  23 29 23
+                  12 32 37 24))
         (check-equal? (matrix-conv-spec (matrix 3 3 input)
                                         (matrix 2 2 filter))
-                      (matrix 3 3 gold)))
+                      (matrix 4 4 gold)))
 
       (test-case
         "4x4 by 2x2"
@@ -89,13 +95,14 @@
           (vector 0 1
                   2 3))
         (define gold
-          (vector 6  12 18 16
-                  30 36 42 32
-                  54 60 66 48
-                  62 67 72 45))
+          (vector 0  0  1  2  3
+                  0  6  12 18 16
+                  8  30 36 42 32
+                  16 54 60 66 48
+                  24 62 67 72 45))
         (check-equal? (matrix-conv-spec (matrix 4 4 input)
                                         (matrix 2 2 filter))
-                      (matrix 4 4 gold))))))
+                      (matrix 5 5 gold))))))
 
 ; ============================ MANUAL ATTEMPT =================
 
