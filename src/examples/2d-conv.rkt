@@ -30,15 +30,16 @@
       (matrix-ref input row col)
       0))
 
+  ; Pad the output to include the edge computations
+  (define output-rows (sub1 (+ i-rows f-rows)))
+  (define output-cols (sub1 (+ i-cols f-cols)))
   (define output
-    (matrix i-rows i-cols (make-vector (* i-rows i-cols) 0)))
+    (matrix output-rows
+            output-cols
+            (make-vector (* output-rows output-cols) 0)))
 
-  (define-values (f-center-x f-center-y)
-    (values (exact-floor (/ f-rows 2))
-            (exact-floor (/ f-cols 2))))
-
-  (for* ([inp-row (in-range i-rows)]
-         [inp-col (in-range i-cols)])
+  (for* ([output-row (in-range output-rows)]
+         [output-col (in-range output-cols)])
 
     (define conv-res
         (apply +
@@ -46,11 +47,11 @@
                            [j (in-range f-cols)])
                  (let* ([filter-x (- f-rows 1 i)]
                         [filter-y (- f-cols 1 j)]
-                        [input-x (+ inp-row (- f-center-x filter-x))]
-                        [input-y (+ inp-col (- f-center-y filter-y))])
+                        [input-x (- output-row filter-x)]
+                        [input-y (- output-col filter-y)])
                    (* (safe-access-input input-x input-y)
                       (matrix-ref filter filter-x filter-y))))))
-    (matrix-set! output inp-row inp-col conv-res))
+    (matrix-set! output output-row output-col conv-res))
 
   output)
 
@@ -71,12 +72,13 @@
           (vector 0 1
                   2 3))
         (define gold
-          (vector 5  11 11
-                  23 29 23
-                  32 37 24))
+          (vector 0  0  1  2
+                  0  5  11 11
+                  6  23 29 23
+                  12 32 37 24))
         (check-equal? (matrix-conv-spec (matrix 3 3 input)
                                         (matrix 2 2 filter))
-                      (matrix 3 3 gold)))
+                      (matrix 4 4 gold)))
 
       (test-case
         "4x4 by 2x2"
@@ -89,13 +91,14 @@
           (vector 0 1
                   2 3))
         (define gold
-          (vector 6  12 18 16
-                  30 36 42 32
-                  54 60 66 48
-                  62 67 72 45))
+          (vector 0  0  1  2  3
+                  0  6  12 18 16
+                  8  30 36 42 32
+                  16 54 60 66 48
+                  24 62 67 72 45))
         (check-equal? (matrix-conv-spec (matrix 4 4 input)
                                         (matrix 2 2 filter))
-                      (matrix 4 4 gold))))))
+                      (matrix 5 5 gold))))))
 
 ; ============================ MANUAL ATTEMPT =================
 
@@ -139,6 +142,8 @@
       (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
       (vec-shuffle-set! 'O 'shuf2-3 'out))))
 
+#|
+
 (define (sol-func I F)
   (define-values (env _)
     (interp man-sol
@@ -150,7 +155,6 @@
 
 
 ; ================= Verify manual solution ======================
-#|
 
 Currently, the manual solution no longer verifies because our implementation
 details have changed.
@@ -170,19 +174,25 @@ details have changed.
 ; ==================== Sketch Generation =========================
 
 (define (conv-2d-sketch inp filt iterations)
-  (match-define (matrix _ _ I-elements) inp)
-  (match-define (matrix _ _ F-elements) filt)
+  (match-define (matrix i-rows i-cols I-elements) inp)
+  (match-define (matrix f-rows f-cols F-elements) filt)
+
+  ; Output should be padded: input-size + filter size - 1
+  (define output-rows (sub1 (+ i-rows f-rows)))
+  (define output-cols (sub1 (+ i-cols f-cols)))
+  (define output-size (* output-rows output-cols))
 
   ;Program preamble to define the "zero" vector.
   (define preamble
     (list
      (vec-extern-decl 'I (vector-length I-elements) input-tag)
      (vec-extern-decl 'F (vector-length F-elements) input-tag)
-     (vec-extern-decl 'O (vector-length I-elements) output-tag)
-     (vec-const 'Z (vector 0))))
+     (vec-extern-decl 'O output-size output-tag)
+     (vec-const 'Z (vector 0))
+     (vec-decl 'reg-O (current-reg-size))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)
-    (partition-vector 'O (vector-length I-elements)))
+    (partition-vector 'O output-size))
 
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -193,8 +203,7 @@ details have changed.
     (define input-shuffles
       (list
        (vec-shuffle'reg-I shuf-I (list 'I 'Z))
-       (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
-       (vec-decl 'reg-O (current-reg-size))))
+       (vec-shuffle 'reg-F shuf-F (list 'F 'Z))))
 
     ; Use choose* to select an output register to both read and write
     (define output-mac
@@ -222,23 +231,24 @@ details have changed.
            out-reg-stores)))
 
 (define (run-sketch sketch cost-fn I F)
-  (pretty-print sketch)
+  (match-define (matrix i-rows i-cols i-elements) I)
+  (match-define (matrix f-rows f-cols f-elements) F)
+
+  ; Output should be padded: input-size + filter size - 1
+  (define output-size (* (sub1 (+ i-rows f-rows))
+                         (sub1 (+ i-cols f-cols))))
+
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
                            'continuous-vec?
                            (curry continuous-aligned-vec? (current-reg-size)))
-            (list (cons 'I (matrix-elements I))
-                  (cons 'F (matrix-elements F))
-                  (cons 'O (~> I
-                               matrix-elements
-                               vector-length
-                               (make-vector _ 0))))))
+            (list (cons 'I i-elements)
+                  (cons 'F f-elements)
+                  (cons 'O (make-vector output-size 0)))))
 
-  (values (vector-take (hash-ref out-env 'O)
-                       (vector-length
-                         (matrix-elements I)))
+  (values (vector-take (hash-ref out-env 'O) output-size)
           cost))
 
 (define conv2d:keys
