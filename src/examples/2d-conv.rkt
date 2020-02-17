@@ -38,10 +38,6 @@
             output-cols
             (make-vector (* output-rows output-cols) 0)))
 
-  (define-values (f-center-x f-center-y)
-    (values (exact-floor (/ f-rows 2))
-            (exact-floor (/ f-cols 2))))
-
   (for* ([output-row (in-range output-rows)]
          [output-col (in-range output-cols)])
 
@@ -192,7 +188,8 @@ details have changed.
      (vec-extern-decl 'I (vector-length I-elements) input-tag)
      (vec-extern-decl 'F (vector-length F-elements) input-tag)
      (vec-extern-decl 'O output-size output-tag)
-     (vec-const 'Z (vector 0))))
+     (vec-const 'Z (vector 0))
+     (vec-decl 'reg-O (current-reg-size))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)
     (partition-vector 'O output-size))
@@ -206,8 +203,7 @@ details have changed.
     (define input-shuffles
       (list
        (vec-shuffle'reg-I shuf-I (list 'I 'Z))
-       (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
-       (vec-decl 'reg-O (current-reg-size))))
+       (vec-shuffle 'reg-F shuf-F (list 'F 'Z))))
 
     ; Use choose* to select an output register to both read and write
     (define output-mac
