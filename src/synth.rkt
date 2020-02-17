@@ -9,6 +9,19 @@
 
 (provide (all-defined-out))
 
+; Generate string for keys that have different values.
+(define (show-diff env1 env2 keys)
+  (string-join
+    (for/list ([key keys])
+      (if (equal? (hash-ref env1 key)
+                  (hash-ref env2 key))
+        ""
+        (~a key " differs: "
+            (hash-ref env1 key)
+            " "
+            (hash-ref env2 key))))
+    "\n"))
+
 ; Verify input-output behavior of programs.
 (define (verify-prog spec
                      sketch
@@ -58,14 +71,15 @@
                        (make-vector (cdr decl) 0)))
                _))))
 
-  (define-values (spec-env __)
-    (interp spec
-            init-env
-            #:fn-map fn-map))
-  (define-values (sketch-env ___)
-    (interp sketch
-            init-env
-            #:fn-map fn-map))
+  (define (interp-and-env prog init-env)
+    (define-values (env _)
+      (interp prog
+              init-env
+              #:fn-map fn-map))
+    env)
+
+  (define spec-env (interp-and-env spec init-env))
+  (define sketch-env (interp-and-env sketch init-env))
 
   ; Outputs from sketch are allowed to be bigger than the spec. Only consider
   ; elements upto the size in the spec for each output.
@@ -77,10 +91,21 @@
                         (vector-take (hash-ref sketch-env id) size))))
             (set->list (to-size-set spec-outs))))
 
-  (verify
-    ; Since get-outs extracts outputs in the same order for both, we can
-    ; just check for list equality.
-    (assert assertions)))
+
+  (define model
+    (verify
+      ; Since get-outs extracts outputs in the same order for both, we can
+      ; just check for list equality.
+      (assert assertions)))
+
+  (when (not (unsat? model))
+    (pretty-display (~a "Verification unsuccessful. Environment differences:\n"
+                      (show-diff
+                        (interp-and-env spec (evaluate init-env model))
+                        (interp-and-env sketch (evaluate init-env model))
+                        (map vec-extern-decl-id spec-outs)))))
+
+  model)
 
 
 ; Synthesize values for sketch given a spec and symbolic arguments.

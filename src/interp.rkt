@@ -5,9 +5,16 @@
          "utils.rkt"
          "prog-sketch.rkt"
          racket/trace
-         rosette/lib/match)
+         rosette/lib/match
+         rosette/lib/lift
+         (only-in racket [hash-ref racket/hash-ref]))
 
 (provide (all-defined-out))
+
+; Lift hash-ref to work on symbolic unions
+(define (hash-ref env key)
+  (for/all ([k key])
+    (racket/hash-ref env k)))
 
 (define (pr v)
   (pretty-print v)

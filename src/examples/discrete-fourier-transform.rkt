@@ -3,7 +3,7 @@
 (require "../ast.rkt"
          "../dsp-insts.rkt"
          "../interp.rkt"
-         "../matrix-utils.rkt"
+         "../utils.rkt"
          "../prog-sketch.rkt"
          "../synth.rkt"
          racket/trace
@@ -62,7 +62,7 @@
      (vec-shuffle 'reg-x-real shuf-x-real (list 'x-real))
      (vec-shuffle 'reg-x-img shuf-x-img (list 'x-img))
      (vec-shuffle 'reg-P shuf-P (list 'P))
-     
+
      (vec-const 'idxs-outer (make-vector (current-reg-size) (choose-idx)))
      (vec-const 'idxs-inner (make-vector (current-reg-size) (choose-idx)))
      ; TODO: continuous aligned
@@ -87,7 +87,7 @@
 (define (run-sketch sketch cost-fn N x x-real x-img P)
   ; TODO: replace with real implementations
   (define dummy-func (thunk* (make-vector 4 0)))
-  
+
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn

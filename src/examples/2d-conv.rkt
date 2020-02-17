@@ -9,6 +9,7 @@
          threading
          racket/trace
          racket/generator
+         rosette/lib/angelic
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
@@ -75,7 +76,26 @@
                   32 37 24))
         (check-equal? (matrix-conv-spec (matrix 3 3 input)
                                         (matrix 2 2 filter))
-                      (matrix 3 3 gold))))))
+                      (matrix 3 3 gold)))
+
+      (test-case
+        "4x4 by 2x2"
+        (define input
+          (vector 0  1  2  3
+                  4  5  6  7
+                  8  9  10 11
+                  12 13 14 15))
+        (define filter
+          (vector 0 1
+                  2 3))
+        (define gold
+          (vector 6  12 18 16
+                  30 36 42 32
+                  54 60 66 48
+                  62 67 72 45))
+        (check-equal? (matrix-conv-spec (matrix 4 4 input)
+                                        (matrix 2 2 filter))
+                      (matrix 4 4 gold))))))
 
 ; ============================ MANUAL ATTEMPT =================
 
@@ -161,35 +181,48 @@ details have changed.
      (vec-extern-decl 'O (vector-length I-elements) output-tag)
      (vec-const 'Z (vector 0))))
 
+  (define-values (out-reg-ids out-reg-loads out-reg-stores)
+    (partition-vector 'O (vector-length I-elements)))
+
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)
-    ; Assumes that shuffle-gen generated three shuffle vectors
-    (match-define (list shuf-I shuf-F shuf-O) shufs)
+    ; Assumes that shuffle-gen generated two shuffle vectors
+    (match-define (list shuf-I shuf-F) shufs)
 
-    (define-symbolic* start integer?)
-    (define-symbolic* end integer?)
+    ; Shuffle the inputs with symbolic shuffle vectors
+    (define input-shuffles
+      (list
+       (vec-shuffle'reg-I shuf-I (list 'I 'Z))
+       (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
+       (vec-decl 'reg-O (current-reg-size))))
 
-    (list
-     (vec-shuffle'reg-I shuf-I (list 'I 'Z))
-     (vec-shuffle 'reg-F shuf-F (list 'F 'Z))
-     (vec-shuffle 'reg-O shuf-O (list 'O))
-     ; Uncomment to force the output writes to be continuous.
-     (vec-void-app 'continuous-vec? (list shuf-O))
-     (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
-     (vec-shuffle-set! 'O shuf-O 'out)))
+    ; Use choose* to select an output register to both read and write
+    (define output-mac
+      (apply choose*
+        (map (lambda (out-reg)
+          (list
+            (vec-write 'reg-O out-reg)
+            (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
+            (vec-write out-reg 'out)))
+        out-reg-ids)))
+
+    (append input-shuffles output-mac))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
-    (symbolic-shuffle-gen 3))
+    (symbolic-shuffle-gen 2))
 
   (prog
    (append preamble
+           out-reg-loads
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
-            iterations))))
+            iterations)
+           out-reg-stores)))
 
 (define (run-sketch sketch cost-fn I F)
+  (pretty-print sketch)
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn

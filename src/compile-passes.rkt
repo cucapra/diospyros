@@ -128,7 +128,10 @@
                     (rename-use src-id)
                     start
                     end)]
-        [_ (error 'ssa (~a "NYI " inst))])))
+        [(vec-write dst src)
+         (vec-write (rename-use dst)
+                    (rename-use src))]
+        [_ (error 'ssa (~a "not yet implemented" inst))])))
 
   (prog new-insts))
 

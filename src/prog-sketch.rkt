@@ -73,6 +73,21 @@
       first
       string->number))
 
+; Partition an declared vector based on the register size
+(define (partition-vector id size)
+  (define len (* (current-reg-size)
+                 (exact-ceiling (/ size (current-reg-size)))))
+  (define vals
+    (for/list ([i (in-range 0 len (current-reg-size))])
+      (let* ([start i]
+             [end (min len (+ i (current-reg-size)))]
+             [new-id (string->symbol
+                       (format "~a_~a_~a" id start end))])
+        (list new-id
+          (vec-load new-id id start end)
+          (vec-store id new-id start end)))))
+  (values (map first vals) (map second vals) (map third vals)))
+
 ; TODO(rachit): Define a sketch where the compute can use previously defined
 ; shuffle vectors. The sketch should take a parameter `n` that specifies the
 ; "history" of shuffle vectors the compute at iteration `i` can use.
