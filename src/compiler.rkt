@@ -279,7 +279,7 @@
       (vec-store 'O 'O_0_4 0 4)
       (vec-store 'O 'O_4_8 4 8))))
 
-(display (to-string (tensilica-g3-compile (compile 2d-conv-writes))))
+;(display (to-string (tensilica-g3-compile (compile 2d-conv-writes))))
 
 (module+ test
   (run-tests
@@ -287,7 +287,7 @@
       "compile tests"
       (test-case
         "compiler runs"
-        (to-string (tensilica-g3-compile (compile 2d-conv))))
+        (to-string (tensilica-g3-compile (compile 2d-conv-writes))))
       (test-case
         "Mat mul example"
         (define fn-map
@@ -302,9 +302,7 @@
 
       (test-case
         "2d-conv example"
-        (define fn-map
-          (hash 'vec-mac
-                vector-mac)
+        (define fn-map (hash 'vec-mac vector-mac))
         (check-equal? (unsat) (verify-prog 2d-conv-writes
-                                           (compile 2d-conv-writes)
-                                           #:fn-map fn-map)))))))
+                                          (compile 2d-conv-writes)
+                                          #:fn-map fn-map))))))
