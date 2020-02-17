@@ -146,6 +146,8 @@
       (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
       (vec-shuffle-set! 'O 'shuf2-3 'out))))
 
+#|
+
 (define (sol-func I F)
   (define-values (env _)
     (interp man-sol
@@ -157,7 +159,6 @@
 
 
 ; ================= Verify manual solution ======================
-#|
 
 Currently, the manual solution no longer verifies because our implementation
 details have changed.
@@ -177,19 +178,24 @@ details have changed.
 ; ==================== Sketch Generation =========================
 
 (define (conv-2d-sketch inp filt iterations)
-  (match-define (matrix _ _ I-elements) inp)
-  (match-define (matrix _ _ F-elements) filt)
+  (match-define (matrix i-rows i-cols I-elements) inp)
+  (match-define (matrix f-rows f-cols F-elements) filt)
+
+  ; Output should be padded: input-size + filter size - 1
+  (define output-rows (sub1 (+ i-rows f-rows)))
+  (define output-cols (sub1 (+ i-cols f-cols)))
+  (define output-size (* output-rows output-cols))
 
   ;Program preamble to define the "zero" vector.
   (define preamble
     (list
      (vec-extern-decl 'I (vector-length I-elements) input-tag)
      (vec-extern-decl 'F (vector-length F-elements) input-tag)
-     (vec-extern-decl 'O (vector-length I-elements) output-tag)
+     (vec-extern-decl 'O output-size output-tag)
      (vec-const 'Z (vector 0))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)
-    (partition-vector 'O (vector-length I-elements)))
+    (partition-vector 'O output-size))
 
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -229,23 +235,24 @@ details have changed.
            out-reg-stores)))
 
 (define (run-sketch sketch cost-fn I F)
-  (pretty-print sketch)
+  (match-define (matrix i-rows i-cols i-elements) I)
+  (match-define (matrix f-rows f-cols f-elements) F)
+
+  ; Output should be padded: input-size + filter size - 1
+  (define output-size (* (sub1 (+ i-rows f-rows))
+                         (sub1 (+ i-cols f-cols))))
+
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
                            'continuous-vec?
                            (curry continuous-aligned-vec? (current-reg-size)))
-            (list (cons 'I (matrix-elements I))
-                  (cons 'F (matrix-elements F))
-                  (cons 'O (~> I
-                               matrix-elements
-                               vector-length
-                               (make-vector _ 0))))))
+            (list (cons 'I i-elements)
+                  (cons 'F f-elements)
+                  (cons 'O (make-vector output-size 0)))))
 
-  (values (vector-take (hash-ref out-env 'O)
-                       (vector-length
-                         (matrix-elements I)))
+  (values (vector-take (hash-ref out-env 'O) output-size)
           cost))
 
 (define conv2d:keys
