@@ -149,11 +149,10 @@
   (define results (map (curry alloc-inst env has-vector-uses?) insts))
 
   (prog
-    (remove-duplicates
-      (flatten
-        (list
-          (map inst-result-insts results)
-          (map inst-result-final results))))))
+    (flatten
+      (list
+        (map inst-result-insts results)
+        (map inst-result-final results)))))
 
 
 ; Testing
