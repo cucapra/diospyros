@@ -163,8 +163,10 @@
           cur-cost))
 
       (cond
-        [(not (sat? model)) (pretty-print `(final-cost: ,new-cost))]
-        [(<= new-cost min-cost) (pretty-print `(final-cost: ,new-cost))]
+        [(not (sat? model)) (pretty-print `(final-cost: ,new-cost))
+                            ((void) new-cost)]
+        [(<= new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
+                                ((void) new-cost)]
         [else (loop (sub1 new-cost) model)]))))
 
 (define (sol-producer model-generator)
