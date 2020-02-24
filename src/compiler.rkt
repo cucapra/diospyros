@@ -305,4 +305,26 @@
         (define fn-map (hash 'vec-mac vector-mac))
         (check-equal? (unsat) (verify-prog 2d-conv-writes
                                           (compile 2d-conv-writes)
-                                          #:fn-map fn-map))))))
+                                          #:fn-map fn-map)))
+      (test-case
+        "2d-conv 3x3 2x2"
+        (define input
+          (vector 0 1 2
+                  3 4 5
+                  6 7 8))
+        (define filter
+          (vector 0 1
+                  2 3))
+        (define gold
+          (vector 0  0  1  2
+                  0  5  11 11
+                  6  23 29 23
+                  12 32 37 24))
+        (define-values (env _ )
+          (interp (compile 2d-conv-writes)
+            #:fn-map (hash 'vec-mac vector-mac)
+            (list (cons 'I input)
+                  (cons 'F filter)
+                  (cons 'O (make-vector (vector-length gold) 0)))))
+        (check-equal? (hash-ref env `O)
+                      gold)))))
