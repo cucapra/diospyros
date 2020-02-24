@@ -1,6 +1,7 @@
 #lang rosette
 
-(require "../c-ast.rkt"
+(require "backend-utils.rkt"
+         "../c-ast.rkt"
          "../ast.rkt"
          "../compile-passes.rkt"
          "../utils.rkt"
@@ -286,6 +287,8 @@
   (c-ast
     (c-seq
       (list
+        ; Include a comment with git info
+        (git-info-comment)
         decl-consts
         (c-func-decl "void"
                      "kernel"

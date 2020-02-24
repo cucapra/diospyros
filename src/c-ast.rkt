@@ -107,6 +107,8 @@
 (struct c-if (con tr fal) #:transparent)
 (struct c-stmt (expr) #:transparent)
 
+(struct c-comment (str) #:transparent)
+
 (define (to-string prog [tab-size 0])
   (match prog
     [(c-ast prog) (to-string prog)]
@@ -161,6 +163,8 @@
              (to-string fal tab-size))]
     [(c-stmt expr)
      (format "~a;" (to-string expr))]
+    [(c-comment str)
+      (format "/*\n~a\n*/" str)]
     [else (error 'to-string
                  "Invalid AST Node: ~a"
                  prog)]))
