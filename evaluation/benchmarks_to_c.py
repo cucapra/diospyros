@@ -36,18 +36,6 @@ parameters = {
     ]
 }
 
-# from threading import Timer
-# kill = lambda process: process.kill()
-# cmd = ['ping', 'www.google.com']
-# ping = subprocess.Popen(
-#     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-# my_timer = Timer(5, kill, [ping])
-# try:
-#     my_timer.start()
-#     stdout, stderr = ping.communicate()
-# finally:
-#     my_timer.cancel()
-
 def params_to_name(benchmark, params):
     if benchmark == conv2d:
         return '{}x{}_{}x{}_{}i_{}r'.format(params["input-rows"],
@@ -107,6 +95,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', action='store_true',
         help="Build ./dios and ./dios-example-gen executables")
+    parser.add_argument('-t', '--timeout', type=int, default=60,
+        help="Timeout per call to ./dios-example-gen (seconds)")
     args = parser.parse_args()
 
     # Make clean and build if requested
@@ -123,7 +113,7 @@ def main():
     cur_results_dir = os.path.join(results_dir, '{}_{}'.format(date, rev))
     make_dir(cur_results_dir)
 
-    compile_benchmark(cur_results_dir, conv2d, 60)
+    compile_benchmark(cur_results_dir, conv2d, args.timeout)
 
     pass
 
