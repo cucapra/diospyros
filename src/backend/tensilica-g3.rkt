@@ -28,15 +28,18 @@
                #:before-first "{"
                #:after-last "}"))
 
-; Track the tag associated with vec-extern-decl
+; Track the tag associated with vec-extern-decl. Maintain order.
 (define (make-arg-tag-tracker)
   (define map (make-hash))
+  (define ordered-args (box (list)))
   (define (get-arg-tag arg)
     (hash-ref map arg))
   (define (set-arg-tag! arg tag)
-    (hash-set! map arg tag))
+    (hash-set! map arg tag)
+    (set-box! ordered-args
+              (cons arg (unbox ordered-args))))
   (define (all-args)
-    (hash-keys map))
+    (reverse (unbox ordered-args)))
   (values get-arg-tag
           set-arg-tag!
           all-args))
