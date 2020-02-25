@@ -1,5 +1,5 @@
-"""Run several configurations of each benchmark (creating DSL programs,
-compiling them to C).
+"""Compile several configurations of each benchmark (creating DSL programs via
+synthesis queries, then compiling the results to C).
 """
 
 from datetime import datetime
@@ -48,7 +48,7 @@ def params_to_name(benchmark, params):
     print("Warning: haven't defined nice filename for: ", benchmark)
     return str(params)
 
-def run_benchmark(dir, benchmark):
+def compile_benchmark(dir, benchmark):
     b_dir = os.path.join(dir, benchmark)
     make_dir(b_dir)
 
@@ -56,11 +56,11 @@ def run_benchmark(dir, benchmark):
     params_list = parameters[benchmark]
 
     for params in params_list:
-        p_dir = params_to_name(benchmark, params)
+        p_dir = os.path.join(b_dir, params_to_name(benchmark, params))
         make_dir(p_dir)
         params_f = os.path.join(p_dir, "params.json")
         with open(params_f, 'w+') as f:
-            json.dump(params, f)
+            json.dump(params, f, indent=4)
 
         sp.call([
             "./dios-example-gen",
@@ -94,7 +94,7 @@ def main():
     cur_results_dir = os.path.join(results_dir, '{}_{}'.format(date, rev))
     make_dir(cur_results_dir)
 
-    run_benchmark(cur_results_dir, conv2d)
+    compile_benchmark(cur_results_dir, conv2d)
 
     pass
 
