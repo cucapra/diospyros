@@ -310,7 +310,6 @@ details have changed.
                 (list I F)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:max-cost 500
                 #:min-cost 0))
 
   ; Keep generating solutions.

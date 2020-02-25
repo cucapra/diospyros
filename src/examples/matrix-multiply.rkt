@@ -190,7 +190,6 @@
                   (list A B)
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
-                  #:max-cost 500
                   #:min-cost 0))
 
     ; Keep minimizing solution in the synthesis procedure and generating new

@@ -145,7 +145,6 @@
                 #:get-inps (lambda (args)
                              (flatten (map vector->list
                                            (filter vector? args))))
-                #:max-cost 100
                 #:min-cost 0))
 
   ; Keep minimizing solution in the synthesis procedure and generating new

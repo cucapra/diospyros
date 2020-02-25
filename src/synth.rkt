@@ -115,15 +115,18 @@
                     sketch
                     sym-args
                     #:get-inps get-inps
-                    #:max-cost max-cost
+                    #:max-cost [max-cost #f]
                     #:min-cost [min-cost 0])
 
   (generator ()
     (let loop ([cur-cost max-cost]
                [cur-model (unsat)])
-      (pretty-print `(current-cost: ,cur-cost))
+      (if (eq? cur-cost #f)
+        (pretty-print "Skipping cost constraint for the first synthesis query")
+        (pretty-print `(current-cost: ,cur-cost)))
+
       (define spec-out (spec sym-args))
-      (define-values (sketch-out cost) (sketch sym-args ))
+      (define-values (sketch-out cost) (sketch sym-args))
 
       (assert (vector? spec-out) "SYNTH-PROG: spec output is not a vector")
       (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
@@ -143,7 +146,8 @@
             (synthesize #:forall (get-inps sym-args)
                         #:guarantee (begin
                                       (assert (equal? spec-out sketch-out))
-                                      (assert (<= cost cur-cost)))))
+                                      (when (not (eq? cur-cost #f))
+                                            (assert (<= cost cur-cost))))))
           (list)))
 
       (pretty-print (~a "cpu time: "
