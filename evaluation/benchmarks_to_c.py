@@ -1,8 +1,8 @@
 """Compile several configurations of each benchmark (creating DSL programs via
 synthesis queries, then compiling the results to C).
 """
-
 from datetime import datetime
+from threading import Timer
 import argparse
 import json
 import os
@@ -36,6 +36,18 @@ parameters = {
     ]
 }
 
+# from threading import Timer
+# kill = lambda process: process.kill()
+# cmd = ['ping', 'www.google.com']
+# ping = subprocess.Popen(
+#     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+# my_timer = Timer(5, kill, [ping])
+# try:
+#     my_timer.start()
+#     stdout, stderr = ping.communicate()
+# finally:
+#     my_timer.cancel()
+
 def params_to_name(benchmark, params):
     if benchmark == conv2d:
         return '{}x{}_{}x{}_{}i_{}r'.format(params["input-rows"],
@@ -48,7 +60,29 @@ def params_to_name(benchmark, params):
     print("Warning: haven't defined nice filename for: ", benchmark)
     return str(params)
 
-def compile_benchmark(dir, benchmark):
+def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
+    # Call example-gen, AKA synthesis. This is long running, so include an
+    # for a timeout (which will usually still write early found solutions)
+    gen = sp.Popen([
+        "./dios-example-gen",
+        "-b", benchmark,
+        "-p", params_f,
+        "-o", p_dir
+        ])
+
+    def kill(process):
+        print("Hit timeout, killing synthesis subprocess")
+        process.kill()
+
+    timer = Timer(timeout, kill, [gen])
+    try:
+        print("Running synthesis for {}, timeout: {}".format(benchmark, timeout))
+        timer.start()
+        gen.communicate()
+    finally:
+        timer.cancel()
+
+def compile_benchmark(dir, benchmark, timeout):
     b_dir = os.path.join(dir, benchmark)
     make_dir(b_dir)
 
@@ -62,12 +96,7 @@ def compile_benchmark(dir, benchmark):
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
 
-        sp.call([
-            "./dios-example-gen",
-            "-b", benchmark,
-            "-p", params_f,
-            "-o", p_dir
-            ])
+        call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
 
 def make_dir(d):
     if not os.path.exists(d):
@@ -94,7 +123,7 @@ def main():
     cur_results_dir = os.path.join(results_dir, '{}_{}'.format(date, rev))
     make_dir(cur_results_dir)
 
-    compile_benchmark(cur_results_dir, conv2d)
+    compile_benchmark(cur_results_dir, conv2d, 60)
 
     pass
 
