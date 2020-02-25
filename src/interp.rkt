@@ -96,7 +96,7 @@
            (assert (env-has? id)
                    (~a "INTERP: missing extern vector: " id))
            (assert (= (vector-length (env-ref id)) size)
-                   (~a "INTERP: size mistmatch: " id
+                   (~a "INTERP: size mismatch: " id
                        ". Expected: " size
                        " Given: " (vector-length (env-ref id))))
            (env-set! id (align (env-ref id)))))]
