@@ -1,9 +1,10 @@
 SRC := *.c
-OBJECT = conv2d.o
+OBJECT := conv2d.o
+KERNEL_SRC := kernel.c
 
 XCC := xt-xcc
 XRUN := xt-run
-XCC_FLAGS += -std=c99 -O3 -LNO:simd -clist
+XCC_FLAGS += -std=c99 -O3 -LNO:simd
 XSIM_FLAGS := --summary --mem_model
 
 NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
@@ -18,7 +19,7 @@ F_COLS := 2
 
 PARAMS := -DI_ROWS=$(I_ROWS) -DI_COLS=$(I_COLS) -DF_ROWS=$(F_ROWS) -DF_COLS=$(F_COLS)
 
-all: $(OBJECT)
+default: $(OBJECT)
 
 clean:
 	rm -rf $(OBJECT) $(NATURE_OBJ)
@@ -26,8 +27,8 @@ clean:
 $(NATURE_OBJ):
 	$(XCC) $(XCC_FLAGS) $(NATURE_INC) -c $(NATURE_SRC) -o $(NATURE_OBJ)
 
-$(OBJECT): $(NATURE_OBJ) $(SRC)
-	$(XCC) $(PARAMS) $(XCC_FLAGS) $(NATURE_OBJ) $(SRC) -o $(OBJECT)
+$(OBJECT): $(NATURE_OBJ) $(SRC) $(KERNEL_SRC)
+	$(XCC) $(PARAMS) $(XCC_FLAGS) $(NATURE_OBJ) $(SRC) $(KERNEL_SRC) -o $(OBJECT)
 
 run: $(OBJECT)
 	$(XRUN) $(OBJECT)

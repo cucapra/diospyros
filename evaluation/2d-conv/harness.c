@@ -76,6 +76,10 @@ void conv2df(const float32_t *x, int M, int N,
 
 int main(int argc, char **argv) {
 
+  FILE *file = fopen("out.csv", "a");
+  if (file == NULL) return -1;
+  fprintf(file, "kernel,I_ROWS,I_COLS,F_ROWS,F_COLS,cycles\n");
+
   init_rand(10);
 
   create_random_mat(i, I_ROWS, I_COLS);
@@ -98,6 +102,7 @@ int main(int argc, char **argv) {
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Naive : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
 
   // Naive, hard-coded size
   start_cycle_timing();
@@ -106,6 +111,7 @@ int main(int argc, char **argv) {
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Naive hard size: %d cycles\n", time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive hard size",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
 
   // Nature
   start_cycle_timing();
@@ -114,6 +120,7 @@ int main(int argc, char **argv) {
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Nature : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Nature",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
 
   // Rosette
   start_cycle_timing();
@@ -122,6 +129,7 @@ int main(int argc, char **argv) {
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Rosette : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Rosette",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
 
   return 0;
 }
