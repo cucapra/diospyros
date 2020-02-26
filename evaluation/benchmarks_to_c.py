@@ -88,6 +88,7 @@ def synthesize_benchmark(dir, benchmark, timeout):
 
 def compile_benchmark(dir, benchmark):
     b_dir = os.path.join(dir, benchmark)
+    built = 0
     for params_config in listdir(b_dir):
         if not os.path.isdir(params_config):
             continue
@@ -101,8 +102,11 @@ def compile_benchmark(dir, benchmark):
                 print("Skipping already-build C file: {}".format(c_file))
                 continue
 
-            print("Compiing to file {}".format(file))
+            print("Compiling to file {}".format(file))
             sp.call(["./dios", "-o", c_file, file])
+            built += 1
+    if built < 1:
+        print("Warning: no Racket files found to build, nothing done")
 
 def make_dir(d):
     """Makes a directory if it does not already exist"""
