@@ -9,9 +9,42 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-#include "..diospyros-private/src/utils.h"
+#include "../../../diospyros-private/src/utils.h"
 
+#define O_ROWS (I_ROWS + F_ROWS - 1)
+#define O_COLS (I_COLS + F_COLS - 1)
+
+float i[I_ROWS * I_COLS] __attribute__((section(".dram0.data")));
+float f[F_ROWS * F_COLS] __attribute__((section(".dram0.data")));
+float o[O_ROWS * O_COLS] __attribute__((section(".dram0.data")));
+
+// Diospyros kernel
 void kernel(float * input_I, float * input_F, float * input_O);
+
+// Naive kernel
+void naive_convolution(float *in, float *f, float *o,
+                       int iRows, int iCols, int fRows, int fCols) {
+  int outRows = (iRows + fRows) - 1;
+  int outCols = (iCols + fCols) - 1;
+
+  for (int outRow = 0; outRow < outRows; outRow++) {
+    for (int outCol = 0; outCol < outCols; outCol++) {
+      for (int fRow = 0; fRow < fRows; fRow++) {
+        for (int fCol = 0; fCol < fCols; fCol++) {
+          int fRowTrans = fRows - 1 - fRow;
+          int fColTrans = fCols - 1 - fCol;
+          int iRow = outRow - fRowTrans;
+          int iCol = outCol -fColTrans;
+
+          if (iRow >= 0 && iRow < iRows && iCol >= 0 && iCol < iCols) {
+            float v = in[iRow*iCols + iCol] * f[fRowTrans*fCols + fColTrans];
+            o[outRow*outCols + outCol] += v;
+          }
+        }
+      }
+    }
+  }
+}
 
 // Naive kernel, hard-coded size
 void naive_convolution_hard_size(float *in, float *f, float *o) {
