@@ -108,6 +108,26 @@ def compile_benchmark(dir, benchmark):
     if built < 1:
         print("Warning: no Racket files found to build, nothing done")
 
+def run_benchmark(dir, benchmark):
+    b_dir = os.path.join(dir, benchmark)
+    for params_config in listdir(b_dir):
+        if not os.path.isdir(params_config):
+            continue
+        for file in listdir(params_config):
+            pre, ext = os.path.splitext(file)
+            if ext != ".c":
+                continue
+
+            csv_file = pre + ".csv"
+            if os.path.exists(csv_file):
+                print("Skipping already-run CSV file: {}".format(csv_file))
+                continue
+
+            print("Running, outputting to file {}".format(csv_file))
+            set_kernel = "KERNEL_SRC=" + file
+            set_output = "OUTFILE=" + csv_file
+            sp.call(["make", "-C", set_kernel, set_output])
+
 def make_dir(d):
     """Makes a directory if it does not already exist"""
     if not os.path.exists(d):
@@ -122,7 +142,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', action='store_true',
         help="Build ./dios and ./dios-example-gen executables")
-    parser.add_argument('-t', '--timeout', type=int, default=60,
+    parser.add_argument('-t', '--timeout', type=int, default=100,
         help="Timeout per call to ./dios-example-gen (seconds)")
     parser.add_argument('-o', '--output', type=str, default="",
         help="Non-default output directory")
@@ -130,10 +150,12 @@ def main():
         help="Skip the synthesis step and just build to C")
     parser.add_argument('--skipc', action='store_true',
         help="Skip building to C and just run synthesis")
+    parser.add_argument('--skiprun', action='store_true',
+        help="Skip running generated C code")
     args = parser.parse_args()
 
-    if args.skipsynth and args.skipc:
-        print("Skipping both synthesis and building to C, doing nothing")
+    if args.skipsynth and args.skipc and args.skiprun:
+        print("Skipping synthesis, building to C, and running: doing nothing")
         exit(1)
 
     # Make clean and build if requested
@@ -160,6 +182,9 @@ def main():
 
     if not args.skipc:
         compile_benchmark(cur_results_dir, conv2d)
+
+    if not args.skiprun:
+        run_benchmark(cur_results_dir, conv2d)
 
 if __name__ == main():
     main()

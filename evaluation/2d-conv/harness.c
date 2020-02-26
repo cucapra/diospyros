@@ -76,7 +76,7 @@ void conv2df(const float32_t *x, int M, int N,
 
 int main(int argc, char **argv) {
 
-  FILE *file = fopen("out.csv", "a");
+  FILE *file = fopen(OUTFILE, "w");
   if (file == NULL) return -1;
   fprintf(file, "kernel,I_ROWS,I_COLS,F_ROWS,F_COLS,cycles\n");
 
