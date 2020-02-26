@@ -1,5 +1,8 @@
-"""Compile several configurations of each benchmark (creating DSL programs via
-synthesis queries, then compiling the results to C).
+"""
+Compile and run several configurations of each benchmark: creating DSL
+programs via synthesis queries, compiling the results to C, and running. Each
+step can be skipped if needed (the last one will only work on a server with
+Xtensa tools installed.)
 """
 from datetime import datetime
 from threading import Timer
@@ -9,6 +12,7 @@ import os
 import subprocess as sp
 
 results_dir = "../diospyros-private/results/"
+harness_dir = "evaluation/"
 
 conv2d = "2d-conv"
 matmul = "mat-mul"
@@ -31,6 +35,30 @@ parameters = {
             "filter-rows": 2,
             "filter-cols": 2,
             "iterations": 30,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 4,
+            "input-cols": 4,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "iterations": 25,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 5,
+            "input-cols": 5,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "iterations": 25,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "iterations": 40,
             "reg-size": 4
         },
     ]
@@ -105,6 +133,23 @@ def compile_benchmark(dir, benchmark):
             print("Compiling to file {}".format(file))
             sp.call(["./dios", "-o", c_file, file])
             built += 1
+
+            # As a stopgap, add imports
+            imports = """#include <float.h>
+                         #include <math.h>
+                         #include <stdint.h>
+                         #include <stdio.h>
+                         #include <stdlib.h>
+                         #include <xtensa/sim.h>
+                         #include <xtensa/tie/xt_pdxn.h>
+                         #include <xtensa/tie/xt_timer.h>
+                         #include <xtensa/xt_profiling.h>"""
+
+            with open(c_file, 'r+') as f:
+                content = f.read()
+                f.seek(0, 0)
+                f.write(imports + '\n' + content)
+
     if built < 1:
         print("Warning: no Racket files found to build, nothing done")
 
@@ -124,9 +169,12 @@ def run_benchmark(dir, benchmark):
                 continue
 
             print("Running, outputting to file {}".format(csv_file))
-            set_kernel = "KERNEL_SRC=" + file
-            set_output = "OUTFILE=" + csv_file
-            sp.call(["make", "-C", set_kernel, set_output])
+
+            harness = os.path.join(harness_dir, benchmark)
+            sp.call(["make", "-C", harness, "clean"])
+            set_kernel = "KERNEL_SRC=" + os.path.abspath(file)
+            set_output = "OUTFILE=" + os.path.abspath(csv_file)
+            sp.call(["make", "-C", harness, "run", set_kernel, set_output])
 
 def make_dir(d):
     """Makes a directory if it does not already exist"""
