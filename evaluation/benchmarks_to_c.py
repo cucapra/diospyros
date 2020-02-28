@@ -11,13 +11,7 @@ import json
 import os
 import subprocess as sp
 
-results_dir = "../diospyros-private/results/"
-harness_dir = "evaluation/"
-
-conv2d = "2d-conv"
-matmul = "mat-mul"
-
-benchmarks = [matmul, conv2d]
+from py_utils import *
 
 parameters = {
     conv2d : [
@@ -158,6 +152,9 @@ def run_benchmark(dir, benchmark):
     for params_config in listdir(b_dir):
         if not os.path.isdir(params_config):
             continue
+        params_json = os.path.join(params_config, "params.json")
+        with open(params_json, 'r') as f:
+            params = json.load(f)
         for file in listdir(params_config):
             pre, ext = os.path.splitext(file)
             if ext != ".c":
@@ -172,18 +169,17 @@ def run_benchmark(dir, benchmark):
 
             harness = os.path.join(harness_dir, benchmark)
             sp.call(["make", "-C", harness, "clean"])
+
+            set_dimms = [
+                "I_ROWS=" + str(params["input-rows"]),
+                "I_COLS=" + str(params["input-cols"]),
+                "F_ROWS=" + str(params["filter-rows"]),
+                "F_COLS=" + str(params["filter-cols"]),
+            ]
+            print(set_dimms)
             set_kernel = "KERNEL_SRC=" + os.path.abspath(file)
             set_output = "OUTFILE=" + os.path.abspath(csv_file)
-            sp.call(["make", "-C", harness, "run", set_kernel, set_output])
-
-def make_dir(d):
-    """Makes a directory if it does not already exist"""
-    if not os.path.exists(d):
-        os.mkdir(d)
-
-def listdir(d):
-    """Lists the full paths of the contents of a directory"""
-    return [os.path.join(d, f) for f in os.listdir(d)]
+            sp.call(["make", "-C", harness, "run", set_kernel, set_output] + set_dimms)
 
 def main():
     # Argument parsing
