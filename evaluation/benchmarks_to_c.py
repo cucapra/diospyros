@@ -28,7 +28,7 @@ parameters = {
             "input-cols": 3,
             "filter-rows": 2,
             "filter-cols": 2,
-            "iterations": 30,
+            "iterations": 15,
             "reg-size": 4
         },
         {

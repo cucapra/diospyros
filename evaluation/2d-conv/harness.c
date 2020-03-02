@@ -95,37 +95,40 @@ int main(int argc, char **argv) {
 
   int time = 0;
 
-  // Naive
-  start_cycle_timing();
+  start_cycle_timing;
   naive_convolution(i, f, o, I_ROWS, I_COLS, F_ROWS, F_COLS);
-  time = stop_cycle_timing();
+  stop_cycle_timing;
+  time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Naive : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
 
   // Naive, hard-coded size
-  start_cycle_timing();
+  start_cycle_timing;
   naive_convolution_hard_size(i, f, o);
-  time = stop_cycle_timing();
+  stop_cycle_timing;
+  time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Naive hard size: %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive hard size",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
 
   // Nature
-  start_cycle_timing();
+  start_cycle_timing;
   conv2df(i, I_ROWS, I_COLS, f, F_ROWS, F_COLS, o);
-  time = stop_cycle_timing();
+  stop_cycle_timing;
+  time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Nature : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Nature",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
 
   // Rosette
-  start_cycle_timing();
+  start_cycle_timing;
   kernel(i, f, o);
-  time = stop_cycle_timing();
+  stop_cycle_timing;
+  time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Rosette : %d cycles\n", time);
