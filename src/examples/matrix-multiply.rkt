@@ -194,9 +194,9 @@
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.
-    (for ([(model cost) (in-producer model-generator (void))])
+    (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
         (let ([prog (evaluate mmul model)])
           (file-writer prog cost)
-          (get-statistics C-size prog))
+          (pretty-print prog))
         (pretty-print (~a "failed to find solution: " model))))))
