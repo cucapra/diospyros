@@ -22,8 +22,6 @@ def get_color_palette(benchmark):
     nature_color = sns.color_palette("RdYlBu", 3)[1]
     palette = [base_palette[1], base_palette[0], nature_color] + base_palette[4:]
 
-    print(len(palette))
-
     if benchmark == matmul:
         # For matmul, use purple for the expert
         palette.append(sns.color_palette("colorblind", 5)[4])
@@ -86,9 +84,70 @@ def chart(benchmark, graph_data, figsize):
     plt.savefig(benchmark + ".pdf", bbox_inches='tight')
     plt.close()
 
-def format_and_chart_data(file):
+def write_summary_statistics(benchmark, benchmark_data, file):
+    benchmark_data.sort_values(["Order"])
+    # Indexed by size:
+    naive_cycles = {}
+    nature_cycles = {}
+
+    headers = [
+        "Kernel",
+        "Size",
+        "Cycles",
+        "Speedup vs. Naive",
+        "Speedup vs. Nature",
+    ]
+
+    # Get speedup baselines
+    for _, row in benchmark_data.iterrows():
+        if row["Kernel"] == "Naive":
+            naive_cycles[row["Size"]] = float(row["Cycles (simulation)"])
+        if row["Kernel"] == "Nature":
+            nature_cycles[row["Size"]] = float(row["Cycles (simulation)"])
+
+    fmt = "{0:.1f}"
+
+    speedups_naive = []
+    speedups_nature = []
+
+    with open(file, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+
+        for _, r in benchmark_data.iterrows():
+            size = r["Size"]
+            cycles = r["Cycles (simulation)"]
+
+            speedup_naive = naive_cycles[size]/cycles
+            speedup_nature = nature_cycles[size]/cycles
+            speedups_naive.append(speedup_naive)
+            speedups_nature.append(speedup_nature)
+
+            writer.writerow({
+                "Kernel" : r["Kernel"],
+                "Size" : size,
+                "Cycles" : r["Cycles (simulation)"],
+                "Speedup vs. Naive" : fmt.format(speedup_naive),
+                "Speedup vs. Nature" : fmt.format(speedup_nature),
+            })
+
+        writer.writerow({
+            "Kernel" : "Min speedups over baselines",
+            "Size" : "","Cycles" : "",
+            "Speedup vs. Naive" : fmt.format(min(speedups_naive)),
+            "Speedup vs. Nature" : fmt.format(min(speedups_nature)),
+        })
+        writer.writerow({
+            "Kernel" : "Max speedups over baselines",
+            "Size" : "","Cycles" : "",
+            "Speedup vs. Naive" : fmt.format(max(speedups_naive)),
+            "Speedup vs. Nature" : fmt.format(max(speedups_nature)),
+        })
+
+
+def format_and_chart_data(full_file, summary_file):
     chart_data = defaultdict(list)
-    with open(file,  newline='') as csvfile:
+    with open(full_file,  newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             chart_data[row["benchmark"]].append(row)
@@ -134,15 +193,16 @@ def format_and_chart_data(file):
                 ignore_index=True)
 
         chart(benchmark, benchmark_data, figsize=(7,3))
-
+        write_summary_statistics(benchmark, benchmark_data, summary_file)
 
 def read_csvs(dir, benchmarks, out):
     rows = 0
     files = []
     for benchmark in benchmarks:
         b_dir = os.path.join(dir, benchmark)
-        file = out + benchmark + ".csv"
-        files.append(file)
+        base = out + "-" + benchmark
+        file = base + ".csv"
+        files.append((file, base + "-summary.csv"))
 
         # Combine each runs' CSV file into one
         with open(file, 'w', newline='') as outfile:
@@ -183,8 +243,8 @@ def main():
     input_dir = os.path.join(results_dir, args.directory)
 
     files = read_csvs(input_dir, benchmarks, args.output)
-    for file in files:
-        format_and_chart_data(file)
+    for file, summary in files:
+        format_and_chart_data(file, summary)
 
 if __name__ == main():
     main()
