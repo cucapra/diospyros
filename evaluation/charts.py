@@ -4,6 +4,7 @@ Chart data from CSVs
 import argparse
 import json
 import os
+import decimal
 import subprocess as sp
 import csv
 from collections import defaultdict
@@ -98,14 +99,19 @@ def write_summary_statistics(benchmark, benchmark_data, file):
         "Speedup vs. Nature",
     ]
 
+    def format_fl(fl):
+        with decimal.localcontext() as ctx:
+            d = decimal.Decimal(fl)
+            ctx.rounding = decimal.ROUND_DOWN
+            floored = round(d, 1)
+            return "{0:.1f}".format(floored)
+
     # Get speedup baselines
     for _, row in benchmark_data.iterrows():
         if row["Kernel"] == "Naive":
             naive_cycles[row["Size"]] = float(row["Cycles (simulation)"])
         if row["Kernel"] == "Nature":
             nature_cycles[row["Size"]] = float(row["Cycles (simulation)"])
-
-    fmt = "{0:.1f}"
 
     speedups_naive = []
     speedups_nature = []
@@ -120,28 +126,30 @@ def write_summary_statistics(benchmark, benchmark_data, file):
 
             speedup_naive = naive_cycles[size]/cycles
             speedup_nature = nature_cycles[size]/cycles
-            speedups_naive.append(speedup_naive)
-            speedups_nature.append(speedup_nature)
 
-            writer.writerow({
-                "Kernel" : r["Kernel"],
-                "Size" : size,
-                "Cycles" : r["Cycles (simulation)"],
-                "Speedup vs. Naive" : fmt.format(speedup_naive),
-                "Speedup vs. Nature" : fmt.format(speedup_nature),
-            })
+            if "Diospyros (fastest)" in r["Kernel"]:
+                speedups_naive.append(speedup_naive)
+                speedups_nature.append(speedup_nature)
+
+                writer.writerow({
+                    "Kernel" : r["Kernel"],
+                    "Size" : size,
+                    "Cycles" : r["Cycles (simulation)"],
+                    "Speedup vs. Naive" : format_fl(speedup_naive),
+                    "Speedup vs. Nature" : format_fl(speedup_nature),
+                })
 
         writer.writerow({
-            "Kernel" : "Min speedups over baselines",
+            "Kernel" : "Min Diospyros speedup over X",
             "Size" : "","Cycles" : "",
-            "Speedup vs. Naive" : fmt.format(min(speedups_naive)),
-            "Speedup vs. Nature" : fmt.format(min(speedups_nature)),
+            "Speedup vs. Naive" : format_fl(min(speedups_naive)),
+            "Speedup vs. Nature" : format_fl(min(speedups_nature)),
         })
         writer.writerow({
-            "Kernel" : "Max speedups over baselines",
+            "Kernel" : "Max Diospyros speedup over X",
             "Size" : "","Cycles" : "",
-            "Speedup vs. Naive" : fmt.format(max(speedups_naive)),
-            "Speedup vs. Nature" : fmt.format(max(speedups_nature)),
+            "Speedup vs. Naive" : format_fl(max(speedups_naive)),
+            "Speedup vs. Nature" : format_fl(max(speedups_nature)),
         })
 
 
