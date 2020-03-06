@@ -158,6 +158,11 @@
 
       (define model (first synth-res))
 
+      ; If the model is unsat on the first query, there are no solutions for
+      ; the current parameters
+      (when (and (not (sat? model)) (eq? cur-cost max-cost))
+        (error "Initial query unsat, no satisfying model found"))
+
       (define new-cost
         (if (sat? model)
           (let ([cost (evaluate c model)])
