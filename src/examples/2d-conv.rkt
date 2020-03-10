@@ -16,9 +16,6 @@
 (provide conv2d:keys
          conv2d:run-experiment)
 
-(current-solver (boolector))
-(current-bitwidth 10)
-
 ; Given an NxN input matrix, returns a smaller convolved matrix.
 (define (matrix-conv-spec input filter)
   (match-define (matrix i-rows i-cols _) input)

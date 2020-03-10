@@ -4,6 +4,7 @@
          threading
          "ast.rkt"
          "prog-sketch.rkt"
+         "incr-solve.rkt"
          "interp.rkt"
          "compile-passes.rkt")
 
@@ -118,67 +119,79 @@
                     #:max-cost [max-cost #f]
                     #:min-cost [min-cost 0])
 
+  (define-values (spec-out spec-asserts)
+    (with-asserts (spec sym-args)))
+
+  (define-values (sketch-res sketch-asserts)
+    (with-asserts (sketch sym-args)))
+
+  (match-define (list sketch-out cost) sketch-res)
+
+  (assert (vector? spec-out) "SYNTH-PROG: spec output is not a vector")
+  (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
+  (assert (equal? (vector-length spec-out)
+                  (vector-length sketch-out))
+          (format
+            "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
+            (vector-length spec-out)
+            (vector-length sketch-out)))
+
+  (pretty-print sketch-out)
+  (pretty-print spec-out)
+
+  (define-symbolic* c integer?)
+
   (generator ()
-    (let loop ([cur-cost max-cost]
-               [cur-model (unsat)])
-      (if (eq? cur-cost #f)
+             (let loop ([cur-cost 100]
+               [cur-model (unsat)]
+               [cur-solver #f])
+
+      (if (equal? cur-cost #f)
         (pretty-print "Skipping cost constraint for the first synthesis query")
         (pretty-print `(current-cost: ,cur-cost)))
 
-      (define spec-out (spec sym-args))
-      (define-values (sketch-out cost) (sketch sym-args))
+      (when (not (number? cost))
+        (error "Concrete cost was not a number."))
 
-      (assert (vector? spec-out) "SYNTH-PROG: spec output is not a vector")
-      (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
-      (assert (equal? (vector-length spec-out)
-                      (vector-length sketch-out))
-              (format
-                "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
-                (vector-length spec-out)
-                (vector-length sketch-out)))
+      (when (not (equal? (asserts) (list)))
+        (pretty-print (asserts))
+        (error "Global assertion store is not empty. Synthesis queries should explicitly manage assertions"))
 
-      (define-symbolic* c integer?)
-      (assert (equal? c cost))
-
-      (define-values (synth-res cpu-time real-time gc-time)
-        (time-apply
-          (thunk
-            (synthesize #:forall (get-inps sym-args)
-                        #:guarantee (begin
-                                      (assert (equal? spec-out sketch-out))
-                                      (when (not (eq? cur-cost #f))
-                                            (assert (<= cost cur-cost))))))
-          (list)))
-
-      (pretty-print (~a "cpu time: "
-                        (/ cpu-time 1000.0)
-                        "s, real time: "
-                        (/ real-time 1000.0)
-                        "s"))
-
-      (define model (first synth-res))
+      (define-values (model next)
+        (if (not cur-solver)
+          (synth #:forall (get-inps sym-args)
+                 #:guarantee (begin
+                               (assert (equal? spec-out sketch-out))
+                               (assert (equal? c cost))
+                               (for ([to-assert (append sketch-asserts
+                                                        spec-asserts)])
+                                 (assert to-assert))))
+          (values (cur-solver (<= cost cur-cost)) cur-solver)))
 
       ; If the model is unsat on the first query, there are no solutions for
       ; the current parameters
-      (when (and (not (sat? model)) (eq? cur-cost max-cost))
+      (when (and (not (sat? model))
+                 (equal? cur-cost max-cost))
         (error "Initial query unsat, no satisfying model found"))
 
       (define new-cost
-        (if (sat? model)
-          (let ([cost (evaluate c model)])
-            ; If a satisfying model was found, yield it back.
-            (yield model cost)
-            cost)
-          cur-cost))
+        (cond
+          [(sat? model)
+           (let ([cost (evaluate c model)])
+             ; If a satisfying model was found, yield it back.
+             (yield model cost)
+             cost)]
+          [(equal? cur-cost #f) max-cost]
+          [else cur-cost]))
 
       (cond
         [(not (sat? model)) (pretty-print `(final-cost: ,new-cost))
-                            ((void) new-cost)]
+                            (values (void) new-cost)]
         [(<= new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
-                                ((void) new-cost)]
-        [else (loop (sub1 new-cost) model)]))))
+                                (values (void) new-cost)]
+        [else (loop (sub1 new-cost) model next)]))))
 
 (define (sol-producer model-generator)
   (define (is-done? model cost)
-    (equal? (void) model))
+    (void? model))
   (in-producer model-generator is-done?))
