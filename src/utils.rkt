@@ -1,8 +1,15 @@
 #lang rosette
 
-(require threading)
+(require "configuration.rkt"
+         threading
+         racket/trace
+         (prefix-in $ racket))
 
 (provide (all-defined-out))
+
+(define (pr v)
+  (pretty-print v)
+  v)
 
 ; Id to string
 (define (id->string id)
@@ -37,7 +44,7 @@
 ; Returns 0-indexed register that this index resides in based on the
 ; current register size.
 (define (reg-of reg-size idx)
-  (quotient idx reg-size))
+  (bvsdiv idx reg-size))
 
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.
@@ -51,10 +58,14 @@
 ; Returns whether a vector of indices is continuous and aligned to the register
 ; size
 (define (is-continuous-aligned-vec? reg-size vec)
-  (and (equal? 0 (modulo (vector-ref vec 0) reg-size))
+  (and (equal? (bv 0 (index-fin))
+               (bvsmod (vector-ref vec 0)
+                       (integer->bitvector reg-size (bitvector (index-fin)))))
        (let ([i (vector-ref vec 0)])
-         (andmap identity (for/list ([(el idx) (in-indexed vec)])
-                            (equal? el (+ i idx)))))))
+         (andmap identity
+                 (for/list ([(el idx) (in-indexed vec)])
+                   (equal? el (bvadd i
+                                     (bv idx (index-fin)))))))))
 
 (define (make-name-gen [out-app string->symbol])
   (define var-map (make-hash))
@@ -80,4 +91,24 @@
               [upper-bound 4])
           (check-equal? 4 (reg-used idx-vec reg-size upper-bound)))))))
 
+(define (bv-overflow? width val)
+  (>= val (expt 2 width)))
 
+(define (bitvectorize-concrete width conc)
+  (when (not ($integer? conc))
+    (error 'bitvectorize-concrete
+           "Cannot transform value to bitvector: ~a"
+           conc))
+  (when (bv-overflow? width conc)
+    (error 'bitvectorize-concrete
+           "Value cannot be represented with ~a bits: ~a"
+           width
+           conc))
+  (bv conc width))
+
+; Use when the index to the vector is symbolic
+(define (sym-vector-ref vec idx)
+  (vector-ref vec (bitvector->integer idx)))
+
+(define (sym-vector-set! vec idx val)
+  (vector-set! vec (bitvector->integer idx) val))

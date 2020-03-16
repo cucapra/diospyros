@@ -1,5 +1,7 @@
 #lang rosette
 
+(require "configuration.rkt")
+
 (provide (all-defined-out))
 
 (define-values (input-tag output-tag)
@@ -8,7 +10,7 @@
 
 ; Default register size.
 (define current-reg-size
-  (make-parameter 4))
+  (make-parameter (bv 4 (index-fin))))
 
 ; XXX(rachit): Every instruction has an `id` which seems bad.
 ; A program is a sequence of instructions.

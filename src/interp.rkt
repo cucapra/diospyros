@@ -4,6 +4,7 @@
          "ast.rkt"
          "utils.rkt"
          "prog-sketch.rkt"
+         "configuration.rkt"
          racket/trace
          rosette/lib/match
          rosette/lib/lift
@@ -15,10 +16,6 @@
 (define (hash-ref env key)
   (for/all ([k key])
     (racket/hash-ref env k)))
-
-(define (pr v)
-  (pretty-print v)
-  v)
 
 ; Read a vector of `size` starting at location `start` from `memory`
 (define (read-vec memory start size)
@@ -70,9 +67,9 @@
     (hash-has-key? env key))
 
   ; Track the cost of the program
-  (define cur-cost 0)
+  (define cur-cost (bv 0 (cost-fin)))
   (define (incr-cost! val)
-    (set! cur-cost (+ cur-cost val)))
+    (set! cur-cost (bvadd cur-cost val)))
 
   (for ([inst (prog-insts program)])
     ; Increase the cost based on the current env
@@ -85,7 +82,7 @@
        (env-set! id init)]
 
       [(vec-decl id size)
-       (env-set! id (make-vector (current-reg-size) 0))]
+       (env-set! id (make-vector (current-reg-size) (bv 0 (value-fin))))]
 
       [(vec-extern-decl id size _)
        ; The identifier is not already bound, create a symbolic vector of the

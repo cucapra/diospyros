@@ -2,6 +2,8 @@
 
 (require "ast.rkt"
          "utils.rkt"
+         "configuration.rkt"
+         racket/trace
          threading)
 
 (provide (all-defined-out))
@@ -11,16 +13,16 @@
     (define-symbolic* v ty)
     v))
 
-(define make-symbolic-int-vector
-  (curry make-symbolic-vector integer?))
+(define (make-bv-vector width size)
+  (make-symbolic-vector (bitvector width) size))
 
 (define (make-symbolic-indices-restriced size reg-limit reg-upper-bound)
-  (define vec (make-symbolic-int-vector size))
+  (define vec (make-bv-vector (index-fin) size))
   (assert (<= (reg-used vec size reg-upper-bound) reg-limit))
   vec)
 
 (define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-symbolic-int-vector (* rows cols))))
+  (matrix rows cols (make-bv-vector (value-fin) (* rows cols))))
 
 ;;=================== SKETCH DEFINITIONS =========================
 
@@ -57,7 +59,7 @@
     (define insts
       (map (lambda (shuf-name)
              (vec-const shuf-name
-                        (make-symbolic-int-vector (current-reg-size))))
+                        (make-bv-vector (index-fin) (current-reg-size))))
            shuf-names))
     (values insts shuf-names)))
 

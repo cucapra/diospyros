@@ -3,6 +3,7 @@
 (require racket/cmdline
          json
          threading
+         "./configuration.rkt"
          "./examples/2d-conv.rkt"
          "./examples/matrix-multiply.rkt")
 

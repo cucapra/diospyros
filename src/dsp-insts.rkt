@@ -1,6 +1,9 @@
 #lang rosette
 
-(require rackunit
+(require "utils.rkt"
+         "configuration.rkt"
+         rackunit
+         racket/trace
          rackunit/text-ui)
 
 (provide vector-shuffle
@@ -14,9 +17,11 @@
 (define (vector-shuffle inps idxs)
   (define all-inp (apply vector-append inps))
   (for/vector ([idx idxs])
-    (assert (< idx (vector-length all-inp))
+    (assert (bvslt idx
+                   (bitvectorize-concrete (index-fin)
+                                          (vector-length all-inp)))
             (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" idx all-inp))
-    (vector-ref all-inp idx)))
+    (sym-vector-ref all-inp idx)))
 
 ;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]
 (define (vector-shuffle-set! out-vec idxs vals)
@@ -28,7 +33,7 @@
           "VECTOR-SHUFFLE-SET: duplicate indices")
   (for ([idx idxs]
         [val vals])
-    (vector-set! out-vec idx val))
+    (sym-vector-set! out-vec idx val))
   out-vec)
 
 ;; VECTOR MULTIPLY
@@ -37,7 +42,7 @@
           "VECTOR-MULTIPLY: length of vectors not equal")
   (for/vector ([e1 v1]
                [e2 v2])
-    (* e1 e2)))
+    (bvmul e1 e2)))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -48,7 +53,7 @@
   (for/vector ([e-acc v-acc]
                [e1 v1]
                [e2 v2])
-    (+ e-acc (* e1 e2))))
+    (bvadd e-acc (bvmul e1 e2))))
 
 (define dsp-insts-tests
   (test-suite

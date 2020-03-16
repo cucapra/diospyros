@@ -4,6 +4,7 @@
          threading
          "ast.rkt"
          "prog-sketch.rkt"
+         "configuration.rkt"
          "interp.rkt"
          "compile-passes.rkt")
 
@@ -61,7 +62,7 @@
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-symbolic-int-vector (cdr decl))))
+                       (make-bv-vector (value-fin) (cdr decl))))
                _))
       (~> spec-outs
           to-size-set
@@ -128,6 +129,8 @@
       (define spec-out (spec sym-args))
       (define-values (sketch-out cost) (sketch sym-args))
 
+      (pretty-print sketch-out)
+
       (assert (vector? spec-out) "SYNTH-PROG: spec output is not a vector")
       (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
       (assert (equal? (vector-length spec-out)
@@ -137,8 +140,9 @@
                 (vector-length spec-out)
                 (vector-length sketch-out)))
 
-      (define-symbolic* c integer?)
-      (assert (equal? c cost))
+      (define-symbolic* c (bitvector (cost-fin)))
+      (assert (equal? c cost)
+              "Impossible: cost types differ")
 
       (define-values (synth-res cpu-time real-time gc-time)
         (time-apply
