@@ -50,9 +50,6 @@
 
 ; Returns whether a vector of indices is continuous and aligned to the register
 ; size
-(define (continuous-aligned-vec? reg-size vec)
-  (assert (is-continuous-aligned-vec? reg-size vec)))
-
 (define (is-continuous-aligned-vec? reg-size vec)
   (and (equal? 0 (modulo (vector-ref vec 0) reg-size))
        (let ([i (vector-ref vec 0)])

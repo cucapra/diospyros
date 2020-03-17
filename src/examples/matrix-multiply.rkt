@@ -116,9 +116,7 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mac vector-mac
-                           'continuous-aligned-vec?
-                           (curry continuous-aligned-vec? (current-reg-size)))))
+            #:fn-map (hash 'vec-mac vector-mac)))
 
   (values (vector-take (hash-ref env 'C) C-size) cost))
 

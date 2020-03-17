@@ -42,10 +42,10 @@
   (define 2-pi-div-N (/ (* 2 pi) N))
   (define preamble
     (list
-     (vec-extern-decl 'x N)
-     (vec-extern-decl 'x-real N)
-     (vec-extern-decl 'x-img N)
-     (vec-extern-decl 'P N)
+     (vec-extern-decl 'x N input-tag)
+     (vec-extern-decl 'x-real N output-tag)
+     (vec-extern-decl 'x-img N output-tag)
+     (vec-extern-decl 'P N output-tag)
      (vec-const 'Z (vector 0))
      (vec-const '2-pi-div-N (make-vector (current-reg-size) 2-pi-div-N))))
 
@@ -70,8 +70,7 @@
      (vec-app 'mul-tmp-2 'vec-mul (list 'mul-tmp-1 '2-pi-div-N))
      (vec-app 'cos-tmp 'vec-cos (list 'mul-tmp-2))
      (vec-app 'out 'vec-mac (list 'reg-x-real 'reg-x 'cos-tmp))
-     (vec-shuffle-set! 'x-real shuf-x-real 'out)
-     (vec-void-app 'continuous-aligned-vec? (list shuf-x-real))))
+     (vec-shuffle-set! 'x-real shuf-x-real 'out)))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -93,9 +92,7 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
                            'vec-mul dummy-func
-                           'vec-cos dummy-func
-                           'continuous-aligned-vec?
-                           (curry continuous-aligned-vec? (current-reg-size)))
+                           'vec-cos dummy-func)
             (list (cons 'x x)
                   (cons 'x-real x-real)
                   (cons 'x-img x-img)

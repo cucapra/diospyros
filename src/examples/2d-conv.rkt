@@ -241,9 +241,7 @@ details have changed.
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mac vector-mac
-                           'continuous-vec?
-                           (curry continuous-aligned-vec? (current-reg-size)))
+            #:fn-map (hash 'vec-mac vector-mac)
             (list (cons 'I i-elements)
                   (cons 'F f-elements)
                   (cons 'O (make-vector output-size 0)))))
