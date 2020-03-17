@@ -8,6 +8,7 @@
          "../synth.rkt"
          racket/trace
          racket/generator
+         rosette/lib/angelic
          rosette/solver/smt/z3
          rosette/solver/smt/boolector)
 
@@ -52,35 +53,47 @@
     (list
      (vec-extern-decl 'A (* A-rows A-cols) input-tag)
      (vec-extern-decl 'B (* B-rows B-cols) input-tag)
-     (vec-extern-decl 'C (* A-rows B-cols) output-tag)))
+     (vec-extern-decl 'C (* A-rows B-cols) output-tag)
+     (vec-decl 'reg-C (current-reg-size))))
+
+  (define-values (C-reg-ids C-reg-loads C-reg-stores)
+    (partition-vector 'C (* A-rows B-cols)))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
-    ; Assumes that shuffle-gen generated three shuffle vectors
-    (match-define (list shuf-A shuf-B shuf-C) shufs)
+    ; Assumes that shuffle-gen generated two shuffle vectors
+    (match-define (list shuf-A shuf-B) shufs)
 
-    (define-symbolic* start integer?)
-    (define-symbolic* end integer?)
+    ; Shuffle the inputs with symbolic shuffle vectors
+    (define input-shuffles
+      (list
+       (vec-shuffle 'reg-A shuf-A (list 'A))
+       (vec-shuffle 'reg-B shuf-B (list 'B))))
 
-    (list
-     (vec-shuffle'reg-A shuf-A (list 'A))
-     (vec-shuffle 'reg-B shuf-B (list 'B))
-     (vec-shuffle 'reg-C shuf-C (list 'C))
-     ; Uncomment to force the output writes to be continuous.
-     (vec-void-app 'continuous-aligned-vec? (list shuf-C))
-     (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
-     (vec-shuffle-set! 'C shuf-C 'out)))
+    ; Use choose* to select an output register to both read and write
+    (define output-mac
+      (apply choose*
+        (map (lambda (out-reg)
+          (list
+            (vec-write 'reg-C out-reg)
+            (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
+            (vec-write out-reg 'out)))
+        C-reg-ids)))
+
+    (append input-shuffles output-mac))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
-    (symbolic-shuffle-gen 3))
+    (symbolic-shuffle-gen 2))
 
   (prog
    (append preamble
+           C-reg-loads
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
-            iterations))))
+            iterations)
+           C-reg-stores)))
 
 ; Run a matrix multiply sketch with symbolic inputs. If input matrices
 ; are missing, interp will generate fresh symbolic values.

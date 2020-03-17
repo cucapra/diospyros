@@ -112,7 +112,7 @@
 (define (truncate-shuffle env id idxs inps)
   (define shufs (hash-ref env idxs))
   (if (and (is-continuous-aligned-vec? (current-reg-size) shufs)
-           (eq? (length inps) 1))
+           (equal? (length inps) 1))
       (shuffle-to-write env id shufs (first inps))
       (truncate-irregular-shuffle env id idxs inps)))
 
