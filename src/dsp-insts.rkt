@@ -9,7 +9,11 @@
 (provide vector-shuffle
          vector-shuffle-set!
          vector-multiply
-         vector-mac)
+         vector-mac
+         vector-cos
+         vector-sin
+         cosine
+         sine)
 
 ;; Define set of instructions commonly found in DSP architectures.
 
@@ -56,6 +60,20 @@
                [e1 v1]
                [e2 v2])
     (box (bvadd (unbox e-acc) (bvmul (unbox e1) (unbox e2))))))
+
+; Define sine and cosine as an interpreted functions
+(define-symbolic cosine (~> real? real?))
+(define-symbolic sine (~> real? real?))
+
+;; VECTOR-COSINE
+(define (vector-cos v)
+  (for/vector ([e v])
+    (cosine e)))
+
+;; VECTOR-SINE
+(define (vector-sin v)
+  (for/vector ([e v])
+    (sine e)))
 
 (define dsp-insts-tests
   (test-suite

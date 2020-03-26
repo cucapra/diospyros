@@ -14,8 +14,7 @@
 
 ; Given an array x of length N, compute the real and imaginary coefficients
 ; and the power spectrum
-(define (dft-spec N x x-real x-img P)
-
+(define (dft-spec N x x-real x-img P fn-map)
   (for ([k (in-range N)])
     (vector-set! x-real k 0)
     (vector-set! x-img k 0)
@@ -23,11 +22,13 @@
       (define partial (/ (* pi 2 n k) N))
 
       ; Real part of x[k]
-      (define real-val (* (vector-ref x n) (cos partial)))
+      (define cosine (hash-ref fn-map `cos))
+      (define sine (hash-ref fn-map `sin))
+      (define real-val (* (vector-ref x n) (cosine partial)))
       (vector-set! x-real k (+ (vector-ref x-real k) real-val))
 
       ; Imaginary part of x[k]
-      (define img-val (* (vector-ref x n) (sin partial)))
+      (define img-val (* (vector-ref x n) (sine partial)))
       (vector-set! x-img k (- (vector-ref x-img k) img-val)))
 
     ; Power at kth frequency bin
@@ -58,7 +59,7 @@
       (choose 0 1 2 3 4 5 6 7))
 
     (list
-     (vec-shuffle'reg-x shuf-x (list 'x 'Z))
+     (vec-shuffle 'reg-x shuf-x (list 'x 'Z))
      (vec-shuffle 'reg-x-real shuf-x-real (list 'x-real))
      (vec-shuffle 'reg-x-img shuf-x-img (list 'x-img))
      (vec-shuffle 'reg-P shuf-P (list 'P))
@@ -84,15 +85,12 @@
             iterations))))
 
 (define (run-sketch sketch cost-fn N x x-real x-img P)
-  ; TODO: replace with real implementations
-  (define dummy-func (thunk* (make-vector 4 0)))
-
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac
-                           'vec-mul dummy-func
-                           'vec-cos dummy-func)
+                           'vec-mul vector-multiply
+                           'vec-cos vector-cos)
             (list (cons 'x x)
                   (cons 'x-real x-real)
                   (cons 'x-img x-img)
@@ -111,7 +109,7 @@
     (for/list ([n (in-range 4)])
       (make-symbolic-vector real? N)))
 
-  (dft-spec N x x-real x-img P)
+  (dft-spec N x x-real x-img P #:fn-map (hash `cos cosine `sin cosine))
 
   ; Generate sketch prog
   (define sketch (dft-sketch N x x-real x-img P 16))
@@ -146,12 +144,16 @@
 
   ; Keep minimizing solution in the synthesis procedure and generating new
   ; solutions.
+  ;void
+  ;#|
   (for ([model (in-producer model-generator (void))])
     (if (sat? model)
       (begin
         (pretty-print "MODEL")
         (pretty-print (evaluate sketch model)))
-      (pretty-print (~a "failed to find solution: " model)))))
+      (pretty-print (~a "failed to find solution: " model))))
+;|#
+  )
 
 
 (module+ test
@@ -171,6 +173,7 @@
        (vector 4 1 0 1 0 1 0 1))
      (define gold-img
        (vector 0 -2.41421356 0 -0.41421356 0 0.41421356 0 2.41421356))
-     (dft-spec N x xReal xImg P)
+     (define fn-map (hash `cos cos `sin sin))
+     (dft-spec N x xReal xImg P fn-map)
      (check-within xReal gold-real 0.001)
      (check-within xImg gold-img 0.001)))))
