@@ -8,21 +8,23 @@
 
 (provide (all-defined-out))
 
-(define (make-symbolic-vector ty size)
-  (for/vector ([_ (in-range size)])
+(define (make-symbolic-bv-list ty size)
+  (for/list ([_ (in-range size)])
     (define-symbolic* v ty)
-    v))
+    (box v)))
 
-(define (make-bv-vector width size)
-  (make-symbolic-vector (bitvector width) size))
+(define (make-symbolic-bv-list-values size)
+  (make-symbolic-bv-list (bitvector (value-fin)) size))
 
-(define (make-symbolic-indices-restriced size reg-limit reg-upper-bound)
-  (define vec (make-bv-vector (index-fin) size))
-  (assert (<= (reg-used vec size reg-upper-bound) reg-limit))
-  vec)
+(define (make-symbolic-bv-list-indices size)
+  (make-symbolic-bv-list (bitvector (index-fin)) size))
 
 (define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-bv-vector (value-fin) (* rows cols))))
+  (matrix rows cols (make-symbolic-bv-list-values (* rows cols))))
+
+(define (make-zero-elements size)
+  (for/list ([_ (in-range size)])
+    (box (bv 0 (value-fin)))))
 
 ;;=================== SKETCH DEFINITIONS =========================
 
@@ -59,7 +61,7 @@
     (define insts
       (map (lambda (shuf-name)
              (vec-const shuf-name
-                        (make-bv-vector (index-fin) (current-reg-size))))
+                        (make-symbolic-bv-list-indices (current-reg-size))))
            shuf-names))
     (values insts shuf-names)))
 

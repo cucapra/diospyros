@@ -21,8 +21,7 @@
   (define C
     (matrix A-rows
             B-cols
-            (build-vector (* A-rows B-cols)
-                          (lambda (_) 0))))
+            (make-zero-elements (* A-rows B-cols))))
   (for* ([i A-rows]
          [j B-cols])
     (define sum
@@ -104,7 +103,7 @@
     (match-define (matrix _ B-cols B-elements) mat-B)
     (hash-set! env 'A A-elements)
     (hash-set! env 'B B-elements)
-    (hash-set! env 'C (make-vector C-size (bv 0 (value-fin)))))
+    (hash-set! env 'C (make-zero-elements C-size)))
 
   (define-values (_ cost)
     (interp sketch

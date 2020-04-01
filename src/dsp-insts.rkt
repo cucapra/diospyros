@@ -15,30 +15,32 @@
 
 ;; VECTOR SHUFFLE: return (append inps)[idxs[i]].
 (define (vector-shuffle inps idxs)
-  (define all-inp (apply vector-append inps))
-  (for/vector ([idx idxs])
-    (assert (bvslt idx
+  (assert (list? idxs) "Expected list")
+  (assert (list? inps) "Expected list")
+  (define all-inp (apply append inps))
+  (for/list ([idx idxs])
+    (assert (bvslt (unbox idx)
                    (bitvectorize-concrete (index-fin)
-                                          (vector-length all-inp)))
+                                          (length all-inp)))
             (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" idx all-inp))
-    (sym-vector-ref all-inp idx)))
+    (bv-list-get all-inp (unbox idx))))
 
 ;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]
 (define (vector-shuffle-set! out-vec idxs vals)
-  (assert (= (vector-length idxs) (vector-length vals))
+  (assert (= (length idxs) (length vals))
           "VECTOR-SHUFFLE-SET: length mismatch")
-  (assert (<= (vector-length idxs) (vector-length out-vec))
+  (assert (<= (length idxs) (length out-vec))
           "VECTOR-SHUFFLE-SET: idxs is larger than out-vec")
   (assert (apply distinct? (vector->list idxs))
           "VECTOR-SHUFFLE-SET: duplicate indices")
   (for ([idx idxs]
         [val vals])
-    (sym-vector-set! out-vec idx val))
+    (bv-list-set! out-vec idx val))
   out-vec)
 
 ;; VECTOR MULTIPLY
 (define (vector-multiply v1 v2)
-  (assert (= (vector-length v1) (vector-length v2))
+  (assert (= (length v1) (length v2))
           "VECTOR-MULTIPLY: length of vectors not equal")
   (for/vector ([e1 v1]
                [e2 v2])
@@ -46,9 +48,9 @@
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
-  (assert (= (vector-length v1)
-             (vector-length v2)
-             (vector-length v-acc))
+  (assert (= (length v1)
+             (length v2)
+             (length v-acc))
           "VECTOR-MAC: length of vectors not equal")
   (for/vector ([e-acc v-acc]
                [e1 v1]

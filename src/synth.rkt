@@ -62,7 +62,7 @@
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-bv-vector (value-fin) (cdr decl))))
+                       (make-symbolic-bv-list-values (cdr decl))))
                _))
       (~> spec-outs
           to-size-set

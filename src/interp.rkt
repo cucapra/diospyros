@@ -29,11 +29,11 @@
 
 ; Align vectors by padding to a multiple of current-reg-size
 (define (align vec)
-  (define len (vector-length vec))
+  (define len (length vec))
   (define align-len
     (* (current-reg-size) (exact-ceiling (/ len (current-reg-size)))))
-  (let ([fill (make-vector (- align-len len) 0)])
-    (vector-append vec fill)))
+  (let ([fill (make-list (- align-len len) 0)])
+    (append vec fill)))
 
 ; Interpretation function that takes a program and an external memory.
 ; MUTATES the memory in place during program interpretation.
@@ -92,10 +92,10 @@
          (begin
            (assert (env-has? id)
                    (~a "INTERP: missing extern vector: " id))
-           (assert (= (vector-length (env-ref id)) size)
+           (assert (= (length (env-ref id)) size)
                    (~a "INTERP: size mismatch: " id
                        ". Expected: " size
-                       " Given: " (vector-length (env-ref id))))
+                       " Given: " (length (env-ref id))))
            (env-set! id (align (env-ref id)))))]
 
       [(vec-shuffle id idxs inps)

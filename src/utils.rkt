@@ -29,17 +29,35 @@
 ; Matrix implementation and helper methods.
 (struct matrix (rows cols elements) #:transparent)
 
+(define (bv-list-set! lst idx val)
+  (assert (list? lst) (~a "Expected a list, got " lst))
+  (match lst
+    [(cons box tail)
+      (if (bveq idx (bv 0 (index-fin)))
+          (set-box! box val)
+          (bv-list-set! tail (bvsub idx (bv 1 (index-fin))) val))]
+    [_ (error "List idx not found" idx lst)]))
+
+(define (bv-list-get lst idx)
+  (assert (list? lst) (~a "Expected a list, got " lst))
+  (match lst
+    [(cons box tail)
+      (if (bveq idx (bv 0 (index-fin)))
+          (unbox box)
+          (bv-list-get tail (bvsub idx (bv 1 (index-fin)))))]
+    [_ (error "List idx not found" idx lst)]))
+
 (define (matrix-ref mat row col)
   (match-define (matrix rows cols elements) mat)
   (assert (and (< row rows) (>= row 0)) (~a "MATRIX-REF: Invalid row " row))
   (assert (and (< col cols) (>= col 0)) (~a "MATRIX-REF: Invalid col " col))
-  (vector-ref elements (+ (* cols row) col)))
+  (bv-list-get elements (bitvectorize-concrete (index-fin) (+ (* cols row) col))))
 
 (define (matrix-set! mat row col val)
   (match-define (matrix rows cols elements) mat)
   (assert (and (< row rows) (>= row 0)) (~a "MATRIX-SET!: Invalid row " row))
   (assert (and (< col cols) (>= col 0)) (~a "MATRIX-SET!: Invalid col " col))
-  (vector-set! elements (+ (* cols row) col) val))
+  (bv-list-set! elements (bitvectorize-concrete (index-fin) (+ (* cols row) col)) val))
 
 ; Returns 0-indexed register that this index resides in based on the
 ; current register size.
@@ -59,9 +77,9 @@
 ; size
 (define (is-continuous-aligned-vec? reg-size vec)
   (and (equal? (bv 0 (index-fin))
-               (bvsmod (vector-ref vec 0)
+               (bvsmod (bv-list-get vec (bv 0 (index-fin)))
                        (integer->bitvector reg-size (bitvector (index-fin)))))
-       (let ([i (vector-ref vec 0)])
+       (let ([i (bv-list-get vec 0)])
          (andmap identity
                  (for/list ([(el idx) (in-indexed vec)])
                    (equal? el (bvadd i
@@ -106,9 +124,3 @@
            conc))
   (bv conc width))
 
-; Use when the index to the vector is symbolic
-(define (sym-vector-ref vec idx)
-  (vector-ref vec (bitvector->integer idx)))
-
-(define (sym-vector-set! vec idx val)
-  (vector-set! vec (bitvector->integer idx) val))
