@@ -3,7 +3,7 @@
 test: build
 
 test-all: test build
-	raco test src/*.rkt src/backend/*.rkt
+	raco test --drdr src/*.rkt src/backend/*.rkt
 
 build:
 	raco exe --vv -o dios-example-gen src/example-gen.rkt
