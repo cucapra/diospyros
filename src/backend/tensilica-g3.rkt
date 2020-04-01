@@ -291,7 +291,9 @@
     (c-seq
       (list
         ; Include a comment with git info
-        (git-info-comment)
+        (if (not (supress-git-info))
+          (git-info-comment)
+          (c-empty))
         decl-consts
         (c-func-decl "void"
                      "kernel"

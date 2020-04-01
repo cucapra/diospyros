@@ -109,8 +109,12 @@
 
 (struct c-comment (str) #:transparent)
 
+(struct c-empty () #:transparent)
+
 (define (to-string prog [tab-size 0])
+     ;(pretty-print prog)
   (match prog
+    [(c-empty) ""]
     [(c-ast prog) (to-string prog)]
     [(c-bare str) str]
     [(c-num num) (number->string num)]
