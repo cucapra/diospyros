@@ -9,6 +9,7 @@
 
 (module+ main
   (define out-file (make-parameter #f))
+  (define intermediate (make-parameter #f))
 
   (define file-to-compile
     (command-line
@@ -17,6 +18,8 @@
       [("-o" "--out-file") out
                            "C file to write to."
                            (out-file out)]
+      [("--no-compile") "Output intermediate vector-lang program"
+                        (intermediate #t)]
       #:args (filename)
       filename))
 
@@ -27,14 +30,20 @@
   (define ns (namespace-anchor->namespace a))
   (define input-program (eval input-string ns))
 
-  (when (not (out-file))
-    (error 'dios
-           "Missing output file."))
+  ; Compute the intermediate program.
+  (define i-prog
+    (~> input-program
+        compile))
 
-  (call-with-output-file (build-path (current-directory) (out-file))
-    (lambda (out)
-      (~> input-program
-          compile
-          tensilica-g3-compile
-          to-string
-          (display _ out)))))
+  (cond
+    [(intermediate) (display (pretty-format i-prog))]
+    [(not (out-file))
+     (error 'dios
+            "Missing output file.")]
+    [else
+     (call-with-output-file (build-path (current-directory) (out-file))
+       (lambda (out)
+         (~> i-prog
+             tensilica-g3-compile
+             to-string
+             (display _ out))))]))
