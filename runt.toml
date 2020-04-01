@@ -2,3 +2,8 @@
 name = "Intermediate compilation"
 paths = [ "tests/vec-lang-compile/*.rkt" ]
 cmd = "./dios --no-compile {}"
+
+[[tests]]
+name = "C compilation"
+paths = [ "tests/c-compile/*.rkt" ]
+cmd = "./dios --supress-git {}"
