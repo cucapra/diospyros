@@ -1,0 +1,4 @@
+[[tests]]
+name = "Intermediate compilation"
+paths = [ "tests/vec-lang-compile/*.rkt" ]
+cmd = "./dios --no-compile {}"

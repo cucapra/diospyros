@@ -1,6 +1,8 @@
-.PHONY: test build
+.PHONY: test build test-all
 
-test:
+test: build
+
+test-all: test build
 	raco test src/*.rkt src/backend/*.rkt
 
 build:
