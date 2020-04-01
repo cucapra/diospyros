@@ -51,5 +51,4 @@
       (~> i-prog
           tensilica-g3-compile
           to-string
-          pr
           write-out)]))

@@ -1,5 +1,8 @@
 .PHONY: test build test-all dios dios-example-gen
 
+# By default, run two jobs
+MAKEFLAGS += --jobs=2
+
 test: build
 
 test-all: test build
