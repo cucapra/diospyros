@@ -4,6 +4,7 @@
          "ast.rkt"
          "c-ast.rkt"
          "backend/tensilica-g3.rkt"
+         "backend/backend-utils.rkt"
          threading
          racket/cmdline)
 
@@ -20,6 +21,8 @@
                            (out-file out)]
       [("--no-compile") "Output intermediate vector-lang program"
                         (intermediate #t)]
+      [("--supress-git") "Output intermediate vector-lang program"
+                        (supress-git-info #t)]
       #:args (filename)
       filename))
 
@@ -37,13 +40,16 @@
 
   (cond
     [(intermediate) (display (pretty-format i-prog))]
-    [(not (out-file))
-     (error 'dios
-            "Missing output file.")]
     [else
-     (call-with-output-file (build-path (current-directory) (out-file))
-       (lambda (out)
-         (~> i-prog
-             tensilica-g3-compile
-             to-string
-             (display _ out))))]))
+      (define (write-out prog)
+        (if (out-file)
+          (call-with-output-file
+            (build-path (current-directory) (out-file))
+            (lambda (out) (display prog out)))
+          (display prog)))
+
+      (~> i-prog
+          tensilica-g3-compile
+          to-string
+          pr
+          write-out)]))
