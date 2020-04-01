@@ -14,6 +14,21 @@
 (provide matrix-mul:keys
          matrix-mul:run-experiment)
 
+;; Uninterpreted function
+; Define sine and cosine as an interpreted functions
+(define-symbolic f-add (~> bv10 bv10 bv10))
+(define-symbolic f-mul (~> bv10 bv10 bv10))
+
+(define (vector-f-mac v-acc v1 v2)
+  (assert (= (vector-length v1)
+             (vector-length v2)
+             (vector-length v-acc))
+          "VECTOR-MAC: length of vectors not equal")
+  (for/vector ([e-acc v-acc]
+               [e1 v1]
+               [e2 v2])
+    (f-add e-acc (f-mul e1 e2))))
+
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
@@ -25,12 +40,11 @@
             (make-bv-list-zeros (* A-rows B-cols))))
   (for* ([i A-rows]
          [j B-cols])
-    (define sum
-      (apply
-        bvadd
-        (for/list ([k A-cols])
-          (bvmul (matrix-ref mat-A i k)
-             (matrix-ref mat-B k j)))))
+    (define products
+      (for/list ([k A-cols])
+        (f-mul (matrix-ref mat-A i k)
+           (matrix-ref mat-B k j))))
+    (define sum (foldl f-add (first products) (drop products 1)))
     (matrix-set! C i j sum))
 
   (matrix-elements C))
@@ -111,7 +125,7 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mac vector-mac)))
+            #:fn-map (hash 'vec-mac vector-f-mac)))
 
   (list (take (hash-ref env 'C) C-size) cost))
 

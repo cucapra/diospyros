@@ -67,6 +67,7 @@
 
 ;; VECTOR-COSINE
 (define (vector-cos v)
+  (pretty-print "vec-cos")
   (for/vector ([e v])
     (cosine e)))
 

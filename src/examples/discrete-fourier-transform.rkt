@@ -24,7 +24,8 @@
       ; Real part of x[k]
       (define cosine (hash-ref fn-map `cos))
       (define sine (hash-ref fn-map `sin))
-      (define real-val (* (vector-ref x n) (cosine partial)))
+      ;(define real-val (* (vector-ref x n) (cosine partial)))
+      (define real-val 0)
       (vector-set! x-real k (+ (vector-ref x-real k) real-val))
 
       ; Imaginary part of x[k]
@@ -37,7 +38,7 @@
     (vector-set! P k val))
   x-real)
 
-(define (dft-sketch N x x-real x-img P iterations)
+(define (dft-sketch N x x-real x-img P c s iterations)
 
   ; Program preamble to define the "zero" vector, inputs and constants
   (define 2-pi-div-N (/ (* 2 pi) N))
@@ -45,8 +46,8 @@
     (list
      (vec-extern-decl 'x N input-tag)
      (vec-extern-decl 'x-real N output-tag)
-     (vec-extern-decl 'x-img N output-tag)
-     (vec-extern-decl 'P N output-tag)
+     ;(vec-extern-decl 'x-img N output-tag)
+     ;(vec-extern-decl 'P N output-tag)
      (vec-const 'Z (vector 0))
      (vec-const '2-pi-div-N (make-vector (current-reg-size) 2-pi-div-N))))
 
@@ -55,21 +56,22 @@
     ; Assumes that shuffle-gen generated 4 shuffle vectors
     (match-define (list shuf-x shuf-x-real shuf-x-img shuf-P) shufs)
 
-    (define (choose-idx)
-      (choose 0 1 2 3 4 5 6 7))
-
+    ;(define (choose-idx)(choose 0 1))
+    (define (choose-idx) 1)
+    
     (list
      (vec-shuffle 'reg-x shuf-x (list 'x 'Z))
      (vec-shuffle 'reg-x-real shuf-x-real (list 'x-real))
-     (vec-shuffle 'reg-x-img shuf-x-img (list 'x-img))
-     (vec-shuffle 'reg-P shuf-P (list 'P))
+     ;(vec-shuffle 'reg-x-img shuf-x-img (list 'x-img))
+     ;(vec-shuffle 'reg-P shuf-P (list 'P))
 
      (vec-const 'idxs-outer (make-vector (current-reg-size) (choose-idx)))
      (vec-const 'idxs-inner (make-vector (current-reg-size) (choose-idx)))
      ; TODO: continuous aligned
      (vec-app 'mul-tmp-1 'vec-mul (list 'idxs-outer 'idxs-inner))
      (vec-app 'mul-tmp-2 'vec-mul (list 'mul-tmp-1 '2-pi-div-N))
-     (vec-app 'cos-tmp 'vec-cos (list 'mul-tmp-2))
+     ;(vec-app 'cos-tmp 'vec-cos (list 'mul-tmp-2))
+     (vec-app 'cos-tmp `vec-mul (list 'mul-tmp-2 'mul-tmp-2))
      (vec-app 'out 'vec-mac (list 'reg-x-real 'reg-x 'cos-tmp))
      (vec-shuffle-set! 'x-real shuf-x-real 'out)))
 
@@ -104,15 +106,17 @@
 (parameterize [(current-reg-size 4)]
 
   ; Define inputs
-  (define N 8)
+  (define N 2)
   (match-define (list x x-real x-img P)
     (for/list ([n (in-range 4)])
       (make-symbolic-vector real? N)))
 
-  (dft-spec N x x-real x-img P #:fn-map (hash `cos cosine `sin cosine))
+  (define fn-map (hash `cos cosine `sin sine))
+  (pretty-print fn-map)
+  (dft-spec N x x-real x-img P fn-map)
 
   ; Generate sketch prog
-  (define sketch (dft-sketch N x x-real x-img P 16))
+  (define sketch (dft-sketch N x x-real x-img P cosine sine 1))
 
   ; Define cost function
     (define (cost-fn)
@@ -126,20 +130,21 @@
     (apply (curry run-sketch
                   sketch
                   (cost-fn))
-           args))
+           (take args 5)))
 
   ; Functionalize spec for minimization prog
   (define (spec-func args)
-    (apply dft-spec args))
+    (apply dft-spec (append (take args 5) (list fn-map))))
 
   ; Get a generator back from the synthesis procedure
   (define model-generator
     (synth-prog spec-func
                 sketch-func
-                (list N x x-real x-img P)
+                (list N x x-real x-img P cosine sine)
                 #:get-inps (lambda (args)
-                             (flatten (map vector->list
-                                           (filter vector? args))))
+                             (flatten (list (map vector->list
+                                           (filter vector? args))
+                                      (filter fv? args))))
                 #:min-cost 0))
 
   ; Keep minimizing solution in the synthesis procedure and generating new
