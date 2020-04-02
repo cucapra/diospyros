@@ -13,6 +13,10 @@
     (define-symbolic* v ty)
     (box v)))
 
+(define (make-bv-list-empty size)
+  (for/list ([_ (in-range size)])
+    (box void)))
+
 (define (make-symbolic-bv-list-values size)
   (make-symbolic-bv-list (bitvector (value-fin)) size))
 
@@ -22,7 +26,7 @@
 (define (make-symbolic-matrix rows cols)
   (matrix rows cols (make-symbolic-bv-list-values (* rows cols))))
 
-(define (make-zero-elements size)
+(define (make-bv-list-zeros size)
   (for/list ([_ (in-range size)])
     (box (bv 0 (value-fin)))))
 
@@ -110,10 +114,10 @@
                                                    #:window-size window-size)
 
   (define (take-window vec start end)
-    (vector-take (vector-drop vec
-                              (max 0 start)
-                              start)
-                 (add1 end)))
+    (take (drop vec
+                (max 0 start)
+                 start)
+          (add1 end)))
 
   ; Store the names of currently defined shufs
   (define def-shufs (make-vector number #f))
@@ -122,7 +126,7 @@
     (for/list ([i (in-range number)])
       (define-values (shuffle-defs shuffle-names)
         (shuffle-thunk i))
-      (vector-set! def-shufs i shuffle-names)
+      (bv-list-set! def-shufs i shuffle-names)
       (define compute
         (compute-thunk i (take-window (- i window-size) i)))
       (append (shuffle-defs compute))))

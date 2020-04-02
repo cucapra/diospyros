@@ -8,7 +8,8 @@
          "../synth.rkt"
          "../configuration.rkt"
          racket/trace
-         racket/generator)
+         racket/generator
+         rosette/lib/angelic)
 
 (provide matrix-mul:keys
          matrix-mul:run-experiment)
@@ -21,7 +22,7 @@
   (define C
     (matrix A-rows
             B-cols
-            (make-zero-elements (* A-rows B-cols))))
+            (make-bv-list-zeros (* A-rows B-cols))))
   (for* ([i A-rows]
          [j B-cols])
     (define sum
@@ -103,7 +104,7 @@
     (match-define (matrix _ B-cols B-elements) mat-B)
     (hash-set! env 'A A-elements)
     (hash-set! env 'B B-elements)
-    (hash-set! env 'C (make-zero-elements C-size)))
+    (hash-set! env 'C (make-bv-list-zeros C-size)))
 
   (define-values (_ cost)
     (interp sketch
@@ -112,7 +113,7 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac)))
 
-  (values (vector-take (hash-ref env 'C) C-size) cost))
+  (values (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
 (define (get-statistics C-size sol)

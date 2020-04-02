@@ -82,13 +82,13 @@
        (env-set! id init)]
 
       [(vec-decl id size)
-       (env-set! id (make-vector (current-reg-size) (bv 0 (value-fin))))]
+       (env-set! id (make-bv-list-zeros (current-reg-size)))]
 
       [(vec-extern-decl id size _)
        ; The identifier is not already bound, create a symbolic vector of the
        ; correct size and add it to the environment.
        (if (and symbolic? (not (env-has? id)))
-         (env-set! id (align (make-vector size)))
+         (env-set! id (align (make-bv-list-empty size)))
          (begin
            (assert (env-has? id)
                    (~a "INTERP: missing extern vector: " id))
@@ -120,7 +120,7 @@
          (apply fn inps-val))]
 
       [(vec-load dest-id src-id start end)
-       (let ([dest (make-vector (current-reg-size) 0)]
+       (let ([dest (make-bv-list-zeros (current-reg-size))]
              [src (env-ref src-id)])
          (vector-copy! dest 0 src start end)
          (env-set! dest-id dest))]
