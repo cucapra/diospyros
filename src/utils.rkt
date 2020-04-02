@@ -62,7 +62,7 @@
 ; Returns 0-indexed register that this index resides in based on the
 ; current register size.
 (define (reg-of reg-size idx)
-  (bvsdiv idx reg-size))
+  (bvsdiv idx (bv reg-size (index-fin))))
 
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.
@@ -70,7 +70,7 @@
   ; Check how many distinct registers these indices fall within.
   (define reg-used (make-vector upper-bound #f))
   (for ([idx idx-vec])
-    (vector-set! reg-used (reg-of reg-size idx) #t))
+    (vector-set! reg-used (reg-of reg-size (unbox idx)) #t))
   (count identity (vector->list reg-used)))
 
 ; Returns whether a vector of indices is continuous and aligned to the register

@@ -30,6 +30,16 @@
   (for/list ([_ (in-range size)])
     (box (bv 0 (value-fin)))))
 
+(define (bv-list width xs)
+  (define elements (map (curry bitvectorize-concrete width) xs))
+  (map box elements))
+
+(define (value-bv-list . xs)
+  (bv-list (value-fin) xs))
+
+(define (index-bv-list . xs)
+  (bv-list (index-fin) xs))
+
 ;;=================== SKETCH DEFINITIONS =========================
 
 ; Generate a sketch that interleaves computation and shuffling `iterations`

@@ -10,7 +10,7 @@
 
 ; Default register size.
 (define current-reg-size
-  (make-parameter (bv 4 (index-fin))))
+  (make-parameter 4))
 
 ; XXX(rachit): Every instruction has an `id` which seems bad.
 ; A program is a sequence of instructions.
