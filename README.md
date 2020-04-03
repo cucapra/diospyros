@@ -8,7 +8,7 @@ Compile code for DSPs.
 - Install [Rosette][] by running `raco pkg install rosette`.
 - Install Racket's threading library with `raco pkg install threading`
 - Install [Z3][] and [Boolector][].
-- (Testing) Install [runt][] by running `cargo install runt`. This requires
+- To run tests, install [runt][] by running `cargo install runt`. This also requires
   installing [Rust][].
 
 [racket]: https://github.com/racket/racket
