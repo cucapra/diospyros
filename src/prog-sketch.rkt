@@ -68,10 +68,12 @@
       (let* ([start i]
              [end (min len (+ i (current-reg-size)))]
              [new-id (string->symbol
-                       (format "~a_~a_~a" id start end))])
+                       (format "~a_~a_~a" id start end))]
+             [start-bv (bv-index start)]
+             [end-bv (bv-index end)])
         (list new-id
-          (vec-load new-id id start end)
-          (vec-store id new-id start end)))))
+          (vec-load new-id id start-bv end-bv)
+          (vec-store id new-id start-bv end-bv)))))
   (values (map first vals) (map second vals) (map third vals)))
 
 ; TODO(rachit): Define a sketch where the compute can use previously defined

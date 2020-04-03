@@ -122,18 +122,18 @@
       [(vec-load dest-id src-id start end)
        (let ([dest (make-bv-list-zeros (current-reg-size))]
              [src (env-ref src-id)])
-         (bv-list-copy! dest src start end)
+         (bv-list-copy! dest (bv-index 0) src start end)
          (env-set! dest-id dest))]
 
       [(vec-store dest-id src-id start end)
        (let ([dest (env-ref dest-id)]
              [src (env-ref src-id)])
-         (bv-list-copy! dest start src 0 (- end start)))]
+         (bv-list-copy! dest start src (bv-index 0) (- end start)))]
 
       [(vec-write dst-id src-id)
        (let ([dest (env-ref dst-id)]
              [src (env-ref src-id)])
-         (bv-list-copy! dest 0 src))]
+         (bv-list-copy! dest (bv-index 0) src))]
 
       [_ (assert #f (~a "unknown instruction " inst))]))
 

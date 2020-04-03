@@ -50,23 +50,24 @@
 
 ; Index values should not overflow and should be positive
 (define (bv-index? bv-val)
-  (assert (and (not (bv-overflow? (index-fin) (bitvector->integer bv-val)))
+  (assert (and (bv? bv-val)
+               (not (bv-overflow? (index-fin) (bitvector->integer bv-val)))
                (bvsle (bv-index 0) bv-val))
-          (~a "Invalid bitvector index" bv-val))
+          (~a "Invalid bitvector index: " bv-val))
   (bitvector (index-fin)) bv-val)
 
 (define (bv-index int-val)
   (assert (and (integer? int-val)
                (<= 0 int-val)
                (not (bv-overflow? (index-fin) int-val)))
-          (~a "Invalid integer for creating bitvector index" int-val))
+          (~a "Invalid integer for creating bitvector index: " int-val))
   (bv int-val (index-fin)))
 
 ; Element values should not overflow
 (define (bv-value int-val)
   (assert (and (integer? int-val)
                (not (bv-overflow? (value-fin) int-val)))
-          (~a "Invalid integer for creating bitvector value" int-val))
+          (~a "Invalid integer for creating bitvector value: " int-val))
   (bv int-val (value-fin)))
 
 ; Cost values should not overflow and should be positive
@@ -74,7 +75,7 @@
   (assert (and (integer? int-val)
                (<= 0 int-val)
                (not (bv-overflow? (cost-fin) int-val)))
-          (~a "Invalid integer for creating bitvector cost" int-val))
+          (~a "Invalid integer for creating bitvector cost: " int-val))
   (bv int-val (cost-fin)))
 
 ;;========================= BITVECTOR LISTS =========================
