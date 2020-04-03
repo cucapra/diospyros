@@ -22,7 +22,7 @@
     (assert (bvslt (unbox idx)
                    (bitvectorize-concrete (index-fin)
                                           (length all-inp)))
-            (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" idx all-inp))
+            (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" (unbox idx) all-inp))
     (box (bv-list-get all-inp (unbox idx)))))
 
 ;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]

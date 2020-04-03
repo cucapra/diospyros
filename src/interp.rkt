@@ -170,12 +170,14 @@
               [equiv-class (shuf-name-class idxs)]
               [idxs-def (vector-ref idxs-def-class equiv-class)])
          (begin0
-           (if (ormap (lambda (el) (equal? el conc-idxs)) idxs-def) 0 1)
+           (if (ormap (lambda (el) (equal? el conc-idxs)) idxs-def)
+               (bv 0 (cost-fin))
+               (bv 1 (cost-fin)))
            ; Add to equivalence class
            (vector-set! idxs-def-class
                         equiv-class
                         (cons conc-idxs idxs-def))))]
-      [_ 0])))
+      [_ (bv 0 (cost-fin))])))
 
 (module+ test
   (require rackunit
@@ -192,7 +194,7 @@
           ('x = vec-const gold))
         (interp p env)
         (check-equal? (hash-ref env 'x) gold))
-      
+
       (test-case
         "create shuffled vector"
         (define env (make-hash))
@@ -248,7 +250,7 @@
                   (make-hash)
                   #:cost-fn (make-register-cost 5)))
         (parameterize ([current-reg-size 2])
-          (check-equal? cost-2 5)))
+          (check-equal? cost-2 (bv 5 (cost-fin)))))
 
       (test-case
         "shuffle-unique-cost does not increase cost for repeated idxs"
@@ -265,7 +267,7 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-shuffle-unique-cost)))
-        (check-equal? cost 2))
+        (check-equal? cost (bv 2 (cost-fin))))
 
       (test-case
         "shuffle-unique-cost calculates different cost for unique idxs"
@@ -282,5 +284,5 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-shuffle-unique-cost)))
-        (check-equal? cost 3))
+        (check-equal? cost (bv 3 (cost-fin))))
       )))

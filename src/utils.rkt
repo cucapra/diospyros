@@ -1,6 +1,7 @@
 #lang rosette
 
-(require "configuration.rkt"
+(require "ast.rkt"
+         "configuration.rkt"
          threading
          racket/trace
          (prefix-in $ racket))
@@ -61,17 +62,16 @@
 
 ; Returns 0-indexed register that this index resides in based on the
 ; current register size.
-(define (reg-of reg-size idx)
-  (bvsdiv idx (bv reg-size (index-fin))))
+; TODO(alexa): replace with a table-based lookup up to 2^(index-fin)
+(define (reg-of idx)
+  (bvsdiv idx (bv (current-reg-size) (index-fin))))
 
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.
-(define (reg-used idx-vec reg-size upper-bound)
+(define (reg-used idxs reg-size upper-bound)
   ; Check how many distinct registers these indices fall within.
-  (define reg-used (make-vector upper-bound #f))
-  (for ([idx idx-vec])
-    (vector-set! reg-used (reg-of reg-size (unbox idx)) #t))
-  (count identity (vector->list reg-used)))
+  ; TODO(alexa): replace with a potentially faster implementation
+  (length (remove-duplicates (map reg-of (map unbox idxs)))))
 
 ; Returns whether a vector of indices is continuous and aligned to the register
 ; size
