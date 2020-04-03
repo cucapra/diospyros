@@ -172,7 +172,7 @@
 
     (define (cost-fn)
       (lambda (inst env)
-        (bv 0 (cost-fin))))
+        (bv-cost 0)))
 
     ; Define the cost function
     #|(define (cost-fn)

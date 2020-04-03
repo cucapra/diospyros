@@ -19,20 +19,20 @@
 
 ; Read a vector of `size` starting at location `start` from `memory`
 (define (read-vec memory start size)
-  (vector-copy memory start (+ start size)))
+  (bv-list-copy! memory start (+ start size)))
 
 ; Write a vector to `memory` to the location `start` and return the updated
 ; memory.
 ; MUTATES the argument `memory`.
 (define (write-vec! memory start vec)
-  (vector-copy! memory start vec))
+  (bv-list-copy! memory start vec))
 
 ; Align vectors by padding to a multiple of current-reg-size
 (define (align vec)
   (define len (length vec))
   (define align-len
     (* (current-reg-size) (exact-ceiling (/ len (current-reg-size)))))
-  (let ([fill (make-list (- align-len len) (box (bv 0 (value-fin))))])
+  (let ([fill (make-list (- align-len len) (box (bv-value 0)))])
     (append vec fill)))
 
 ; Interpretation function that takes a program and an external memory.
@@ -46,7 +46,7 @@
 ; inputs.
 (define (interp program
                 init-env
-                #:cost-fn [cost-fn (thunk* (bv 0 (cost-fin)))]
+                #:cost-fn [cost-fn (thunk* (bv-cost 0))]
                 #:fn-map [fn-map (make-hash)]
                 #:symbolic? [symbolic? #f])
   ; Setup the environment if it is an associative list.
@@ -67,7 +67,7 @@
     (hash-has-key? env key))
 
   ; Track the cost of the program
-  (define cur-cost (bv 0 (cost-fin)))
+  (define cur-cost (bv-cost 0))
   (define (incr-cost! val)
     (set! cur-cost (bvadd cur-cost val)))
 
@@ -122,18 +122,18 @@
       [(vec-load dest-id src-id start end)
        (let ([dest (make-bv-list-zeros (current-reg-size))]
              [src (env-ref src-id)])
-         (vector-copy! dest 0 src start end)
+         (bv-list-copy! dest src start end)
          (env-set! dest-id dest))]
 
       [(vec-store dest-id src-id start end)
        (let ([dest (env-ref dest-id)]
              [src (env-ref src-id)])
-         (vector-copy! dest start src 0 (- end start)))]
+         (bv-list-copy! dest start src 0 (- end start)))]
 
       [(vec-write dst-id src-id)
        (let ([dest (env-ref dst-id)]
              [src (env-ref src-id)])
-         (vector-copy! dest 0 src))]
+         (bv-list-copy! dest 0 src))]
 
       [_ (assert #f (~a "unknown instruction " inst))]))
 
@@ -147,11 +147,10 @@
     (match inst
       [(or (vec-shuffle _ idxs _)
            (vec-shuffle-set! _ idxs _))
-       (bv (reg-used (hash-ref env idxs)
+       (bv-cost (reg-used (hash-ref env idxs)
                      (current-reg-size)
-                     reg-upper-bound)
-           (cost-fin))]
-      [_ (bv 0 (cost-fin))])))
+                     reg-upper-bound))]
+      [_ (bv-cost 0)])))
 
 ; Cost of program is the number of unique shuffle idxs used.
 ; Uses `shuf-name-eq?` on the name of the shuffle to separate them into
@@ -171,13 +170,13 @@
               [idxs-def (vector-ref idxs-def-class equiv-class)])
          (begin0
            (if (ormap (lambda (el) (equal? el conc-idxs)) idxs-def)
-               (bv 0 (cost-fin))
-               (bv 1 (cost-fin)))
+               (bv-cost 0)
+               (bv-cost 1))
            ; Add to equivalence class
            (vector-set! idxs-def-class
                         equiv-class
                         (cons conc-idxs idxs-def))))]
-      [_ (bv 0 (cost-fin))])))
+      [_ (bv-cost 0)])))
 
 (module+ test
   (require rackunit
@@ -243,14 +242,14 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-register-cost 3)))
-        (check-equal? cost (bv 5 (cost-fin)))
+        (check-equal? cost (bv-cost 5))
         ; cost depends on the current-reg-size
         (define-values (__ cost-2)
           (interp p
                   (make-hash)
                   #:cost-fn (make-register-cost 5)))
         (parameterize ([current-reg-size 2])
-          (check-equal? cost-2 (bv 5 (cost-fin)))))
+          (check-equal? cost-2 (bv-cost 5))))
 
       (test-case
         "shuffle-unique-cost does not increase cost for repeated idxs"
@@ -267,7 +266,7 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-shuffle-unique-cost)))
-        (check-equal? cost (bv 2 (cost-fin))))
+        (check-equal? cost (bv-cost 2)))
 
       (test-case
         "shuffle-unique-cost calculates different cost for unique idxs"
@@ -284,5 +283,5 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-shuffle-unique-cost)))
-        (check-equal? cost (bv 3 (cost-fin))))
+        (check-equal? cost (bv-cost 3)))
       )))

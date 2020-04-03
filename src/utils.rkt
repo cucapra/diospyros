@@ -48,6 +48,35 @@
            conc))
   (bv conc width))
 
+; Index values should not overflow and should be positive
+(define (bv-index? bv-val)
+  (assert (and (not (bv-overflow? (index-fin) (bitvector->integer bv-val)))
+               (bvsle (bv-index 0) bv-val))
+          (~a "Invalid bitvector index" bv-val))
+  (bitvector (index-fin)) bv-val)
+
+(define (bv-index int-val)
+  (assert (and (integer? int-val)
+               (<= 0 int-val)
+               (not (bv-overflow? (index-fin) int-val)))
+          (~a "Invalid integer for creating bitvector index" int-val))
+  (bv int-val (index-fin)))
+
+; Element values should not overflow
+(define (bv-value int-val)
+  (assert (and (integer? int-val)
+               (not (bv-overflow? (value-fin) int-val)))
+          (~a "Invalid integer for creating bitvector value" int-val))
+  (bv int-val (value-fin)))
+
+; Cost values should not overflow and should be positive
+(define (bv-cost int-val)
+  (assert (and (integer? int-val)
+               (<= 0 int-val)
+               (not (bv-overflow? (cost-fin) int-val)))
+          (~a "Invalid integer for creating bitvector cost" int-val))
+  (bv int-val (cost-fin)))
+
 ;;========================= BITVECTOR LISTS =========================
 
 (define (make-symbolic-bv-list ty size)
@@ -70,7 +99,7 @@
 
 (define (make-bv-list-zeros size)
   (for/list ([_ (in-range size)])
-    (box (bv 0 (value-fin)))))
+    (box (bv-value 0))))
 
 (define (bv-list width xs)
   (define elements (map (curry bitvectorize-concrete width) xs))
@@ -86,19 +115,43 @@
   (assert (list? lst) (~a "Expected a list, got " lst))
   (match lst
     [(cons box tail)
-      (if (bveq idx (bv 0 (index-fin)))
+      (if (bveq idx (bv-index 0))
           (set-box! box val)
-          (bv-list-set! tail (bvsub idx (bv 1 (index-fin))) val))]
+          (bv-list-set! tail (bvsub idx (bv-index 1)) val))]
     [_ (error "List idx not found" idx lst)]))
 
 (define (bv-list-get lst idx)
   (assert (list? lst) (~a "Expected a list, got " lst))
   (match lst
     [(cons box tail)
-      (if (bveq idx (bv 0 (index-fin)))
+      (if (bveq idx (bv-index 0))
           (unbox box)
-          (bv-list-get tail (bvsub idx (bv 1 (index-fin)))))]
+          (bv-list-get tail (bvsub idx (bv-index 1))))]
     [_ (error "List idx not found" idx lst)]))
+
+(define (bv-list-copy! dest
+                       dest-start
+                       src
+                       [src-start (bv-index 0)]
+                       [src-end (bv-index (length src))])
+
+  (assert (list? dest) (~a "Expected a list, got " dest))
+  (assert (list? src) (~a "Expected a list, got " src))
+  (assert (bv-index? dest-start) (~a "Expected index vector, got" dest-start))
+  (assert (bv-index? src-start) (~a "Expected index vector, got" src-start))
+  (assert (bv-index? src-end) (~a "Expected index vector, got" src-end))
+
+  void
+
+  ; (define copy-len (- src-end src-start))
+
+
+
+  ; (define (rec-copy dest dest-start src src-start src-end)
+
+
+
+)
 
 ;;========================= MATRICES =========================
 
@@ -143,14 +196,14 @@
 ; Returns whether a vector of indices is continuous and aligned to the register
 ; size
 (define (is-continuous-aligned-vec? reg-size vec)
-  (and (equal? (bv 0 (index-fin))
-               (bvsmod (bv-list-get vec (bv 0 (index-fin)))
+  (and (equal? (bv-index 0)
+               (bvsmod (bv-list-get vec (bv-index 0))
                        (integer->bitvector reg-size (bitvector (index-fin)))))
        (let ([i (bv-list-get vec 0)])
          (andmap identity
                  (for/list ([(el idx) (in-indexed vec)])
                    (equal? el (bvadd i
-                                     (bv idx (index-fin)))))))))
+                                     (bv-index idx))))))))
 
 
 (module+ test
