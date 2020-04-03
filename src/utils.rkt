@@ -8,6 +8,8 @@
 
 (provide (all-defined-out))
 
+;;========================= GENERAL =========================
+
 (define (pr v)
   (pretty-print v)
   v)
@@ -19,16 +21,66 @@
     [(symbol? id) (symbol->string id)]
     [else (error "Invalid identifier: ~e" id)]))
 
-; Print a matrix
-(define (pr-matrix mat)
-  (match-define (matrix _ cols elements) mat)
-  (let loop ([els (vector->list elements)] [acc (list)])
-    (if (empty? els)
-      acc
-      (loop (drop els cols) (cons (take els cols) acc)))))
+(define (make-name-gen [out-app string->symbol])
+  (define var-map (make-hash))
+  (lambda (base)
+    (define num
+      (cond
+        [(hash-has-key? var-map base) (add1 (hash-ref var-map base))]
+        [else 0]))
+    (hash-set! var-map base num)
+    (out-app (format "~a_~a" base (number->string num)))))
 
-; Matrix implementation and helper methods.
-(struct matrix (rows cols elements) #:transparent)
+;;========================= BITVECTORS =========================
+
+(define (bv-overflow? width val)
+  (>= val (expt 2 width)))
+
+(define (bitvectorize-concrete width conc)
+  (when (not ($integer? conc))
+    (error 'bitvectorize-concrete
+           "Cannot transform value to bitvector: ~a"
+           conc))
+  (when (bv-overflow? width conc)
+    (error 'bitvectorize-concrete
+           "Value cannot be represented with ~a bits: ~a"
+           width
+           conc))
+  (bv conc width))
+
+;;========================= BITVECTOR LISTS =========================
+
+(define (make-symbolic-bv-list ty size)
+  (for/list ([_ (in-range size)])
+    (define-symbolic* v ty)
+    (box v)))
+
+(define (make-bv-list-empty size)
+  (for/list ([_ (in-range size)])
+    (box void)))
+
+(define (make-symbolic-bv-list-values size)
+  (make-symbolic-bv-list (bitvector (value-fin)) size))
+
+(define (make-symbolic-bv-list-indices size)
+  (make-symbolic-bv-list (bitvector (index-fin)) size))
+
+(define (make-symbolic-matrix rows cols)
+  (matrix rows cols (make-symbolic-bv-list-values (* rows cols))))
+
+(define (make-bv-list-zeros size)
+  (for/list ([_ (in-range size)])
+    (box (bv 0 (value-fin)))))
+
+(define (bv-list width xs)
+  (define elements (map (curry bitvectorize-concrete width) xs))
+  (map box elements))
+
+(define (value-bv-list . xs)
+  (bv-list (value-fin) xs))
+
+(define (index-bv-list . xs)
+  (bv-list (index-fin) xs))
 
 (define (bv-list-set! lst idx val)
   (assert (list? lst) (~a "Expected a list, got " lst))
@@ -48,6 +100,19 @@
           (bv-list-get tail (bvsub idx (bv 1 (index-fin)))))]
     [_ (error "List idx not found" idx lst)]))
 
+;;========================= MATRICES =========================
+
+; Print a matrix
+(define (pr-matrix mat)
+  (match-define (matrix _ cols elements) mat)
+  (let loop ([els (vector->list elements)] [acc (list)])
+    (if (empty? els)
+      acc
+      (loop (drop els cols) (cons (take els cols) acc)))))
+
+; Matrix implementation and helper methods.
+(struct matrix (rows cols elements) #:transparent)
+
 (define (matrix-ref mat row col)
   (match-define (matrix rows cols elements) mat)
   (assert (and (< row rows) (>= row 0)) (~a "MATRIX-REF: Invalid row " row))
@@ -59,6 +124,8 @@
   (assert (and (< row rows) (>= row 0)) (~a "MATRIX-SET!: Invalid row " row))
   (assert (and (< col cols) (>= col 0)) (~a "MATRIX-SET!: Invalid col " col))
   (bv-list-set! elements (bitvectorize-concrete (index-fin) (+ (* cols row) col)) val))
+
+;;========================= REGISTER PROPERTIES =========================
 
 ; Returns 0-indexed register that this index resides in based on the
 ; current register size.
@@ -85,16 +152,6 @@
                    (equal? el (bvadd i
                                      (bv idx (index-fin)))))))))
 
-(define (make-name-gen [out-app string->symbol])
-  (define var-map (make-hash))
-  (lambda (base)
-    (define num
-      (cond
-        [(hash-has-key? var-map base) (add1 (hash-ref var-map base))]
-        [else 0]))
-    (hash-set! var-map base num)
-    (out-app (format "~a_~a" base (number->string num)))))
-
 
 (module+ test
   (require rackunit
@@ -108,19 +165,4 @@
               [reg-size 2]
               [upper-bound 4])
           (check-equal? 4 (reg-used idx-vec reg-size upper-bound)))))))
-
-(define (bv-overflow? width val)
-  (>= val (expt 2 width)))
-
-(define (bitvectorize-concrete width conc)
-  (when (not ($integer? conc))
-    (error 'bitvectorize-concrete
-           "Cannot transform value to bitvector: ~a"
-           conc))
-  (when (bv-overflow? width conc)
-    (error 'bitvectorize-concrete
-           "Value cannot be represented with ~a bits: ~a"
-           width
-           conc))
-  (bv conc width))
 

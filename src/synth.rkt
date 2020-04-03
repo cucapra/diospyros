@@ -6,7 +6,8 @@
          "prog-sketch.rkt"
          "configuration.rkt"
          "interp.rkt"
-         "compile-passes.rkt")
+         "compile-passes.rkt"
+         "utils.rkt")
 
 (provide (all-defined-out))
 

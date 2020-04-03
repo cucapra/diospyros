@@ -8,38 +8,6 @@
 
 (provide (all-defined-out))
 
-(define (make-symbolic-bv-list ty size)
-  (for/list ([_ (in-range size)])
-    (define-symbolic* v ty)
-    (box v)))
-
-(define (make-bv-list-empty size)
-  (for/list ([_ (in-range size)])
-    (box void)))
-
-(define (make-symbolic-bv-list-values size)
-  (make-symbolic-bv-list (bitvector (value-fin)) size))
-
-(define (make-symbolic-bv-list-indices size)
-  (make-symbolic-bv-list (bitvector (index-fin)) size))
-
-(define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-symbolic-bv-list-values (* rows cols))))
-
-(define (make-bv-list-zeros size)
-  (for/list ([_ (in-range size)])
-    (box (bv 0 (value-fin)))))
-
-(define (bv-list width xs)
-  (define elements (map (curry bitvectorize-concrete width) xs))
-  (map box elements))
-
-(define (value-bv-list . xs)
-  (bv-list (value-fin) xs))
-
-(define (index-bv-list . xs)
-  (bv-list (index-fin) xs))
-
 ;;=================== SKETCH DEFINITIONS =========================
 
 ; Generate a sketch that interleaves computation and shuffling `iterations`
