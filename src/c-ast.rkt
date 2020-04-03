@@ -112,7 +112,6 @@
 (struct c-empty () #:transparent)
 
 (define (to-string prog [tab-size 0])
-     ;(pretty-print prog)
   (match prog
     [(c-empty) ""]
     [(c-ast prog) (to-string prog)]
