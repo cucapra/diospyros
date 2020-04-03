@@ -128,7 +128,7 @@
       [(vec-store dest-id src-id start end)
        (let ([dest (env-ref dest-id)]
              [src (env-ref src-id)])
-         (bv-list-copy! dest start src (bv-index 0) (- end start)))]
+         (bv-list-copy! dest start src (bv-index 0) (bvsub end start)))]
 
       [(vec-write dst-id src-id)
        (let ([dest (env-ref dst-id)]

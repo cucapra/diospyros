@@ -132,10 +132,11 @@
 
       (pretty-print sketch-out)
 
-      (assert (vector? spec-out) "SYNTH-PROG: spec output is not a vector")
-      (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
-      (assert (equal? (vector-length spec-out)
-                      (vector-length sketch-out))
+      ; TODO(alexa): check for bv-list specifically
+      (assert (list? spec-out) "SYNTH-PROG: spec output is not a list")
+      (assert (list? sketch-out) "SYNTH-PROG: sketch output is not a list")
+      (assert (equal? (length spec-out)
+                      (length sketch-out))
               (format
                 "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
                 (vector-length spec-out)

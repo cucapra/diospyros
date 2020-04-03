@@ -42,9 +42,9 @@
 (define (vector-multiply v1 v2)
   (assert (= (length v1) (length v2))
           "VECTOR-MULTIPLY: length of vectors not equal")
-  (for/vector ([e1 v1]
+  (for/list ([e1 v1]
                [e2 v2])
-    (bvmul e1 e2)))
+    (bvmul (unbox e1) (unbox e2))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -52,10 +52,10 @@
              (length v2)
              (length v-acc))
           "VECTOR-MAC: length of vectors not equal")
-  (for/vector ([e-acc v-acc]
+  (for/list ([e-acc v-acc]
                [e1 v1]
                [e2 v2])
-    (bvadd e-acc (bvmul e1 e2))))
+    (box (bvadd (unbox e-acc) (bvmul (unbox e1) (unbox e2))))))
 
 (define dsp-insts-tests
   (test-suite
