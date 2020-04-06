@@ -118,7 +118,7 @@
                     sym-args
                     #:get-inps get-inps
                     #:max-cost [max-cost #f]
-                    #:min-cost [min-cost 0])
+                    #:min-cost [min-cost (bv-cost 0)])
 
   (generator ()
     (let loop ([cur-cost max-cost]
@@ -179,9 +179,9 @@
 
       (cond
         [(not (sat? model)) (pretty-print `(final-cost: ,new-cost))
-                            ((void) new-cost)]
-        [(<= new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
-                                ((void) new-cost)]
+                            (values (void) new-cost)]
+        [(bvsle new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
+                                (values (void) new-cost)]
         [else (loop (sub1 new-cost) model)]))))
 
 (define (sol-producer model-generator)

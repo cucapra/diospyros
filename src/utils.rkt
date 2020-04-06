@@ -57,26 +57,21 @@
   (bitvector (index-fin)) bv-val)
 
 (define (bv-index int-val)
-  (assert (and (integer? int-val)
-               (<= 0 int-val)
-               (not (bv-overflow? (index-fin) int-val)))
-          (~a "Invalid integer for creating bitvector index: " int-val))
-  (bv int-val (index-fin)))
+  (define bv-val (bitvectorize-concrete (index-fin) int-val))
+  (assert (<= 0 (bitvector->integer bv-val))
+          (~a "Invalid integer for creating bitvector integer: " int-val))
+  bv-val)
 
 ; Element values should not overflow
 (define (bv-value int-val)
-  (assert (and (integer? int-val)
-               (not (bv-overflow? (value-fin) int-val)))
-          (~a "Invalid integer for creating bitvector value: " int-val))
-  (bv int-val (value-fin)))
+  (bitvectorize-concrete (value-fin) int-val))
 
 ; Cost values should not overflow and should be positive
 (define (bv-cost int-val)
-  (assert (and (integer? int-val)
-               (<= 0 int-val)
-               (not (bv-overflow? (cost-fin) int-val)))
+  (define bv-val (bitvectorize-concrete (cost-fin) int-val))
+  (assert (<= 0 (bitvector->integer bv-val))
           (~a "Invalid integer for creating bitvector cost: " int-val))
-  (bv int-val (cost-fin)))
+  bv-val)
 
 ;;========================= BITVECTOR LISTS =========================
 
@@ -102,15 +97,15 @@
   (for/list ([_ (in-range size)])
     (box (bv-value 0))))
 
-(define (bv-list width xs)
-  (define elements (map (curry bitvectorize-concrete width) xs))
+(define (bv-list to-bv xs)
+  (define elements (map to-bv xs))
   (map box elements))
 
 (define (value-bv-list . xs)
-  (bv-list (value-fin) xs))
+  (bv-list bv-value xs))
 
 (define (index-bv-list . xs)
-  (bv-list (index-fin) xs))
+  (bv-list bv-index xs))
 
 (define (bv-list-set! lst idx val)
   (assert (list? lst) (~a "Expected a list, got " lst))
@@ -130,6 +125,8 @@
           (bv-list-get tail (bvsub idx (bv-index 1))))]
     [_ (error "List idx not found" idx lst)]))
 
+; Mutates the destination list in place, setting box values to the values boxed
+; in the given source elements
 (define (bv-list-copy! dest
                        dest-start
                        src
@@ -141,18 +138,25 @@
   (assert (bv-index? dest-start) (~a "Expected index vector, got" dest-start))
   (assert (bv-index? src-start) (~a "Expected index vector, got" src-start))
   (assert (bv-index? src-end) (~a "Expected index vector, got" src-end))
+  (define copy-len (bvsub src-end src-start))
+  (assert (bvslt (bv-index 0) copy-len) (~a "Copy length must be positive, got " copy-len))
+  (assert (bvsle (bvadd dest-start copy-len) (bv-index (length dest))) (~a "Copy length overflows destination, " copy-len))
+  (assert (bvsle src-end (bv-index (length src))) (~a "Copy end index overflows source " copy-len))
 
-  void
+  ; TODO(alexa): we might be able to just replace this with a for-loop if the
+  ; bounds are never symbolic
+  ; Mutates destination's elements in place
+  (define (copy-bv-list-elements dest src idx)
+    (match (cons dest src)
+      [(cons (cons dest-box dest-tail) (cons src-box src-tail))
+        (set-box! dest-box (unbox src-box))
+        (when (bvslt (bv-index 1) idx)
+          (copy-bv-list-elements dest-tail src-tail (bvsub idx (bv-index 1))))]
+      [_ (error "List idx not found" idx)]))
 
-  ; (define copy-len (- src-end src-start))
-
-
-
-  ; (define (rec-copy dest dest-start src src-start src-end)
-
-
-
-)
+  (copy-bv-list-elements (drop dest (bitvector->integer dest-start))
+                         (drop src (bitvector->integer src-start))
+                         copy-len))
 
 ;;========================= MATRICES =========================
 
@@ -189,7 +193,7 @@
 
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.
-(define (reg-used idxs reg-size upper-bound)
+(define (reg-used idxs upper-bound)
   ; Check how many distinct registers these indices fall within.
   ; TODO(alexa): replace with a potentially faster implementation
   (length (remove-duplicates (map reg-of (map unbox idxs)))))
@@ -215,8 +219,8 @@
       "matrix utilities"
       (test-case
         "REG-USED: calculates correctly"
-        (let ([idx-vec (vector 0 7 2 5 6 1)]
-              [reg-size 2]
-              [upper-bound 4])
-          (check-equal? 4 (reg-used idx-vec reg-size upper-bound)))))))
+        (parameterize ([current-reg-size 2])
+          (let ([idxs (index-bv-list 0 7 2 5 6 1)]
+                [upper-bound 4])
+            (check-equal? 4 (reg-used idxs upper-bound))))))))
 

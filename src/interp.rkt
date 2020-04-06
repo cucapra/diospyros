@@ -147,9 +147,7 @@
     (match inst
       [(or (vec-shuffle _ idxs _)
            (vec-shuffle-set! _ idxs _))
-       (bv-cost (reg-used (hash-ref env idxs)
-                     (current-reg-size)
-                     reg-upper-bound))]
+       (bv-cost (reg-used (hash-ref env idxs) reg-upper-bound))]
       [_ (bv-cost 0)])))
 
 ; Cost of program is the number of unique shuffle idxs used.

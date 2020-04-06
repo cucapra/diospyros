@@ -25,6 +25,7 @@
   ; Assumes that all files have a unique costs associated with them.
   (lambda (prog cost)
     (let ([cost-path (~> cost
+                         bitvector->integer
                          number->string
                          (format "sol-~a.rkt" _)
                          string->path
