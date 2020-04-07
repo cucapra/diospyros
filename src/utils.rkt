@@ -195,7 +195,7 @@
 (define (bv-length lst)
   (match lst
     [(cons _ tail)
-      (bvadd 1 (bv-length tail))]
+      (bvadd (bv-cost 1) (bv-length tail))]
     [_ (bv-cost 0)]))
 
 ; Returns number of vectors accessed by an index vector assuming each vector

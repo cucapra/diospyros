@@ -31,7 +31,7 @@
           "VECTOR-SHUFFLE-SET: length mismatch")
   (assert (<= (length idxs) (length out-vec))
           "VECTOR-SHUFFLE-SET: idxs is larger than out-vec")
-  (assert (apply distinct? (vector->list idxs))
+  (assert (apply distinct? idxs)
           "VECTOR-SHUFFLE-SET: duplicate indices")
   (for ([idx idxs]
         [val vals])
@@ -62,18 +62,18 @@
     "DSP instructions tests"
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
-      (let ([inp (vector 0 1 2 3 4)]
-            [idxs (vector 1 1 0 3 4 2)]
-            [gold (vector 1 1 0 3 4 2)])
+      (let ([inp (value-bv-list 0 1 2 3 4)]
+            [idxs (index-bv-list 1 1 0 3 4 2)]
+            [gold (value-bv-list 1 1 0 3 4 2)])
         (check-equal? (vector-shuffle (list inp) idxs) gold)))
 
     (test-case
       "VECTOR-SHUFFLE: synthesize indices"
-      (define idxs-gold (vector 6 2 4 3))
-      (define-symbolic* idxs-lst integer? [4])
-      (define idxs (list->vector idxs-lst))
-      (define inp (vector 10 11 22 5 7 14 6))
-      (define out-gold (vector 6 22 7 5))
+      (define idxs-gold (index-bv-list 6 2 4 3))
+      (define-symbolic* idxs-lst (bitvector (index-fin)) [4])
+      (define idxs (map box idxs-lst))
+      (define inp (index-bv-list 10 11 22 5 7 14 6))
+      (define out-gold (index-bv-list 6 22 7 5))
       (define idxs-synth
         (evaluate
           idxs
@@ -82,18 +82,18 @@
 
     (test-case
       "VECTOR-SHUFFLE: basic example, multiple registers"
-      (let ([inp1 (vector 0 1 2 3)]
-            [inp2 (vector 10 11 12 13)]
-            [idxs (vector 7 7 0 3 2 5)]
-            [gold (vector 13 13 0 3 2 11)])
+      (let ([inp1 (value-bv-list 0 1 2 3)]
+            [inp2 (value-bv-list 10 11 12 13)]
+            [idxs (index-bv-list 7 7 0 3 2 5)]
+            [gold (value-bv-list 13 13 0 3 2 11)])
         (check-equal? (vector-shuffle (list inp1 inp2) idxs) gold)))
 
     (test-case
       "VECTOR-SHUFFLE-SET: basic example, one register"
-      (let ([out-vec (vector 0 0 0 0)]
-            [vals (vector 10 11 12 13)]
-            [idxs (vector 3 1 0 2)]
-            [gold (vector 12 11 13 10)])
+      (let ([out-vec (value-bv-list 0 0 0 0)]
+            [vals (value-bv-list 10 11 12 13)]
+            [idxs (index-bv-list 3 1 0 2)]
+            [gold (value-bv-list 12 11 13 10)])
         (check-equal? (vector-shuffle-set! out-vec idxs vals) gold)))
     ))
 
