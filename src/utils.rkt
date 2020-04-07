@@ -191,12 +191,19 @@
 (define (reg-of idx)
   (bvsdiv idx (bv (current-reg-size) (index-fin))))
 
+; Finds the length as a bitvector
+(define (bv-length lst)
+  (match lst
+    [(cons _ tail)
+      (bvadd 1 (bv-length tail))]
+    [_ (bv-cost 0)]))
+
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.
 (define (reg-used idxs upper-bound)
   ; Check how many distinct registers these indices fall within.
   ; TODO(alexa): replace with a potentially faster implementation
-  (length (remove-duplicates (map reg-of (map unbox idxs)))))
+  (bv-length (remove-duplicates (map reg-of (map unbox idxs)))))
 
 ; Returns whether a vector of indices is continuous and aligned to the register
 ; size

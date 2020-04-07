@@ -170,16 +170,12 @@
     ; Generate sketch prog
     (define mmul (matrix-mul-shuffle-sketch A B iterations))
 
-    (define (cost-fn)
-      (lambda (inst env)
-        (bv-cost 0)))
-
     ; Define the cost function
-    #|(define (cost-fn)
+    (define (cost-fn)
       (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
             [cost-2 (make-register-cost reg-upper-bound)])
         (lambda (inst env)
-          (+ (cost-1 inst env) (cost-2 inst env)))))|#
+          (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
     ; Create function for sketch evaluation
     (define (sketch-func args)
