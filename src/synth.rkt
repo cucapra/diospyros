@@ -182,7 +182,7 @@
                             (values (void) new-cost)]
         [(bvsle new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
                                 (values (void) new-cost)]
-        [else (loop (sub1 new-cost) model)]))))
+        [else (loop (bvsub new-cost (bv-cost 1)) model)]))))
 
 (define (sol-producer model-generator)
   (define (is-done? model cost)

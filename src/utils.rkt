@@ -229,5 +229,5 @@
         (parameterize ([current-reg-size 2])
           (let ([idxs (index-bv-list 0 7 2 5 6 1)]
                 [upper-bound 4])
-            (check-equal? 4 (reg-used idxs upper-bound))))))))
+            (check-equal? (bv-cost 4) (reg-used idxs upper-bound))))))))
 
