@@ -1,10 +1,8 @@
 #lang rosette
 
-(require "ast.rkt"
-         "utils.rkt")
+(require "ast.rkt")
 
-(provide concretize-bv-lists
-         ssa
+(provide ssa
          const-elim
          reorder-prog
          get-inputs-and-outputs
@@ -13,34 +11,6 @@
 (define (pr v)
   (pretty-print v)
   v)
-
-; Convert lists of boxed bitvectors to vectors of integers
-; TODO(alexa): WIP
-(define (concretize-bv-lists p)
-  (define (concretize inst)
-    (match inst
-      [(or (vec-decl _ _)
-           (vec-extern-decl _ _ _))
-        inst]
-      [(vec-const id init)
-        (pretty-print inst)
-        (vec-const id (concretize-bv-list init))]
-      [(vec-shuffle id idxs inps)
-       void]
-      [(vec-shuffle-set! out-vec idxs inp)
-       void]
-      [(vec-app id f inps)
-       void]
-      [(vec-void-app f inps)
-       void]
-      [(vec-load dest-id src-id start end)
-        void]
-      [(vec-store dest-id src-id start end)
-        void]
-      [(vec-write dst src)
-        void]))
-
-  (prog (map concretize (prog-insts p))))
 
 ; Force program to have the order:
 ; 1. Externs.
