@@ -28,14 +28,17 @@
              [end (min len (+ i (current-reg-size)))]
              [new-id (string->symbol
                        (format "~a_~a_~a" id start end))]
-             [new-init (init-fn new-id start end)])
+             [new-init (init-fn new-id start end)]
+             [start-bv (bv-index start)]
+             [end-bv (bv-index end)])
         ; Add the new vectors to the top level env
+
         (hash-set! env new-id new-init)
         (for ([j (in-range start end 1)])
           (hash-set! id-map j new-id))
         (inst-result
           new-init
-          (vec-store id new-id start end)))))
+          (vec-store id new-id start-bv end-bv)))))
 
   ; Add the old id as a map to the new ids, by index
   (hash-set! env id id-map)

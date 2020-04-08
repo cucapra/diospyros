@@ -1,5 +1,7 @@
 #lang rosette
 
+(require "configuration.rkt")
+
 (provide (all-defined-out))
 
 (define-values (input-tag output-tag)

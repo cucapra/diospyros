@@ -9,15 +9,10 @@
          threading
          racket/trace
          racket/generator
-         rosette/lib/angelic
-         rosette/solver/smt/z3
-         rosette/solver/smt/boolector)
+         rosette/lib/angelic)
 
 (provide conv2d:keys
          conv2d:run-experiment)
-
-(current-solver (boolector))
-(current-bitwidth 10)
 
 ; Given an NxN input matrix, returns a smaller convolved matrix.
 (define (matrix-conv-spec input filter)

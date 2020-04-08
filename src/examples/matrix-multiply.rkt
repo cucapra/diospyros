@@ -6,17 +6,13 @@
          "../utils.rkt"
          "../prog-sketch.rkt"
          "../synth.rkt"
+         "../configuration.rkt"
          racket/trace
          racket/generator
-         rosette/lib/angelic
-         rosette/solver/smt/z3
-         rosette/solver/smt/boolector)
+         rosette/lib/angelic)
 
 (provide matrix-mul:keys
          matrix-mul:run-experiment)
-
-(current-solver (boolector))
-(current-bitwidth 10)
 
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)
@@ -26,15 +22,14 @@
   (define C
     (matrix A-rows
             B-cols
-            (build-vector (* A-rows B-cols)
-                          (lambda (_) 0))))
+            (make-bv-list-zeros (* A-rows B-cols))))
   (for* ([i A-rows]
          [j B-cols])
     (define sum
       (apply
-        +
+        bvadd
         (for/list ([k A-cols])
-          (* (matrix-ref mat-A i k)
+          (bvmul (matrix-ref mat-A i k)
              (matrix-ref mat-B k j)))))
     (matrix-set! C i j sum))
 
@@ -109,7 +104,7 @@
     (match-define (matrix _ B-cols B-elements) mat-B)
     (hash-set! env 'A A-elements)
     (hash-set! env 'B B-elements)
-    (hash-set! env 'C (make-vector C-size 0)))
+    (hash-set! env 'C (make-bv-list-zeros C-size)))
 
   (define-values (_ cost)
     (interp sketch
@@ -118,7 +113,7 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac)))
 
-  (values (vector-take (hash-ref env 'C) C-size) cost))
+  (values (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
 (define (get-statistics C-size sol)
@@ -180,7 +175,7 @@
       (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
             [cost-2 (make-register-cost reg-upper-bound)])
         (lambda (inst env)
-          (+ (cost-1 inst env) (cost-2 inst env)))))
+          (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
     ; Create function for sketch evaluation
     (define (sketch-func args)
@@ -201,7 +196,7 @@
                   (list A B)
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
-                  #:min-cost 0))
+                  #:min-cost (bv-cost 0)))
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.

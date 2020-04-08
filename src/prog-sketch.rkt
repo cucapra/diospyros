@@ -2,25 +2,11 @@
 
 (require "ast.rkt"
          "utils.rkt"
+         "configuration.rkt"
+         racket/trace
          threading)
 
 (provide (all-defined-out))
-
-(define (make-symbolic-vector ty size)
-  (for/vector ([_ (in-range size)])
-    (define-symbolic* v ty)
-    v))
-
-(define make-symbolic-int-vector
-  (curry make-symbolic-vector integer?))
-
-(define (make-symbolic-indices-restriced size reg-limit reg-upper-bound)
-  (define vec (make-symbolic-int-vector size))
-  (assert (<= (reg-used vec size reg-upper-bound) reg-limit))
-  vec)
-
-(define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-symbolic-int-vector (* rows cols))))
 
 ;;=================== SKETCH DEFINITIONS =========================
 
@@ -57,7 +43,7 @@
     (define insts
       (map (lambda (shuf-name)
              (vec-const shuf-name
-                        (make-symbolic-int-vector (current-reg-size))))
+                        (make-symbolic-bv-list-indices (current-reg-size))))
            shuf-names))
     (values insts shuf-names)))
 
@@ -82,10 +68,12 @@
       (let* ([start i]
              [end (min len (+ i (current-reg-size)))]
              [new-id (string->symbol
-                       (format "~a_~a_~a" id start end))])
+                       (format "~a_~a_~a" id start end))]
+             [start-bv (bv-index start)]
+             [end-bv (bv-index end)])
         (list new-id
-          (vec-load new-id id start end)
-          (vec-store id new-id start end)))))
+          (vec-load new-id id start-bv end-bv)
+          (vec-store id new-id start-bv end-bv)))))
   (values (map first vals) (map second vals) (map third vals)))
 
 ; TODO(rachit): Define a sketch where the compute can use previously defined
@@ -106,10 +94,10 @@
                                                    #:window-size window-size)
 
   (define (take-window vec start end)
-    (vector-take (vector-drop vec
-                              (max 0 start)
-                              start)
-                 (add1 end)))
+    (take (drop vec
+                (max 0 start)
+                 start)
+          (add1 end)))
 
   ; Store the names of currently defined shufs
   (define def-shufs (make-vector number #f))
@@ -118,7 +106,7 @@
     (for/list ([i (in-range number)])
       (define-values (shuffle-defs shuffle-names)
         (shuffle-thunk i))
-      (vector-set! def-shufs i shuffle-names)
+      (bv-list-set! def-shufs i shuffle-names)
       (define compute
         (compute-thunk i (take-window (- i window-size) i)))
       (append (shuffle-defs compute))))

@@ -4,8 +4,10 @@
          threading
          "ast.rkt"
          "prog-sketch.rkt"
+         "configuration.rkt"
          "interp.rkt"
-         "compile-passes.rkt")
+         "compile-passes.rkt"
+         "utils.rkt")
 
 (provide (all-defined-out))
 
@@ -61,7 +63,7 @@
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-symbolic-int-vector (cdr decl))))
+                       (make-symbolic-bv-list-values (cdr decl))))
                _))
       (~> spec-outs
           to-size-set
@@ -116,7 +118,7 @@
                     sym-args
                     #:get-inps get-inps
                     #:max-cost [max-cost #f]
-                    #:min-cost [min-cost 0])
+                    #:min-cost [min-cost (bv-cost 0)])
 
   (generator ()
     (let loop ([cur-cost max-cost]
@@ -128,17 +130,21 @@
       (define spec-out (spec sym-args))
       (define-values (sketch-out cost) (sketch sym-args))
 
-      (assert (vector? spec-out) "SYNTH-PROG: spec output is not a vector")
-      (assert (vector? sketch-out) "SYNTH-PROG: sketch output is not a vector")
-      (assert (equal? (vector-length spec-out)
-                      (vector-length sketch-out))
+      (pretty-print sketch-out)
+
+      ; TODO(alexa): check for bv-list specifically
+      (assert (list? spec-out) "SYNTH-PROG: spec output is not a list")
+      (assert (list? sketch-out) "SYNTH-PROG: sketch output is not a list")
+      (assert (equal? (length spec-out)
+                      (length sketch-out))
               (format
                 "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
                 (vector-length spec-out)
                 (vector-length sketch-out)))
 
-      (define-symbolic* c integer?)
-      (assert (equal? c cost))
+      (define-symbolic* c (bitvector (cost-fin)))
+      (assert (equal? c cost)
+              "Impossible: cost types differ")
 
       (define-values (synth-res cpu-time real-time gc-time)
         (time-apply
@@ -173,10 +179,10 @@
 
       (cond
         [(not (sat? model)) (pretty-print `(final-cost: ,new-cost))
-                            ((void) new-cost)]
-        [(<= new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
-                                ((void) new-cost)]
-        [else (loop (sub1 new-cost) model)]))))
+                            (values (void) new-cost)]
+        [(bvsle new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
+                                (values (void) new-cost)]
+        [else (loop (bvsub new-cost (bv-cost 1)) model)]))))
 
 (define (sol-producer model-generator)
   (define (is-done? model cost)
