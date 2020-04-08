@@ -125,6 +125,10 @@
           (bv-list-get tail (bvsub idx (bv-index 1))))]
     [_ (error "List idx not found" idx lst)]))
 
+(define (concretize-bv-list lst)
+  (define (bv-unbox x) (bitvector->integer (unbox x)))
+  (list->vector (map bv-unbox lst)))
+
 ; Mutates the destination list in place, setting box values to the values boxed
 ; in the given source elements
 (define (bv-list-copy! dest
