@@ -3,6 +3,8 @@
 (require racket/cmdline
          json
          threading
+         "./ast.rkt"
+         "./utils.rkt"
          "./configuration.rkt"
          "./examples/2d-conv.rkt"
          "./examples/matrix-multiply.rkt")
@@ -12,6 +14,34 @@
 (define known-benches
   (list "mat-mul"
         "2d-conv"))
+
+; Convert lists of boxed bitvectors to vectors of integers
+(define (concretize-bv-lists p)
+  (define (concretize inst)
+    (match inst
+      [(vec-const id init)
+        (vec-const id (concretize-bv-list init))]
+      ; [(vec-shuffle id idxs inps)
+      ;  void]
+      ; [(vec-shuffle-set! out-vec idxs inp)
+      ;  void]
+      ; [(vec-app id f inps)
+      ;  void]
+      ; [(vec-void-app f inps)
+      ;  void]
+      [(vec-load dest-id src-id start end)
+       (vec-load dest-id
+                 src-id
+                 (bitvector->integer start)
+                 (bitvector->integer end))]
+      [(vec-store dest-id src-id start end)
+       (vec-store dest-id
+                  src-id
+                  (bitvector->integer start)
+                  (bitvector->integer end))]
+      [_ inst]))
+
+  (prog (map concretize (prog-insts p))))
 
 ; Return a function that creates a new file in the out-dir.
 (define (make-out-dir-writer out-dir)
@@ -24,6 +54,7 @@
 
   ; Assumes that all files have a unique costs associated with them.
   (lambda (prog cost)
+    (define conc-prog (concretize-bv-lists prog))
     (let ([cost-path (~> cost
                          bitvector->integer
                          number->string
@@ -31,7 +62,7 @@
                          string->path
                          (build-path base _))])
       (call-with-output-file cost-path
-        (lambda (out) (pretty-print prog out))))))
+        (lambda (out) (pretty-print conc-prog out))))))
 
 (define (run-bench name params out-dir)
   (pretty-print params)

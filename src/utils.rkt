@@ -125,6 +125,10 @@
           (bv-list-get tail (bvsub idx (bv-index 1))))]
     [_ (error "List idx not found" idx lst)]))
 
+(define (concretize-bv-list lst)
+  (define (bv-unbox x) (bitvector->integer (unbox x)))
+  (list->vector (map bv-unbox lst)))
+
 ; Mutates the destination list in place, setting box values to the values boxed
 ; in the given source elements
 (define (bv-list-copy! dest
@@ -208,15 +212,10 @@
 ; Returns whether a vector of indices is continuous and aligned to the register
 ; size
 (define (is-continuous-aligned-vec? reg-size vec)
-  (and (equal? (bv-index 0)
-               (bvsmod (bv-list-get vec (bv-index 0))
-                       (integer->bitvector reg-size (bitvector (index-fin)))))
-       (let ([i (bv-list-get vec 0)])
-         (andmap identity
-                 (for/list ([(el idx) (in-indexed vec)])
-                   (equal? el (bvadd i
-                                     (bv-index idx))))))))
-
+  (and (equal? 0 (modulo (vector-ref vec 0) reg-size))
+       (let ([i (vector-ref vec 0)])
+         (andmap identity (for/list ([(el idx) (in-indexed vec)])
+                            (equal? el (+ i idx)))))))
 
 (module+ test
   (require rackunit
