@@ -1,3 +1,5 @@
+ver = "0.2.3"
+
 [[tests]]
 name = "Intermediate compilation"
 paths = [ "tests/vec-lang-compile/*.rkt" ]
