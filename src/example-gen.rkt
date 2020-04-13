@@ -21,14 +21,6 @@
     (match inst
       [(vec-const id init)
         (vec-const id (concretize-bv-list init))]
-      ; [(vec-shuffle id idxs inps)
-      ;  void]
-      ; [(vec-shuffle-set! out-vec idxs inp)
-      ;  void]
-      ; [(vec-app id f inps)
-      ;  void]
-      ; [(vec-void-app f inps)
-      ;  void]
       [(vec-load dest-id src-id start end)
        (vec-load dest-id
                  src-id
