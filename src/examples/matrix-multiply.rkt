@@ -130,10 +130,9 @@
                             sol
                             C-size
                             (make-shuffle-unique-cost prefix-equiv))])
-    (pretty-print sol)
-    (pretty-print `(unique-idxs-cost: ,uniq-cost))
-    (pretty-print `(class-based-unique-idxs-cost: ,class-uniq-cost))
-    (pretty-print `(registers-touched-cost: ,regs-cost))
+    (pretty-print `(unique-idxs-cost: ,(bitvector->integer uniq-cost)))
+    (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
+    (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
     (pretty-print '-------------------------------------------------------)))
 
 

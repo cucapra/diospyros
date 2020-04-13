@@ -4,6 +4,7 @@
          "configuration.rkt"
          threading
          racket/trace
+         rosette/lib/match
          (prefix-in $ racket))
 
 (provide (all-defined-out))
@@ -200,7 +201,8 @@
   (match lst
     [(cons _ tail)
       (bvadd (bv-cost 1) (bv-length tail))]
-    [_ (bv-cost 0)]))
+    [null (bv-cost 0)]
+    [v (error 'bv-length "Unexpected value: ~a" v)]))
 
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.

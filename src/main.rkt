@@ -44,7 +44,9 @@
       (define (write-out prog)
         (if (out-file)
           (call-with-output-file
-            (build-path (current-directory) (out-file))
+            (if (absolute-path? (out-file))
+              (out-file)
+              (build-path (current-directory) (out-file)))
             (lambda (out) (display prog out)))
           (display prog)))
 

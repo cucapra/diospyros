@@ -125,12 +125,10 @@
                [cur-model (unsat)])
       (if (eq? cur-cost #f)
         (pretty-print "Skipping cost constraint for the first synthesis query")
-        (pretty-print `(current-cost: ,cur-cost)))
+        (pretty-print `(current-cost: ,(bitvector->integer cur-cost))))
 
       (define spec-out (spec sym-args))
       (define-values (sketch-out cost) (sketch sym-args))
-
-      (pretty-print sketch-out)
 
       ; TODO(alexa): check for bv-list specifically
       (assert (list? spec-out) "SYNTH-PROG: spec output is not a list")

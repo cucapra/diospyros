@@ -38,9 +38,11 @@
 ; Return a function that creates a new file in the out-dir.
 (define (make-out-dir-writer out-dir)
   (define base
-    (build-path (current-directory) out-dir))
+    (if (absolute-path? out-dir)
+      out-dir
+      (build-path (current-directory) out-dir)))
   ; Create the base directory
-  (when (not (directory-exists? base))
+  (when (pr (not (directory-exists? base)))
     (pretty-print (format "Creating output directory: ~a" base))
     (make-directory base))
 

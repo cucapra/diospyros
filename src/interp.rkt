@@ -88,7 +88,7 @@
        ; The identifier is not already bound, create a symbolic vector of the
        ; correct size and add it to the environment.
        (if (and symbolic? (not (env-has? id)))
-         (env-set! id (align (make-bv-list-empty size)))
+         (env-set! id (align (make-symbolic-bv-list-values size)))
          (begin
            (assert (env-has? id)
                    (~a "INTERP: missing extern vector: " id))
