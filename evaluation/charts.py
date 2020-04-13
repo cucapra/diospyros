@@ -8,12 +8,19 @@ import decimal
 import subprocess as sp
 import csv
 from collections import defaultdict
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
 
 from py_utils import *
+
+# ACM won't accept "T3" fonts, force avoiding them
+print("Setting matplot configurations")
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+matplotlib.rcParams['text.usetex'] = True
 
 def get_color_palette(benchmark):
     # Use a diverging color palette for the two versions of the naive baseline
