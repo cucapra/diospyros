@@ -151,7 +151,7 @@
                         #:guarantee (begin
                                       (assert (equal? spec-out sketch-out))
                                       (when (not (eq? cur-cost #f))
-                                            (assert (<= cost cur-cost))))))
+                                            (assert (bvsle cost cur-cost))))))
           (list)))
 
       (pretty-print (~a "cpu time: "
