@@ -15,26 +15,6 @@
   (list "mat-mul"
         "2d-conv"))
 
-; Convert lists of boxed bitvectors to vectors of integers
-(define (concretize-bv-lists p)
-  (define (concretize inst)
-    (match inst
-      [(vec-const id init)
-        (vec-const id (concretize-bv-list init))]
-      [(vec-load dest-id src-id start end)
-       (vec-load dest-id
-                 src-id
-                 (bitvector->integer start)
-                 (bitvector->integer end))]
-      [(vec-store dest-id src-id start end)
-       (vec-store dest-id
-                  src-id
-                  (bitvector->integer start)
-                  (bitvector->integer end))]
-      [_ inst]))
-
-  (prog (map concretize (prog-insts p))))
-
 ; Return a function that creates a new file in the out-dir.
 (define (make-out-dir-writer out-dir)
   (define base
@@ -48,7 +28,7 @@
 
   ; Assumes that all files have a unique costs associated with them.
   (lambda (prog cost)
-    (define conc-prog (concretize-bv-lists prog))
+    (define conc-prog (concretize-prog prog))
     (let ([cost-path (~> cost
                          bitvector->integer
                          number->string

@@ -163,6 +163,26 @@
                          (drop src (bitvector->integer src-start))
                          copy-len))
 
+; Convert lists of boxed bitvectors to vectors of integers
+(define (concretize-prog p)
+  (define (concretize inst)
+    (match inst
+      [(vec-const id init)
+        (vec-const id (concretize-bv-list init))]
+      [(vec-load dest-id src-id start end)
+       (vec-load dest-id
+                 src-id
+                 (bitvector->integer start)
+                 (bitvector->integer end))]
+      [(vec-store dest-id src-id start end)
+       (vec-store dest-id
+                  src-id
+                  (bitvector->integer start)
+                  (bitvector->integer end))]
+      [_ inst]))
+
+  (prog (map concretize (prog-insts p))))
+
 ;;========================= MATRICES =========================
 
 ; Print a matrix
