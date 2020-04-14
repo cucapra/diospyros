@@ -116,7 +116,7 @@
      (vec-decl 'reg-O (current-reg-size))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)
-    (partition-vector 'O output-size #:index-fn bv-index))
+    (partition-bv-list 'O output-size))
 
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)

@@ -52,7 +52,7 @@
      (vec-decl 'reg-C (current-reg-size))))
 
   (define-values (C-reg-ids C-reg-loads C-reg-stores)
-    (partition-vector 'C (* A-rows B-cols) #:index-fn bv-index))
+    (partition-bv-list 'C (* A-rows B-cols)))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)

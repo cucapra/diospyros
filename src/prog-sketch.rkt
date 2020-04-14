@@ -60,7 +60,7 @@
       string->number))
 
 ; Partition an declared vector based on the register size
-(define (partition-vector id size)
+(define (partition-bv-list id size)
   (define len (* (current-reg-size)
                  (exact-ceiling (/ size (current-reg-size)))))
   (define vals
