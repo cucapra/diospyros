@@ -109,10 +109,10 @@
   ;Program preamble to define the "zero" vector.
   (define preamble
     (list
-     (vec-extern-decl 'I (vector-length I-elements) input-tag)
-     (vec-extern-decl 'F (vector-length F-elements) input-tag)
+     (vec-extern-decl 'I (length I-elements) input-tag)
+     (vec-extern-decl 'F (length F-elements) input-tag)
      (vec-extern-decl 'O output-size output-tag)
-     (vec-const 'Z (vector 0))
+     (vec-const 'Z (make-bv-list-zeros 1))
      (vec-decl 'reg-O (current-reg-size))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)
@@ -168,10 +168,9 @@
             #:fn-map (hash 'vec-mac vector-mac)
             (list (cons 'I i-elements)
                   (cons 'F f-elements)
-                  (cons 'O (make-vector output-size 0)))))
+                  (cons 'O (make-bv-list-zeros output-size)))))
 
-  (values (vector-take (hash-ref out-env 'O) output-size)
-          cost))
+  (list (take (hash-ref out-env 'O) output-size) cost))
 
 (define conv2d:keys
   (list 'input-rows 'input-cols
@@ -209,7 +208,7 @@
     (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
           [cost-2 (make-register-cost reg-upper-bound)])
       (lambda (inst env)
-        (+ (cost-1 inst env) (cost-2 inst env)))))
+        (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
   ; Create function for sketch evaluation
   (define (sketch-func args)
@@ -232,7 +231,7 @@
                 (list I F)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:min-cost 0))
+                #:min-cost (bv-cost 0)))
 
   ; Keep generating solutions.
   (for ([(model cost) (sol-producer model-generator)])
