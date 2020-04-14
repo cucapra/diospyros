@@ -113,7 +113,7 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac)))
 
-  (values (take (hash-ref env 'C) C-size) cost))
+  (list (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
 (define (get-statistics C-size sol)

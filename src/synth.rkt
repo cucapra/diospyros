@@ -5,6 +5,7 @@
          "ast.rkt"
          "prog-sketch.rkt"
          "configuration.rkt"
+         "engine.rkt"
          "interp.rkt"
          "compile-passes.rkt"
          "utils.rkt")
@@ -118,71 +119,97 @@
                     sym-args
                     #:get-inps get-inps
                     #:max-cost [max-cost #f]
-                    #:min-cost [min-cost (bv-cost 0)])
+                    #:min-cost [min-cost 0])
+
+  ; synth-prog needs to explicitly manage all created assertions to correctly
+  ; function with the incremental solving engine. Make sure the assertion
+  ; store is empty.
+  (when (not (empty? (asserts)))
+    (error 'synth-prog "Called with a non-empty assertion store: ~a"
+           (pretty-format (asserts))))
+
+  ; Get the values and generated assertions from running the spec and
+  ; sketch on symbolic inputs.
+  (define-values (spec-out spec-asserts)
+    (with-asserts (spec sym-args)))
+  (define-values (sketch-res sketch-asserts)
+    (with-asserts (sketch sym-args)))
+  (match-define (list sketch-out cost) sketch-res)
+
+
+  ; NOTE(rachit): Unfortunately there doesn't seem to be a `boxof` contract
+  ; that would let us check (listof (boxof bv?)) so we just check if it is
+  ; list of boxes.
+  (assert ((listof box?) spec-out) "SYNTH-PROG: spec output is not a list")
+  (assert ((listof box?) sketch-out) "SYNTH-PROG: sketch output is not a list")
+  (assert (equal? (length spec-out)
+                  (length sketch-out))
+          (format
+            "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
+            (vector-length spec-out)
+            (vector-length sketch-out)))
+
+  ; Use this named variable to get back the cost from the model.
+  (define-symbolic* c (bitvector (cost-fin)))
 
   (generator ()
-    (let loop ([cur-cost max-cost]
-               [cur-model (unsat)])
-      (if (eq? cur-cost #f)
-        (pretty-print "Skipping cost constraint for the first synthesis query")
+     (let loop ([cur-cost #f]
+                [cur-model (unsat)]
+                [cur-solver #f])
+
+      (if (equal? cur-cost #f)
+        (pretty-display
+          "Skipping cost constraint for the first synthesis query")
         (pretty-print `(current-cost: ,(bitvector->integer cur-cost))))
 
-      (define spec-out (spec sym-args))
-      (define-values (sketch-out cost) (sketch sym-args))
+      ; synth requires all assertions to be inside the #:guarantee clause.
+      ; Fail synthesis when assertion store is not empty.
+      (when (not (empty? (asserts)))
+        (error 'synth-prog "Called with a non-empty assertion store: ~a"
+               (pretty-format (asserts))))
 
-      ; TODO(alexa): check for bv-list specifically
-      (assert (list? spec-out) "SYNTH-PROG: spec output is not a list")
-      (assert (list? sketch-out) "SYNTH-PROG: sketch output is not a list")
-      (assert (equal? (length spec-out)
-                      (length sketch-out))
-              (format
-                "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
-                (vector-length spec-out)
-                (vector-length sketch-out)))
-
-      (define-symbolic* c (bitvector (cost-fin)))
-      (assert (equal? c cost)
-              "Impossible: cost types differ")
-
-      (define-values (synth-res cpu-time real-time gc-time)
-        (time-apply
-          (thunk
-            (synthesize #:forall (get-inps sym-args)
-                        #:guarantee (begin
-                                      (assert (equal? spec-out sketch-out))
-                                      (when (not (eq? cur-cost #f))
-                                            (assert (bvsle cost cur-cost))))))
-          (list)))
-
-      (pretty-print (~a "cpu time: "
-                        (/ cpu-time 1000.0)
-                        "s, real time: "
-                        (/ real-time 1000.0)
-                        "s"))
-
-      (define model (first synth-res))
+      ; Run the solver. Returns the new model and a new solver object.
+      ; NOTE(rachit): `next` is NOT a new solver. It is the old solver that
+      ; generated the current model. Reusing the solver allows us to
+      ; implement incremental solving.
+      (define-values (model next)
+        (if (not cur-solver)
+          (synth #:forall (get-inps sym-args)
+                 #:guarantee (begin
+                               (assert (equal? spec-out sketch-out))
+                               (assert (equal? c cost))
+                               (for ([to-assert (append sketch-asserts
+                                                        spec-asserts)])
+                                 (assert to-assert))))
+          (values (cur-solver (bvsle cost cur-cost)) cur-solver)))
 
       ; If the model is unsat on the first query, there are no solutions for
       ; the current parameters
-      (when (and (not (sat? model)) (eq? cur-cost max-cost))
-        (error "Initial query unsat, no satisfying model found"))
+      (when (and (not (sat? model))
+                 (equal? cur-cost max-cost))
+        (error "Initial query unsat. No satisfying model found"))
 
       (define new-cost
-        (if (sat? model)
-          (let ([cost (evaluate c model)])
-            ; If a satisfying model was found, yield it back.
-            (yield model cost)
-            cost)
-          cur-cost))
+        (cond
+          [(sat? model)
+           (let ([cost (evaluate c model)])
+             ; If a satisfying model was found, yield it back.
+             (yield model cost)
+             cost)]
+          [(equal? cur-cost #f) max-cost]
+          [else cur-cost]))
 
       (cond
-        [(not (sat? model)) (pretty-print `(final-cost: ,new-cost))
-                            (values (void) new-cost)]
-        [(bvsle new-cost min-cost) (pretty-print `(final-cost: ,new-cost))
-                                (values (void) new-cost)]
-        [else (loop (bvsub new-cost (bv-cost 1)) model)]))))
+        [(or (not (sat? model)) (bvsle new-cost min-cost))
+         (pretty-print `(final-cost: ,(bitvector->integer new-cost)))
+         (values (void) new-cost)]
+        [else (loop (bvsub new-cost (bv-cost 1))
+                    model
+                    next)]))))
 
+; Convinience function to turn a generator into a producer that can be
+; iterated over.
 (define (sol-producer model-generator)
   (define (is-done? model cost)
-    (equal? (void) model))
+    (void? model))
   (in-producer model-generator is-done?))
