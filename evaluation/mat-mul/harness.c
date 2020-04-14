@@ -20,29 +20,15 @@ float c_spec[A_ROWS * B_COLS] __attribute__((section(".dram0.data")));
 // Diospyros kernel
 void kernel(float* input_A, float* input_B, float* input_C);
 
+// Expert kernel
+void matrix_multiply_2x3_3x3_expert(float* c, float* a, float* b);
+
 // Naive
-void naive_matrix_multiply(float *a, float *b, float *c, int row1, int col1, int col2) {
-  for (int y = 0; y < row1; y++) {
-    for (int x = 0; x < col2; x++) {
-      c[col2 * y + x] = 0;
-      for (k = 0; k < col1; k++) {
-        c[col2 * y + x] += a[col1 * y + k] * b[col2 * k + x];
-      }
-    }
-  }
-}
+void naive_matrix_multiply(float *a, float *b, float *c,
+                           int row1, int col1, int col2);
 
 // Naive hard-coded size
-void naive_matrix_multiply_hard_size(float *a, float *b, float *c) {
-  for (int y = 0; y < A_ROWS; y++) {
-    for (int x = 0; x < B_COLS; x++) {
-      c[B_COLS * y + x] = 0;
-      for (k = 0; k < A_COLS; k++) {
-        c[B_COLS * y + x] += a[A_COLS * y + k] * b[B_COLS * k + x];
-      }
-    }
-  }
-}
+void naive_matrix_multiply_hard_size(float *a, float *b, float *c);
 
 // Nature kernel
 void matmmltf(const float32_t *x, int M, int N, const float32_t *y,
@@ -65,20 +51,20 @@ int main(int argc, char **argv) {
   print_matrix(b, B_ROWS, B_COLS);
 
   // Run naive once to warm cache
-  naive_matrix_multiply(a, b, c_spec,  A_ROWS, A_COLS, B_ROWS, B_COLS);
+  naive_matrix_multiply(a, b, c_spec,  A_ROWS, A_COLS, B_COLS);
 
   int time = 0;
 
   // Naive
   start_cycle_timing;
-  naive_matrix_multiply(a, b, c,  A_ROWS, A_COLS, B_ROWS, B_COLS);
+  naive_matrix_multiply(a, b, c,  A_ROWS, A_COLS, B_COLS);
   stop_cycle_timing;
   time = get_time();
   print_matrix(c, A_ROWS, B_COLS);
   output_check(c, c_spec, A_ROWS, B_COLS);
   zero_matrix(c, A_ROWS, B_COLS);
   printf("Naive : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
   // Naive, hard-coded size
   start_cycle_timing;
@@ -89,7 +75,7 @@ int main(int argc, char **argv) {
   output_check(c, c_spec, A_ROWS, B_COLS);
   zero_matrix(c, A_ROWS, B_COLS);
   printf("Naive hard size: %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive hard size",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive hard size",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
   // Nature
   start_cycle_timing;
@@ -100,7 +86,7 @@ int main(int argc, char **argv) {
   output_check(c, c_spec, A_ROWS, B_COLS);
   zero_matrix(c, A_ROWS, B_COLS);
   printf("Nature : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Nature",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Nature",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
   // Rosette
   start_cycle_timing;
@@ -111,7 +97,18 @@ int main(int argc, char **argv) {
   output_check(c, c_spec, A_ROWS, B_COLS);
   zero_matrix(c, A_ROWS, B_COLS);
   printf("Rosette : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Rosette",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Rosette",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
+
+  // Expert
+  start_cycle_timing;
+  matrix_multiply_2x3_3x3_expert(c, a, b);
+  stop_cycle_timing;
+  time = get_time();
+  print_matrix(c, A_ROWS, B_COLS);
+  output_check(c, c_spec, A_ROWS, B_COLS);
+  zero_matrix(c, A_ROWS, B_COLS);
+  printf("Expert : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Expert",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
   return 0;
 }

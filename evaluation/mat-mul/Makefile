@@ -7,7 +7,7 @@ XRUN := xt-run
 XCC_FLAGS += -std=c99 -O3 -LNO:simd
 XSIM_FLAGS := --summary --mem_model
 
-EXPERT_SRC := ../diospyros-private/src/matrix_multiply_expert.c
+EXPERT_SRC := ../../../diospyros-private/src/matrix_multiply_expert.c
 EXPERT_OBJ := matrix_multiply_expert.o
 
 NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library

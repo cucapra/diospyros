@@ -44,7 +44,7 @@ parameters = {
             "input-cols": 5,
             "filter-rows": 2,
             "filter-cols": 2,
-            "iterations": 25,
+            "iterations": 35,
             "reg-size": 4
         },
         {
@@ -55,6 +55,16 @@ parameters = {
             "iterations": 40,
             "reg-size": 4
         },
+    ],
+    matmul : [
+        {
+            "A-rows": 2,
+            "A-cols": 3,
+            "B-rows": 3,
+            "B-cols": 3,
+            "iterations": 6,
+            "reg-size": 4
+        }
     ]
 }
 
@@ -64,6 +74,13 @@ def params_to_name(benchmark, params):
                                             params["input-cols"],
                                             params["filter-rows"],
                                             params["filter-cols"],
+                                            params["iterations"],
+                                            params["reg-size"])
+    if benchmark == matmul:
+        return '{}x{}_{}x{}_{}i_{}r'.format(params["A-rows"],
+                                            params["A-cols"],
+                                            params["B-rows"],
+                                            params["B-cols"],
                                             params["iterations"],
                                             params["reg-size"])
 
@@ -147,6 +164,22 @@ def compile_benchmark(dir, benchmark):
     if built < 1:
         print("Warning: no Racket files found to build, nothing done")
 
+def dimmensions_for_benchmark(benchmark, params):
+    if benchmark == conv2d:
+        return [
+                "I_ROWS=" + str(params["input-rows"]),
+                "I_COLS=" + str(params["input-cols"]),
+                "F_ROWS=" + str(params["filter-rows"]),
+                "F_COLS=" + str(params["filter-cols"]),
+            ]
+    if benchmark == matmul:
+        return [
+                "A_ROWS=" + str(params["A-rows"]),
+                "A_COLS=" + str(params["A-cols"]),
+                "B_ROWS=" + str(params["B-rows"]),
+                "B_COLS=" + str(params["B-cols"]),
+            ]
+
 def run_benchmark(dir, benchmark):
     b_dir = os.path.join(dir, benchmark)
     for params_config in listdir(b_dir):
@@ -170,13 +203,7 @@ def run_benchmark(dir, benchmark):
             harness = os.path.join(harness_dir, benchmark)
             sp.call(["make", "-C", harness, "clean"])
 
-            set_dimms = [
-                "I_ROWS=" + str(params["input-rows"]),
-                "I_COLS=" + str(params["input-cols"]),
-                "F_ROWS=" + str(params["filter-rows"]),
-                "F_COLS=" + str(params["filter-cols"]),
-            ]
-            print(set_dimms)
+            set_dimms = dimmensions_for_benchmark(benchmark, params)
             set_kernel = "KERNEL_SRC=" + os.path.abspath(file)
             set_output = "OUTFILE=" + os.path.abspath(csv_file)
             sp.call(["make", "-C", harness, "run", set_kernel, set_output] + set_dimms)
@@ -222,12 +249,17 @@ def main():
         print("Writing results to: {}".format(cur_results_dir))
 
     if not args.skipsynth:
+        # synthesize_benchmark(cur_results_dir, conv2d, args.timeout)
+        synthesize_benchmark(cur_results_dir, matmul, args.timeout)
         synthesize_benchmark(cur_results_dir, conv2d, args.timeout)
-
     if not args.skipc:
+        # compile_benchmark(cur_results_dir, conv2d)
+        compile_benchmark(cur_results_dir, matmul)
         compile_benchmark(cur_results_dir, conv2d)
 
     if not args.skiprun:
+        # run_benchmark(cur_results_dir, conv2d)
+        run_benchmark(cur_results_dir, matmul)
         run_benchmark(cur_results_dir, conv2d)
 
 if __name__ == main():
