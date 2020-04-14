@@ -52,7 +52,7 @@
      (vec-decl 'reg-C (current-reg-size))))
 
   (define-values (C-reg-ids C-reg-loads C-reg-stores)
-    (partition-vector 'C (* A-rows B-cols)))
+    (partition-vector 'C (* A-rows B-cols) #:index-fn bv-index))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -113,7 +113,7 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-mac vector-mac)))
 
-  (values (take (hash-ref env 'C) C-size) cost))
+  (list (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
 (define (get-statistics C-size sol)

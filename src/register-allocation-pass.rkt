@@ -19,7 +19,7 @@
 
 ; Partition a vector into reg-size sections, with an abstract init function.
 ; Modifies env and produces a list of new vectors.
-(define (partition-vector env id vec-len init-fn)
+(define (partition-vector env id vec-len init-fn #:index-fn [index-fn identity])
   (define len (* (current-reg-size) (exact-ceiling (/ vec-len (current-reg-size)))))
   (define id-map (make-hash))
   (define new-vecs
@@ -29,8 +29,8 @@
              [new-id (string->symbol
                        (format "~a_~a_~a" id start end))]
              [new-init (init-fn new-id start end)]
-             [start-bv (bv-index start)]
-             [end-bv (bv-index end)])
+             [start-bv (index-fn start)]
+             [end-bv (index-fn end)])
         ; Add the new vectors to the top level env
 
         (hash-set! env new-id new-init)
