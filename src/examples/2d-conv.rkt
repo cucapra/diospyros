@@ -23,7 +23,7 @@
   (define (safe-access-input row col)
     (if (and (>= row 0) (>= col 0) (< row i-rows) (< col i-cols))
       (matrix-ref input row col)
-      0))
+      (bv-value 0)))
 
   ; Pad the output to include the edge computations
   (define output-rows (sub1 (+ i-rows f-rows)))
@@ -31,21 +31,21 @@
   (define output
     (matrix output-rows
             output-cols
-            (make-vector (* output-rows output-cols) 0)))
+            (make-bv-list-zeros (* output-rows output-cols))))
 
   (for* ([output-row (in-range output-rows)]
          [output-col (in-range output-cols)])
 
     (define conv-res
-        (apply +
+        (apply bvadd
                (for*/list ([i (in-range f-rows)]
                            [j (in-range f-cols)])
                  (let* ([filter-x (- f-rows 1 i)]
                         [filter-y (- f-cols 1 j)]
                         [input-x (- output-row filter-x)]
                         [input-y (- output-col filter-y)])
-                   (* (safe-access-input input-x input-y)
-                      (matrix-ref filter filter-x filter-y))))))
+                   (bvmul (safe-access-input input-x input-y)
+                          (matrix-ref filter filter-x filter-y))))))
     (matrix-set! output output-row output-col conv-res))
 
   output)
@@ -60,17 +60,17 @@
       (test-case
         "Implementation works"
         (define input
-          (vector 0 1 2
-                  3 4 5
-                  6 7 8))
+          (value-bv-list 0 1 2
+                         3 4 5
+                         6 7 8))
         (define filter
-          (vector 0 1
-                  2 3))
+          (value-bv-list 0 1
+                         2 3))
         (define gold
-          (vector 0  0  1  2
-                  0  5  11 11
-                  6  23 29 23
-                  12 32 37 24))
+          (value-bv-list 0  0  1  2
+                         0  5  11 11
+                         6  23 29 23
+                         12 32 37 24))
         (check-equal? (matrix-conv-spec (matrix 3 3 input)
                                         (matrix 2 2 filter))
                       (matrix 4 4 gold)))
@@ -78,19 +78,19 @@
       (test-case
         "4x4 by 2x2"
         (define input
-          (vector 0  1  2  3
-                  4  5  6  7
-                  8  9  10 11
-                  12 13 14 15))
+          (value-bv-list 0  1  2  3
+                         4  5  6  7
+                         8  9  10 11
+                         12 13 14 15))
         (define filter
-          (vector 0 1
-                  2 3))
+          (value-bv-list 0 1
+                         2 3))
         (define gold
-          (vector 0  0  1  2  3
-                  0  6  12 18 16
-                  8  30 36 42 32
-                  16 54 60 66 48
-                  24 62 67 72 45))
+          (value-bv-list 0  0  1  2  3
+                         0  6  12 18 16
+                         8  30 36 42 32
+                         16 54 60 66 48
+                         24 62 67 72 45))
         (check-equal? (matrix-conv-spec (matrix 4 4 input)
                                         (matrix 2 2 filter))
                       (matrix 5 5 gold))))))

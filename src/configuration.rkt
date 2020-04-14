@@ -11,7 +11,7 @@
 
 ; Reasoning precision for values
 (define value-fin
-  (make-parameter 5))
+  (make-parameter 7))
 
 ; BV length for representing indices in shuffle vectors
 (define index-fin
