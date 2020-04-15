@@ -38,7 +38,7 @@ def get_color_palette(benchmark):
 
 def get_y_limit(benchmark):
     if benchmark == conv2d:
-        return 1900
+        return 2900
     if benchmark == matmul:
         return 325
 

@@ -17,6 +17,7 @@
 float i[I_ROWS * I_COLS] __attribute__((section(".dram0.data")));
 float f[F_ROWS * F_COLS] __attribute__((section(".dram0.data")));
 float o[O_ROWS * O_COLS] __attribute__((section(".dram0.data")));
+float o_spec[O_ROWS * O_COLS] __attribute__((section(".dram0.data")));
 
 // Diospyros kernel
 void kernel(float * input_I, float * input_F, float * input_O);
@@ -85,13 +86,13 @@ int main(int argc, char **argv) {
   create_random_mat(i, I_ROWS, I_COLS);
   create_random_mat(f, F_ROWS, F_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
+  zero_matrix(o_spec, O_ROWS, O_COLS);
 
   print_matrix(i, I_ROWS, I_COLS);
   print_matrix(f, F_ROWS, F_COLS);
 
   // Run naive once to warm cache
-  naive_convolution(i, f, o, I_ROWS, I_COLS, F_ROWS, F_COLS);
-  zero_matrix(o, O_ROWS, O_COLS);
+  naive_convolution(i, f, o_spec, I_ROWS, I_COLS, F_ROWS, F_COLS);
 
   int time = 0;
 
@@ -100,6 +101,7 @@ int main(int argc, char **argv) {
   stop_cycle_timing;
   time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
+  output_check(o, o_spec, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Naive : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
@@ -110,6 +112,7 @@ int main(int argc, char **argv) {
   stop_cycle_timing;
   time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
+  output_check(o, o_spec, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Naive hard size: %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive hard size",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
@@ -120,6 +123,7 @@ int main(int argc, char **argv) {
   stop_cycle_timing;
   time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
+  output_check(o, o_spec, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Nature : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Nature",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
@@ -130,6 +134,7 @@ int main(int argc, char **argv) {
   stop_cycle_timing;
   time = get_time();
   print_matrix(o, O_ROWS, O_COLS);
+  output_check(o, o_spec, O_ROWS, O_COLS);
   zero_matrix(o, O_ROWS, O_COLS);
   printf("Rosette : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Rosette",I_ROWS,I_COLS,F_ROWS,F_COLS,time);
