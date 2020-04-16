@@ -38,7 +38,7 @@ def get_color_palette(benchmark):
 
 def get_y_limit(benchmark):
     if benchmark == conv2d:
-        return 2900
+        return 3500
     if benchmark == matmul:
         return 325
 
@@ -72,6 +72,7 @@ def get_kernel_name_formatted(kernel):
 def chart(benchmark, graph_data, figsize):
     # This sets the gray background, among other things
     sns.set()
+    sns.set(font_scale=1.07)
 
     # Sort based on the kernel first, then on the order specified
     graph_data = graph_data.sort_values(['Kernel']).reset_index(drop=True).sort_values(["Order"], ascending=True).reset_index(drop=True)
@@ -180,7 +181,7 @@ def format_and_chart_data(full_file, summary_file):
         # For each size, go through the baselines first, then find the first
         # (lowest cost from the cost model) and fastest (lowest actual cycles)
         # from Diospyros
-        for size, data in data_per_size.items():
+        for size, data in sorted(data_per_size.items(), reverse=True):
             for i, kernel in enumerate(get_baseline_names(benchmark)):
                 kernel_row = next(x for x in data if x["kernel"] == kernel)
                 benchmark_data = benchmark_data.append({
@@ -207,7 +208,7 @@ def format_and_chart_data(full_file, summary_file):
                 'Order' : 4},
                 ignore_index=True)
 
-        chart(benchmark, benchmark_data, figsize=(7,3))
+        chart(benchmark, benchmark_data, figsize=(8,3))
         write_summary_statistics(benchmark, benchmark_data, summary_file)
 
 def read_csvs(dir, benchmarks, out):
