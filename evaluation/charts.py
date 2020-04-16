@@ -71,7 +71,6 @@ def get_kernel_name_formatted(kernel):
 
 def chart(benchmark, graph_data, figsize):
     # This sets the gray background, among other things
-    sns.set()
     sns.set(font_scale=1.07)
 
     # Sort based on the kernel first, then on the order specified
