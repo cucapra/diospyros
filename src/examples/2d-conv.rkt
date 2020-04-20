@@ -203,10 +203,13 @@
   ; Generate sketch prog
   (define conv-2d (conv-2d-sketch I F iterations))
 
+  ; Build the register-of map
+  (define-values (fn-defn reg-of) (build-register-of-map))
+
   ; Define cost function
   (define (cost-fn)
     (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (make-register-cost reg-upper-bound)])
+          [cost-2 (make-register-cost reg-of)])
       (lambda (inst env)
         (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
@@ -231,7 +234,8 @@
                 (list I F)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:min-cost (bv-cost 0)))
+                #:min-cost (bv-cost 0)
+                #:assume fn-defn))
 
   ; Keep generating solutions.
   (for ([(model cost) (sol-producer model-generator)])
