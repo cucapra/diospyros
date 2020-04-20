@@ -116,21 +116,16 @@
   (list (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
-(define (get-statistics C-size sol)
-  (let*-values
-    ([(_ uniq-cost) (run-matrix-mul-sketch
+(define (get-statistics C-size sol reg-of)
+  (let*
+     ([regs-cost (last (run-matrix-mul-sketch
                       sol
                       C-size
-                      (make-shuffle-unique-cost))]
-     [(_ regs-cost) (run-matrix-mul-sketch
-                      sol
-                      C-size
-                      (make-register-cost 4))]
-     [(_ class-uniq-cost) (run-matrix-mul-sketch
+                      (make-register-cost reg-of)))]
+     [class-uniq-cost (last (run-matrix-mul-sketch
                             sol
                             C-size
-                            (make-shuffle-unique-cost prefix-equiv))])
-    (pretty-print `(unique-idxs-cost: ,(bitvector->integer uniq-cost)))
+                            (make-shuffle-unique-cost prefix-equiv)))])
     (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
     (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
     (pretty-print '-------------------------------------------------------)))
@@ -169,10 +164,13 @@
     ; Generate sketch prog
     (define mmul (matrix-mul-shuffle-sketch A B iterations))
 
+    ; Build the register-of map
+    (define-values (fn-defn reg-of) (build-register-of-map))
+
     ; Define the cost function
     (define (cost-fn)
       (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-            [cost-2 (make-register-cost reg-upper-bound)])
+            [cost-2 (make-register-cost reg-of)])
         (lambda (inst env)
           (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
@@ -195,7 +193,8 @@
                   (list A B)
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
-                  #:min-cost (bv-cost 0)))
+                  #:min-cost (bv-cost 0)
+                  #:assume fn-defn))
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.

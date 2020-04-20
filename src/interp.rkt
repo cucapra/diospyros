@@ -142,12 +142,12 @@
 
 ; Cost of a program is the sum of the registers touched by each indices vector
 ; passed to a shuffle-like instruction.
-(define (make-register-cost reg-upper-bound)
+(define (make-register-cost reg-of)
   (lambda (inst env)
     (match inst
       [(or (vec-shuffle _ idxs _)
            (vec-shuffle-set! _ idxs _))
-       (reg-used (hash-ref env idxs) reg-upper-bound)]
+       (reg-used (hash-ref env idxs) reg-of)]
       [_ (bv-cost 0)])))
 
 ; Cost of program is the number of unique shuffle idxs used.

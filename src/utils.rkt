@@ -2,7 +2,6 @@
 
 (require "ast.rkt"
          "configuration.rkt"
-         threading
          racket/trace
          rosette/lib/match
          (prefix-in $ racket))
@@ -210,11 +209,32 @@
 
 ;;========================= REGISTER PROPERTIES =========================
 
-; Returns 0-indexed register that this index resides in based on the
-; current register size.
-; TODO(alexa): replace with a table-based lookup up to 2^(index-fin)
-(define (reg-of idx)
-  (bvsdiv idx (bv (current-reg-size) (index-fin))))
+; Build an uninterpreted function to act as a table mapping indices to the
+; register they fall within (quotient is expensive and the number of indices
+; is bound by 2^(index-fin - 1)). Produces a thunk with asserts that define the
+; function's behavior and an application function to get the register of an
+; index.
+(define (build-register-of-map)
+  (define-symbolic register-of
+    (let* ([index-ty (bitvector (index-fin))]
+           [cost-ty (bitvector (cost-fin))])
+      (~> index-ty cost-ty)))
+
+  (define fn-defn
+    (for/list ([idx (in-range (expt 2 (sub1 (index-fin))))])
+      (define bv-idx (bv-index idx))
+
+      ; The 0-indexed register that this index resides in based on the current
+      ; register size.
+      (define reg-of-idx (bvsdiv bv-idx
+                                 (bv-index (current-reg-size))))
+      (bveq (sign-extend reg-of-idx (bitvector (cost-fin)))
+                    (register-of bv-idx))))
+
+  (define (apply-reg-of idx)
+    (register-of idx))
+
+  (values fn-defn apply-reg-of))
 
 ; Finds the length as a bitvector
 (define (bv-length lst)
@@ -226,9 +246,8 @@
 
 ; Returns number of vectors accessed by an index vector assuming each vector
 ; contains reg-size elements.
-(define (reg-used idxs upper-bound)
+(define (reg-used idxs reg-of)
   ; Check how many distinct registers these indices fall within.
-  ; TODO(alexa): replace with a potentially faster implementation
   (bv-length (remove-duplicates (map reg-of (map unbox idxs)))))
 
 ; Returns whether a vector of indices is continuous and aligned to the register
