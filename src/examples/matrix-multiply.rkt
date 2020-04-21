@@ -146,6 +146,8 @@
   (define B-cols (hash-ref spec 'B-cols))
   (define iterations (hash-ref spec 'iterations))
   (define reg-size (hash-ref spec 'reg-size))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
   (assert (equal? A-cols B-rows)
           "matrix-mul:run-experiment: Invalid matrix sizes. A-cols not equal to B-rows")
@@ -164,8 +166,12 @@
     ; Generate sketch prog
     (define mmul (matrix-mul-shuffle-sketch A B iterations))
 
-    ; Build the register-of map
-    (define-values (fn-defn reg-of) (build-register-of-map))
+    ; Determine whether to use the pre-computed register-of uninterpreted
+    ; function, or pass the implementation to the solver directly
+    (define-values (assume reg-of)
+      (if pre-reg-of
+          (build-register-of-map)
+          (values (list) reg-of-idx)))
 
     ; Define the cost function
     (define (cost-fn)
@@ -194,7 +200,7 @@
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
                   #:min-cost (bv-cost 0)
-                  #:assume fn-defn))
+                  #:assume assume))
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.

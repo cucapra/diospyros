@@ -209,6 +209,11 @@
 
 ;;========================= REGISTER PROPERTIES =========================
 
+; The 0-indexed register that this index resides in based on the current
+; register size.
+(define (reg-of-idx idx)
+  (bvsdiv idx (bv-index (current-reg-size))))
+
 ; Build an uninterpreted function to act as a table mapping indices to the
 ; register they fall within (quotient is expensive and the number of indices
 ; is bound by 2^(index-fin - 1)). Produces a thunk with asserts that define the
@@ -223,18 +228,15 @@
   (define fn-defn
     (for/list ([idx (in-range (expt 2 (sub1 (index-fin))))])
       (define bv-idx (bv-index idx))
+      (define reg (reg-of-idx bv-idx))
+      (bveq (sign-extend reg (bitvector (cost-fin)))
+            (register-of bv-idx))))
 
-      ; The 0-indexed register that this index resides in based on the current
-      ; register size.
-      (define reg-of-idx (bvsdiv bv-idx
-                                 (bv-index (current-reg-size))))
-      (bveq (sign-extend reg-of-idx (bitvector (cost-fin)))
-                    (register-of bv-idx))))
-
-  (define (apply-reg-of idx)
+  ; Look up pre-computed register-of
+  (define (pre-reg-of idx)
     (register-of idx))
 
-  (values fn-defn apply-reg-of))
+  (values fn-defn pre-reg-of))
 
 ; Finds the length as a bitvector
 (define (bv-length lst)
@@ -245,7 +247,8 @@
     [v (error 'bv-length "Unexpected value: ~a" v)]))
 
 ; Returns number of vectors accessed by an index vector assuming each vector
-; contains reg-size elements.
+; contains reg-size elements. Passed a specific implementation of register-of
+; to use.
 (define (reg-used idxs reg-of)
   ; Check how many distinct registers these indices fall within.
   (bv-length (remove-duplicates (map reg-of (map unbox idxs)))))

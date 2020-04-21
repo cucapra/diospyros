@@ -185,6 +185,8 @@
   (define F-cols (hash-ref spec 'filter-cols))
   (define reg-size (hash-ref spec 'reg-size))
   (define iterations (hash-ref spec 'iterations))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
 ; Run the synthesis query
 (parameterize [(current-reg-size reg-size)]
@@ -203,8 +205,12 @@
   ; Generate sketch prog
   (define conv-2d (conv-2d-sketch I F iterations))
 
-  ; Build the register-of map
-  (define-values (fn-defn reg-of) (build-register-of-map))
+  ; Determine whether to use the pre-computed register-of uninterpreted
+  ; function, or pass the implementation to the solver directly
+  (define-values (assume reg-of)
+    (if pre-reg-of
+        (build-register-of-map)
+        (values (list) reg-of-idx)))
 
   ; Define cost function
   (define (cost-fn)
@@ -235,7 +241,7 @@
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
                 #:min-cost (bv-cost 0)
-                #:assume fn-defn))
+                #:assume assume))
 
   ; Keep generating solutions.
   (for ([(model cost) (sol-producer model-generator)])
