@@ -220,7 +220,7 @@
 ; function's behavior and an application function to get the register of an
 ; index.
 (define (build-register-of-map)
-  (define-symbolic register-of
+  (define-symbolic* register-of
     (let* ([index-ty (bitvector (index-fin))]
            [cost-ty (bitvector (cost-fin))])
       (~> index-ty cost-ty)))

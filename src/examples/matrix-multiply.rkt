@@ -168,6 +168,8 @@
 
     ; Determine whether to use the pre-computed register-of uninterpreted
     ; function, or pass the implementation to the solver directly
+    ; assume is a list of booleans to be asserted, reg-of specifies which function
+    ; to use for that computation
     (define-values (assume reg-of)
       (if pre-reg-of
           (build-register-of-map)
