@@ -116,21 +116,16 @@
   (list (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
-(define (get-statistics C-size sol)
-  (let*-values
-    ([(_ uniq-cost) (run-matrix-mul-sketch
+(define (get-statistics C-size sol reg-of)
+  (let*
+     ([regs-cost (last (run-matrix-mul-sketch
                       sol
                       C-size
-                      (make-shuffle-unique-cost))]
-     [(_ regs-cost) (run-matrix-mul-sketch
-                      sol
-                      C-size
-                      (make-register-cost 4))]
-     [(_ class-uniq-cost) (run-matrix-mul-sketch
+                      (make-register-cost reg-of)))]
+     [class-uniq-cost (last (run-matrix-mul-sketch
                             sol
                             C-size
-                            (make-shuffle-unique-cost prefix-equiv))])
-    (pretty-print `(unique-idxs-cost: ,(bitvector->integer uniq-cost)))
+                            (make-shuffle-unique-cost prefix-equiv)))])
     (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
     (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
     (pretty-print '-------------------------------------------------------)))
@@ -151,6 +146,8 @@
   (define B-cols (hash-ref spec 'B-cols))
   (define iterations (hash-ref spec 'iterations))
   (define reg-size (hash-ref spec 'reg-size))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
   (assert (equal? A-cols B-rows)
           "matrix-mul:run-experiment: Invalid matrix sizes. A-cols not equal to B-rows")
@@ -169,10 +166,19 @@
     ; Generate sketch prog
     (define mmul (matrix-mul-shuffle-sketch A B iterations))
 
+    ; Determine whether to use the pre-computed register-of uninterpreted
+    ; function, or pass the implementation to the solver directly
+    ; assume is a list of booleans to be asserted, reg-of specifies which function
+    ; to use for that computation
+    (define-values (assume reg-of)
+      (if pre-reg-of
+          (build-register-of-map)
+          (values (list) reg-of-idx)))
+
     ; Define the cost function
     (define (cost-fn)
       (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-            [cost-2 (make-register-cost reg-upper-bound)])
+            [cost-2 (make-register-cost reg-of)])
         (lambda (inst env)
           (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
@@ -195,7 +201,8 @@
                   (list A B)
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
-                  #:min-cost (bv-cost 0)))
+                  #:min-cost (bv-cost 0)
+                  #:assume assume))
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.

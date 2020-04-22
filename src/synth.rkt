@@ -119,7 +119,8 @@
                     sym-args
                     #:get-inps get-inps
                     #:max-cost [max-cost #f]
-                    #:min-cost [min-cost 0])
+                    #:min-cost [min-cost 0]
+                    #:assume [assume (list)])
 
   ; synth-prog needs to explicitly manage all created assertions to correctly
   ; function with the incremental solving engine. Make sure the assertion
@@ -179,7 +180,8 @@
                                (assert (equal? spec-out sketch-out))
                                (assert (equal? c cost))
                                (for ([to-assert (append sketch-asserts
-                                                        spec-asserts)])
+                                                        spec-asserts
+                                                        assume)])
                                  (assert to-assert))))
           (values (cur-solver (bvsle cost cur-cost)) cur-solver)))
 
@@ -201,7 +203,7 @@
 
       (cond
         [(or (not (sat? model)) (bvsle new-cost min-cost))
-         (pretty-print `(final-cost: ,(bitvector->integer new-cost)))
+         (pretty-print `(final-cost: ,(bitvector->integer cur-cost)))
          (values (void) new-cost)]
         [else (loop (bvsub new-cost (bv-cost 1))
                     model

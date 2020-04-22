@@ -185,6 +185,8 @@
   (define F-cols (hash-ref spec 'filter-cols))
   (define reg-size (hash-ref spec 'reg-size))
   (define iterations (hash-ref spec 'iterations))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
 ; Run the synthesis query
 (parameterize [(current-reg-size reg-size)]
@@ -203,10 +205,19 @@
   ; Generate sketch prog
   (define conv-2d (conv-2d-sketch I F iterations))
 
+  ; Determine whether to use the pre-computed register-of uninterpreted
+  ; function, or pass the implementation to the solver directly
+  ; assume is a list of booleans to be asserted, reg-of specifies which function
+  ; to use for that computation
+  (define-values (assume reg-of)
+    (if pre-reg-of
+        (build-register-of-map)
+        (values (list) reg-of-idx)))
+
   ; Define cost function
   (define (cost-fn)
     (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (make-register-cost reg-upper-bound)])
+          [cost-2 (make-register-cost reg-of)])
       (lambda (inst env)
         (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
@@ -231,7 +242,8 @@
                 (list I F)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:min-cost (bv-cost 0)))
+                #:min-cost (bv-cost 0)
+                #:assume assume))
 
   ; Keep generating solutions.
   (for ([(model cost) (sol-producer model-generator)])
