@@ -16,12 +16,38 @@
 
 ;; Uninterpreted function
 ; Define sine and cosine as an interpreted functions
-(define-symbolic f-add (~> (bitvector (value-fin))
+(define-symbolic* f-add (~> (bitvector (value-fin))
                            (bitvector (value-fin))
                            (bitvector (value-fin))))
-(define-symbolic f-mul (~> (bitvector (value-fin))
+(define-symbolic* f-mul (~> (bitvector (value-fin))
                            (bitvector (value-fin))
                            (bitvector (value-fin))))
+
+(define (associative? fn)
+  (define-symbolic* x y z (bitvector (value-fin)))
+  (forall (list x y z) (bveq (fn (fn x y) z)
+                             (fn  x (fn y z)))))
+
+(define (commutative? fn)
+  (define-symbolic* x y (bitvector (value-fin)))
+  (forall (list x y) (bveq (fn x y)
+                           (fn y x))))
+
+(define (identity? fn val)
+  (define-symbolic* x (bitvector (value-fin)))
+  (forall (list x) (bveq (fn x val) x)))
+
+(define f-add-asserts
+  (list
+    (associative? f-add)
+    (commutative? f-add)
+    (identity? f-add (bv-value 0))))
+
+(define f-mul-asserts
+  (list
+    (associative? f-mul)
+    (commutative? f-mul)
+    (identity? f-mul (bv-value 1))))
 
 (define (vector-f-mac v-acc v1 v2)
   (assert (= (length v1)
@@ -221,7 +247,8 @@
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
                   #:min-cost (bv-cost 0)
-                  #:assume assume))
+                  #:assume (flatten (list assume
+                                          f-add-asserts))))
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.

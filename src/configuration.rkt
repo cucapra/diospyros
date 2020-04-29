@@ -1,13 +1,13 @@
 #lang rosette
 
-(require rosette/solver/smt/boolector)
+(require rosette/solver/smt/z3)
 
 (provide (all-defined-out))
 
 ; All configurations for the Diospyros compiler.
 
 ; Solver to use
-(current-solver (boolector))
+(current-solver (z3))
 
 ; Reasoning precision for values
 (define value-fin
