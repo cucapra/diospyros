@@ -62,19 +62,21 @@
     (box (bvadd (unbox e-acc) (bvmul (unbox e1) (unbox e2))))))
 
 ; Define sine and cosine as an interpreted functions
-(define-symbolic cosine (~> real? real?))
-(define-symbolic sine (~> real? real?))
+(define-symbolic cosine (~> (bitvector (value-fin))
+                            (bitvector (value-fin))))
+(define-symbolic sine (~> (bitvector (value-fin))
+                          (bitvector (value-fin))))
 
 ;; VECTOR-COSINE
 (define (vector-cos v)
   (pretty-print "vec-cos")
-  (for/vector ([e v])
-    (cosine e)))
+  (for/list ([e v])
+    (box (cosine (unbox e)))))
 
 ;; VECTOR-SINE
 (define (vector-sin v)
-  (for/vector ([e v])
-    (sine e)))
+  (for/list ([e v])
+    (box (sine (unbox e)))))
 
 (define dsp-insts-tests
   (test-suite

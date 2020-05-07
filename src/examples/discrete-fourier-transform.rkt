@@ -16,26 +16,32 @@
 ; and the power spectrum
 (define (dft-spec N x x-real x-img P fn-map)
   (for ([k (in-range N)])
-    (vector-set! x-real k 0)
-    (vector-set! x-img k 0)
+    (define bv-k (bv-index k))
+    (bv-list-set! x-real bv-k (bv-value 0))
+    (bv-list-set! x-img bv-k (bv-value 0))
     (for ([n (in-range N)])
       (define partial (/ (* pi 2 n k) N))
 
       ; Real part of x[k]
       (define cosine (hash-ref fn-map `cos))
       (define sine (hash-ref fn-map `sin))
-      ;(define real-val (* (vector-ref x n) (cosine partial)))
-      (define real-val 0)
-      (vector-set! x-real k (+ (vector-ref x-real k) real-val))
+      (define real-val (bvmul (bv-list-get x (bv-index n))
+                              (bv-value (round (cosine partial)))))
+      (bv-list-set! x-real bv-k (bvadd (bv-list-get x-real bv-k)
+                                       real-val))
 
       ; Imaginary part of x[k]
-      (define img-val (* (vector-ref x n) (sine partial)))
-      (vector-set! x-img k (- (vector-ref x-img k) img-val)))
+      (define img-val (bvmul (bv-list-get x (bv-index n))
+                             (bv-value (round (sine partial)))))
+      (bv-list-set! x-img bv-k (bvsub (bv-list-get x-img bv-k) img-val)))
 
     ; Power at kth frequency bin
     (define val
-      (+ (expt (vector-ref x-real k) 2) (expt (vector-ref x-img k) 2)))
-    (vector-set! P k val))
+      (let* ([x-r (bv-list-get x-real bv-k)]
+             [x-i (bv-list-get x-img bv-k)])
+        (bvadd (bvmul x-r x-r)
+               (bvmul x-i x-i))))
+    (bv-list-set! P bv-k val))
   x-real)
 
 (define (dft-sketch N x x-real x-img P c s iterations)
@@ -48,8 +54,8 @@
      (vec-extern-decl 'x-real N output-tag)
      ;(vec-extern-decl 'x-img N output-tag)
      ;(vec-extern-decl 'P N output-tag)
-     (vec-const 'Z (vector 0))
-     (vec-const '2-pi-div-N (make-vector (current-reg-size) 2-pi-div-N))))
+     (vec-const 'Z (make-bv-list-zeros 1))
+     (vec-const '2-pi-div-N (make-bv-list (current-reg-size) 2-pi-div-N))))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -58,15 +64,15 @@
 
     ;(define (choose-idx)(choose 0 1))
     (define (choose-idx) 1)
-    
+
     (list
      (vec-shuffle 'reg-x shuf-x (list 'x 'Z))
      (vec-shuffle 'reg-x-real shuf-x-real (list 'x-real))
      ;(vec-shuffle 'reg-x-img shuf-x-img (list 'x-img))
      ;(vec-shuffle 'reg-P shuf-P (list 'P))
 
-     (vec-const 'idxs-outer (make-vector (current-reg-size) (choose-idx)))
-     (vec-const 'idxs-inner (make-vector (current-reg-size) (choose-idx)))
+     (vec-const 'idxs-outer (make-bv-list (current-reg-size) (choose-idx)))
+     (vec-const 'idxs-inner (make-bv-list (current-reg-size) (choose-idx)))
      ; TODO: continuous aligned
      (vec-app 'mul-tmp-1 'vec-mul (list 'idxs-outer 'idxs-inner))
      (vec-app 'mul-tmp-2 'vec-mul (list 'mul-tmp-1 '2-pi-div-N))
@@ -102,6 +108,7 @@
   (values (vector-take (hash-ref out-env 'x-real) N)
           cost))
 
+#|
 ; Run the synthesis query
 (parameterize [(current-reg-size 4)]
 
@@ -109,7 +116,7 @@
   (define N 2)
   (match-define (list x x-real x-img P)
     (for/list ([n (in-range 4)])
-      (make-symbolic-vector real? N)))
+      (make-bv-list-empty  N)))
 
   (define fn-map (hash `cos cosine `sin sine))
   (pretty-print fn-map)
@@ -142,9 +149,8 @@
                 sketch-func
                 (list N x x-real x-img P cosine sine)
                 #:get-inps (lambda (args)
-                             (flatten (list (map vector->list
-                                           (filter vector? args))
-                                      (filter fv? args))))
+                             (flatten (list (filter vector? args)
+                                            (filter fv? args))))
                 #:min-cost 0))
 
   ; Keep minimizing solution in the synthesis procedure and generating new
@@ -160,6 +166,10 @@
 ;|#
   )
 
+|#
+
+
+; DFT(5,6,7,8)
 
 (module+ test
   (require rackunit
@@ -169,15 +179,15 @@
     "dft tests"
     (test-case
      "Spec correctness"
-     (define N 8)
-     (define x (vector 1 1 1 1 0 0 0 0))
+     (define N 4)
+     (define x (value-bv-list 5 6 7 8))
      (match-define (list xReal xImg P)
        (for/list ([n (in-range 3)])
-         (make-vector N 0.0)))
+         (make-bv-list-zeros N)))
      (define gold-real
-       (vector 4 1 0 1 0 1 0 1))
+       (value-bv-list 13 -1 -1 -1))
      (define gold-img
-       (vector 0 -2.41421356 0 -0.41421356 0 0.41421356 0 2.41421356))
+       (value-bv-list 0 -1 0 1))
      (define fn-map (hash `cos cos `sin sin))
      (dft-spec N x xReal xImg P fn-map)
      (check-within xReal gold-real 0.001)
