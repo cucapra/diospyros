@@ -47,8 +47,8 @@
   (assert (= (length v1) (length v2))
           "VECTOR-MULTIPLY: length of vectors not equal")
   (for/list ([e1 v1]
-               [e2 v2])
-    (bvmul (unbox e1) (unbox e2))))
+             [e2 v2])
+    (box (bvmul (unbox e1) (unbox e2)))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
