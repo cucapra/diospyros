@@ -45,7 +45,6 @@
      (synth #:forall inputs #:guarantee post rest ...)]))
 
 (define (synth-solve xs pre post)
-  (pretty-print "synth-solve")
   (define solver-type (solver-constructor (current-solver)))
 
   ; remove any terms that appear in both pre and post
@@ -83,8 +82,6 @@
       ; guess the first candidate (since we have no concrete inputs)
       (solver-assert guesser (if (list? post+) post+ (list post+)))
       (define candidate (guess))
-
-      (pretty-print candidate)
 
       (when first?
         (solver-clear guesser))

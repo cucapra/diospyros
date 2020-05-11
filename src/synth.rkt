@@ -140,7 +140,6 @@
   (pretty-print spec-out)
   (pretty-print sketch-res)
 
-
   ; NOTE(rachit): Unfortunately there doesn't seem to be a `boxof` contract
   ; that would let us check (listof (boxof bv?)) so we just check if it is
   ; list of boxes.

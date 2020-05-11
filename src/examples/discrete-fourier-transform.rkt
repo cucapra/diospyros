@@ -136,7 +136,7 @@
 (parameterize [(current-reg-size 4)]
 
   ; Define inputs
-  (define N 2)
+  (define N 4)
   (match-define (list x x-real x-img P)
     (for/list ([n (in-range 4)])
       (make-bv-list-zeros N)))
@@ -170,10 +170,9 @@
   (define model-generator
     (synth-prog spec-func
                 sketch-func
-                (list N x x-real x-img P cosine sine)
+                (list N x x-real x-img P fn-map)
                 #:get-inps (lambda (args)
-                             (flatten (list (filter list args)
-                                            (filter fv? args))))
+                             (flatten (map matrix-elements (filter list args))))
                 #:min-cost (bv-cost 0)))
 
   ; Keep minimizing solution in the synthesis procedure and generating new
@@ -182,7 +181,7 @@
   (for ([(model cost) (sol-producer model-generator)])
     (if (sat? model)
       (let ([prog (evaluate sketch model)])
-          (pretty-print cost)
+          (pretty-print (bitvector->integer cost))
           (pretty-print (concretize-prog prog)))
         (pretty-print (~a "failed to find solution: " model)))))
 
@@ -231,11 +230,9 @@
       (dft-spec N x xReal xImg P fn-map)
 
       (define (true-with-trig exprs)
-        (pretty-print exprs)
         (define res (verify #:assume (trig-facts pi-sym)
                             #:guarantee (begin
                                           (for ([to-assert exprs])
-                                            (pretty-print to-assert)
                                             (assert to-assert)))))
         (unsat? res))
 

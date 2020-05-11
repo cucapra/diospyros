@@ -69,7 +69,6 @@
 
 ;; VECTOR-COSINE
 (define (vector-cos v)
-  (pretty-print "vec-cos")
   (for/list ([e v])
     (box (cosine (unbox e)))))
 
