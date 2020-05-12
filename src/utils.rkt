@@ -101,6 +101,10 @@
   (for/list ([_ (in-range size)])
     (box (bv-value val))))
 
+(define (make-bv-list-bvs size val)
+  (for/list ([_ (in-range size)])
+    (box val)))
+
 (define (bv-list to-bv xs)
   (define elements (map to-bv xs))
   (map box elements))
