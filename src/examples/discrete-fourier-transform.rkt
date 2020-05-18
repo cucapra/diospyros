@@ -55,9 +55,9 @@
                (bvmul x-i x-i))))
     (bv-list-set! P bv-k val))
   ;(flatten (list x-real x-img P)))
-  (flatten (list x-real)))
+  (flatten (list x-real x-img)))
 
-(define (dft-sketch N x x-real x-img P fn-map iterations)
+(define (dft-sketch N x fn-map iterations)
 
   ; Program preamble to define the "zero" vector, inputs and constants
   (define pi (hash-ref fn-map `pi))
@@ -65,15 +65,19 @@
     (list
      (vec-extern-decl 'x N input-tag)
      (vec-extern-decl 'x-real N output-tag)
-     ;(vec-extern-decl 'x-img N output-tag)
-     ;(vec-extern-decl 'P N output-tag)
+     (vec-extern-decl 'x-img N output-tag)
+     (vec-extern-decl 'P N output-tag)
      (vec-const 'Z (make-bv-list-zeros 1))
      (vec-const 'pi-vec (make-bv-list-bvs (current-reg-size) pi))
      (vec-const 'N-vec (make-bv-list (current-reg-size) N))
-     (vec-decl 'reg-x-real (current-reg-size))))
+     (vec-decl 'reg-x-real (current-reg-size))
+     (vec-decl 'reg-x-img (current-reg-size))))
 
   (define-values (x-real-ids x-real-loads x-real-stores)
     (partition-bv-list 'x-real N))
+
+  (define-values (x-img-ids x-img-loads x-img-stores)
+    (partition-bv-list 'x-img N))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -95,25 +99,31 @@
       (for/list ([_ (in-range (current-reg-size))])
         (box (bvmul (bv-value 2) (choose-idx)))))
 
-    ; Use choose* to select an output register to both read and write
-    (define output-mac
-      (apply choose*
-        (map (lambda (out-reg)
-          (list
-            ; x-real
-            (vec-write 'reg-x-real out-reg)
+    ; Choose an output partition based on the iteration to both read and write
+    (define out-idx (floor (/ iteration N)))
+    (define real-out (list-ref x-real-ids out-idx))
+    (define img-out (list-ref x-img-ids out-idx))
+    (define compute-core
+      (list
+        ; 2*pi*n*k/N
+        (vec-const 'idxs-prod (choose-idx-vec))
+        (vec-app 'mul-prod 'vec-mul (list 'idxs-prod 'pi-vec))
+        (vec-app 'div 'vec-s-div (list 'mul-prod 'N-vec))
 
-            ; Real part of x[k]: x-real[k] += x[n] * cos(2*pi*n*k/N)
-            (vec-const 'idxs-prod (choose-idx-vec))
-            (vec-app 'mul-prod 'vec-mul (list 'idxs-prod 'pi-vec))
-            (vec-app 'div 'vec-s-div (list 'mul-prod 'N-vec))
-            (vec-app 'cos-tmp 'vec-cos (list 'div))
-            (vec-app 'out 'vec-mac (list 'reg-x-real 'reg-x 'cos-tmp))
+        ; Real part of x[k]: x-real[k] += x[n] * cos(2*pi*n*k/N)
+        (vec-write 'reg-x-real real-out)
+        (vec-app 'cos-tmp 'vec-cos (list 'div))
+        (vec-app 'real-out 'vec-mac (list 'reg-x-real 'reg-x 'cos-tmp))
+        (vec-write real-out 'real-out)
 
-            (vec-write out-reg 'out)))
-        x-real-ids)))
+        ; Imaginary part of x[k]: x-img[k] -= x[n] * sin(2*pi*n*k/N)
+        (vec-write 'reg-x-img img-out)
+        (vec-app 'sin-tmp 'vec-sin (list 'div))
+        (vec-void-app 'vec-negate (list 'sin-tmp))
+        (vec-app 'img-out 'vec-mac (list 'reg-x-img 'reg-x 'sin-tmp))
+        (vec-write img-out 'img-out)))
 
-    (append input-shuffles output-mac))
+    (append input-shuffles compute-core))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -122,11 +132,13 @@
   (prog
    (append preamble
            x-real-loads
+           x-img-loads
            (sketch-compute-shuffle-interleave
              shuffle-gen
              compute-gen
              iterations)
-           x-real-stores)))
+           x-real-stores
+           x-img-stores)))
 
 (define (run-sketch sketch cost-fn N x)
   (define-values (out-env cost)
@@ -135,16 +147,19 @@
             #:fn-map (hash 'vec-mac vector-mac
                            'vec-mul vector-multiply
                            'vec-s-div vector-s-divide
-                           'vec-cos vector-cos)
+                           'vec-cos vector-cos
+                           'vec-sin vector-sin
+                           'vec-negate vector-negate)
             (list (cons 'x x)
                   (cons 'x-real (make-bv-list-zeros N))
                   (cons 'x-img (make-bv-list-zeros N))
                   (cons 'P (make-bv-list-zeros N)))))
 
   ; For now, append x-real, x-img, and P
-  (list (flatten (list (take (hash-ref out-env 'x-real) N)
+  (list (flatten (list
+                       (take (hash-ref out-env 'x-real) N)
+                       (take (hash-ref out-env 'x-img) N)
                               ))
-                             ; (take (hash-ref out-env 'x-img) N)
                              ; (take (hash-ref out-env 'P) N)))
         cost))
 
@@ -175,9 +190,13 @@
 
   ; Define inputs
   (define N 4)
-  (match-define (list x x-real x-img P)
-    (for/list ([n (in-range 4)])
+  (match-define (list x)
+    (for/list ([n (in-range 1)])
       (make-symbolic-bv-list-values N)))
+
+  ; Sanity check value finitization
+  (when (>= (* 2 N N ) (expt 2 (value-fin)))
+    (error "Need larger value bitvector for DFT"))
 
   (define-symbolic* pi-sym (bitvector (value-fin)))
   (define fn-map (hash `cos cosine `sin sine `pi pi-sym))
@@ -194,12 +213,14 @@
         (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
   (define iterations
-    N)
-    ; (* N N))
+    (let* ([out-reg-count (exact-ceiling (/ N (current-reg-size)))]
+           [comp-per-reg N])
+      (* out-reg-count comp-per-reg)))
+
   (pretty-print iterations)
 
   ; Generate sketch prog
-  (define sketch (dft-sketch N x x-real x-img P fn-map iterations))
+  (define sketch (dft-sketch N x fn-map iterations))
 
   ; Create function for sketch evaluation
   (define (sketch-func args)

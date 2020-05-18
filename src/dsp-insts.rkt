@@ -11,6 +11,7 @@
          vector-multiply
          vector-mac
          vector-s-divide
+         vector-negate
          vector-cos
          vector-sin
          cosine
@@ -75,6 +76,11 @@
   (for/list ([e1 v1]
              [e2 v2])
     (box (bvsdiv (unbox e1) (unbox e2)))))
+
+;; VECTOR-NEGATE
+(define (vector-negate v)
+  (for ([e v])
+    (set-box! e (bvneg (unbox e)))))
 
 ;; VECTOR-COSINE
 (define (vector-cos v)

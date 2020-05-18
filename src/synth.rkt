@@ -142,8 +142,8 @@
   (pretty-print spec-out)
   (pretty-print "sketch-out:")
   (pretty-print sketch-out)
-  (pretty-print (render-value/snip (bv-list-get spec-out (bv-index 3))))
-  (pretty-print (render-value/snip (bv-list-get sketch-out (bv-index 3))))
+  (pretty-print (render-value/snip spec-out))
+  (pretty-print (render-value/snip sketch-out))
 
 
   ; NOTE(rachit): Unfortunately there doesn't seem to be a `boxof` contract
