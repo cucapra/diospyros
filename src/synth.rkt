@@ -138,12 +138,9 @@
     (with-asserts (sketch sym-args)))
   (match-define (list sketch-out cost) sketch-res)
 
-  (pretty-print "spec-out:")
-  (pretty-print spec-out)
-  (pretty-print "sketch-out:")
-  (pretty-print sketch-out)
-  (pretty-print (render-value/snip spec-out))
-  (pretty-print (render-value/snip sketch-out))
+  ; Debugging: uncomment to show spec and sketch in the value debugger
+  ; (pretty-print (render-value/snip spec-out))
+  ; (pretty-print (render-value/snip sketch-out))
 
 
   ; NOTE(rachit): Unfortunately there doesn't seem to be a `boxof` contract

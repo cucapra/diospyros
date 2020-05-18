@@ -189,13 +189,13 @@
 (parameterize [(current-reg-size 4)]
 
   ; Define inputs
-  (define N 4)
+  (define N 5)
   (match-define (list x)
     (for/list ([n (in-range 1)])
       (make-symbolic-bv-list-values N)))
 
   ; Sanity check value finitization
-  (when (>= (* 2 N N ) (expt 2 (value-fin)))
+  (when (>= (* 4 2 N N) (expt 2 (value-fin)))
     (error "Need larger value bitvector for DFT"))
 
   (define-symbolic* pi-sym (bitvector (value-fin)))
@@ -216,8 +216,6 @@
     (let* ([out-reg-count (exact-ceiling (/ N (current-reg-size)))]
            [comp-per-reg N])
       (* out-reg-count comp-per-reg)))
-
-  (pretty-print iterations)
 
   ; Generate sketch prog
   (define sketch (dft-sketch N x fn-map iterations))

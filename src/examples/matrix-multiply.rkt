@@ -14,51 +14,6 @@
 (provide matrix-mul:keys
          matrix-mul:run-experiment)
 
-;; Uninterpreted function
-; Define sine and cosine as an interpreted functions
-(define-symbolic* f-add (~> (bitvector (value-fin))
-                           (bitvector (value-fin))
-                           (bitvector (value-fin))))
-(define-symbolic* f-mul (~> (bitvector (value-fin))
-                           (bitvector (value-fin))
-                           (bitvector (value-fin))))
-
-(define (associative? fn)
-  (define-symbolic* x y z (bitvector (value-fin)))
-  (forall (list x y z) (bveq (fn (fn x y) z)
-                             (fn  x (fn y z)))))
-
-(define (commutative? fn)
-  (define-symbolic* x y (bitvector (value-fin)))
-  (forall (list x y) (bveq (fn x y)
-                           (fn y x))))
-
-(define (identity? fn val)
-  (define-symbolic* x (bitvector (value-fin)))
-  (forall (list x) (bveq (fn x val) x)))
-
-(define f-add-asserts
-  (list
-    (associative? f-add)
-    (commutative? f-add)
-    (identity? f-add (bv-value 0))))
-
-(define f-mul-asserts
-  (list
-    (associative? f-mul)
-    (commutative? f-mul)
-    (identity? f-mul (bv-value 1))))
-
-(define (vector-f-mac v-acc v1 v2)
-  (assert (= (length v1)
-             (length v2)
-             (length v-acc))
-          "VECTOR-MAC: length of vectors not equal")
-  (for/list ([e-acc v-acc]
-             [e1 v1]
-             [e2 v2])
-    (box (f-add (unbox e-acc) (f-mul (unbox e1) (unbox e2))))))
-
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
@@ -70,12 +25,12 @@
             (make-bv-list-zeros (* A-rows B-cols))))
   (for* ([i A-rows]
          [j B-cols])
-    (define products
-      (for/list ([k A-cols])
-        (f-mul (matrix-ref mat-A i k)
-           (matrix-ref mat-B k j))))
     (define sum
-      (foldl f-add (first products) (drop products 1)))
+      (apply
+        bvadd
+        (for/list ([k A-cols])
+          (bvmul (matrix-ref mat-A i k)
+             (matrix-ref mat-B k j)))))
     (matrix-set! C i j sum))
 
   (matrix-elements C))
@@ -156,7 +111,7 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mac vector-f-mac)))
+            #:fn-map (hash 'vec-mac vector-mac)))
 
   (list (take (hash-ref env 'C) C-size) cost))
 
@@ -247,8 +202,7 @@
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
                   #:min-cost (bv-cost 0)
-                  #:assume (flatten (list assume
-                                          f-add-asserts))))
+                  #:assume assume))
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.
