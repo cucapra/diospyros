@@ -82,7 +82,6 @@
       ; guess the first candidate (since we have no concrete inputs)
       (solver-assert guesser (if (list? post+) post+ (list post+)))
       (define candidate (guess))
-
       (when first?
         (solver-clear guesser))
 
