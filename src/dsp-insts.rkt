@@ -10,6 +10,7 @@
          vector-shuffle-set!
          vector-multiply
          vector-mac
+         vector-s-divide
          vector-cos
          vector-sin
          cosine
@@ -57,8 +58,8 @@
              (length v-acc))
           "VECTOR-MAC: length of vectors not equal")
   (for/list ([e-acc v-acc]
-               [e1 v1]
-               [e2 v2])
+             [e1 v1]
+             [e2 v2])
     (box (bvadd (unbox e-acc) (bvmul (unbox e1) (unbox e2))))))
 
 ; Define sine and cosine as an interpreted functions
@@ -66,6 +67,14 @@
                             (bitvector (value-fin))))
 (define-symbolic sine (~> (bitvector (value-fin))
                           (bitvector (value-fin))))
+
+;; VECTOR SIGNED DIVIDE
+(define (vector-s-divide v1 v2)
+  (assert (= (length v1) (length v2))
+          "VECTOR-S-DIVIDE: length of vectors not equal")
+  (for/list ([e1 v1]
+             [e2 v2])
+    (box (bvsdiv (unbox e1) (unbox e2)))))
 
 ;; VECTOR-COSINE
 (define (vector-cos v)
