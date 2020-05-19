@@ -173,6 +173,29 @@
   (list out-decl
         mac))
 
+; xb_vecMxf32 out;
+; out = name(input0, input1, ...);
+(define (gen-vecMxf2-pure-fun name type-set out inputs)
+  ; Declare out register.
+  (type-set out "xb_vecMxf32")
+  (define out-decl
+    (c-decl "xb_vecMxf32"
+            #f
+            (c-id out)
+            #f
+            #f))
+  ; Function application
+  (define app
+    (c-assign (c-id out)
+              (c-call (c-id name)
+                (map c-id inputs))))
+  (list out-decl app))
+
+(define (gen-vec-void-app name type-set inputs)
+  (list
+    (c-stmt
+      (c-call (c-id name)
+            (map c-id inputs)))))
 
 (define (tensilica-g3-compile p)
   ; Hoist all the constants to the top of the program.
@@ -269,7 +292,25 @@
 
         [(vec-app _ 'vec-mac _) (gen-vecmac type-set inst)]
 
-        [(or (vec-void-app _ _) (vec-app _ _ _)) (list)]
+        [(vec-app out 'vec-mul inputs)
+         (gen-vecMxf2-pure-fun "PDX_MUL_MXF32" type-set out inputs)]
+
+        [(vec-app out 'vec-s-div inputs)
+         (gen-vecMxf2-pure-fun "PDX_DIV_MXF32" type-set out inputs)]
+
+        [(vec-app out 'vec-cos inputs)
+         (gen-vecMxf2-pure-fun "cos_MXF32" type-set out inputs)]
+
+        [(vec-app out 'vec-sin inputs)
+         (gen-vecMxf2-pure-fun "sin_MXF32" type-set out inputs)]
+
+        [(vec-void-app 'vec-negate inputs)
+         (gen-vec-void-app "PDX_NEG_MXF32" type-set inputs)]
+
+        [(or (vec-void-app _ _) (vec-app _ _ _))
+          (error 'tensilica-g3-compile
+                   "Cannot compile app instruction: ~a"
+                   inst)]
 
         [(vec-write dst src)
          (c-assign (c-id dst) (c-id src))]
