@@ -14,6 +14,9 @@
          rosette/lib/synthax
          rosette/lib/angelic)
 
+(provide dft:keys
+         dft:run-experiment)
+
 ; Given an array x of length N, compute the real and imaginary coefficients
 ; and the power spectrum
 (define (dft-spec N x fn-map)
@@ -156,104 +159,99 @@
                   (cons 'P (make-bv-list-zeros N)))))
 
   ; For now, append x-real, x-img, and P
-  (list (flatten (list
-                       (take (hash-ref out-env 'x-real) N)
+  (list (flatten (list (take (hash-ref out-env 'x-real) N)
                        (take (hash-ref out-env 'x-img) N)
-                              ))
-                             ; (take (hash-ref out-env 'P) N)))
+                     ; (take (hash-ref out-env 'P) N)))
+                       ))
         cost))
 
 (define (trig-facts pi-sym)
   (list
-    ; ; Pi facts
+    ; Pi facts
     (bvslt pi-sym (bv-value 4))
-    (bvslt (bv-value 1) pi-sym)
+    (bvslt (bv-value 1) pi-sym)))
 
-    ; Cosine facts
-    ; (bveq (cosine (bv-value 0)) (bv-value 1))
-    ; (bveq (cosine pi-sym) (bv-value -1))
-    ; (bveq (cosine (bvmul pi-sym (bv-value 2))) (bv-value 1))
-    ; (bveq (cosine (bvsdiv pi-sym (bv-value 2))) (bv-value 0))
-    ; (bveq (cosine (bvmul (bv-value 3)
-    ;                              (bvsdiv pi-sym (bv-value 2))))
-    ;               (bv-value 0))
+; Describe the configuration parameters for this benchmarks
+(define dft:keys
+  (list 'N 'reg-size))
 
-    ; ; Sine facts
-    ; (bveq (sine (bv-value 0)) (bv-value 0))
-    ; (bveq (sine pi-sym) (bv-value 0))
-    ; (bveq (sine (bvmul pi-sym (bv-value 2))) (bv-value 0))
-    ; (bveq (sine (bvsdiv pi-sym (bv-value 2))) (bv-value 1))
-    ))
+; Run DFT experiment with the given spec.
+; Requires that spec be a hash with all the keys describes in dft:keys.
+(define (dft:run-experiment spec file-writer)
+  (pretty-print (~a "Running DFT with config: " spec))
+  (define N (hash-ref spec 'N))
+  (define reg-size (hash-ref spec 'reg-size))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
-;Run the synthesis query
-(parameterize [(current-reg-size 4)]
+  ; Run the synthesis query
+  (parameterize [(current-reg-size reg-size)]
 
-  ; Define inputs
-  (define N 5)
-  (match-define (list x)
-    (for/list ([n (in-range 1)])
-      (make-symbolic-bv-list-values N)))
+    ; Define input
+    (match-define (list x)
+      (for/list ([n (in-range 1)])
+        (make-symbolic-bv-list-values N)))
 
-  ; Sanity check value finitization
-  (when (>= (* 4 2 N N) (expt 2 (value-fin)))
-    (error "Need larger value bitvector for DFT"))
+    ; Calculate the number of iterations necessary
+    (define iterations
+      (let* ([out-reg-count (exact-ceiling (/ N (current-reg-size)))]
+             [comp-per-reg N])
+        (* out-reg-count comp-per-reg)))
 
-  (define-symbolic* pi-sym (bitvector (value-fin)))
-  (define fn-map (hash `cos cosine `sin sine `pi pi-sym))
+    ; Sanity check value finitization
+    (when (>= (* 4 2 N N) (expt 2 (value-fin)))
+      (error "Need larger value bitvector for DFT"))
+
+    (define-symbolic* pi-sym (bitvector (value-fin)))
+    (define fn-map (hash `cos cosine `sin sine `pi pi-sym))
 
     ; Functionalize spec for minimization prog
-  (define (spec-func args)
-    (apply dft-spec (append (take args 2) (list fn-map))))
+    (define (spec-func args)
+      (apply dft-spec (append (take args 2) (list fn-map))))
 
-  ; Define cost function
-  (define (cost-fn)
-    (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (make-register-cost reg-of-idx)])
-      (lambda (inst env)
-        (bvadd (cost-1 inst env) (cost-2 inst env)))))
+    ; Define cost function
+    (define (cost-fn)
+      (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
+            [cost-2 (make-register-cost reg-of-idx)])
+        (lambda (inst env)
+          (bvadd (cost-1 inst env) (cost-2 inst env)))))
 
-  (define iterations
-    (let* ([out-reg-count (exact-ceiling (/ N (current-reg-size)))]
-           [comp-per-reg N])
-      (* out-reg-count comp-per-reg)))
+    ; Generate sketch prog
+    (define sketch (dft-sketch N x fn-map iterations))
 
-  ; Generate sketch prog
-  (define sketch (dft-sketch N x fn-map iterations))
+    ; Create function for sketch evaluation
+    (define (sketch-func args)
+      (apply (curry run-sketch
+                    sketch
+                    (cost-fn))
+             (take args 2)))
 
-  ; Create function for sketch evaluation
-  (define (sketch-func args)
-    (apply (curry run-sketch
-                  sketch
-                  (cost-fn))
-           (take args 2)))
+    ; Get a generator back from the synthesis procedure
+    (define model-generator
+      (synth-prog spec-func
+                  sketch-func
+                  (list N x fn-map)
+                  #:get-inps (lambda (args)
+                               (flatten
+                                 (list
+                                   ; bv-list inputs
+                                   (map (curry map unbox) (filter list? args))
+                                   ; trig functions
+                                   (let ([fn-map (first (filter hash? args))])
+                                     (map (curry hash-ref fn-map)
+                                          (list `cos `sin ))))))
+                  #:min-cost (bv-cost 0)
+                  #:assume (trig-facts pi-sym)))
 
-  ; Get a generator back from the synthesis procedure
-  (define model-generator
-    (synth-prog spec-func
-                sketch-func
-                (list N x fn-map)
-                #:get-inps (lambda (args)
-                             (flatten
-                               (list
-                                 ; bv-list inputs
-                                 (map (curry map unbox) (filter list? args))
-                                 ; trig functions
-                                 (let ([fn-map (first (filter hash? args))])
-                                   (map (curry hash-ref fn-map)
-                                        (list `cos `sin ))))))
-                #:min-cost (bv-cost 0)
-                #:assume (trig-facts pi-sym)))
-
-  ; Keep minimizing solution in the synthesis procedure and generating new
-  ; solutions.
-  ;void
-  (for ([(model cost) (sol-producer model-generator)])
-    (if (sat? model)
-      (let ([prog (evaluate sketch model)])
-          (pretty-print model)
-          (pretty-print (bitvector->integer cost))
-          (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model)))))
+    ; Keep minimizing solution in the synthesis procedure and generating new
+    ; solutions.
+    ;void
+    (for ([(model cost) (sol-producer model-generator)])
+      (if (sat? model)
+        (let ([prog (evaluate sketch model)])
+            (pretty-print (bitvector->integer cost))
+            (file-writer prog cost))
+          (pretty-print (~a "failed to find solution: " model))))))
 
 (module+ test
   (require rackunit
@@ -263,37 +261,85 @@
     "dft tests"
     (test-case
       "Spec correctness"
-      (define N 4)
-      (define x (value-bv-list 5 6 7 8))
-      (define gold-real
-        (value-bv-list 26 -2 -2 -2))
-      (define gold-img
-        (value-bv-list 0 2 0 -2))
+      (define N 2)
+      (define x (value-bv-list 0 1))
       (define-symbolic* pi-sym (bitvector (value-fin)))
+
+      (define gold-real
+        (list
+          (box (cosine (bv-value 0)))
+          (box (cosine (bvsdiv (bvmul (bv-value 2) pi-sym)
+                               (bv-value N))))))
+      (define gold-img
+        (list
+          (box (bvneg (sine (bv-value 0))))
+          (box (bvneg (sine (bvsdiv (bvmul (bv-value 2) pi-sym)
+                                    (bv-value N)))))))
 
       (define fn-map (hash `cos cosine `sin sine `pi pi-sym))
 
-      (define-values (x-real)
+      (define-values (results)
         (dft-spec N x fn-map))
 
-      (define (true-with-trig exprs)
-        (define res (verify #:assume (begin
-                                       (for ([to-assert (trig-facts pi-sym)])
-                                         (assert to-assert)))
-                            #:guarantee (begin
-                                          (for ([to-assert exprs])
-                                            (assert to-assert)))))
-        (unsat? res))
+      (for/list ([x results]
+                 [g (append gold-real gold-img)])
+        (check-equal? (unbox x) (unbox g)))))))
 
-      ; (check-true
-      ;   (true-with-trig
-      ;     (for/list ([x-I xImg]
-      ;                [g-I gold-img])
-      ;       (bveq (unbox x-I) (unbox g-I)))))
-      ; (check-true
-      ;   (true-with-trig
-      ;     (for/list ([x-R x-real]
-      ;                [g-R gold-real])
-      ;       (bveq (unbox x-R) (unbox g-R)))))
-      void
-      ))))
+      ; This strategy does not work, presumably  because the theory of
+      ; bitvectors can't reason about fractional values in the sin and cosine,
+      ; thus asserting conflicting values for (sine 0), for example
+      ; (define (trig pi-sym)
+      ;   (define-symbolic* x (bitvector (value-fin)))
+      ;   (list
+        ; Cosine facts
+        ; (forall (list x)
+        ;         (=>
+        ;           (bveq (bv-value 0)
+        ;                 (bvsrem x
+        ;                         (bv-value 8)))
+        ;           (bveq (cosine (bvsdiv (bvmul (bv-value x) pi-sym)
+        ;                               (bv-value 4))
+        ;                 (bv-value 1)))))
+        ; (forall (list x)
+        ;         (=>
+        ;           (bveq (bv-value 0)
+        ;                 (bvsrem (bvsub x (bv-value 4))
+        ;                         (bv-value 8)))
+        ;           (bveq (cosine (bvsdiv (bvmul (bv-value x) pi-sym)
+        ;                               (bv-value 4))
+        ;                 (bv-value -1)))))
+        ; (forall (list x)
+        ;         (=>
+        ;           (bveq (bv-value 0)
+        ;                 (bvsrem (bvsub x (bv-value 2))
+        ;                         (bv-value 8)))
+        ;           (bveq (cosine (bvsdiv (bvmul (bv-value x) pi-sym)
+        ;                               (bv-value 4))
+        ;                 (bv-value 0)))))
+        ; Sine facts
+        ; (forall (list x) (bveq (sine (bvmul x pi-sym))
+        ;                        (bv-value 0)))
+        ; (forall (list x)
+        ;         (=>
+        ;           (bveq (bv-value 0)
+        ;                 (bvsrem (bvsub x (bv-value 2))
+        ;                         (bv-value 8)))
+        ;           (bveq (sine (bvsdiv (bvmul (bv-value x) pi-sym)
+        ;                               (bv-value 4))
+        ;                 (bv-value 1)))))
+        ; (forall (list x)
+        ;         (=>
+        ;           (bveq (bv-value 0)
+        ;                 (bvsrem (bvsub x (bv-value 6))
+        ;                         (bv-value 8)))
+        ;           (bveq (sine (bvsdiv (bvmul (bv-value x) pi-sym)
+        ;                               (bv-value 4))
+        ;                 (bv-value -1)))))))
+        ; (define (true-with-trig exprs)
+        ;   (define res (verify #:assume (begin
+        ;                                  (for ([to-assert (trig pi-sym)])
+        ;                                    (assert to-assert)))
+        ;                       #:guarantee (begin
+        ;                                     (for ([to-assert exprs])
+        ;                                       (assert to-assert)))))
+        ;   (unsat? res))
