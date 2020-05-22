@@ -112,7 +112,7 @@
      (vec-extern-decl 'I (length I-elements) input-tag)
      (vec-extern-decl 'F (length F-elements) input-tag)
      (vec-extern-decl 'O output-size output-tag)
-     (vec-const 'Z (make-bv-list-zeros 1))
+     (vec-const 'Z (make-bv-list-zeros 1) float-type)
      (vec-decl 'reg-O (current-reg-size))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)

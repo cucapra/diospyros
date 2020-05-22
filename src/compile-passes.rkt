@@ -35,7 +35,7 @@
   (define new-insts
     (for/list ([inst (prog-insts p)])
       (match inst
-        [(vec-const _ _)
+        [(vec-const _ _ _)
          (add-const inst)
          (list)]
         [(vec-load _ _ _ _)
@@ -102,8 +102,8 @@
         [(or (vec-decl id _) (vec-extern-decl id _ _))
          (hash-set! name-map id id)
          inst]
-        [(vec-const id init)
-         (vec-const (rename-binding id) init)]
+        [(vec-const id init type)
+         (vec-const (rename-binding id) init type)]
         [(vec-shuffle id idxs inps)
          (vec-shuffle (rename-binding id)
                       (rename-use idxs)
@@ -148,7 +148,7 @@
   (define new-insts
     (for/list ([inst (prog-insts p)])
       (match inst
-        [(vec-const id init)
+        [(vec-const id init type)
          ; Remove the declaration if it's already been defined and add mapping
          ; to name-map.
          (if (hash-has-key? const-map init)
@@ -179,7 +179,7 @@
 ; Get the destination id for an instruction
 (define (get-id i)
   (match i
-    [(vec-const id _) id]
+    [(vec-const id _ _) id]
     [(vec-shuffle id _ _) id]
     [(vec-shuffle-set! id _ _) id]
     ; TODO: functions might mutate/write to args
@@ -192,8 +192,8 @@
     [(or (vec-decl id size) (vec-extern-decl id size _))
      ; Declarations should not be deduplicated, so keep id
      '(`vec-decl id)]
-    [(vec-const id init)
-     '(`vec-const init)]
+    [(vec-const id init type)
+     '(`vec-const init type)]
     [(vec-shuffle id idxs inps)
      '(`vec-shuffle (id-to-num idxs) (map id-to-num inps))]
     [(vec-shuffle-set! out-vec idxs inp)
@@ -287,8 +287,8 @@
             (vec-decl new-id size)]
            [(vec-extern-decl _ size tag)
             (vec-extern-decl new-id size tag)]
-           [(vec-const _ init)
-            (vec-const new-id init)]
+           [(vec-const _ init type)
+            (vec-const new-id init type)]
            [(vec-shuffle _ idxs inps)
             (vec-shuffle new-id (replace-arg idxs) (map replace-arg inps))]
            [(vec-shuffle-set! _ idxs inp)
@@ -310,42 +310,42 @@
         (vec-extern-decl 'A 6 input-tag)
         (vec-extern-decl 'B 9 input-tag)
         (vec-extern-decl 'C 6 output-tag)
-        (vec-const 'Z '#(0))
-        (vec-const 'shuf0-0 '#(3 5 1 2))
-        (vec-const 'shuf1-0 '#(0 8 4 8))
-        (vec-const 'shuf2-0 '#(3 5 1 2))
+        (vec-const 'Z '#(0) float-type)
+        (vec-const 'shuf0-0 '#(3 5 1 2) int-type)
+        (vec-const 'shuf1-0 '#(0 8 4 8) int-type)
+        (vec-const 'shuf2-0 '#(3 5 1 2) int-type)
         (vec-shuffle 'reg-A 'shuf0-0 (list 'A 'Z))
         (vec-shuffle 'reg-B 'shuf1-0 (list 'B 'Z))
         (vec-shuffle 'reg-C 'shuf2-0 (list 'C))
         (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
         (vec-shuffle-set! 'C 'shuf2-0 'out)
-        (vec-const 'shuf0-1 '#(4 3 2 0))
-        (vec-const 'shuf1-1 '#(3 2 7 2))
-        (vec-const 'shuf2-1 '#(3 5 1 2))
+        (vec-const 'shuf0-1 '#(4 3 2 0) int-type)
+        (vec-const 'shuf1-1 '#(3 2 7 2) int-type)
+        (vec-const 'shuf2-1 '#(3 5 1 2) int-type)
         (vec-shuffle 'reg-A 'shuf0-1 (list 'A 'Z))
         (vec-shuffle 'reg-B 'shuf1-1 (list 'B 'Z))
         (vec-shuffle 'reg-C 'shuf2-1 (list 'C))
         (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
         (vec-shuffle-set! 'C 'shuf2-1 'out)
-        (vec-const 'shuf0-2 '#(3 5 1 2))
-        (vec-const 'shuf1-2 '#(1 6 5 6))
-        (vec-const 'shuf2-2 '#(4 3 2 0))
+        (vec-const 'shuf0-2 '#(3 5 1 2) int-type)
+        (vec-const 'shuf1-2 '#(1 6 5 6) int-type)
+        (vec-const 'shuf2-2 '#(4 3 2 0) int-type)
         (vec-shuffle 'reg-A 'shuf0-2 (list 'A 'Z))
         (vec-shuffle 'reg-B 'shuf1-2 (list 'B 'Z))
         (vec-shuffle 'reg-C 'shuf2-2 (list 'C))
         (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
         (vec-shuffle-set! 'C 'shuf2-2 'out)
-        (vec-const 'shuf0-3 '#(1 6 5 6))
-        (vec-const 'shuf1-3 '#(3 2 7 2))
-        (vec-const 'shuf2-3 '#(0 1 4 5))
+        (vec-const 'shuf0-3 '#(1 6 5 6) int-type)
+        (vec-const 'shuf1-3 '#(3 2 7 2) int-type)
+        (vec-const 'shuf2-3 '#(0 1 4 5) int-type)
         (vec-shuffle 'reg-A 'shuf0-3 (list 'A 'Z))
         (vec-shuffle 'reg-B 'shuf1-3 (list 'B 'Z))
         (vec-shuffle 'reg-C 'shuf2-3 (list 'C))
         (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
         (vec-shuffle-set! 'C 'shuf2-3 'out)
-        (vec-const 'shuf0-4 '#(0 0 4 4))
-        (vec-const 'shuf1-4 '#(0 1 4 5))
-        (vec-const 'shuf2-4 '#(0 1 4 5))
+        (vec-const 'shuf0-4 '#(0 0 4 4) int-type)
+        (vec-const 'shuf1-4 '#(0 1 4 5) int-type)
+        (vec-const 'shuf2-4 '#(0 1 4 5) int-type)
         (vec-shuffle 'reg-A 'shuf0-4 (list 'A 'Z))
         (vec-shuffle 'reg-B 'shuf1-4 (list 'B 'Z))
         (vec-shuffle 'reg-C 'shuf2-4 (list 'C))

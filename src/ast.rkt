@@ -8,6 +8,10 @@
   (values 'extern-input
           'extern-output))
 
+(define-values (int-type float-type)
+  (values 'int
+          'float))
+
 ; Default register size.
 (define current-reg-size
   (make-parameter 4))
@@ -16,10 +20,10 @@
 ; A program is a sequence of instructions.
 (struct prog (insts) #:transparent)
 
-; Vector declaration, no initialization.
-(struct vec-const (id init) #:transparent)
-
 ; Set constant vector in memory, with initialization.
+(struct vec-const (id init type) #:transparent)
+
+; Vector declaration, no initialization.
 (struct vec-decl (id size) #:transparent)
 
 ; Set externally-declared vector in memory, must be loaded from.
@@ -36,13 +40,13 @@
 ; Apply functions on vectors (with no result).
 (struct vec-void-app (f inps) #:transparent)
 
-; Nodes used internally for passes
-
 ; Vector load.
 (struct vec-load (dest-id src-id start end) #:transparent)
 
 ; Vector store.
 (struct vec-store (dest-id src-id start end) #:transparent)
+
+; Vector write (copy).
 (struct vec-write (dst src) #:transparent)
 
 (require (for-syntax racket/base
@@ -75,11 +79,11 @@
       (test-case
         "syntax macro generates a valid program"
         (define/prog p
-          ('x = vec-const (vector 0))
+          ('x = vec-const (list) int-type)
           (vec-shuffle-set! 'y 'x 20))
         (define prog-gold
           (prog
             `(
-              ,(vec-const 'x (vector 0))
+              ,(vec-const 'x (list) int-type)
               ,(vec-shuffle-set! 'y 'x 20))))
         (check-equal? p prog-gold)))))

@@ -41,7 +41,7 @@
           "VECTOR-SHUFFLE-SET: duplicate indices")
   (for ([idx idxs]
         [val vals])
-    (bv-list-set! out-vec idx val))
+    (bv-list-set! out-vec (unbox idx) (unbox val)))
   out-vec)
 
 ;; VECTOR MULTIPLY

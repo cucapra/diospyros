@@ -70,9 +70,9 @@
      (vec-extern-decl 'x-real N output-tag)
      (vec-extern-decl 'x-img N output-tag)
      (vec-extern-decl 'P N output-tag)
-     (vec-const 'Z (make-bv-list-zeros 1))
-     (vec-const 'pi-vec (make-bv-list-bvs (current-reg-size) pi))
-     (vec-const 'N-vec (make-bv-list (current-reg-size) N))
+     (vec-const 'Z (make-bv-list-zeros 1) float-type)
+     (vec-const 'pi-vec (make-bv-list-bvs (current-reg-size) pi) float-type)
+     (vec-const 'N-vec (make-bv-list (current-reg-size) N) float-type)
      (vec-decl 'reg-x-real (current-reg-size))
      (vec-decl 'reg-x-img (current-reg-size))))
 
@@ -109,7 +109,7 @@
     (define compute-core
       (list
         ; 2*pi*n*k/N
-        (vec-const 'idxs-prod (choose-idx-vec))
+        (vec-const 'idxs-prod (choose-idx-vec) float-type)
         (vec-app 'mul-prod 'vec-mul (list 'idxs-prod 'pi-vec))
         (vec-app 'div 'vec-s-div (list 'mul-prod 'N-vec))
 

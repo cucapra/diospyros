@@ -174,8 +174,8 @@
 (define (concretize-prog p)
   (define (concretize inst)
     (match inst
-      [(vec-const id init)
-        (vec-const id (concretize-bv-list init))]
+      [(vec-const id init type)
+        (vec-const id (concretize-bv-list init) type)]
       [(vec-load dest-id src-id start end)
        (vec-load dest-id
                  src-id
@@ -278,7 +278,6 @@
       (test-case
         "REG-USED: calculates correctly"
         (parameterize ([current-reg-size 2])
-          (let ([idxs (index-bv-list 0 7 2 5 6 1)]
-                [upper-bound 4])
-            (check-equal? (bv-cost 4) (reg-used idxs upper-bound))))))))
+          (let ([idxs (index-bv-list 0 7 2 5 6 1)])
+            (check-equal? (bv-cost 4) (reg-used idxs reg-of-idx))))))))
 

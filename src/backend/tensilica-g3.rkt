@@ -213,16 +213,20 @@
 
   ; Add the 'zero' constant vector
   (define all-consts
-    (cons (vec-const 'Z (make-vector (current-reg-size) 0))
+    (cons (vec-const 'Z (make-vector (current-reg-size) 0) int-type)
           consts))
 
   (define decl-consts
     (c-seq
       (for/list ([inst all-consts])
         (match inst
-          [(vec-const id init)
-           (type-set id "int *")
-           (c-decl "int"
+          [(vec-const id init type)
+           (define c-type
+             (match type
+               [int-type "int"]
+               [float-type "float"]))
+           (type-set id (~a c-type " *"))
+           (c-decl c-type
                    "__attribute__((section(\".dram0.data\")))"
                    (c-id id)
                    (current-reg-size)
@@ -235,7 +239,7 @@
     (for/list ([inst (prog-insts rprog)])
       (match inst
 
-        [(vec-const id init)
+        [(vec-const _ _ _)
          (error 'tensilica-g3-compile
                 "Constants should not be present in the body")]
 
