@@ -219,7 +219,7 @@ def run_benchmark(dir, benchmark):
             set_dimms = dimmensions_for_benchmark(benchmark, params)
             set_kernel = "KERNEL_SRC=" + os.path.abspath(file)
             set_output = "OUTFILE=" + os.path.abspath(csv_file)
-            sp.call(["make", "-C", harness, "run", set_kernel, set_output] + set_dimms)
+            sp.call(["make", "-C", harness, "sim", set_kernel, set_output] + set_dimms)
 
 def main():
     # Argument parsing

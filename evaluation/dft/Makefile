@@ -12,9 +12,7 @@ NATURE_SRC := $(NATURE_DIR)/cfftd_pdx4.c
 NATURE_OBJ := cfftd_pdx4.o
 NATURE_INC := -I $(NATURE_DIR)/include -I $(NATURE_DIR)/include_private -DXCHAL_HAVE_FUSIONG_SP_VFPU=1
 
-PARAMS := -DI_ROWS=$(I_ROWS) -DI_COLS=$(I_COLS)
-PARAMS := $(PARAMS) -DF_ROWS=$(F_ROWS) -DF_COLS=$(F_COLS)
-PARAMS := $(PARAMS) -DOUTFILE='"$(OUTFILE)"'
+PARAMS := -DN=$(N) -DOUTFILE='"$(OUTFILE)"'
 
 default: $(OBJECT)
 

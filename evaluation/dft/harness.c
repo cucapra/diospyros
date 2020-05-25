@@ -24,7 +24,7 @@ void kernel(float * input_x, float * input_x_real, float * input_x_img,
   float * input_P);
 
 // Naive
-void naive_dft(float *x, float *x_real, float *x_img, int N);
+void naive_dft(float *x, float *x_real, float *x_img, int n);
 
 // Naive hard-coded size
 void naive_dft_hard_size(float *x, float *x_real, float *x_img);
@@ -32,6 +32,7 @@ void naive_dft_hard_size(float *x, float *x_real, float *x_img);
 // Nature kernel
 // Nature required "twiddle factor table"
 const complex_float twiddle_factor[3*N/4];
+
 void cfftd(const complex_double * in, complex_double * out,
   const complex_double twiddle_table[], int twiddle_stride, int N);
 
