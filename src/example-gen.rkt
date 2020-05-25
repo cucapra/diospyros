@@ -38,7 +38,8 @@
                          string->path
                          (build-path base _))])
       (call-with-output-file cost-path
-        (lambda (out) (pretty-print conc-prog out))))))
+        (lambda (out) (pretty-print conc-prog out))
+        #:exists 'replace))))
 
 (define (run-bench name params out-dir)
   (pretty-print params)

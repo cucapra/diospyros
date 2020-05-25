@@ -47,7 +47,8 @@
             (if (absolute-path? (out-file))
               (out-file)
               (build-path (current-directory) (out-file)))
-            (lambda (out) (display prog out)))
+            (lambda (out) (display prog out))
+            #:exists 'replace)
           (display prog)))
 
       (~> i-prog

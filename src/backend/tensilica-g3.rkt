@@ -222,9 +222,9 @@
         (match inst
           [(vec-const id init type)
            (define c-type
-             (match type
-               [int-type "int"]
-               [float-type "float"]))
+             (cond
+               [(equal? type int-type) "int"]
+               [(equal? type float-type) "float"]))
            (type-set id (~a c-type " *"))
            (c-decl c-type
                    "__attribute__((section(\".dram0.data\")))"
