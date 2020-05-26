@@ -63,7 +63,6 @@
 (define (dft-sketch N x fn-map iterations)
 
   ; Program preamble to define the "zero" vector, inputs and constants
-  (define pi (hash-ref fn-map `pi))
   (define preamble
     (list
      (vec-extern-decl 'x N input-tag)
@@ -71,7 +70,7 @@
      (vec-extern-decl 'x-img N output-tag)
      (vec-extern-decl 'P N output-tag)
      (vec-const 'Z (make-bv-list-zeros 1) float-type)
-     (vec-const 'pi-vec (make-bv-list-bvs (current-reg-size) pi) float-type)
+     (vec-const 'pi-vec (make-bv-list-bvs (current-reg-size) `pi) float-type)
      (vec-const 'N-vec (make-bv-list (current-reg-size) N) float-type)
      (vec-decl 'reg-x-real (current-reg-size))
      (vec-decl 'reg-x-img (current-reg-size))))
@@ -143,7 +142,7 @@
            x-real-stores
            x-img-stores)))
 
-(define (run-sketch sketch cost-fn N x)
+(define (run-sketch sketch cost-fn pi-sym N x)
   (define-values (out-env cost)
     (interp sketch
             #:cost-fn cost-fn
@@ -152,7 +151,8 @@
                            'vec-s-div vector-s-divide
                            'vec-cos vector-cos
                            'vec-sin vector-sin
-                           'vec-negate vector-negate)
+                           'vec-negate vector-negate
+                           'pi pi-sym)
             (list (cons 'x x)
                   (cons 'x-real (make-bv-list-zeros N))
                   (cons 'x-img (make-bv-list-zeros N))
@@ -223,7 +223,8 @@
     (define (sketch-func args)
       (apply (curry run-sketch
                     sketch
-                    (cost-fn))
+                    (cost-fn)
+                    pi-sym)
              (take args 2)))
 
     ; Get a generator back from the synthesis procedure

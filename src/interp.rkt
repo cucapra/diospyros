@@ -79,7 +79,14 @@
     (match inst
 
       [(vec-const id init _)
-       (env-set! id init)]
+       ; Check whether the constant is a mapped symbol
+       (define val
+        (for/list ([b init])
+          (let ([v (unbox b)])
+            (box (if (symbol? v)
+                 (hash-ref fn-map v)
+                 v)))))
+       (env-set! id val)]
 
       [(vec-decl id size)
        (env-set! id (make-bv-list-zeros (current-reg-size)))]
