@@ -146,13 +146,24 @@
                        (c-call (c-id func-name)
                                ordered-args))))))
 
+(define (to-vecMxf2 type-ref inp)
+  (match (type-ref inp)
+    ["xb_vecMxf32" (c-id inp)]
+    ["float *" (c-deref (c-cast "xb_vecMxf32 *" (c-id inp)))]
+    ["xb_vecMx32"
+      (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
+              (list (c-id inp)))]
+    [_ (error 'tensilica-g3-compile
+              "Unable to convert to vector float type for id: ~a"
+              inp)]))
+
 ; Generate code for a vector MAC. Since the target defines VMAC as a mutating
 ; function, we have to turn:
 ; out = vmac(acc, i1, i2)
 ; into:
 ; declare out = acc;
 ; vmac(out, i1, i2)
-(define (gen-vecmac type-set inst)
+(define (gen-vecmac type-set type-ref inst)
   (match-define (vec-app out 'vec-mac (list v-acc i1 i2)) inst)
   ; Declare out register.
   (type-set out "xb_vecMxf32")
@@ -168,14 +179,17 @@
       (c-call (c-id "PDX_MULA_MXF32")
             (list
               (c-id out)
-              (c-id i1)
-              (c-id i2)))))
+              (to-vecMxf2 type-ref i1)
+              (to-vecMxf2 type-ref i2)))))
   (list out-decl
         mac))
 
 ; xb_vecMxf32 out;
 ; out = name(input0, input1, ...);
-(define (gen-vecMxf2-pure-fun name type-set out inputs)
+(define (gen-vecMxf2-pure-app name type-set type-ref out inputs)
+  ; Convert inputs to xb_vecMxf32 if needed
+  (define vec-inputs (map (curry to-vecMxf2 type-ref) inputs))
+
   ; Declare out register.
   (type-set out "xb_vecMxf32")
   (define out-decl
@@ -187,15 +201,16 @@
   ; Function application
   (define app
     (c-assign (c-id out)
-              (c-call (c-id name)
-                (map c-id inputs))))
+              (c-call (c-id name) vec-inputs)))
   (list out-decl app))
 
-(define (gen-vec-void-app name type-set inputs)
+(define (gen-vecMxf2-void-app name type-ref inputs)
+  ; Convert inputs to xb_vecMxf32 if needed
+  (define vec-inputs (map (curry to-vecMxf2 type-ref) inputs))
+
   (list
     (c-stmt
-      (c-call (c-id name)
-            (map c-id inputs)))))
+      (c-call (c-id name) vec-inputs))))
 
 (define (tensilica-g3-compile p)
   ; Hoist all the constants to the top of the program.
@@ -294,22 +309,22 @@
         [(vec-shuffle _ _ _)
          (gen-shuffle type-set type-ref inst)]
 
-        [(vec-app _ 'vec-mac _) (gen-vecmac type-set inst)]
+        [(vec-app _ 'vec-mac _) (gen-vecmac type-set type-ref inst)]
 
         [(vec-app out 'vec-mul inputs)
-         (gen-vecMxf2-pure-fun "PDX_MUL_MXF32" type-set out inputs)]
+         (gen-vecMxf2-pure-app "PDX_MUL_MXF32" type-set type-ref out inputs)]
 
         [(vec-app out 'vec-s-div inputs)
-         (gen-vecMxf2-pure-fun "PDX_DIV_MXF32" type-set out inputs)]
+         (gen-vecMxf2-pure-app "PDX_DIV_MXF32" type-set type-ref out inputs)]
 
         [(vec-app out 'vec-cos inputs)
-         (gen-vecMxf2-pure-fun "cos_MXF32" type-set out inputs)]
+         (gen-vecMxf2-pure-app "cos_MXF32" type-set type-ref out inputs)]
 
         [(vec-app out 'vec-sin inputs)
-         (gen-vecMxf2-pure-fun "sin_MXF32" type-set out inputs)]
+         (gen-vecMxf2-pure-app "sin_MXF32" type-set type-ref out inputs)]
 
         [(vec-void-app 'vec-negate inputs)
-         (gen-vec-void-app "PDX_NEG_MXF32" type-set inputs)]
+         (gen-vecMxf2-void-app "PDX_NEG_MXF32" type-ref inputs)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _))
           (error 'tensilica-g3-compile

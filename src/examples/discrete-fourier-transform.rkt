@@ -239,7 +239,7 @@
                                    ; trig functions
                                    (let ([fn-map (first (filter hash? args))])
                                      (map (curry hash-ref fn-map)
-                                          (list `cos `sin ))))))
+                                          (list `cos `sin))))))
                   #:min-cost (bv-cost 0)
                   #:assume (trig-facts pi-sym)))
 
