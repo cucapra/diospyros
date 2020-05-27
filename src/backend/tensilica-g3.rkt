@@ -22,8 +22,38 @@
 ; Returns the name for an input
 (define input-name (make-prefix-id "input_"))
 
-(define (vector->string vec)
-  (string-join (vector->list (vector-map number->string vec))
+; Map of constant values to string representations
+(define (make-const-map)
+
+  (define constants (make-hash))
+
+  (define (const-set id str)
+    (hash-set! constants id str))
+
+  (define (const-ref id)
+   (hash-ref constants id))
+
+  (define (const? id)
+    (hash-has-key? constants id))
+
+  (const-set `pi "PI")
+
+  (values const-ref const?))
+
+; Converts an array element to a string representation
+(define (element->string const-ref const? v)
+  (cond
+    [(number? v) (number->string v)]
+    [(const? v) (const-ref v)]
+    [else (error 'tensilica-g3-compile
+                 "Element type not handled: ~a"
+                 v)]))
+
+(define (vector->string const-ref const? vec)
+  (string-join (vector->list (vector-map (curry element->string
+                                                const-ref
+                                                const?)
+                                         vec))
                ", "
                #:before-first "{"
                #:after-last "}"))
@@ -231,6 +261,8 @@
     (cons (vec-const 'Z (make-vector (current-reg-size) 0) int-type)
           consts))
 
+  (define-values (const-ref const?) (make-const-map))
+
   (define decl-consts
     (c-seq
       (for/list ([inst all-consts])
@@ -245,7 +277,7 @@
                    "__attribute__((section(\".dram0.data\")))"
                    (c-id id)
                    (current-reg-size)
-                   (c-bare (vector->string init)))]
+                   (c-bare (vector->string const-ref const? init)))]
           [_ (error 'tensilica-g3-compile
                     "Expected vec-const. Received: ~a"
                     inst)]))))
