@@ -65,6 +65,12 @@ parameters = {
             "iterations": 6,
             "reg-size": 4
         }
+    ],
+    dft : [
+        {
+            "N" : 1,
+            "reg-size": 4
+        }
     ]
 }
 
@@ -83,6 +89,9 @@ def params_to_name(benchmark, params):
                                             params["B-cols"],
                                             params["iterations"],
                                             params["reg-size"])
+    if benchmark == dft:
+        return '{}_{}r'.format(params["N"],
+                               params["reg-size"])
 
     print("Warning: haven't defined nice filename for: ", benchmark)
     return str(params)
@@ -179,6 +188,10 @@ def dimmensions_for_benchmark(benchmark, params):
                 "B_ROWS=" + str(params["B-rows"]),
                 "B_COLS=" + str(params["B-cols"]),
             ]
+    if benchmark == dft:
+        return [
+                "N=" + str(params["N"]),
+            ]
 
 def run_benchmark(dir, benchmark):
     b_dir = os.path.join(dir, benchmark)
@@ -249,18 +262,14 @@ def main():
         print("Writing results to: {}".format(cur_results_dir))
 
     if not args.skipsynth:
-        # synthesize_benchmark(cur_results_dir, conv2d, args.timeout)
-        synthesize_benchmark(cur_results_dir, matmul, args.timeout)
-        synthesize_benchmark(cur_results_dir, conv2d, args.timeout)
+        for b in benchmarks:
+            synthesize_benchmark(cur_results_dir, b, args.timeout)
     if not args.skipc:
-        # compile_benchmark(cur_results_dir, conv2d)
-        compile_benchmark(cur_results_dir, matmul)
-        compile_benchmark(cur_results_dir, conv2d)
-
+        for b in benchmarks:
+            compile_benchmark(cur_results_dir, b)
     if not args.skiprun:
-        # run_benchmark(cur_results_dir, conv2d)
-        run_benchmark(cur_results_dir, matmul)
-        run_benchmark(cur_results_dir, conv2d)
+        for b in benchmarks:
+            run_benchmark(cur_results_dir, b)
 
 if __name__ == main():
     main()

@@ -9,7 +9,13 @@
 (provide vector-shuffle
          vector-shuffle-set!
          vector-multiply
-         vector-mac)
+         vector-mac
+         vector-s-divide
+         vector-negate
+         vector-cos
+         vector-sin
+         cosine
+         sine)
 
 ;; Define set of instructions commonly found in DSP architectures.
 
@@ -35,7 +41,7 @@
           "VECTOR-SHUFFLE-SET: duplicate indices")
   (for ([idx idxs]
         [val vals])
-    (bv-list-set! out-vec idx val))
+    (bv-list-set! out-vec (unbox idx) (unbox val)))
   out-vec)
 
 ;; VECTOR MULTIPLY
@@ -43,8 +49,8 @@
   (assert (= (length v1) (length v2))
           "VECTOR-MULTIPLY: length of vectors not equal")
   (for/list ([e1 v1]
-               [e2 v2])
-    (bvmul (unbox e1) (unbox e2))))
+             [e2 v2])
+    (box (bvmul (unbox e1) (unbox e2)))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -53,9 +59,38 @@
              (length v-acc))
           "VECTOR-MAC: length of vectors not equal")
   (for/list ([e-acc v-acc]
-               [e1 v1]
-               [e2 v2])
+             [e1 v1]
+             [e2 v2])
     (box (bvadd (unbox e-acc) (bvmul (unbox e1) (unbox e2))))))
+
+; Define sine and cosine as an interpreted functions
+(define-symbolic cosine (~> (bitvector (value-fin))
+                            (bitvector (value-fin))))
+(define-symbolic sine (~> (bitvector (value-fin))
+                          (bitvector (value-fin))))
+
+;; VECTOR SIGNED DIVIDE
+(define (vector-s-divide v1 v2)
+  (assert (= (length v1) (length v2))
+          "VECTOR-S-DIVIDE: length of vectors not equal")
+  (for/list ([e1 v1]
+             [e2 v2])
+    (box (bvsdiv (unbox e1) (unbox e2)))))
+
+;; VECTOR-NEGATE
+(define (vector-negate v)
+  (for ([e v])
+    (set-box! e (bvneg (unbox e)))))
+
+;; VECTOR-COSINE
+(define (vector-cos v)
+  (for/list ([e v])
+    (box (cosine (unbox e)))))
+
+;; VECTOR-SINE
+(define (vector-sin v)
+  (for/list ([e v])
+    (box (sine (unbox e)))))
 
 (define dsp-insts-tests
   (test-suite

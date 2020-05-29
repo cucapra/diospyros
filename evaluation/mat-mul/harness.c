@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
   printf("Nature : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Nature",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
-  // Rosette
+  // Diospyros
   start_cycle_timing;
   kernel(a, b, c);
   stop_cycle_timing;
@@ -96,8 +96,8 @@ int main(int argc, char **argv) {
   print_matrix(c, A_ROWS, B_COLS);
   output_check(c, c_spec, A_ROWS, B_COLS);
   zero_matrix(c, A_ROWS, B_COLS);
-  printf("Rosette : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Rosette",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
+  printf("Diospyros : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Diospyros",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
   // Expert
   start_cycle_timing;

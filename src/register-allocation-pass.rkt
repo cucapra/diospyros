@@ -45,7 +45,7 @@
     (map inst-result-final new-vecs)))
 
 ; Produces 1 or more instructions, modifies env
-(define (alloc-const env id init)
+(define (alloc-const env id init type)
   (unless (vector? init)
     (error 'alloc-const "failed because ~a is not a vector" init))
   (let ([len (vector-length init)])
@@ -55,7 +55,7 @@
        (let ([new-init (vector-pad-to init (current-reg-size))])
          (vector-pad-to init (current-reg-size))
          (hash-set! env id new-init)
-         (inst-result (vec-const id new-init) `()))]
+         (inst-result (vec-const id new-init type) `()))]
       ; Allocate long vectors to multiple registers
       [else
        (define (load-init dest-id start end)
@@ -63,7 +63,7 @@
        (define results
          (partition-vector env id len load-init))
        (inst-result
-        (cons (vec-const id init) (inst-result-insts results))
+        (cons (vec-const id init type) (inst-result-insts results))
         (inst-result-final results))])))
 
 (define (alloc-extern-decl env id size)
@@ -91,9 +91,9 @@
          (begin
            (define-id id)
            (inst-result inst `())))]
-    [(vec-const id init)
+    [(vec-const id init type)
      (define-id id)
-     (alloc-const env id init)]
+     (alloc-const env id init type)]
     [(vec-shuffle id idxs inps)
      (define-id id)
      (check-defined (apply list idxs inps))
@@ -134,7 +134,7 @@
         (for-each add-use inps)]
       [(vec-shuffle-set! _ _ inp)
         (add-use inp)]
-      [(or (vec-const _ _)
+      [(or (vec-const _ _ _)
            (vec-decl _ _)
            (vec-extern-decl _ _ _)
            (vec-load _ _ _ _)
@@ -155,7 +155,6 @@
         (map inst-result-insts results)
         (map inst-result-final results)))))
 
-
 ; Testing
 (module+ test
   (require rackunit
@@ -168,10 +167,10 @@
         "Pad small vectors"
         (define env (make-hash))
         (define/prog p
-          ('x = vec-const (vector 0)))
+          ('x = vec-const (vector 0) int-type))
         (define new-p (register-allocation p env))
         (define/prog gold
-          ('x = vec-const (vector 0 0 0 0)))
+          ('x = vec-const (vector 0 0 0 0) int-type))
         (check-equal? new-p gold)
         (check-equal? (hash-ref env 'x) (vector 0 0 0 0)))
 
@@ -205,12 +204,12 @@
         "Partition large vectors"
         (define env (make-hash))
         (define/prog p
-          ('x = vec-const (vector 0 1 2 3 4 5 6)))
+          ('x = vec-const (vector 0 1 2 3 4 5 6) int-type))
         (define new-p (register-allocation p env ))
         (define section-1-gold (vector 0 1 2 3))
         (define section-2-gold (vector 4 5 6 0))
         (define/prog gold
-          ('x = vec-const '#(0 1 2 3 4 5 6))
+          ('x = vec-const '#(0 1 2 3 4 5 6) int-type)
           (vec-load 'x_0_4 'x 0 4)
           (vec-load 'x_4_8 'x 4 8)
           (vec-store 'x 'x_0_4 0 4)

@@ -5,8 +5,13 @@ harness_dir = "evaluation/"
 
 conv2d = "2d-conv"
 matmul = "mat-mul"
+dft = "dft"
 
-benchmarks = [matmul, conv2d]
+benchmarks = [
+    matmul,
+    conv2d,
+    dft,
+]
 
 def make_dir(d):
     """Makes a directory if it does not already exist"""

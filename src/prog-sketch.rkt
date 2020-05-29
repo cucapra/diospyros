@@ -43,7 +43,8 @@
     (define insts
       (map (lambda (shuf-name)
              (vec-const shuf-name
-                        (make-symbolic-bv-list-indices (current-reg-size))))
+                        (make-symbolic-bv-list-indices (current-reg-size))
+                        int-type))
            shuf-names))
     (values insts shuf-names)))
 

@@ -2,6 +2,7 @@
 
 (require racket/generator
          threading
+         rosette/lib/value-browser
          "ast.rkt"
          "prog-sketch.rkt"
          "configuration.rkt"
@@ -137,6 +138,10 @@
     (with-asserts (sketch sym-args)))
   (match-define (list sketch-out cost) sketch-res)
 
+  ; Debugging: uncomment to show spec and sketch in the value debugger
+  ; (pretty-print (render-value/snip spec-out))
+  ; (pretty-print (render-value/snip sketch-out))
+
 
   ; NOTE(rachit): Unfortunately there doesn't seem to be a `boxof` contract
   ; that would let us check (listof (boxof bv?)) so we just check if it is
@@ -189,7 +194,7 @@
       ; the current parameters
       (when (and (not (sat? model))
                  (equal? cur-cost max-cost))
-        (error "Initial query unsat. No satisfying model found"))
+        (error "Initial query unsat. No satisfying model found ~a" model))
 
       (define new-cost
         (cond

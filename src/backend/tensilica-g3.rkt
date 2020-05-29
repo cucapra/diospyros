@@ -22,8 +22,38 @@
 ; Returns the name for an input
 (define input-name (make-prefix-id "input_"))
 
-(define (vector->string vec)
-  (string-join (vector->list (vector-map number->string vec))
+; Map of constant values to string representations
+(define (make-const-map)
+
+  (define constants (make-hash))
+
+  (define (const-set id str)
+    (hash-set! constants id str))
+
+  (define (const-ref id)
+   (hash-ref constants id))
+
+  (define (const? id)
+    (hash-has-key? constants id))
+
+  (const-set `pi "PI")
+
+  (values const-ref const?))
+
+; Converts an array element to a string representation
+(define (element->string const-ref const? v)
+  (cond
+    [(number? v) (number->string v)]
+    [(const? v) (const-ref v)]
+    [else (error 'tensilica-g3-compile
+                 "Element type not handled: ~a"
+                 v)]))
+
+(define (vector->string const-ref const? vec)
+  (string-join (vector->list (vector-map (curry element->string
+                                                const-ref
+                                                const?)
+                                         vec))
                ", "
                #:before-first "{"
                #:after-last "}"))
@@ -146,13 +176,24 @@
                        (c-call (c-id func-name)
                                ordered-args))))))
 
+(define (to-vecMxf2 type-ref inp)
+  (match (type-ref inp)
+    ["xb_vecMxf32" (c-id inp)]
+    ["float *" (c-deref (c-cast "xb_vecMxf32 *" (c-id inp)))]
+    ["xb_vecMx32"
+      (c-call (c-id "PDX_MOV_MXF32_FROM_MX32")
+              (list (c-id inp)))]
+    [_ (error 'tensilica-g3-compile
+              "Unable to convert to vector float type for id: ~a"
+              inp)]))
+
 ; Generate code for a vector MAC. Since the target defines VMAC as a mutating
 ; function, we have to turn:
 ; out = vmac(acc, i1, i2)
 ; into:
 ; declare out = acc;
 ; vmac(out, i1, i2)
-(define (gen-vecmac type-set inst)
+(define (gen-vecmac type-set type-ref inst)
   (match-define (vec-app out 'vec-mac (list v-acc i1 i2)) inst)
   ; Declare out register.
   (type-set out "xb_vecMxf32")
@@ -168,11 +209,38 @@
       (c-call (c-id "PDX_MULA_MXF32")
             (list
               (c-id out)
-              (c-id i1)
-              (c-id i2)))))
+              (to-vecMxf2 type-ref i1)
+              (to-vecMxf2 type-ref i2)))))
   (list out-decl
         mac))
 
+; xb_vecMxf32 out;
+; out = name(input0, input1, ...);
+(define (gen-vecMxf2-pure-app name type-set type-ref out inputs)
+  ; Convert inputs to xb_vecMxf32 if needed
+  (define vec-inputs (map (curry to-vecMxf2 type-ref) inputs))
+
+  ; Declare out register.
+  (type-set out "xb_vecMxf32")
+  (define out-decl
+    (c-decl "xb_vecMxf32"
+            #f
+            (c-id out)
+            #f
+            #f))
+  ; Function application
+  (define app
+    (c-assign (c-id out)
+              (c-call (c-id name) vec-inputs)))
+  (list out-decl app))
+
+(define (gen-vecMxf2-void-app name type-ref inputs)
+  ; Convert inputs to xb_vecMxf32 if needed
+  (define vec-inputs (map (curry to-vecMxf2 type-ref) inputs))
+
+  (list
+    (c-stmt
+      (c-call (c-id name) vec-inputs))))
 
 (define (tensilica-g3-compile p)
   ; Hoist all the constants to the top of the program.
@@ -190,20 +258,26 @@
 
   ; Add the 'zero' constant vector
   (define all-consts
-    (cons (vec-const 'Z (make-vector (current-reg-size) 0))
+    (cons (vec-const 'Z (make-vector (current-reg-size) 0) int-type)
           consts))
+
+  (define-values (const-ref const?) (make-const-map))
 
   (define decl-consts
     (c-seq
       (for/list ([inst all-consts])
         (match inst
-          [(vec-const id init)
-           (type-set id "int *")
-           (c-decl "int"
+          [(vec-const id init type)
+           (define c-type
+             (cond
+               [(equal? type int-type) "int"]
+               [(equal? type float-type) "float"]))
+           (type-set id (~a c-type " *"))
+           (c-decl c-type
                    "__attribute__((section(\".dram0.data\")))"
                    (c-id id)
                    (current-reg-size)
-                   (c-bare (vector->string init)))]
+                   (c-bare (vector->string const-ref const? init)))]
           [_ (error 'tensilica-g3-compile
                     "Expected vec-const. Received: ~a"
                     inst)]))))
@@ -212,7 +286,7 @@
     (for/list ([inst (prog-insts rprog)])
       (match inst
 
-        [(vec-const id init)
+        [(vec-const _ _ _)
          (error 'tensilica-g3-compile
                 "Constants should not be present in the body")]
 
@@ -267,9 +341,27 @@
         [(vec-shuffle _ _ _)
          (gen-shuffle type-set type-ref inst)]
 
-        [(vec-app _ 'vec-mac _) (gen-vecmac type-set inst)]
+        [(vec-app _ 'vec-mac _) (gen-vecmac type-set type-ref inst)]
 
-        [(or (vec-void-app _ _) (vec-app _ _ _)) (list)]
+        [(vec-app out 'vec-mul inputs)
+         (gen-vecMxf2-pure-app "PDX_MUL_MXF32" type-set type-ref out inputs)]
+
+        [(vec-app out 'vec-s-div inputs)
+         (gen-vecMxf2-pure-app "PDX_DIV_MXF32" type-set type-ref out inputs)]
+
+        [(vec-app out 'vec-cos inputs)
+         (gen-vecMxf2-pure-app "cos_MXF32" type-set type-ref out inputs)]
+
+        [(vec-app out 'vec-sin inputs)
+         (gen-vecMxf2-pure-app "sin_MXF32" type-set type-ref out inputs)]
+
+        [(vec-void-app 'vec-negate inputs)
+         (gen-vecMxf2-void-app "PDX_NEG_MXF32" type-ref inputs)]
+
+        [(or (vec-void-app _ _) (vec-app _ _ _))
+          (error 'tensilica-g3-compile
+                   "Cannot compile app instruction: ~a"
+                   inst)]
 
         [(vec-write dst src)
          (c-assign (c-id dst) (c-id src))]

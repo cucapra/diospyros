@@ -78,8 +78,15 @@
     ; Execute the program instruction
     (match inst
 
-      [(vec-const id init)
-       (env-set! id init)]
+      [(vec-const id init _)
+       ; Check whether the constant is a mapped symbol
+       (define val
+        (for/list ([b init])
+          (let ([v (unbox b)])
+            (box (if (symbol? v)
+                 (hash-ref fn-map v)
+                 v)))))
+       (env-set! id val)]
 
       [(vec-decl id size)
        (env-set! id (make-bv-list-zeros (current-reg-size)))]
@@ -188,7 +195,7 @@
         (define gold
           (value-bv-list 1 2 3 4))
         (define/prog p
-          ('x = vec-const gold))
+          ('x = vec-const gold int-type))
         (interp p env)
         (check-equal? (hash-ref env 'x) gold))
 
@@ -197,8 +204,8 @@
         (define env (make-hash))
         (define gold (value-bv-list 3 1 2 0))
         (define/prog p
-          ('const = vec-const (value-bv-list 0 1 2 3))
-          ('idxs = vec-const (index-bv-list 3 1 2 0))
+          ('const = vec-const (value-bv-list 0 1 2 3) float-type)
+          ('idxs = vec-const (index-bv-list 3 1 2 0) int-type)
           ('shuf = vec-shuffle 'idxs (list 'const)))
         (interp p env)
         (check-equal? (hash-ref env 'shuf) gold))
@@ -228,35 +235,35 @@
       (test-case
         "make-register-cost calculates cost correctly"
         (define/prog p
-          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7))
-          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15))
-          ('i1 = vec-const (index-bv-list 1 4 7 5))
-          ('i2 = vec-const (index-bv-list 0 3 2 1))
-          ('i3 = vec-const (index-bv-list 0 1 8 9))
+          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7) float-type)
+          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15) float-type)
+          ('i1 = vec-const (index-bv-list 1 4 7 5) int-type)
+          ('i2 = vec-const (index-bv-list 0 3 2 1) int-type)
+          ('i3 = vec-const (index-bv-list 0 1 8 9) int-type)
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i2 (list 'a))
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
         (define-values (_ cost)
           (interp p
                   (make-hash)
-                  #:cost-fn (make-register-cost 3)))
+                  #:cost-fn (make-register-cost reg-of-idx)))
         (check-equal? cost (bv-cost 5))
         ; cost depends on the current-reg-size
         (define-values (__ cost-2)
           (interp p
                   (make-hash)
-                  #:cost-fn (make-register-cost 5)))
+                  #:cost-fn (make-register-cost reg-of-idx)))
         (parameterize ([current-reg-size 2])
           (check-equal? cost-2 (bv-cost 5))))
 
       (test-case
         "shuffle-unique-cost does not increase cost for repeated idxs"
         (define/prog p
-          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7))
-          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15))
-          ('i1 = vec-const (index-bv-list 1 2 3 0))
-          ('i2 = vec-const (index-bv-list 0 3 2 1))
-          ('i3 = vec-const (index-bv-list 0 1 8 9))
+          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7) float-type)
+          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15) float-type)
+          ('i1 = vec-const (index-bv-list 1 2 3 0) int-type)
+          ('i2 = vec-const (index-bv-list 0 3 2 1) int-type)
+          ('i3 = vec-const (index-bv-list 0 1 8 9) int-type)
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
@@ -269,11 +276,11 @@
       (test-case
         "shuffle-unique-cost calculates different cost for unique idxs"
         (define/prog p
-          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7))
-          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15))
-          ('i1 = vec-const (index-bv-list 1 2 3 0))
-          ('i2 = vec-const (index-bv-list 0 3 2 1))
-          ('i3 = vec-const (index-bv-list 0 1 8 9))
+          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7) float-type)
+          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15) float-type)
+          ('i1 = vec-const (index-bv-list 1 2 3 0) int-type)
+          ('i2 = vec-const (index-bv-list 0 3 2 1) int-type)
+          ('i3 = vec-const (index-bv-list 0 1 8 9) int-type)
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i2 (list 'a))    ; different from previous test
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
