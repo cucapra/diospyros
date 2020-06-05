@@ -134,8 +134,14 @@
     [_ (error "List idx not found" idx lst)]))
 
 (define (concretize-bv-list lst)
-  (define (bv-unbox x) (bitvector->integer (unbox x)))
-  (list->vector (map bv-unbox lst)))
+  (define (bv-box-to-val x)
+    (define v (unbox x))
+    (cond
+      [(bv? v) (bitvector->integer v)]
+      [(symbol? v) v]
+      [else (error (~a "Expected bitvector or symbol, got " v))]))
+
+  (list->vector (map bv-box-to-val lst)))
 
 ; Mutates the destination list in place, setting box values to the values boxed
 ; in the given source elements

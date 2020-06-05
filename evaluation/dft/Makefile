@@ -7,8 +7,12 @@ XRUN := xt-run
 XCC_FLAGS += -std=c99 -O3
 XSIM_FLAGS := --summary --mem_model
 
-NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
+# Cosine and sine implementations
 NATURE_OBJS := invpi_tbl.o sin_tbl.o cos_pdx4.o sin_pdx4.o
+# FFT implementation
+NATURE_OBJS += cfft_tab_pdx4.o L4n_n_inpl_pdx4.o bitrev32_pdx4.o cfft_pdx4.o
+
+NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
 NATURE_INC := -I $(NATURE_DIR)/include -I $(NATURE_DIR)/include_private -DXCHAL_HAVE_FUSIONG_SP_VFPU=1
 
 PARAMS := -DN=$(N) -DOUTFILE='"$(OUTFILE)"'
