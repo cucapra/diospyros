@@ -246,10 +246,12 @@
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.
-    ;void
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
-        (let ([prog (evaluate sketch model)])
+        ; We need to resolve the choose* expressions to constant constants even
+        ; if unconstrained, so call complete-solution
+        (let* ([sol (complete-solution model (symbolics sketch))]
+               [prog (evaluate sketch sol)])
             (pretty-print (bitvector->integer cost))
             (file-writer prog cost))
           (pretty-print (~a "failed to find solution: " model))))))
