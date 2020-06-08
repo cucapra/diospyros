@@ -357,7 +357,7 @@
          (gen-vecMxf2-pure-app "sin_MXF32" type-set type-ref out inputs)]
 
         [(vec-void-app 'vec-negate inputs)
-         (gen-vecMxf2-void-app "PDX_NEG_MXF32" type-ref inputs)]
+         (gen-vecMxf2-pure-app "PDX_NEG_MXF32" type-set type-ref (first inputs) inputs)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _))
           (error 'tensilica-g3-compile
