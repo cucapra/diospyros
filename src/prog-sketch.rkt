@@ -67,7 +67,7 @@
   (define vals
     (for/list ([i (in-range 0 len (current-reg-size))])
       (let* ([start i]
-             [end (min len (+ i (current-reg-size)))]
+             [end (min size (+ i (current-reg-size)))]
              [new-id (string->symbol
                        (format "~a_~a_~a" id start end))]
              [start-bv (bv-index start)]
