@@ -144,6 +144,7 @@
     (map (lambda (inp)
            (match (type-ref inp)
             ["int *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]
+            ["float *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]
             ["xb_vecMx32" (c-id inp)]
             ["xb_vecMxf32"
               (c-call (c-id "PDX_MOV_MX32_FROM_MXF32")

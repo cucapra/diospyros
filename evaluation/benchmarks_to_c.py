@@ -68,7 +68,7 @@ parameters = {
     ],
     dft : [
         {
-            "N" : 1,
+            "N" : 8,
             "reg-size": 4
         }
     ]
@@ -134,7 +134,7 @@ def synthesize_benchmark(dir, benchmark, timeout):
 
         call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
 
-def compile_benchmark(dir, benchmark):
+def compile_benchmark(dir, benchmark, force):
     b_dir = os.path.join(dir, benchmark)
     built = 0
     for params_config in listdir(b_dir):
@@ -146,7 +146,7 @@ def compile_benchmark(dir, benchmark):
                 continue
 
             c_file = pre + ".c"
-            if os.path.exists(c_file):
+            if not force and os.path.exists(c_file):
                 print("Skipping already-build C file: {}".format(c_file))
                 continue
 
@@ -163,7 +163,14 @@ def compile_benchmark(dir, benchmark):
                          #include <xtensa/sim.h>
                          #include <xtensa/tie/xt_pdxn.h>
                          #include <xtensa/tie/xt_timer.h>
-                         #include <xtensa/xt_profiling.h>"""
+                         #include <xtensa/xt_profiling.h>
+
+                         """
+
+            if benchmark == dft:
+                imports += """#define PI 3.1415926535897932384626433832795
+                              xb_vecMxf32 cos_MXF32(xb_vecMxf32 v);
+                              xb_vecMxf32 sin_MXF32(xb_vecMxf32 v);"""
 
             with open(c_file, 'r+') as f:
                 content = f.read()
@@ -193,7 +200,7 @@ def dimmensions_for_benchmark(benchmark, params):
                 "N=" + str(params["N"]),
             ]
 
-def run_benchmark(dir, benchmark):
+def run_benchmark(dir, benchmark, build, force):
     b_dir = os.path.join(dir, benchmark)
     for params_config in listdir(b_dir):
         if not os.path.isdir(params_config):
@@ -207,14 +214,15 @@ def run_benchmark(dir, benchmark):
                 continue
 
             csv_file = pre + ".csv"
-            if os.path.exists(csv_file):
+            if not force and os.path.exists(csv_file):
                 print("Skipping already-run CSV file: {}".format(csv_file))
                 continue
 
             print("Running, outputting to file {}".format(csv_file))
 
             harness = os.path.join(harness_dir, benchmark)
-            sp.call(["make", "-C", harness, "clean"])
+            if build:
+                sp.call(["make", "-C", harness, "clean"])
 
             set_dimms = dimmensions_for_benchmark(benchmark, params)
             set_kernel = "KERNEL_SRC=" + os.path.abspath(file)
@@ -226,6 +234,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', action='store_true',
         help="Build ./dios and ./dios-example-gen executables")
+    parser.add_argument('-f', '--force', action='store_true',
+        help="Force overwrite old results")
     parser.add_argument('-t', '--timeout', type=int, default=100,
         help="Timeout per call to ./dios-example-gen (seconds)")
     parser.add_argument('-o', '--output', type=str, default="",
@@ -266,10 +276,10 @@ def main():
             synthesize_benchmark(cur_results_dir, b, args.timeout)
     if not args.skipc:
         for b in benchmarks:
-            compile_benchmark(cur_results_dir, b)
+            compile_benchmark(cur_results_dir, b, args.force)
     if not args.skiprun:
         for b in benchmarks:
-            run_benchmark(cur_results_dir, b)
+            run_benchmark(cur_results_dir, b, args.build, args.force)
 
 if __name__ == main():
     main()
