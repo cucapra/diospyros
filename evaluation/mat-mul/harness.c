@@ -24,11 +24,28 @@ void kernel(float* input_A, float* input_B, float* input_C);
 void matrix_multiply_2x3_3x3_expert(float* c, float* a, float* b);
 
 // Naive
-void naive_matrix_multiply(float *a, float *b, float *c,
-                           int row1, int col1, int col2);
+ void naive_matrix_multiply(float *a, float *b, float *c, int row1, int col1, int col2) {
+   for (int y = 0; y < row1; y++) {
+     for (int x = 0; x < col2; x++) {
+       c[col2 * y + x] = 0;
+       for (int k = 0; k < col1; k++) {
+         c[col2 * y + x] += a[col1 * y + k] * b[col2 * k + x];
+       }
+     }
+   }
+ }
 
-// Naive hard-coded size
-void naive_matrix_multiply_hard_size(float *a, float *b, float *c);
+ // Naive hard-coded size
+ void naive_matrix_multiply_hard_size(float *a, float *b, float *c) {
+   for (int y = 0; y < A_ROWS; y++) {
+     for (int x = 0; x < B_COLS; x++) {
+       c[B_COLS * y + x] = 0;
+       for (int k = 0; k < A_COLS; k++) {
+         c[B_COLS * y + x] += a[A_COLS * y + k] * b[B_COLS * k + x];
+       }
+     }
+   }
+ }
 
 // Nature kernel
 void matmmltf(const float32_t *x, int M, int N, const float32_t *y,
