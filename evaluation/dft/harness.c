@@ -134,32 +134,38 @@ int main(int argc, char **argv) {
   printf("Naive hard size: %d cycles\n", time);
   fprintf(file, "%s,%d,%d\n","Naive hard size",N,time);
 
-  // Nature
-  // Need to convert to a complex float array, don't count that in timing
-  complex_float x_complex[N];
-  complex_float x_results_complex[N];
-  for (int i = 0; i < N; i++) {
-    x_complex[i] = x[i] + 0 * I;
-  }
 
-  start_cycle_timing;
-  cfft(x_complex, x_results_complex, twiddle_factor, 1, N);
-  stop_cycle_timing;
-  time = get_time();
+  if (N < 8 || 0 != (N&(N - 1))) {
+    printf("Can't compare to Nature, N (%d) not a power of 2 greater than 8\n", N);
+  } else {
+    // Nature
+    // Need to convert to a complex float array, don't count that in timing
+    complex_float x_complex[N];
+    complex_float x_results_complex[N];
+    for (int i = 0; i < N; i++) {
+      x_complex[i] = x[i] + 0 * I;
+      x_results_complex[i] = 0 + 0 * I;
+    }
 
-  // Need to convert from a complex float array, don't count that in timing
-  for (int i = 0; i < N; i++) {
-    x_real[i] = __real__ x_results_complex[i];
-    x_img[i] = __imag__ x_results_complex[i];
+    start_cycle_timing;
+    cfft(x_complex, x_results_complex, twiddle_factor, 1, N);
+    stop_cycle_timing;
+    time = get_time();
+
+    // Need to convert from a complex float array, don't count that in timing
+    for (int i = 0; i < N; i++) {
+      x_real[i] = __real__ x_results_complex[i];
+      x_img[i] = __imag__ x_results_complex[i];
+    }
+    print_matrix(x_real, 1, N);
+    print_matrix(x_img, 1, N);
+    output_check(x_real, x_real_spec, 1, N);
+    output_check(x_img, x_img_spec, 1, N);
+    zero_matrix(x_real, 1, N);
+    zero_matrix(x_img, 1, N);
+    printf("Nature : %d cycles\n", time);
+    fprintf(file, "%s,%d,%d\n","Nature",N,time);
   }
-  print_matrix(x_real, 1, N);
-  print_matrix(x_img, 1, N);
-  // output_check(x_real, x_real_spec, 1, N);
-  // output_check(x_img, x_img_spec, 1, N);
-  zero_matrix(x_real, 1, N);
-  zero_matrix(x_img, 1, N);
-  printf("Nature : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d\n","Nature",N,time);
 
   // Diospyros
   start_cycle_timing;
@@ -168,8 +174,8 @@ int main(int argc, char **argv) {
   time = get_time();
   print_matrix(x_real, 1, N);
   print_matrix(x_img, 1, N);
-  // output_check(x_real, x_real_spec, 1, N);
-  // output_check(x_img, x_img_spec, 1, N);
+  output_check(x_real, x_real_spec, 1, N);
+  output_check(x_img, x_img_spec, 1, N);
   zero_matrix(x_real, 1, N);
   zero_matrix(x_img, 1, N);
   printf("Diospyros : %d cycles\n", time);
