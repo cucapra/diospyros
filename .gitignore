@@ -2,3 +2,7 @@ compiled/
 *.rkt~
 dios
 dios-example-gen
+
+src/dios-egraphs/target/
+src/dios-egraphs/Cargo.lock
+src/dios-egraphs/**/*.rs.bk
