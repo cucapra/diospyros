@@ -458,7 +458,7 @@ fn main() {
         let start = "(Vec4
                         (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
                         (+ (* v1 v7) (+ (* v3 v5) 0))
-                        (+ (* v2 v6) 0)
+                        (* v2 v6)
                         (+ (* v2 v7) (+ (* v3 v6) 0)))"
             .parse()
             .unwrap();
@@ -474,56 +474,34 @@ fn main() {
             runner.stop_reason
         );
 
-        let (egraph, root) = (runner.egraph, runner.roots[0]);
+        let (mut egraph, root) = (runner.egraph, runner.roots[0]);
 
         let simplify: RecExpr<VecLang> = "(Vec4
                         (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
                         (+ (* v1 v7) (+ (* v3 v5) 0))
-                        (* v2 v6)
+                        (+ (* v2 v6) 0)
                         (+ (* v2 v7) (+ (* v3 v6) 0)))"
             .parse()
             .unwrap();
-        let matches_diff = Pattern::from(simplify.as_ref()).search(&egraph);
-        let matches_same = Pattern::from(start.as_ref()).search(&egraph);
-        println!(
-            "(start, simplify) matches: {:?}\n(start, start) matches: {:?}",
-            matches_diff,
-            matches_same,
-        );
+        assert_eq!(egraph.add_expr(&start), egraph.add_expr(&simplify));
     }
 
-    // This one finds cost = 6 :(
+    // Compare all 3 expressions
     {
-        let start = "(Vec4
+        let start_with_zero: RecExpr<VecLang>  = "(Vec4
+                        (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
+                        (+ (* v1 v7) (+ (* v3 v5) 0))
+                        (+ (* v2 v6) 0)
+                        (+ (* v2 v7) (+ (* v3 v6) 0)))"
+            .parse()
+            .unwrap();
+        let start_simplified: RecExpr<VecLang> = "(Vec4
                         (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
                         (+ (* v1 v7) (+ (* v3 v5) 0))
                         (* v2 v6)
                         (+ (* v2 v7) (+ (* v3 v6) 0)))"
             .parse()
             .unwrap();
-        let runner = Runner::default()
-            .with_expr(&start)
-            .with_node_limit(100_000)
-            .with_time_limit(std::time::Duration::from_secs(20))
-            .with_iter_limit(60)
-            .run(&rules);
-        println!(
-            "Stopped after {} iterations, reason: {:?}",
-            runner.iterations.len(),
-            runner.stop_reason
-        );
-
-        let (egraph, root) = (runner.egraph, runner.roots[0]);
-
-        let mut extractor = Extractor::new(&egraph, VecCostFn);
-        let (best_cost, best) = extractor.find_best(root);
-        println!(
-            "original:\n{}\nbest:\n{}\nbest cost {}",
-            start.pretty(40),
-            best.pretty(40),
-            best_cost,
-        );
-
         let goal: RecExpr<VecLang> = "(VecMAC
                       (VecMAC
                         (VecMAC
@@ -536,11 +514,42 @@ fn main() {
                       (Vec4 v7 v1 v2 v2))"
             .parse()
             .unwrap();
-        let matches = Pattern::from(goal.as_ref()).search(&egraph);
+
+        let runner1 = Runner::default()
+            .with_expr(&start_with_zero)
+            .with_node_limit(100_000)
+            .with_time_limit(std::time::Duration::from_secs(20))
+            .with_iter_limit(60)
+            .run(&rules);
         println!(
-            "matches:\n{:?}",
-            matches,
+            "Stopped after {} iterations, reason: {:?}",
+            runner1.iterations.len(),
+            runner1.stop_reason
         );
+
+        let (mut egraph1, _) = (runner1.egraph, runner1.roots[0]);
+
+        assert_eq!(egraph1.add_expr(&start_with_zero), egraph1.add_expr(&start_simplified));
+        assert_eq!(egraph1.add_expr(&start_simplified), egraph1.add_expr(&goal));
+        assert_eq!(egraph1.add_expr(&start_with_zero), egraph1.add_expr(&goal));
+
+        let runner2 = Runner::default()
+            .with_expr(&start_simplified)
+            .with_node_limit(100_000)
+            .with_time_limit(std::time::Duration::from_secs(20))
+            .with_iter_limit(60)
+            .run(&rules);
+        println!(
+            "Stopped after {} iterations, reason: {:?}",
+            runner2.iterations.len(),
+            runner2.stop_reason
+        );
+
+        let (mut egraph2, _) = (runner2.egraph, runner2.roots[0]);
+
+        assert_eq!(egraph2.add_expr(&start_with_zero), egraph2.add_expr(&start_simplified));
+        assert_eq!(egraph2.add_expr(&start_simplified), egraph2.add_expr(&goal));
+        assert_eq!(egraph2.add_expr(&start_with_zero), egraph2.add_expr(&goal));
     }
 
     }
