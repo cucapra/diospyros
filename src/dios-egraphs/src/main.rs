@@ -87,23 +87,29 @@ impl Applier<VecLang, VecLangAnalysis> for ListApplier {
 
 struct VecCostFn;
 impl CostFunction<VecLang> for VecCostFn {
-    type Cost = usize;
+    type Cost = f64;
     // you're passed in an enode whose children are costs instead of eclass ids
     fn cost<C>(&mut self, enode: &VecLang, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        // You get Lists for free, all other ops cost 1 for now
         let op_cost = match enode {
-            VecLang::List(..) => 0,
+            // You get literals for extremely cheap
+            VecLang::Num(..) => 0.01,
+            VecLang::Symbol(..) => 0.01,
 
-            VecLang::Add(..) => 1,
-            VecLang::Mul(..) => 1,
+            // And list/vector structures for quite cheap
+            VecLang::List(..) => 0.1,
+            VecLang::Vec4(..) => 0.1,
+            VecLang::Concat(..) => 0.1,
 
-            VecLang::VecAdd(..) => 1,
-            VecLang::VecMul(..) => 1,
-            VecLang::VecMAC(..) => 1,
-            _ => 0,
+            // But scalar and vector ops cost something
+            VecLang::Add(..) => 1.,
+            VecLang::Mul(..) => 1.,
+
+            VecLang::VecAdd(..) => 1.,
+            VecLang::VecMul(..) => 1.,
+            VecLang::VecMAC(..) => 1.,
         };
         enode.fold(op_cost, |sum, id| sum + costs(id))
     }
