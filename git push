@@ -1,0 +1,1744 @@
+[33mcommit 1b504e93b16387268131845dbcbb596111307119[m[33m ([m[1;36mHEAD -> [m[1;32mjacob-benchmarks[m[33m)[m
+Author: Jacob Delgado López <jacob.delgado@upr.edu>
+Date:   Mon Jun 29 17:08:22 2020 -0400
+
+    dot product
+
+[33mcommit 25bbcb5a211ab78084a462f8348c6eb9b2a62e9f[m[33m ([m[1;31morigin/jacob-benchmarks[m[33m)[m
+Author: Jacob Delgado López <jacob.delgado@upr.edu>
+Date:   Thu Jun 25 11:47:04 2020 -0400
+
+    dot product
+
+[33mcommit 8b00cdb0a44b6746f39a16c7b61a928527c420cc[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jun 25 10:51:57 2020 -0400
+
+    2x2 by 2x2 matrix multiply in egraph
+
+[33mcommit 56d496494f488d32b46f5ea220c2b361c4c8f879[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Jun 24 13:55:22 2020 -0400
+
+    egraph toy example with egg
+
+[33mcommit cd7687572c7827cc6f6a34a3e17bc8114235e14d[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Jun 9 15:06:43 2020 -0400
+
+    Nature validity test for DFT
+
+[33mcommit 7d0f5e71cc96cca77f0f87d0da553aaae34c474c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Jun 9 17:02:17 2020 -0400
+
+    Shared benchmark makefile, fixes #34
+
+[33mcommit a0243d92770df88fcd824fbccb663cfea07aeecf[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Jun 8 15:51:02 2020 -0400
+
+    Tensilica negate is not mutating
+
+[33mcommit a4b16b629d42c6dc6b70bbe698501b4da6e01158[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Jun 8 15:06:29 2020 -0400
+
+    Correct boundary condition for loads/stores (fixes #13)
+
+[33mcommit 3a1da7a5847ad9174c5b94b5a84da087ba017b6a[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Jun 8 14:36:13 2020 -0400
+
+    DFT harness changes
+
+[33mcommit 02b8e3f14709a11a12cab281dd5c35f4bd568095[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Jun 5 16:09:51 2020 -0400
+
+    Call complete-solution in DFT to force choices for choose* idxs
+
+[33mcommit c81bbc41fc50a75bba171a62d29a47e947d63659[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Jun 5 12:03:51 2020 -0400
+
+    More DFT eval
+
+[33mcommit d421aca47439f26929851d9590b79842d2cbbf0f[m
+Merge: 52df293 88048e5
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu May 28 22:46:09 2020 -0400
+
+    Merge pull request #33 from cucapra/uninterpreted-fns
+    
+    Discrete Fourier Transform with uninterpreted functions
+
+[33mcommit 88048e51caece80ed9059053eb2302c7b5d0457a[m
+Merge: 9b96033 5271575
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed May 27 14:54:42 2020 -0400
+
+    Merge branch 'uninterpreted-fns' of https://github.com/cucapra/diospyros into uninterpreted-fns
+
+[33mcommit 9b960338a6fbb2eced6e4f229805cf710670a5c4[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed May 27 14:54:15 2020 -0400
+
+    Fix Makefile to build Nature objs individually
+
+[33mcommit 5271575bf61ada35c3a5f231c4707971e62190a4[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue May 26 15:23:10 2020 -0400
+
+    Allow constants like pi to be symbols looked up during codegen
+
+[33mcommit fbf4138225770ec9616c2af73920ac43e17fb40f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue May 26 11:36:13 2020 -0400
+
+    Cast float args
+
+[33mcommit 2d93678553953fca159d61a069a2ce76b0dc0fb3[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 25 14:34:47 2020 -0400
+
+    More dft eval
+
+[33mcommit 65a27c178d17afa9b7ab0a79840b3ec27c70db6e[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 25 13:53:50 2020 -0400
+
+    Partial evaluation harness for DFT
+
+[33mcommit e470863a620eea6ad7e8eae0011750041f9c570f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri May 22 12:27:40 2020 -0400
+
+    Mark type on vec-const (shuffle int vs value floats)
+
+[33mcommit 901a3d68709104c6f4278667fb170f1850a26eb0[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue May 19 17:19:24 2020 -0400
+
+    Basic (untested) codegen for DFT
+
+[33mcommit 95d33d9b6413736e2c132ec7449e7fd91951775a[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue May 19 14:29:02 2020 -0400
+
+    Run with example-gen, fix test
+
+[33mcommit f62a20a2701491a738cc1324fe814b667978c375[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 18 15:00:42 2020 -0400
+
+    Fix newline
+
+[33mcommit 4e21d8e16f7919d8fa9d06483f98a21eb50660e1[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 18 14:57:25 2020 -0400
+
+    Cleanup
+
+[33mcommit 241befe27dc4033e50fc0c06ae5bdb11afaef361[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 18 14:41:28 2020 -0400
+
+    Imaginary component
+
+[33mcommit 611b974d1be0b7fe048e820be333dd8bb7a0dc33[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 18 11:44:41 2020 -0400
+
+    Functional for n = 4
+
+[33mcommit c117927c01195b39539fbfba1274d10d121e168b[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue May 12 09:45:24 2020 -0400
+
+    Functional toy size
+
+[33mcommit c39a13120c9556a70026d59924f410f90cf34a18[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 11 15:10:40 2020 -0400
+
+    Cleanup
+
+[33mcommit 67a5f4d6b79341e384fd4be811d3b33398c7ffa6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon May 11 14:51:57 2020 -0400
+
+    Almost functional DFT sketch
+
+[33mcommit 37a64abe8c63fbb762fc85613e023ea8fdcb0be0[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed May 6 22:09:08 2020 -0400
+
+    Update DFT to BV WIP
+
+[33mcommit 9d65795cfee977431275b5019b15abfb4a353b5b[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 29 10:55:31 2020 -0400
+
+    WIP Z3
+
+[33mcommit 7860ff7dc376a155d7474b0440c722e38846a002[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 22 10:29:40 2020 -0400
+
+    Fix build issues from rebase
+
+[33mcommit 50d037888628f85b3c05f3398bc263a4a4e3864e[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 1 10:34:01 2020 -0400
+
+    WIP: matmul to uninterp func, doesn't work because boolector doesn't support ints
+
+[33mcommit a34c9853404bfa905845d8e994a55ae6d4e9b307[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Mar 26 17:45:46 2020 -0400
+
+    WIP: synthesis hangs
+
+[33mcommit 52df293c5a12eb0a072541614622f7b91cfe6318[m
+Merge: a1147ae 902bce2
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 22 10:43:43 2020 -0400
+
+    Merge pull request #32 from cucapra/quotient
+    
+    Add option to pre-compute register-of
+
+[33mcommit 902bce22bef96cdc49d3f356b919b688de3c5097[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 22 10:42:34 2020 -0400
+
+    Address review comments
+
+[33mcommit a202181f09630f5cf99386eeb90d1d61e475c91c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 21 15:27:16 2020 -0400
+
+    Add parameter to optionally use pre-computed register-of, default to no
+
+[33mcommit 3b109083a34637903f65a21c6da3b3f247175cd2[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Apr 20 15:37:35 2020 -0400
+
+    2d-conv update reg-of
+
+[33mcommit 3c850fa9e6967369feef5afeb0090c58def0cd36[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Apr 20 11:25:33 2020 -0400
+
+    Mat-mul and map
+
+[33mcommit a1147aed0591224540528c67aa6ec2d818a53366[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Apr 16 12:55:20 2020 -0400
+
+    Remove duplicate set
+
+[33mcommit b4694c4c87ab27d4e05c4a4b02455c1b11841edd[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Apr 16 12:42:33 2020 -0400
+
+    Update charting params
+
+[33mcommit 2ca0ac2d478f2e3d32d2cc3e3ebe1533ef0cdf6e[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 15 09:08:38 2020 -0400
+
+    Auto correctness check in 2dconv, adjust charts for 4x4 2x2
+
+[33mcommit 8f4412442251fa5f6929370a037b5dbf533705f0[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 14 19:19:35 2020 -0400
+
+    Fix partition vector
+
+[33mcommit 708bd7881467447b58a3f50694cfbbe4f19d933e[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 14 18:30:05 2020 -0400
+
+    Update harness
+
+[33mcommit fda629e8a7d459dea3285964dc78f8048ee84497[m
+Merge: c853b3a 030f038
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 14 17:29:59 2020 -0400
+
+    Merge pull request #30 from cucapra/new-incr-solver
+    
+    Incremental solving
+
+[33mcommit 030f038a08b89181720a2ed473e3f74fe6d7729b[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 14 15:11:13 2020 -0400
+
+    Update partition vector to only bitvectorize when needed (fixes runt tests)
+
+[33mcommit 54c492474ae1190d18cd4407a0128f2b33e6dad8[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 14 14:54:53 2020 -0400
+
+    Bitvectorize 2dconv
+
+[33mcommit ec8d6aeb71cf0166cb1c8ea2360894d379df9af6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 14 14:30:00 2020 -0400
+
+    Remove manual solution (tx past rachit)
+
+[33mcommit 36518375d771a524d8dcd798de3d0630347b0bc0[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 14 14:28:13 2020 -0400
+
+    Add bvs to concrete 2d-conv spec
+
+[33mcommit 7171aab48ff505832fdcd13a948a4a5a5d16e5b4[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Apr 13 22:15:46 2020 -0400
+
+    implement incremental solving. delayed due to a global pandemic.
+
+[33mcommit c853b3a2d48a0558d65528f0c7f3f71173d05721[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Apr 13 21:31:51 2020 -0400
+
+    my kingdom for a type
+
+[33mcommit 9b173dcb9b4273549d43c391d0d01c79e5a2034e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Apr 13 21:31:38 2020 -0400
+
+    move conc-prog into helpers and use it in examples
+
+[33mcommit c34fb3cbbbf9bebf39fc31095812ded2cc67f0ba[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Apr 13 18:25:04 2020 -0400
+
+    fix cost calculation and build-path
+
+[33mcommit cbc25ea6dea1f1cef20f70ed0371bbee7ac17783[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Apr 13 17:11:59 2020 -0400
+
+    Kill accidental comments
+
+[33mcommit 8c6f1f8c0d98c41762dd02bcccce89f57ccf4704[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Apr 13 17:04:10 2020 -0400
+
+    Finitize before output in example gen
+
+[33mcommit f13275d0c484691c1c47c8863f37b19e65bbadf8[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Apr 13 14:31:04 2020 -0400
+
+    Hack for ACM-friendly fonts from matplotlib
+
+[33mcommit 9f09e3c0931e049d399eeaeae86d9e828621daaf[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Apr 13 11:27:05 2020 -0400
+
+    use latest version of runt
+
+[33mcommit 15a91b6dea08b0e3bf3507e9f99146abe196d45c[m
+Merge: ad0b42a b090fa9
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 8 18:49:25 2020 -0400
+
+    Merge pull request #27 from cucapra/man-fin
+    
+    Manually finitize programs
+
+[33mcommit b090fa9651a7c4e8e019d3cb3fad727a2e1f2965[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 8 18:49:10 2020 -0400
+
+    Revert "WIP concretize bv-lists before compiling"
+    
+    This reverts commit a8c88a8723b975d35d6f2f5f0e16fb82fcd27db9.
+
+[33mcommit a8c88a8723b975d35d6f2f5f0e16fb82fcd27db9[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 8 10:57:09 2020 -0400
+
+    WIP concretize bv-lists before compiling
+
+[33mcommit 7592e7c55620da611aa8c4c8cb9097b4a874e442[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 7 17:04:05 2020 -0400
+
+    Fix dsp-insts unit tests
+
+[33mcommit 3897a5091a482606283643e8eadc3b4388049992[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 7 15:40:43 2020 -0400
+
+    More bitvector ops
+
+[33mcommit 4503e60d21346b2cf780e9dd3c569b9be92cee40[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Apr 7 14:12:21 2020 -0400
+
+    Calculate reg-used cost model using a bitvector length function
+
+[33mcommit 513b47eeacb7173a494db56aa1d30b904f3c1a1b[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Apr 6 15:39:37 2020 -0400
+
+    Finish implementing bv-list-copy, mat-mul finds a single solution now
+
+[33mcommit ad0b42a0c703e4a25f9958ed43cc17eea234899b[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Apr 3 16:04:42 2020 -0400
+
+    Update README.md
+
+[33mcommit 266f8b7b1f2c67fb59fc16a2b717e9c7880a7dc3[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Apr 3 16:03:42 2020 -0400
+
+    Update c-ast.rkt
+
+[33mcommit cb21e84842b71ba2a39fa5b90cd9d42c0343c0dc[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Apr 1 15:50:21 2020 -0400
+
+    tests for c compilation
+
+[33mcommit 02c012146873c4803a5ad0573517f3159fe1f40c[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Apr 1 15:49:50 2020 -0400
+
+    run compilation in paralle
+
+[33mcommit a0bd493e1d8d41c8f10c5d7bca139eed344007f2[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Apr 1 15:47:37 2020 -0400
+
+    flag to supress git information for testing
+
+[33mcommit d84f0d5cc6136e0911897b5c595ef606b2f4bb88[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Apr 1 15:36:03 2020 -0400
+
+    parallel build for dios binaries
+
+[33mcommit 725f6f049d100a5e80fc40726c58d5760298b387[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Apr 1 15:25:07 2020 -0400
+
+    supress verbose output in raco exe
+
+[33mcommit b12d6ef382dc3f55dbc700cf032d76575edfa2cb[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Apr 1 14:25:37 2020 -0400
+
+    add raco flag for parallel testing
+
+[33mcommit f1a04de8cc8403a8b2d45b72e26a2637ad5a0c2e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Apr 1 14:13:45 2020 -0400
+
+    New option for compiler, runt testing
+    
+    - The `--no-compile` option to `dios` prints out intermediate compiled
+    file before being compiled to C++.
+    - Add snapshot testing with runt.
+
+[33mcommit 1696c59e843cfb829635720bcbbf549fa62e85d2[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Apr 3 15:28:54 2020 -0400
+
+    Mat-mul runs but is unsat
+
+[33mcommit e7a7c53b7e67a9ea7745f7d443f3820564f7dce4[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Apr 3 15:22:41 2020 -0400
+
+    Use bitvectors for partitioning vectors
+
+[33mcommit eb9147fadde7255b20dd1e95aff86ba1fe38c022[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Apr 3 14:43:08 2020 -0400
+
+    Utils for making bvs of established sizes
+
+[33mcommit 6ef998d7a7360059882e58b646d801e292e2ccaf[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Apr 3 13:49:51 2020 -0400
+
+    Move all bitvector list functions to utils
+
+[33mcommit c2f8211965276c401bc73afdee77acfcf95c687f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Apr 3 11:09:42 2020 -0400
+
+    All interp tests pass!
+
+[33mcommit 62d9d36bd6387134167c7dacc21f992a6ba325b3[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Apr 2 17:58:03 2020 -0400
+
+    Most interp tests passing, need to fix reg-used
+
+[33mcommit de1ae8b8303230980b104d9224b201ded4e39bee[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Apr 2 11:37:36 2020 -0400
+
+    Update more vectors to lists (still WIP)
+
+[33mcommit ebf29b7a7ee70b59354aad191e6539ed6e9b0dc7[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Apr 1 15:42:33 2020 -0400
+
+    WIP: fails with continuous aligned problem
+
+[33mcommit b31053d887865c9e045b6a881ff28f0d5086ba49[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Mar 16 15:33:13 2020 -0400
+
+    manually finitize assertions. Doesnt work
+
+[33mcommit cd15dadba6c0aa8f1ee2843bc54ccf390b401ab3[m[33m ([m[1;31morigin/remove-cont-aligned[m[33m)[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Mar 17 14:46:52 2020 -0400
+
+    Remove symbolic continuous-aligned-vec? (keep concrete bool version)
+
+[33mcommit d5f68f235c1f90cc2827ebaf9cad57dba9912df7[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Mar 17 00:29:57 2020 -0400
+
+    Update mat-mul to use vec-write
+
+[33mcommit b67e7f41fb924e945d5c27396874077727c4895c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Mar 6 12:26:28 2020 -0500
+
+    In run experiment, fail gracefully when first query is unsat (fix #25)
+
+[33mcommit 6d2abdf0206be9e4fd334ce6997e68af090ad76b[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Mar 5 09:26:25 2020 -0500
+
+    Truncate instead of round speedup numbers, only write Dios speedups to summary
+
+[33mcommit 0696cef8a034fcf07d64cfcbe13a6452e768a996[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Mar 4 15:26:48 2020 -0500
+
+    Output summary statistics
+
+[33mcommit b32e7b0c41ae1b94cbc241ec31f2c47a9036e9fb[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Mar 4 13:58:27 2020 -0500
+
+    Combined charting
+
+[33mcommit 31ec56e695785613524bde14b92695af54e7b291[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Mar 2 15:56:50 2020 -0500
+
+    Use sol-producer generator for mat-mul
+
+[33mcommit a6b10fb5c3018ae809b6e4340510c076dd326111[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Mar 2 12:57:48 2020 -0500
+
+    Move matmul harness
+
+[33mcommit 1fd9ee8781671fcc1831d4f16dd3eb139bbee562[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Mar 2 12:52:47 2020 -0500
+
+    Update eval timing macros
+
+[33mcommit 1697f349e3ebe86bb454750b6e781fbbe530f454[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Mar 1 12:34:25 2020 -0500
+
+    More charting
+
+[33mcommit eae270dac72d98bb2fb2981e0feedc8102e4d4ab[m
+Author: Alexa Marie VanHattum <amv94@gorgonzola.cs.cornell.edu>
+Date:   Fri Feb 28 15:19:51 2020 -0500
+
+    More eval
+
+[33mcommit af589e7a3548084aa54a31dc27ea5382541d8faa[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 26 17:58:35 2020 -0500
+
+    Add more 2dconv kernels
+
+[33mcommit 10520d53e638914f83a40bf065b937d641535dcf[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 26 17:19:56 2020 -0500
+
+    Run benchmarks from eval script
+
+[33mcommit 7b2f3a7b3c27ed8e0b8a23d7ca7c8ecd2438ae94[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 26 15:27:25 2020 -0500
+
+    Write kernel results to CSV
+
+[33mcommit 95b4698d397d576417d34bb1100f1ec0e542368d[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 26 14:51:57 2020 -0500
+
+    2d-conv hardness updates
+
+[33mcommit 7add00c97dda1e63fd50aef214d24fa9dd8772ed[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 26 14:27:37 2020 -0500
+
+    Parametrized 2dconv harness WIP
+
+[33mcommit 141cb43d7e79480b776e5556623f6759ba729d59[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 26 12:38:38 2020 -0500
+
+    Compiling to C in eval script
+
+[33mcommit 7ce81e7ec2fb704cba94004e1921c4228e7bb1d6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 25 14:53:07 2020 -0500
+
+    Timeout command line arg
+
+[33mcommit 1e5a52af89828d3494cdf0893b245237f3392866[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 25 14:48:42 2020 -0500
+
+    Timeout for synth in eval scripts (should also add to rkt #24)
+
+[33mcommit 7838354609d2b59255da607e64a33bfca1d7400a[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 25 14:23:31 2020 -0500
+
+    Write benchmark results to the right directory
+
+[33mcommit 5542cc6af03897de231d1ac969a50eda4e6d99e0[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 25 14:09:12 2020 -0500
+
+    Start scripting more automated eval
+
+[33mcommit 9874164606dec94965a80654bc2d9e61c4e34727[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 25 11:20:47 2020 -0500
+
+    Default to no cost model on the first synth query
+
+[33mcommit 1cf5260aa4ddbdd0062c972555f70f041b98b0ad[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 25 11:25:10 2020 -0500
+
+    Fix 2dconv 3x3 2x2 test
+
+[33mcommit 7dc78810235559fe9984d7ad92c56e39ff7d6f6f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 25 10:07:06 2020 -0500
+
+    Maintain kernel argument order in codegen (fixes #21)
+
+[33mcommit 7f95d3b762c940ff96b09018d6d11a04e0fbecef[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 24 14:50:07 2020 -0500
+
+    Update README.md
+
+[33mcommit 74115ffaaf877d4db06deb061961b0d7e625a5a8[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 24 14:41:44 2020 -0500
+
+    Additional 2dconv test
+
+[33mcommit 338ce3c7f543e7f3a6d5431c06065426c16aefd8[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 24 14:31:30 2020 -0500
+
+    Add git commit and status info to generated code
+
+[33mcommit 8c9207cc1ef2e98bf9989e4b089e7beaad03e506[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 24 13:52:37 2020 -0500
+
+    Remove old codegen
+
+[33mcommit 52fc66bc22a0bc36a032841c81c8e287c187fa13[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 18 17:54:18 2020 -0500
+
+    properly terminate generator
+
+[33mcommit 374400266961db57afed50e348419d91906beab6[m
+Merge: f34a059 ca2fcbc
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 17 13:42:34 2020 -0500
+
+    Merge pull request #20 from cucapra/conv-padding
+    
+    2d-conv padding
+
+[33mcommit ca2fcbc8d22f126234acbb098dcd5f950bc72e07[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 17 11:57:45 2020 -0500
+
+    Remove duplicate decl in 2dconv sketch
+
+[33mcommit 8a2a1f0b6de333c295c1c6ae4fda72c8765e5e40[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 17 11:23:01 2020 -0500
+
+    Update main to eval program in the right namespace
+
+[33mcommit fd5d98625e73c78b3809fa219a22104607622b9d[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 22:25:37 2020 -0500
+
+    Conv padding in sketch
+
+[33mcommit cab79f0827648b12210ad3bc729316e64447312a[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 21:31:11 2020 -0500
+
+    Conv padding in spec and tests
+
+[33mcommit f34a0594430f62c4f0644bc2f0cbb0bdcc1d5b97[m
+Merge: 819db34 677bf37
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 21:02:17 2020 -0500
+
+    Merge pull request #19 from cucapra/bug-fix
+    
+    Fix bug in conv2d-write
+
+[33mcommit 677bf379097e2e0afdfce08826de703132770306[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 20:43:10 2020 -0500
+
+    dont remove duplicate instructions
+
+[33mcommit d1a993845095a0b944720040669a02b03655c207[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 20:42:33 2020 -0500
+
+    better error message
+
+[33mcommit 5bc8d136887bf6555229df25713005bc0434f92a[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 19:01:50 2020 -0500
+
+    Fix merge; 2d-conv-write doesn't verify
+
+[33mcommit f6b927428fb7009d2c04d3ca3293b860dc5ed760[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 18:00:58 2020 -0500
+
+    Update examples
+
+[33mcommit d89c64c9e1af424a3b77d2cbb41251140ed16efe[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 18:00:13 2020 -0500
+
+    Sanitize C ids
+
+[33mcommit d3eae4b3857fc68238b9e0606e62b60c5d32a22c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 12:53:02 2020 -0500
+
+    Handle already-defined vectors in reg-alloc
+
+[33mcommit c9f0fc14e5032ccbff22ed53af7f217297f5fd05[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 16:14:04 2020 -0500
+
+    Comment updates
+
+[33mcommit f2d6e348126bc204bc4e5bfdd0ddd0ecc9c26834[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 15:37:07 2020 -0500
+
+    Use the same decision variables for output write from and to
+
+[33mcommit 801ac8a02db57f8372f0a648e02a2060af64b364[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 15:30:52 2020 -0500
+
+    Store back to partitions - now functional!
+
+[33mcommit e5c86d065e03898ad581bc1337447491456089b6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Feb 14 17:03:26 2020 -0500
+
+    Try and use write directly (via choose* on output partitions) in 2dconv
+
+[33mcommit 819db34455cecea33cea39b387fb0bf0e2085b67[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 17:53:50 2020 -0500
+
+    implement verifier
+
+[33mcommit ee3d50571734d02100572da1ff3eb6dff5280fb3[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 17:19:48 2020 -0500
+
+    Fix 2d-conv typo
+
+[33mcommit 84f1c50b2dc186878c85434d92c3256b3903ef3f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sun Feb 16 16:48:59 2020 -0500
+
+    Ignore/clean exectuables
+
+[33mcommit e0bb5fb77094fe32915841d5a1f2fea3d7e0725a[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 16:20:36 2020 -0500
+
+    update comment
+
+[33mcommit 68c2c164464a7b1561f0427b62b5e170653cdeef[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 14:41:30 2020 -0500
+
+    fixes
+
+[33mcommit 041084f5a676ae63234731e20368c07afd58830b[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 14:31:03 2020 -0500
+
+    vec-extern-decl tracks inputs/outputs
+
+[33mcommit 632cc51d22f825bf611e599cb38af5c320133333[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 13:50:00 2020 -0500
+
+    rename example CLI
+
+[33mcommit 905646878bd89805a3a09b251d83ff81dd9c7d9c[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Feb 16 13:44:46 2020 -0500
+
+    write solutions to files
+
+[33mcommit 6eb78e2fecb67bfb389e14133cd0e1577feb9d70[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sat Feb 15 18:19:20 2020 -0500
+
+    cost and upper bound
+
+[33mcommit 1b99dc386c9d534582521eebd196635a151a5c29[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sat Feb 15 18:02:20 2020 -0500
+
+    cli done. synth fails
+
+[33mcommit 607734fac08808acb3827222eaccb19af8532eba[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sat Feb 15 17:44:47 2020 -0500
+
+    parameterize things, add CLI
+
+[33mcommit ff2ecf4c33c45824a86a3624b4e887546e4ffb46[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 17:48:59 2020 -0500
+
+    Update README.md
+
+[33mcommit 4306f8bbdf2b07c152668973472b35356c0748e4[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 17:00:30 2020 -0500
+
+    Update README.md
+
+[33mcommit c7c07294354d50f9c4a448c7434f75b6169094b6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 16:59:32 2020 -0500
+
+    Update README.md
+
+[33mcommit 2274a2e5b16183c5202e0c2a07479ac9de32bdb4[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 16:20:04 2020 -0500
+
+    Order typo
+
+[33mcommit f2ae331675912069a327de62d0112629f8579c6d[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 16:15:22 2020 -0500
+
+    Globals bad
+
+[33mcommit 2d61c516d71f4de1c6782f5096033d489beab57f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 14:32:25 2020 -0500
+
+    C-friendly temp name, update example
+
+[33mcommit 2b900a7339d77fe6de3fa12e86c1b48171f75ff9[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 14:25:31 2020 -0500
+
+    Update backend to track types to cast correctly
+
+[33mcommit 68d0e3ce917761e63cea3bc8209342037925c12a[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 15 15:01:03 2020 -0500
+
+    Update README.md
+
+[33mcommit c9a5f26fe43a8248096e7b4616435be5a05fd102[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Feb 14 13:54:30 2020 -0500
+
+    Update 2d-conv to match nature kernel implementation
+
+[33mcommit fa8f1325e7a696d18caf9cd74fba86246244ed25[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Feb 14 09:07:38 2020 -0500
+
+    Compile continuous aligned shuffles to writes in the forward direction
+
+[33mcommit 068bb694a9f64c7b5745e089567c8ddc01a94f87[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 21:15:23 2020 -0500
+
+    Continuous-aligned conv-2d solution
+
+[33mcommit 5064ff37aefd59c001507d6809c5895d4120af15[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 21:10:59 2020 -0500
+
+    Update continuous aligned vec to be used outside asserts
+
+[33mcommit 4f2ccb51e2b2ab3157ce6ffbcd3b8a27525128e9[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 20:32:49 2020 -0500
+
+    Add vec-decl
+
+[33mcommit d7a05e7adc3535e5ea37f22ce249b662b61deb6e[m
+Merge: cc6b8ac af771bc
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 19:42:03 2020 -0500
+
+    Merge pull request #7 from cucapra/backend
+    
+    Backend
+
+[33mcommit af771bc827515382e13eab65b8779f542a7e0359[m
+Merge: e33ba65 b51153b
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 19:41:49 2020 -0500
+
+    Merge branch 'master' into backend
+
+[33mcommit e33ba653a6be654c09e9a2b4a1cc38cb1de50d85[m
+Merge: 8e86a8e 1821815
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 09:35:02 2020 -0500
+
+    Merge pull request #11 from cucapra/reverse-args
+    
+    Reverse input register argument order for select
+
+[33mcommit 182181534b2dd3c809c0b09928f43c5ed7d60a5c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 09:00:57 2020 -0500
+
+    Whitespace tweak
+
+[33mcommit 6685434505001a019b387d301b737b3e74987d97[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 13 08:49:04 2020 -0500
+
+    Reverse input register argument order for select
+
+[33mcommit 8e86a8e194e0036abacaf8563281b1b38bec20d6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 12 17:13:20 2020 -0500
+
+    Test for full compiler flow before codegen
+
+[33mcommit ab4f71d1a76fc0546abe8aae9c3d4f3d46931f49[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 15:01:39 2020 -0500
+
+    float*
+
+[33mcommit 6912e852588462d724e55f718187da181d6ae368[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 15:00:36 2020 -0500
+
+    parens
+
+[33mcommit 4a49fa19a0a2424a20467da1f7f3d2e7660760b7[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:59:29 2020 -0500
+
+    bleh
+
+[33mcommit d4e24cc82fdb6823810315440a4f94b9ffabcceb[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:53:08 2020 -0500
+
+    func
+
+[33mcommit 8de2a5de78b96fba0fa5b20e70e07c27eee55d19[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:30:18 2020 -0500
+
+    declare consts
+
+[33mcommit a2ee4b18b8afc98755e81f2c6d81ef48f7828b14[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:25:19 2020 -0500
+
+    casting
+
+[33mcommit 086c2b3567196a21f9bca92766aa74dda19d4fc9[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:20:44 2020 -0500
+
+    declare variables from loads
+
+[33mcommit be04686b01c4109f2a47334b4cf58ab94484f9e9[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:18:11 2020 -0500
+
+    space
+
+[33mcommit b6a257822ec4929f8e9178717b4688081d60a68a[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:17:48 2020 -0500
+
+    annotations before id
+
+[33mcommit 93cf6ab8ee9429ddb9143e81aab7495033545af5[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:16:01 2020 -0500
+
+    semicolons
+
+[33mcommit 226e0ef4389f204a3caf7e6158b36d8cc82e916b[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Feb 12 14:02:33 2020 -0500
+
+    more cleanup
+
+[33mcommit a822a77c1eef25ed5a5b48676f571fcd3aaf6215[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 12 13:13:12 2020 -0500
+
+    Make SSA ids c-friendly, fix comment typos
+
+[33mcommit b51153bff0a58952895da98c09fa3b8df81dc74c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 12 13:03:51 2020 -0500
+
+    WIP
+
+[33mcommit cc6b8ac8afc908b58805b20e90130edd19d998c9[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 11 22:27:57 2020 -0500
+
+    Typo in sketch
+
+[33mcommit bb54390c392cfd42bad131293a5e9f2c21a6ec65[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 11 22:24:15 2020 -0500
+
+    (Currently unsat) DFT sketch and synth
+
+[33mcommit 0b7d81ff678f8f85d7f9fd58420f7c03146df00f[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 17:54:39 2020 -0500
+
+    try to get a valid C AST
+
+[33mcommit 60a67543ad1c84becdc5b8afd2a56af4e8c7e916[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 17:47:17 2020 -0500
+
+    add instructions are being compiled!!
+
+[33mcommit 5b8c83806a8ddf780506caf024a1b3f8c09ee3f1[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 17:09:12 2020 -0500
+
+    more instructions compiling
+
+[33mcommit 7dcf6ee370a7891bcb0257581880269c0a068bc8[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 17:08:51 2020 -0500
+
+    C ast guards
+
+[33mcommit c07503b96805c8c53caa473bafe5e2f3484afbfa[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 11 13:26:31 2020 -0500
+
+    Spec for DFT
+
+[33mcommit c9707929455f8cf7a928af0ce3a55726e4f540ad[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 11 13:26:20 2020 -0500
+
+    Rename matmul
+
+[33mcommit d05a187d19dae98e0737f0bd614c88ae0ede0e40[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 13:12:10 2020 -0500
+
+    comments
+
+[33mcommit a45db4cf9e3b2f20b81944c27a469ebd497b9b86[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 13:09:15 2020 -0500
+
+    tensilica g3 backend
+
+[33mcommit 26c7a7bfc9f6f341415901083604036284149cee[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 12:12:44 2020 -0500
+
+    add function to hoist all constants
+
+[33mcommit ad7774d19c5052ff94d5654f7ed3b69c75349d59[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 12:12:25 2020 -0500
+
+    rename matrix-utils to utils
+
+[33mcommit db00295dedac9e5df503791469bc0ffe3cda760a[m
+Merge: 7e76696 755d916
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 11 11:37:36 2020 -0500
+
+    Merge pull request #6 from cucapra/cleanup
+    
+    Cleanup
+
+[33mcommit a73a18b5034078d5b13a380e0d46aa04ec182352[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 11:29:22 2020 -0500
+
+    missing instructions in ssa
+
+[33mcommit 755d9168d686f9625bbaf55102b4cd3dcd254f22[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 11:10:22 2020 -0500
+
+    some cleanup in register alloc
+
+[33mcommit dc867fcc5cd48c9d80ad62d32e526ba674355699[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Feb 11 11:02:34 2020 -0500
+
+    Cleanup shuffle-trunc pass
+
+[33mcommit 7e7669668795829de5a21a873884d3ce7b0c8684[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 10 10:52:44 2020 -0500
+
+    Shuffle truncation test
+
+[33mcommit 1d8cee2d1294156264f0a0196fe89f4ad02d8ff2[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Sat Feb 8 22:49:37 2020 -0500
+
+    Finished shuffle truncation (for continuous aligned vector case)
+
+[33mcommit 58af9f5e400c3df535e372fbbba80a0c5de2498e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Feb 7 16:43:07 2020 -0500
+
+    bigger conv example
+
+[33mcommit baf1b6f6806823fe0bff6473acfab352f1f910be[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Feb 7 16:30:41 2020 -0500
+
+    Don't hardcore C size in GEMM
+
+[33mcommit 1f997d10ec3a139f7fc32133196db12756746d35[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Feb 7 16:26:45 2020 -0500
+
+    fix example
+
+[33mcommit 42a08034108001fabffd5fe373a464f522598422[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Feb 7 16:17:22 2020 -0500
+
+    Aligned/continuous shuffle-synth example
+
+[33mcommit c3cfd80063cd21f4ed6f0693018120bf5b513a99[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Feb 7 15:46:12 2020 -0500
+
+    Align externally declared vectors
+
+[33mcommit 0eca7ba7b6b3a0b1366102394664e2e44897fc0b[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Feb 7 15:58:32 2020 -0500
+
+    working conv-2d sketch
+
+[33mcommit 2259f91c337b4a34c8ae6870133ce81feb304677[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Feb 6 18:37:11 2020 -0500
+
+    add prog verification and verify manual solution correct
+
+[33mcommit eab76003d3fd9c894c966ebf236bc2329be8897e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Feb 6 18:36:47 2020 -0500
+
+    interp can take env as assoc list. returns modified env
+
+[33mcommit a7bc60907bdede0108d835680312b4ab176b9ddc[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 6 14:33:00 2020 -0500
+
+    Fix whitespace
+
+[33mcommit c0f4c440b8487ea22e2dc3f983ea9df4ac153fe4[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 6 14:30:41 2020 -0500
+
+    Add vec-void-app
+
+[33mcommit 3da1f1727a998226f81292d21040599a8cf45250[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Feb 6 13:15:04 2020 -0500
+
+    manual solution to 2x2 x 2x2 conv
+
+[33mcommit cd892de3d49b4131ef2d0f5454f8238e7b7e4ec1[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Feb 6 12:47:37 2020 -0500
+
+    conv-2d sketch, doesnt work
+
+[33mcommit 8dd87affccf977bae0bea2537cdf44e6d3c66bde[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Feb 6 11:56:04 2020 -0500
+
+    Add symbolic? to interp
+    
+    When an externally defined vector is missing and symbolic? is true,
+    interp will generate symbolic binding for the missing id.
+
+[33mcommit b155dad13f6de0f0618e7b4dc695259b321aaadc[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Feb 6 11:19:34 2020 -0500
+
+    add conv-2d implementation
+
+[33mcommit 22c72cff1322602be9ff8674c9c28e4e6a744bc4[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Feb 6 11:18:38 2020 -0500
+
+    Revert accidental shuf-synth-example change
+
+[33mcommit 37391c1bca03e91329edf87dea7e7e22d23e980e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Feb 6 10:28:17 2020 -0500
+
+    #lang rosette instead of racket
+
+[33mcommit 4d7ea85d9fae5eb539caa8d70130a568aacd6631[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 5 15:16:37 2020 -0500
+
+    Fix typo in load interp
+
+[33mcommit 88ca575be98a7e0ae13bd2d955573a3720228472[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 5 15:16:11 2020 -0500
+
+    Update vec-load to include destination
+
+[33mcommit f836c26e307589253773320fc3715ad311d75122[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Feb 5 13:31:32 2020 -0500
+
+    Add store instruction to register alloc pass
+
+[33mcommit 9982d3166d77ddbbac1ab6bd6c2f72c94f20acce[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Feb 4 14:55:23 2020 -0500
+
+    Cleaner fresh var generation for shuffle truncation
+
+[33mcommit 8b3fcc6b4c349e74ab1a6e92ca492564984eb8fb[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 3 15:53:39 2020 -0500
+
+    Nested truncation for load shuffles, need nesting for shuffle-set! and tests
+
+[33mcommit 379f600b334444a0fc6887d1a90b925f0df4cb06[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 3 14:39:29 2020 -0500
+
+    Cleanup DrRacket junk
+
+[33mcommit be323cbc5572b6ef3b75c75d05951477b5d366d6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Jan 31 21:15:14 2020 -0500
+
+    Truncate new shuffle representation (still needs nesting)
+
+[33mcommit 9716a70f43d11f8f3e3f6274ddddf67fe83975b9[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 3 11:48:57 2020 -0500
+
+    Update select truncation example
+
+[33mcommit d0eb27407c2dd9c34f82f5d78e93af5e235a228c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Feb 3 11:23:39 2020 -0500
+
+    Align vectors to reg-size in interp
+
+[33mcommit 9dceb7f922282081765b2dba697ed156cc42cc2c[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 30 22:43:28 2020 -0500
+
+    Collapse vec-shuffle and vec-select into one AST node with a list of inps
+
+[33mcommit 1e91e9242ef7f9ff0dd7bb7e1dc30fdc6f78b8a1[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 30 16:55:44 2020 -0500
+
+    Truncate shuffles (selects WIP)
+
+[33mcommit 1c4ccea3210dc1dd04447f347635a86c0b85a07c[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 28 18:00:20 2020 -0500
+
+    conv spec
+
+[33mcommit 798880e7b195770a2f8b13873f22c97829d54cce[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 28 17:35:26 2020 -0500
+
+    better reporting
+
+[33mcommit 6e69f957363d6d46ef053de0b934b922e65446b6[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 28 17:35:13 2020 -0500
+
+    example directory
+
+[33mcommit a734ddc9870ea17dcdf39d039971ea6a66aa81e3[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 27 17:47:07 2020 -0500
+
+    add C AST and pretty printer for code gen
+
+[33mcommit b19eb255bb079acc9fc93865feb63aeb95350bf0[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 27 17:15:20 2020 -0500
+
+    add extern decls to sketch
+
+[33mcommit a292c42497cad217eb6f19fd8f1ad69c10f01423[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 27 16:52:46 2020 -0500
+
+    prefix based cost function
+
+[33mcommit 7bbcc8a1852bf07379070d73103576de330c6cd5[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 23 15:57:26 2020 -0500
+
+    Partially functional local value numbering
+
+[33mcommit 420038f2fd570f6920b0ec7cd232bcc687885514[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Jan 23 13:15:00 2020 -0500
+
+    ssa implementation
+
+[33mcommit e0f8594ef0c99e47e6f73077d9df9b5c658e1974[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Jan 23 12:06:33 2020 -0500
+
+    rename cost function
+
+[33mcommit a60cdf8136d60865c64c3b4b0625f3296b00faac[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Jan 23 12:05:55 2020 -0500
+
+    remove vec-print
+
+[33mcommit 2cc4b654f4d32a768b0be67f294165863016c551[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Jan 23 12:04:54 2020 -0500
+
+    add constant elimination pass
+
+[33mcommit 0091cef77559f90071569d463c4ab840be318492[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 23 12:03:56 2020 -0500
+
+    Reg-alloc tests
+
+[33mcommit 346c70d2c74b85cbe2bd0f8875c9434658899c51[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 23 11:55:36 2020 -0500
+
+    Check ids in reg-alloc, add truncation pass skeleton
+
+[33mcommit fbd5be2bd616b3584dbb8c82127139b6a602bfa3[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Jan 22 18:53:18 2020 -0500
+
+    synth generator and bunch of reporting data
+
+[33mcommit dfc79ffb68d911ce62c58d55ed29736ce1ae7165[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Jan 22 18:52:46 2020 -0500
+
+    separate uniq shuffle cost
+
+[33mcommit 04da57afd027276622d07e42653a93c19dc62eab[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Jan 22 18:17:14 2020 -0500
+
+    Fix typo, add transparent
+
+[33mcommit f3d55adf6f243e947d97c99d2cbf19d25ab767c1[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Jan 22 18:13:25 2020 -0500
+
+    Add external vector declarations to AST, interp, use in reg-alloc
+
+[33mcommit 15ce9e3a6a9009b35d6990c05d92d27a39cd685c[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Jan 22 17:47:06 2020 -0500
+
+    cost function that tracks number of uniques idxs
+
+[33mcommit 2da557fdb309f3f591c9eb8eb733319e678ff6f6[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Jan 22 13:16:21 2020 -0500
+
+    Map const ids to new allocated segments
+
+[33mcommit 5979f925faa6a8b97399da357ccbb20d21999438[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Jan 22 11:50:35 2020 -0500
+
+    Register allocation for declared constants
+
+[33mcommit 1b377995cfc50477c66e331b95a7f5534feac91e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 21 17:51:32 2020 -0500
+
+    implement history based sketch. untested
+
+[33mcommit 45a3ff0657369b7930090c861e43b7727bc924dd[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 21 11:00:40 2020 -0500
+
+    rookie mistake
+
+[33mcommit c653a7ca34ac2af3052e4a414383747fcbc0c1c3[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 21 10:51:52 2020 -0500
+
+    Force continuous writes to C. Results in unsat. Fixes #3.
+
+[33mcommit aa45816b541e9f4ace6a060247c5020f46ea4981[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 23:00:19 2020 -0500
+
+    larger cost minimization example
+
+[33mcommit 3657ea8e33b27e8352a88a530113306e69a629ec[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 22:47:34 2020 -0500
+
+    cost minimization proc works
+
+[33mcommit ea437e4fd43b21b1e1e989861040420485fb71b2[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 22:33:34 2020 -0500
+
+    fix interp test
+
+[33mcommit bbf3244029de1e0723b0c6b612b3fc246f8e2522[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Jan 20 19:42:38 2020 -0500
+
+    Move WIP vec register allocation to separate pass file
+
+[33mcommit 82c0a8765fbfab77ae2ec9e378356c825b0d5d26[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 19:18:20 2020 -0500
+
+    minimizing synth. doesnt seem to work correctly
+
+[33mcommit e63ece37b857c41c383e1b0bab196997e7485b71[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 19:05:33 2020 -0500
+
+    finish minimizing synth proc
+
+[33mcommit 172ee915a2ded11519c5c4071ca44398f72dfba8[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 19:05:21 2020 -0500
+
+    remove vec-load and vec-unload
+
+[33mcommit c30b9076a4aff2753649ffb03feb59ca2909192f[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 18:21:58 2020 -0500
+
+    generate program sketches
+
+[33mcommit 6d00bd8985d7e14e4fbd352305b53d9289ac2f7b[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 20 18:21:35 2020 -0500
+
+    add vec-print instr and fix interp
+
+[33mcommit d2ba5efc12e2f1b81228edfd7eaf3c50f32c5aef[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 16 16:27:05 2020 -0500
+
+    Allow a different shuffle reg count for the output
+
+[33mcommit 555dd7c7a3ab3c3ac14805c4082d3ca9adbf47b0[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 16 13:07:42 2020 -0500
+
+    Fix register truncation
+
+[33mcommit ebc4974f28fcd6e44bd56ac32d31472ff5b6dad7[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 16 11:34:47 2020 -0500
+
+    Add function defn lookup to interp
+
+[33mcommit c70e10b3f6dc74833e6b352d2400fbc166945e45[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 16 11:34:16 2020 -0500
+
+    Fix function arity mismatch in interp vec-select
+
+[33mcommit 04849c6d514743e53fcd1b572922665ae9e6f311[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Thu Jan 16 09:01:21 2020 -0500
+
+    Emit MAC instructions, better handling of index global variables
+
+[33mcommit 819631a275c712a8ca4dfbdf09e766425c382dfb[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Jan 15 17:01:12 2020 -0500
+
+    WIP optimizing synth proc
+
+[33mcommit ebed83de2806b59480e24ae72c8c9639bb4368f3[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Jan 15 16:39:57 2020 -0500
+
+    calculate program cost in interp using a cost function
+
+[33mcommit f547729b182a543cec2cc46571d18f69e9751905[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Jan 15 16:18:30 2020 -0500
+
+    add current-reg-size as a paramter
+
+[33mcommit 1080abda23a84ee22c32224ea8493698a699b829[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Jan 15 10:54:13 2020 -0500
+
+    Re-order args of shuffle/select to have inputs last
+
+[33mcommit 8e7f4e8da22b9138f7698681d277e9fb549556ea[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Wed Jan 15 10:37:01 2020 -0500
+
+    how to run tests
+
+[33mcommit 7c786c44dbb1dda6e6930d1bb26bcd11391d7f8a[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Wed Jan 15 10:08:03 2020 -0500
+
+    Handle shuffle that access the "zero" register
+
+[33mcommit b3ee9f48127cebce1c613d147d5526ca513e3b0b[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Jan 14 14:44:24 2020 -0500
+
+    Convert Rosette results into shuffles/selects that can be used by codegen
+
+[33mcommit 2c2e658fcd6b5b0a817b7ee7afd9d13f1a489ca8[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Jan 14 11:00:37 2020 -0500
+
+    Update matrix util test
+
+[33mcommit 85cb0f2c752f99b0513948fb87ef41ab1462ce6e[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Tue Jan 14 10:44:45 2020 -0500
+
+    Add upper bound back to reg used
+
+[33mcommit 6f65c28d74b2b03aa974e3c4cdb23d9c61b6f9b7[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 14 09:25:15 2020 -0500
+
+    gitignore and makefile for test
+
+[33mcommit 101b12883e28534c530716c485afec392055eb18[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 14 09:22:29 2020 -0500
+
+    start working on prog sketch. Add TODO for sketch with history
+
+[33mcommit 550d7f319f6dc430c05a9d68c4bdc5595729c37d[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 14 08:16:49 2020 -0500
+
+    add tests for interp
+
+[33mcommit 6c4d38ffd5fbfa9fc39af8e1a31569d70404f30e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Tue Jan 14 08:00:15 2020 -0500
+
+    separate ast and interp. Add ast test
+
+[33mcommit 0f4ea2692b1b1610219a2d1961f8a306d70e8a5f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Mon Jan 13 17:39:59 2020 -0500
+
+    Start C codegen
+
+[33mcommit e2f6d91166a4a95959b2f679ad9e59a7ab0ae835[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Mon Jan 13 01:39:11 2020 -0500
+
+    simple macro for defining programs
+
+[33mcommit 713d178e7eb66854b0ee88811b302d493b86186d[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Jan 12 02:26:34 2020 -0500
+
+    vector machine interpreter
+
+[33mcommit 6d185ab6c0cb8a5ec6a87f731820a9884e58eda5[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Sun Jan 12 02:26:25 2020 -0500
+
+    add test
+
+[33mcommit 13a85c3db68fca33f4804f5096a466bebd22c160[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Jan 10 18:31:44 2020 -0500
+
+    More efficient constraints for restricting the number of registers shuffles access
+
+[33mcommit 15f05c2a44edceacea5beee2c2a33883ec8897a9[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Jan 10 12:29:32 2020 -0500
+
+    Add in constraint that shuffle indices should access a limited number of vector registers (here, set to 2)
+
+[33mcommit fcc08ce0f8dc737cba118397277049e7aff9e15f[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Jan 10 11:37:12 2020 -0500
+
+    Calculation for number of iterations
+
+[33mcommit 4d4db364baf2de0c85ae8d678c15b132ae4be546[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Jan 10 09:55:09 2020 -0500
+
+    bigger example
+
+[33mcommit b9fa4974a7a889b7870a141183f7a32f8ce017ba[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Jan 10 09:38:02 2020 -0500
+
+    solve bigger problem
+
+[33mcommit b560074a8092a65fb186174baf152cbc9e8df474[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Jan 10 04:01:02 2020 -0500
+
+    simplify shuffles
+
+[33mcommit a5675b111c103af681bcae821884ecd1b2ad9fda[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Jan 10 04:00:20 2020 -0500
+
+    synthesize, not solve
+
+[33mcommit fcc7c97524d8c9cdb0f78f44ada095903ba2b4ad[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Jan 10 03:46:21 2020 -0500
+
+    implement full matrix multiply example and synthesis for vectorized code
+
+[33mcommit 4be79df2fc09510c1f976c6c8bac8eb2ac0b84dd[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Fri Jan 10 00:58:30 2020 -0500
+
+    generate spec interface for arbitrary matrix multiply
+
+[33mcommit 874bba7f49296897f4f8af1b1fa0a40c55cc3f8a[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Jan 9 13:08:58 2020 -0500
+
+    simply shuffle and add select
+
+[33mcommit 48fc5d8a72b286e4ee841e7f7cbf0fa1d2b611bb[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Jan 9 10:34:31 2020 -0500
+
+    add synthesis test for vector shuffle
+
+[33mcommit e0f06e3fdc51a5b748a987073509f246e02c8a3e[m
+Author: Rachit Nigam <rachit.nigam12@gmail.com>
+Date:   Thu Jan 9 10:10:07 2020 -0500
+
+    start implementing vector instructions
+
+[33mcommit fa0294e71cfdc3e81995a0a6c6133ae50c4bb8e8[m
+Merge: 42e78db d4332db
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Oct 18 12:49:23 2019 -0400
+
+    Merge pull request #1 from cucapra/add-license-1
+    
+    Create LICENSE
+
+[33mcommit d4332db299f5dc2634276f1bad2882a570653f37[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Oct 18 12:49:06 2019 -0400
+
+    Create LICENSE
+
+[33mcommit 42e78db8432da9cc931bfc8e30904802fb85c41b[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Oct 18 10:43:57 2019 -0400
+
+    Update README.md
+
+[33mcommit 30b6f97bf64bcf238aaeb0575d8bdd5aae086415[m
+Author: Alexa VanHattum <amv94@cornell.edu>
+Date:   Fri Oct 18 10:43:34 2019 -0400
+
+    Initial commit
