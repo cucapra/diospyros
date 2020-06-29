@@ -16,6 +16,9 @@ use egg::{rewrite as rw, *};
 // Assuming this gives up a perfect sketch minus exact shuffles, do we no
 //   longer have to encode exact function semantics into SMT?
 
+
+// What are the principals behind creating these rules?
+
 define_language! {
     enum VecLang {
         Num(i32),
@@ -107,64 +110,95 @@ impl CostFunction<VecLang> for VecCostFn {
 }
 
 fn main() {
-    let rules: &[Rewrite<VecLang, ()>] = &[
+    let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
         rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
         rw!("assoc-add-1"; "(+ ?a ?b ?c)" => "(+ ?a (+ ?b ?c))"),
         rw!("assoc-add-2"; "(+ ?a ?b ?c)" => "(+ (+ ?a ?b) ?c)"),
         rw!("assoc-mul-1"; "(* ?a ?b ?c)" => "(* ?a (* ?b ?c))"),
         rw!("assoc-mul-2"; "(* ?a ?b ?c)" => "(* (* ?a ?b) ?c))"),
-        rw!("add-0"; "(+ ?a 0)" => "?a"),
+        // rw!("add-0"; "(+ ?a 0)" => "?a"),
         rw!("mul-0"; "(* ?a 0)" => "0"),
         rw!("mul-1"; "(* ?a 1)" => "?a"),
 
+        // Allow hallucination of 0's to allow pattern matching larger vectors
+        rw!("zero-1"; "0" => "(+ 0 0)"),
+        rw!("zero-2"; "0" => "(* 0 0)"),
+
+
         // Partition lists - hardcoded
+        rw!("partition-1"; "(List ?a)"
+            => "(Vec4 ?a 0 0 0)"),
+        rw!("partition-2"; "(List ?a ?b)"
+            => "(Vec4 ?a ?b 0 0)"),
+        rw!("partition-3"; "(List ?a ?b ?c)"
+            => "(Vec4 ?a ?b ?c 0)"),
+        rw!("partition-4"; "(List ?a ?b ?c ?d)"
+            => "(Vec4 ?a ?b ?c ?d)"),
         rw!("partition-5"; "(List ?a ?b ?c ?d ?e)"
-            => "(Concat (List ?a ?b ?c ?d) (List ?e))"),
+            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e 0 0 0))"),
         rw!("partition-6"; "(List ?a ?b ?c ?d ?e ?f)"
-            => "(Concat (List ?a ?b ?c ?d) (List ?e ?f))"),
+            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f 0 0))"),
         rw!("partition-7"; "(List ?a ?b ?c ?d ?e ?f ?g)"
-            => "(Concat (List ?a ?b ?c ?d) (List ?e ?f ?g))"),
+            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g 0))"),
         rw!("partition-8"; "(List ?a ?b ?c ?d ?e ?f ?g ?h)"
-            => "(Concat (List ?a ?b ?c ?d) (List ?e ?f ?g ?h))"),
+            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g ?h))"),
 
         rw!("partition-9"; "(List ?v0 ?v1 ?v2 ?v3 ?v4 ?v5 ?v6 ?v7 ?v8)"
-            => "(Concat (List ?v0 ?v1 ?v2 ?v3) (List ?v4 ?v5 ?v6 ?v7 ?v8))"),
+            => "(Concat (Vec4 ?v0 ?v1 ?v2 ?v3)
+                        (Concat (Vec4 ?v4 ?v5 ?v6 ?v7)
+                                (Vec4 ?v8 0 0 0)))"),
 
         // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-add-2"; "(List (+ ?a ?b) (+ ?c ?d))"
-            => "(VecAdd (List ?a ?c) (List ?b ?d))"),
-        rw!("vec-add-3"; "(List (+ ?a ?b) (+ ?c ?d) (+ ?e ?f))"
-            => "(VecAdd (List ?a ?c ?e) (List ?b ?d ?f))"),
-        rw!("vec-add-4"; "(List (+ ?a ?b) (+ ?c ?d) (+ ?e ?f) (+ ?g ?h))"
-            => "(VecAdd (List ?a ?c ?e ?g) (List ?b ?d ?f ?h))"),
+        rw!("vec-add-2"; "(Vec4 (+ ?a ?b) (+ ?c ?d) 0 0)"
+            => "(VecAdd (Vec4 ?a ?c 0 0) (Vec4 ?b ?d 0 0))"),
+        rw!("vec-add-3"; "(Vec4 (+ ?a ?b) (+ ?c ?d) (+ ?e ?f) 0)"
+            => "(VecAdd (Vec4 ?a ?c ?e 0) (Vec4 ?b ?d ?f 0))"),
+        rw!("vec-add-4"; "(Vec4 (+ ?a ?b) (+ ?c ?d) (+ ?e ?f) (+ ?g ?h))"
+            => "(VecAdd (Vec4 ?a ?c ?e ?g) (Vec4 ?b ?d ?f ?h))"),
 
         // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-mul-2"; "(List (* ?a ?b) (* ?c ?d))"
-            => "(VecMul (List ?a ?c) (List ?b ?d))"),
-        rw!("vec-mul-3"; "(List (* ?a ?b) (* ?c ?d) (* ?e ?f))"
-            => "(VecMul (List ?a ?c ?e) (List ?b ?d ?f))"),
-        rw!("vec-mul-4"; "(List (* ?a ?b) (* ?c ?d) (* ?e ?f) (* ?g ?h))"
-            => "(VecMul (List ?a ?c ?e ?g) (List ?b ?d ?f ?h))"),
+        rw!("vec-mul-2"; "(Vec4 (* ?a ?b) (* ?c ?d) 0 0)"
+            => "(VecMul (Vec4 ?a ?c 0 0) (Vec4 ?b ?d 0 0))"),
+        rw!("vec-mul-3"; "(Vec4 (* ?a ?b) (* ?c ?d) (* ?e ?f) 0)"
+            => "(VecMul (Vec4 ?a ?c ?e 0) (Vec4 ?b ?d ?f 0))"),
+        rw!("vec-mul-4"; "(Vec4 (* ?a ?b) (* ?c ?d) (* ?e ?f) (* ?g ?h))"
+            => "(VecMul (Vec4 ?a ?c ?e ?g) (Vec4 ?b ?d ?f ?h))"),
 
         // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-mac-2"; "(List (+ ?a (* ?b ?c))
-                                (+ ?d (* ?e ?f)))"
-            => "(VecMAC (List ?a ?d) (List ?b ?e) (List ?c ?f))"),
-        rw!("vec-mac-3"; "(List (+ ?a (* ?b ?c))
+        rw!("vec-mac-2"; "(Vec4 (+ ?a (* ?b ?c))
                                 (+ ?d (* ?e ?f))
-                                (+ ?g (* ?h ?i)))"
-            => "(VecMAC (List ?a ?d ?g)
-                        (List ?b ?e ?h)
-                        (List ?c ?f ?i))"),
-        rw!("vec-mac-4"; "(List (+ ?a (* ?b ?c))
+                                0
+                                0)"
+            => "(VecMAC (Vec4 ?a ?d 0 0)
+                        (Vec4 ?b ?e 0 0)
+                        (Vec4 ?c ?f 0 0))"),
+        rw!("vec-mac-3"; "(Vec4 (+ ?a (* ?b ?c))
+                                (+ ?d (* ?e ?f))
+                                (+ ?g (* ?h ?i))
+                                0)"
+            => "(VecMAC (Vec4 ?a ?d ?g 0)
+                        (Vec4 ?b ?e ?h 0)
+                        (Vec4 ?c ?f ?i 0))"),
+        rw!("vec-mac-4"; "(Vec4 (+ ?a (* ?b ?c))
                                 (+ ?d (* ?e ?f))
                                 (+ ?g (* ?h ?i))
                                 (+ ?j (* ?k ?l)))"
-            => "(VecMAC (List ?a ?d ?g ?j)
-                        (List ?b ?e ?h ?k)
-                        (List ?c ?f ?i ?l))"),
+            => "(VecMAC (Vec4 ?a ?d ?g ?j)
+                        (Vec4 ?b ?e ?h ?k)
+                        (Vec4 ?c ?f ?i ?l))"),
     ];
+
+    rules.extend(vec![
+        // Very expensive rules to allow more hallucination of zeros
+        rw!("add-0"; "(+ ?a 0)" <=> "?a"),
+        rw!("add-1"; "(+ ?a 0 0)" <=> "?a"),
+        rw!("add-2"; "(+ ?a 0 0 0)" <=> "?a"),
+        rw!("add-3"; "(+ ?a ?b 0 0)" <=> "(+ ?a ?b)"),
+
+        rw!("add-4"; "(+ ?a ?b ?c)" <=> "(+ ?a (+ ?b ?c))"),
+        rw!("add-5"; "(+ ?a ?b ?c ?d)" <=> "(+ ?a (+ ?b (+ ?c ?d)))"),
+    ].concat());
 
     // Simple vector add
     {
@@ -181,7 +215,7 @@ fn main() {
         let mut extractor = Extractor::new(&egraph, VecCostFn);
         let (best_cost, best) = extractor.find_best(root);
         println!("Best cost {}", best_cost);
-        assert_eq!(best, "(VecAdd (List a c) (List b d))".parse().unwrap());
+        assert_eq!(best, "(VecAdd (Vec4 a c 0 0) (Vec4 b d 0 0))".parse().unwrap());
     }
 
     // Nest vector MAC and vector mul with size = 2
@@ -211,12 +245,12 @@ fn main() {
         assert_eq!(
             best,
             "(VecMAC
-                            (VecMAC
-                              (VecMul (List c cc) (List d dd))
-                              (List e ee)
-                              (List f ff))
-                            (List a aa)
-                            (List b bb))"
+              (VecMAC
+                (VecMul (Vec4 e ee 0 0) (Vec4 f ff 0 0))
+                (Vec4 c cc 0 0)
+                (Vec4 d dd 0 0))
+              (Vec4 a aa 0 0)
+              (Vec4 b bb 0 0))"
                 .parse()
                 .unwrap()
         );
@@ -250,11 +284,11 @@ fn main() {
             best,
             "(VecMAC
                   (VecMAC
-                    (VecMul (List e ee) (List f ff))
-                    (List c cc)
-                    (List d dd))
-                  (List a aa)
-                  (List b bb))"
+                    (VecMul (Vec4 e ee 0 0) (Vec4 f ff 0 0))
+                    (Vec4 c cc 0 0)
+                    (Vec4 d dd 0 0))
+                  (Vec4 a aa 0 0)
+                  (Vec4 b bb 0 0))"
                 .parse()
                 .unwrap()
         );
@@ -295,10 +329,10 @@ fn main() {
             best,
             "(VecMAC
               (VecMul
-                (List v0 v0 v4 v5)
-                (List v4 v5 v2 v2))
-              (List v1 v1 v3 v3)
-              (List v6 v7 v6 v7))"
+                (Vec4 v0 v0 v4 v5)
+                (Vec4 v4 v5 v2 v2))
+              (Vec4 v1 v1 v6 v7)
+              (Vec4 v6 v7 v3 v3))"
                 .parse()
                 .unwrap()
         );
@@ -341,22 +375,27 @@ fn main() {
         assert_eq!(
             best,
             "(Concat
+              (VecAdd
+                (Vec4
+                  (* v0 v6)
+                  (* v0 v7)
+                  (* v0 v8)
+                  (+ (* v6 v3) (* v9 v4) (* v12 v5)))
+                (VecMAC
+                  (VecMul
+                    (Vec4 v2 v2 v2 0)
+                    (Vec4 v12 v13 v14 0))
+                  (Vec4 v1 v1 v1 0)
+                  (Vec4 v9 v10 v11 0)))
               (VecMAC
                 (VecMAC
                   (VecMul
-                    (List v2 v2 v2 v12)
-                    (List v12 v13 v14 v5))
-                  (List v1 v1 v1 v9)
-                  (List v9 v10 v11 v4))
-                (List v0 v0 v0 v6)
-                (List v6 v7 v8 v3))
-              (VecMAC
-                (VecMAC
-                  (VecMul (List v13 v14) (List v5 v5))
-                  (List v10 v11)
-                  (List v4 v4))
-                (List v7 v8)
-                (List v3 v3)))"
+                    (Vec4 v13 v14 0 0)
+                    (Vec4 v5 v5 0 0))
+                  (Vec4 v10 v11 0 0)
+                  (Vec4 v4 v4 0 0))
+                (Vec4 v7 v8 0 0)
+                (Vec4 v3 v3 0 0)))"
                 .parse()
                 .unwrap()
         );
@@ -390,6 +429,111 @@ fn main() {
             start.pretty(40),
             best.pretty(40),
             best_cost,
+        );
+    }
+
+
+        // let start = "(Vec4
+        //                 (+ (* v0 v7) (* v1 v6) (* v2 v5) (* v3 v4))
+        //                 (+ (* v1 v7) (* v3 v5))
+        //                 (* v2 v6)
+        //                 (+ (* v2 v7) (* v3 v6)))"
+
+    // THIS ONE WORKS
+        // let start = "(Vec4
+        //                 (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
+        //                 (+ (* v1 v7) (+ (* v3 v5) (+ (* 0 0) (* 0 0))))
+        //                 (+ (* v2 v6) (+ (* 0 0) (+ (* 0 0) (* 0 0))))
+        //                 (+ (* v2 v7) (+ (* v3 v6) (+ (* 0 0) (* 0 0)))))"
+
+    // This one finds cost = 4
+    // Pattern search example
+    {
+        let start = "(Vec4
+                        (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
+                        (+ (* v1 v7) (+ (* v3 v5) 0))
+                        (+ (* v2 v6) 0)
+                        (+ (* v2 v7) (+ (* v3 v6) 0)))"
+            .parse()
+            .unwrap();
+        let runner = Runner::default()
+            .with_expr(&start)
+            .with_node_limit(100_000)
+            .with_time_limit(std::time::Duration::from_secs(20))
+            .with_iter_limit(60)
+            .run(&rules);
+        println!(
+            "Stopped after {} iterations, reason: {:?}",
+            runner.iterations.len(),
+            runner.stop_reason
+        );
+
+        let (egraph, root) = (runner.egraph, runner.roots[0]);
+
+        let simplify: RecExpr<VecLang> = "(Vec4
+                        (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
+                        (+ (* v1 v7) (+ (* v3 v5) 0))
+                        (* v2 v6)
+                        (+ (* v2 v7) (+ (* v3 v6) 0)))"
+            .parse()
+            .unwrap();
+        let matches_diff = Pattern::from(simplify.as_ref()).search(&egraph);
+        let matches_same = Pattern::from(start.as_ref()).search(&egraph);
+        println!(
+            "(start, simplify) matches: {:?}\n(start, start) matches: {:?}",
+            matches_diff,
+            matches_same,
+        );
+    }
+
+    // This one finds cost = 6 :(
+    {
+        let start = "(Vec4
+                        (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
+                        (+ (* v1 v7) (+ (* v3 v5) 0))
+                        (* v2 v6)
+                        (+ (* v2 v7) (+ (* v3 v6) 0)))"
+            .parse()
+            .unwrap();
+        let runner = Runner::default()
+            .with_expr(&start)
+            .with_node_limit(100_000)
+            .with_time_limit(std::time::Duration::from_secs(20))
+            .with_iter_limit(60)
+            .run(&rules);
+        println!(
+            "Stopped after {} iterations, reason: {:?}",
+            runner.iterations.len(),
+            runner.stop_reason
+        );
+
+        let (egraph, root) = (runner.egraph, runner.roots[0]);
+
+        let mut extractor = Extractor::new(&egraph, VecCostFn);
+        let (best_cost, best) = extractor.find_best(root);
+        println!(
+            "original:\n{}\nbest:\n{}\nbest cost {}",
+            start.pretty(40),
+            best.pretty(40),
+            best_cost,
+        );
+
+        let goal: RecExpr<VecLang> = "(VecMAC
+                      (VecMAC
+                        (VecMAC
+                          (Vec4 (* v3 v4) 0 0 0)
+                          (Vec4 v2 0 0 v6)
+                          (Vec4 v5 0 0 v3))
+                        (Vec4 v1 v5 0 0)
+                        (Vec4 v6 v3 0 0))
+                      (Vec4 v0 v7 v6 v7)
+                      (Vec4 v7 v1 v2 v2))"
+            .parse()
+            .unwrap();
+        let matches = Pattern::from(goal.as_ref()).search(&egraph);
+        println!(
+            "matches:\n{:?}",
+            matches,
         );
     }
 
