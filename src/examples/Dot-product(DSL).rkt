@@ -14,7 +14,8 @@
 (define/prog dot-product-p
   ('x = vec-extern-decl 4 int-type)
   ('y = vec-extern-decl 4 int-type)
-  ('add-result = vec-app 'vec-mul (list 'x 'y)))
+  ('mul-result = vec-app 'vec-mul (list 'x 'y))
+  ('sum-result = vec-app 'vec-sum (list 'mul-result)))
 
 ;Defines the bitvector lists 'x and 'y
 
@@ -25,7 +26,8 @@
 ;Maps the functions
 
 (define function-map (hash 'vec-add vector-add
-                           'vec-mul vector-multiply))
+                           'vec-mul vector-multiply
+                           'vec-sum vector-reduce-sum))
 
 ;Interpret the dot-product-p when action and function map are applied
 
@@ -33,7 +35,7 @@
 
 ;Defines add-results as the value of the product of two boxed lists
 
-(define add-results (hash-ref action 'add-result))
+(define results (hash-ref action 'sum-result))
 
 ;Calculates the sum of the bitvectors turned into integers
 
@@ -45,10 +47,17 @@
 ;Unboxes the add-results and turns the values into integers
 ;Sends Integers to sum-of-integers
 
-(sum-of-integers (map bitvector->integer (map unbox add-results)))
+;(sum-of-integers (map bitvector->integer (map unbox add-results)))
+(map bitvector->integer (map unbox results))
 
 
 
+; TODO: use synthesis!
+; Given a certain list of results, use Rosette to find two input vector that
+; have the resulting dot product.
+
+; Hint: define symbolic bitvectors for the input
+; (solve (equal? results (value-bv-list 0 1 2 3)))
 
 
 

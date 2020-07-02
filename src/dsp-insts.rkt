@@ -10,6 +10,7 @@
          vector-shuffle-set!
          vector-multiply
          vector-add
+         vector-reduce-sum
          vector-mac
          vector-s-divide
          vector-negate
@@ -53,13 +54,18 @@
              [e2 v2])
     (box (bvmul (unbox e1) (unbox e2)))))
 
-;; VECTOR Add
+;; VECTOR ADD
 (define (vector-add v1 v2)
   (assert (= (length v1) (length v2))
           "VECTOR-ADD: length of vectors not equal")
   (for/list ([e1 v1]
              [e2 v2])
     (box (bvadd (unbox e1) (unbox e2)))))
+
+;; VECTOR REDUCE SUM
+(define (vector-reduce-sum v)
+  (define (combine b acc) (bvadd acc (unbox b)))
+  (list (box (foldl combine (bv-value 0) v))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -104,6 +110,11 @@
 (define dsp-insts-tests
   (test-suite
     "DSP instructions tests"
+    (test-case
+      "VECTOR-REDUCE_SUM: basic example"
+      (let ([inp (value-bv-list 0 1 2 3 4)]
+            [gold (value-bv-list 10)])
+        (check-equal? (vector-reduce-sum inp) gold)))
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
       (let ([inp (value-bv-list 0 1 2 3 4)]
