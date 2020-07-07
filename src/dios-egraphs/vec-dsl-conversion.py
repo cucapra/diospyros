@@ -57,24 +57,37 @@ def to_egg(expr, max_idx, erase):
     return expr
 
 def preprocess_egg_to_vecs(expr):
-    pass
+    if expr[0] != "List":
+        print("Cannot preprocess expression")
+        return expr
 
-def rosette_to_egg(erase):
+    def elements_to_vec(es):
+        if len(es) < 4:
+            return ["List"] + es
+        if len(es) == 4:
+            return ["Vec4"] + es
+        return ["Concat", ["Vec4"] + es[0:4], elements_to_vec(es[4:])]
+
+    return elements_to_vec(expr[1:])
+
+def rosette_to_egg(erase, preprocess):
     sexp = sexpdata.load(sys.stdin)
 
     max_idx = max_symbolic_idx(sexp)
-    print(max_idx)
-
     new = to_egg(sexp, max_idx, erase)
+    if preprocess:
+        new = preprocess_egg_to_vecs(new)
     print(sexpdata.dumps(new, str_as='symbol'))
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--erase', action='store_true',
         help="Erase exact expression indices")
+    parser.add_argument('-p', '--preprocess', action='store_true',
+        help="Preprocess long lists to Vec4s")
     args = parser.parse_args()
 
-    rosette_to_egg(args.erase)
+    rosette_to_egg(args.erase, args.preprocess)
 
 if __name__ == main():
     main()
