@@ -12,7 +12,6 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
         rw!("assoc-add-2"; "(+ ?a ?b ?c)" => "(+ (+ ?a ?b) ?c)"),
         rw!("assoc-mul-1"; "(* ?a ?b ?c)" => "(* ?a (* ?b ?c))"),
         rw!("assoc-mul-2"; "(* ?a ?b ?c)" => "(* (* ?a ?b) ?c))"),
-        // rw!("add-0"; "(+ ?a 0)" => "?a"),
         rw!("mul-0"; "(* ?a 0)" => "0"),
         rw!("mul-1"; "(* ?a 1)" => "?a"),
 
