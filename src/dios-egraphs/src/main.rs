@@ -1,4 +1,14 @@
-use egg::{rewrite as rw, *};
+use egg::{*};
+
+use crate::{
+    veclang::{VecLang},
+    rules::{*},
+    cost::{*},
+};
+
+pub mod veclang;
+pub mod rules;
+pub mod cost;
 
 // Overall thoughts: start with spec, not the reference implementation
 // Mutation is hard: how do we model vector registers?
@@ -15,68 +25,7 @@ use egg::{rewrite as rw, *};
 // Eventually, do we want to model loads and stores?
 // Assuming this gives up a perfect sketch minus exact shuffles, do we no
 //   longer have to encode exact function semantics into SMT?
-
-
 // What are the principals behind creating these rules?
-
-define_language! {
-    enum VecLang {
-        Num(i32),
-
-        // Id is a key to identify EClasses within an EGraph, represents
-        // children nodes
-        "+" = Add(Box<[Id]>),
-        "*" = Mul(Box<[Id]>),
-
-        // Lists have a variable number of elements
-        "List" = List(Box<[Id]>),
-
-        // Vectors have 4 elements
-        "Vec4" = Vec4([Id; 4]),
-
-        // Used for partitioning and recombining lists
-        "Concat" = Concat([Id; 2]),
-
-        // Vector operations that take 2 vectors of inputs
-        "VecAdd" = VecAdd([Id; 2]),
-        "VecMul" = VecMul([Id; 2]),
-
-        // MAC takes 3 lists: acc, v1, v2
-        "VecMAC" = VecMAC([Id; 3]),
-
-        // language items are parsed in order, and we want symbol to
-        // be a fallback, so we put it last.
-        // `Symbol` is an egg-provided interned string type
-        Symbol(egg::Symbol),
-    }
-}
-
-type EGraph = egg::EGraph<VecLang, VecLangAnalysis>;
-
-#[derive(Default)]
-struct VecLangAnalysis;
-
-#[derive(Debug)]
-struct Data {
-}
-
-impl Analysis<VecLang> for VecLangAnalysis {
-    type Data = Data;
-    fn merge(&self, _to: &mut Data, _from: Data) -> bool {
-        false
-    }
-
-    fn make(_egraph: &EGraph, _enode: &VecLang) -> Data {
-        Data { }
-    }
-}
-
-struct ListApplier(&'static str);
-impl Applier<VecLang, VecLangAnalysis> for ListApplier {
-    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst) -> Vec<Id> {
-        panic!()
-    }
-}
 
 // // This returns a function that implements Condition
 // fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
@@ -85,134 +34,8 @@ impl Applier<VecLang, VecLangAnalysis> for ListApplier {
 //     move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
 // }
 
-struct VecCostFn;
-impl CostFunction<VecLang> for VecCostFn {
-    type Cost = f64;
-    // you're passed in an enode whose children are costs instead of eclass ids
-    fn cost<C>(&mut self, enode: &VecLang, mut costs: C) -> Self::Cost
-    where
-        C: FnMut(Id) -> Self::Cost,
-    {
-        const BIG: f64 = 100.0;
-        const LITERAL: f64 = 0.001;
-        const STRUCTURE: f64 = 0.1;
-        const OP: f64 = 1.;
-        let op_cost = match enode {
-            // You get literals for extremely cheap
-            VecLang::Num(..) => LITERAL,
-            VecLang::Symbol(..) => LITERAL,
-
-            // And list structures for quite cheap
-            VecLang::List(..) => STRUCTURE,
-            VecLang::Concat(..) => STRUCTURE,
-
-            // Vectors are cheap if they have literal values
-            VecLang::Vec4(vals) => {
-                let non_literals = vals.iter().any(|&x| costs(x) > LITERAL);
-                if non_literals {BIG} else {STRUCTURE}
-            },
-
-            // But scalar and vector ops cost something
-            VecLang::Add(..) => OP,
-            VecLang::Mul(..) => OP,
-
-            VecLang::VecAdd(..) => OP,
-            VecLang::VecMul(..) => OP,
-            VecLang::VecMAC(..) => OP,
-        };
-        enode.fold(op_cost, |sum, id| sum + costs(id))
-    }
-}
-
 fn main() {
-    let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
-        rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
-        rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
-        rw!("assoc-add-1"; "(+ ?a ?b ?c)" => "(+ ?a (+ ?b ?c))"),
-        rw!("assoc-add-2"; "(+ ?a ?b ?c)" => "(+ (+ ?a ?b) ?c)"),
-        rw!("assoc-mul-1"; "(* ?a ?b ?c)" => "(* ?a (* ?b ?c))"),
-        rw!("assoc-mul-2"; "(* ?a ?b ?c)" => "(* (* ?a ?b) ?c))"),
-        // rw!("add-0"; "(+ ?a 0)" => "?a"),
-        rw!("mul-0"; "(* ?a 0)" => "0"),
-        rw!("mul-1"; "(* ?a 1)" => "?a"),
-
-        // Allow hallucination of 0's to allow pattern matching larger vectors
-        rw!("zero-1"; "?a" => "(+ ?a 0)"),
-        rw!("zero-2"; "0" => "(* 0 0)"),
-
-        // Partition lists - hardcoded
-        rw!("partition-1"; "(List ?a)"
-            => "(Vec4 ?a 0 0 0)"),
-        rw!("partition-2"; "(List ?a ?b)"
-            => "(Vec4 ?a ?b 0 0)"),
-        rw!("partition-3"; "(List ?a ?b ?c)"
-            => "(Vec4 ?a ?b ?c 0)"),
-        rw!("partition-4"; "(List ?a ?b ?c ?d)"
-            => "(Vec4 ?a ?b ?c ?d)"),
-        rw!("partition-5"; "(List ?a ?b ?c ?d ?e)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e 0 0 0))"),
-        rw!("partition-6"; "(List ?a ?b ?c ?d ?e ?f)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f 0 0))"),
-        rw!("partition-7"; "(List ?a ?b ?c ?d ?e ?f ?g)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g 0))"),
-        rw!("partition-8"; "(List ?a ?b ?c ?d ?e ?f ?g ?h)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g ?h))"),
-
-        rw!("partition-9"; "(List ?v0 ?v1 ?v2 ?v3 ?v4 ?v5 ?v6 ?v7 ?v8)"
-            => "(Concat (Vec4 ?v0 ?v1 ?v2 ?v3)
-                        (Concat (Vec4 ?v4 ?v5 ?v6 ?v7)
-                                (Vec4 ?v8 0 0 0)))"),
-
-        // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-add-2"; "(Vec4 (+ ?a ?b) (+ ?c ?d) 0 0)"
-            => "(VecAdd (Vec4 ?a ?c 0 0) (Vec4 ?b ?d 0 0))"),
-        rw!("vec-add-3"; "(Vec4 (+ ?a ?b) (+ ?c ?d) (+ ?e ?f) 0)"
-            => "(VecAdd (Vec4 ?a ?c ?e 0) (Vec4 ?b ?d ?f 0))"),
-        rw!("vec-add-4"; "(Vec4 (+ ?a ?b) (+ ?c ?d) (+ ?e ?f) (+ ?g ?h))"
-            => "(VecAdd (Vec4 ?a ?c ?e ?g) (Vec4 ?b ?d ?f ?h))"),
-
-        // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-mul-2"; "(Vec4 (* ?a ?b) (* ?c ?d) 0 0)"
-            => "(VecMul (Vec4 ?a ?c 0 0) (Vec4 ?b ?d 0 0))"),
-        rw!("vec-mul-3"; "(Vec4 (* ?a ?b) (* ?c ?d) (* ?e ?f) 0)"
-            => "(VecMul (Vec4 ?a ?c ?e 0) (Vec4 ?b ?d ?f 0))"),
-        rw!("vec-mul-4"; "(Vec4 (* ?a ?b) (* ?c ?d) (* ?e ?f) (* ?g ?h))"
-            => "(VecMul (Vec4 ?a ?c ?e ?g) (Vec4 ?b ?d ?f ?h))"),
-
-        // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-mac-2"; "(Vec4 (+ ?a (* ?b ?c))
-                                (+ ?d (* ?e ?f))
-                                0
-                                0)"
-            => "(VecMAC (Vec4 ?a ?d 0 0)
-                        (Vec4 ?b ?e 0 0)
-                        (Vec4 ?c ?f 0 0))"),
-        rw!("vec-mac-3"; "(Vec4 (+ ?a (* ?b ?c))
-                                (+ ?d (* ?e ?f))
-                                (+ ?g (* ?h ?i))
-                                0)"
-            => "(VecMAC (Vec4 ?a ?d ?g 0)
-                        (Vec4 ?b ?e ?h 0)
-                        (Vec4 ?c ?f ?i 0))"),
-        rw!("vec-mac-4"; "(Vec4 (+ ?a (* ?b ?c))
-                                (+ ?d (* ?e ?f))
-                                (+ ?g (* ?h ?i))
-                                (+ ?j (* ?k ?l)))"
-            => "(VecMAC (Vec4 ?a ?d ?g ?j)
-                        (Vec4 ?b ?e ?h ?k)
-                        (Vec4 ?c ?f ?i ?l))"),
-    ];
-
-    rules.extend(vec![
-        // Very expensive rules to allow more hallucination of zeros
-        rw!("add-0"; "(+ ?a 0)" <=> "?a"),
-        rw!("add-1"; "(+ ?a 0 0)" <=> "?a"),
-        rw!("add-2"; "(+ ?a 0 0 0)" <=> "?a"),
-        rw!("add-3"; "(+ ?a ?b 0 0)" <=> "(+ ?a ?b)"),
-
-        rw!("add-4"; "(+ ?a ?b ?c)" <=> "(+ ?a (+ ?b ?c))"),
-        rw!("add-5"; "(+ ?a ?b ?c ?d)" <=> "(+ ?a (+ ?b (+ ?c ?d)))"),
-    ].concat());
+    let rules = rules();
 
     // Simple vector add
     {
