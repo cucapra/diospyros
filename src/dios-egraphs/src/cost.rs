@@ -37,7 +37,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
                 let non_literals = vals.iter().any(|&x| costs(x) > 3.*LITERAL);
                 if non_literals {BIG} else {STRUCTURE}
             },
-            VecLang::LitVec4(..) => STRUCTURE,
+            VecLang::LitVec4(..) => LITERAL,
 
             // But scalar and vector ops cost something
             VecLang::Add(..) => OP,

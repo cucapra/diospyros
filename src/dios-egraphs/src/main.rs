@@ -131,11 +131,11 @@ mod tests {
                     (+ (* (Get a 2) (Get b 1)) (* (Get a 3) (Get b 3))))";
     let exp_best = "(VecMAC
                       (VecMul
-                        (Vec4 (Get a 0) (Get a 0) (Get a 2) (Get a 2))
-                        (Vec4 (Get b 0) (Get b 1) (Get b 0) (Get b 1)))
-                      (Vec4 (Get a 1) (Get a 1) (Get a 3) (Get a 3))
-                      (Vec4 (Get b 2) (Get b 3) (Get b 2) (Get b 3)))";
-    let exp_best_cost = 2.448;
+                        (LitVec4 (Get a 0) (Get a 0) (Get a 2) (Get a 2))
+                        (LitVec4 (Get b 0) (Get b 1) (Get b 0) (Get b 1)))
+                      (LitVec4 (Get a 1) (Get a 1) (Get a 3) (Get a 3))
+                      (LitVec4 (Get b 2) (Get b 3) (Get b 2) (Get b 3)))";
+    let exp_best_cost = 2.052;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 
