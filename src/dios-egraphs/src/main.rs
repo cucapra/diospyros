@@ -48,9 +48,9 @@ mod tests {
         runner.stop_reason
     );
 
-    let (egraph, root) = (runner.egraph, runner.roots[0]);
+    let (eg, root) = (runner.egraph, runner.roots[0]);
 
-    let mut extractor = Extractor::new(&egraph, VecCostFn);
+    let mut extractor = Extractor::new(&eg, VecCostFn { egraph: &eg });
     let (best_cost, best) = extractor.find_best(root);
 
     println!(
@@ -118,6 +118,24 @@ mod tests {
                       (Vec4 v1 v1 v6 v7)
                       (Vec4 v6 v7 v3 v3))";
     let exp_best_cost = 2.416;
+    run_egpraph_with_start(start, exp_best, exp_best_cost);
+  }
+
+  // Currently fails, need to prioritize same memories in vector
+  #[test]
+  fn vector_matrix_multiply_2x2_2x2_explicit_get() {
+    let start = "(List
+                    (+ (* (Get a 0) (Get b 0)) (* (Get a 1) (Get b 2)))
+                    (+ (* (Get a 0) (Get b 1)) (* (Get a 1) (Get b 3)))
+                    (+ (* (Get a 2) (Get b 0)) (* (Get a 3) (Get b 2)))
+                    (+ (* (Get a 2) (Get b 1)) (* (Get a 3) (Get b 3))))";
+    let exp_best = "(VecMAC
+                      (VecMul
+                        (Vec4 (Get a 0) (Get a 0) (Get a 2) (Get a 2))
+                        (Vec4 (Get b 0) (Get b 1) (Get b 0) (Get b 1)))
+                      (Vec4 (Get a 1) (Get a 1) (Get a 3) (Get a 3))
+                      (Vec4 (Get b 2) (Get b 3) (Get b 2) (Get b 3)))";
+    let exp_best_cost = 2.448;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 

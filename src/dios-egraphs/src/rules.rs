@@ -1,8 +1,35 @@
 use egg::{rewrite as rw, *};
 
 use crate::{
-    veclang::{VecLang},
+    veclang::{EGraph, VecLang},
 };
+
+fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let vars: Vec<Var> = vars.iter().map(|v| v.parse().unwrap()).collect();
+    println!("{:?}", vars);
+    move |egraph, _, subst| {
+
+        let init_get_matches = egraph[subst[vars[0]]]
+            .nodes
+            .iter()
+            .filter(|n| matches!(n, VecLang::Get(..)));
+
+        for m in init_get_matches {
+            if let VecLang::Get(v) = m {
+                // println!("{:?}", egraph[v[0]]);
+            }
+        }
+
+        vars.iter().all(|v| {
+            let get_matches = egraph[subst[*v]]
+                .nodes
+                .iter()
+                .filter(|n| matches!(n, VecLang::Get(..)));
+            // TODO: check that there is some match in get_match and init_get_matches
+            false
+        })
+    }
+}
 
 pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
     let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
@@ -18,6 +45,9 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
         // Allow hallucination of 0's to allow pattern matching larger vectors
         rw!("zero-1"; "?a" => "(+ ?a 0)"),
         rw!("zero-2"; "0" => "(* 0 0)"),
+
+        rw!("litvec"; "(Vec4 ?a ?b ?c ?d)"
+            => "(LitVec4 ?a ?b ?c ?d)" if is_all_same_memory(&["?a", "?b", "?c", "?d"])),
 
         // Partition lists - hardcoded
         rw!("partition-1"; "(List ?a)"

@@ -34,6 +34,12 @@
     [id (egg-sym e)]
     [_ (error 's-exp-to-ast "invalid s-expression: ~a" e)]))
 
+(define (egg-to-dios e)
+  (match e
+    [(egg-sym name) e]
+    [(egg-vec-4 v1 v2 v3 v4) e]
+    [(egg-scalar-op op args) e]
+    [(egg-vec-op `vec-mac (list acc v1 v2)) e]))
 
 (module+ test
   (require rackunit
@@ -72,4 +78,5 @@
                                    (egg-sym `v3)))))
         (define to-ast (parse-from-string egg-s-exp))
         (check-equal? to-ast gold-ast)
-        (pretty-print to-ast)))))
+        (pretty-print to-ast)
+        (pretty-print (egg-to-dios to-ast))))))

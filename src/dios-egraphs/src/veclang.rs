@@ -15,6 +15,11 @@ define_language! {
         // Vectors have 4 elements
         "Vec4" = Vec4([Id; 4]),
 
+        // Vector with all literals
+        "LitVec4" = LitVec4([Id; 4]),
+
+        "Get" = Get([Id; 2]),
+
         // Used for partitioning and recombining lists
         "Concat" = Concat([Id; 2]),
 
@@ -33,22 +38,4 @@ define_language! {
 }
 
 
-pub type EGraph = egg::EGraph<VecLang, VecLangAnalysis>;
-
-#[derive(Default)]
-pub struct VecLangAnalysis;
-
-#[derive(Debug)]
-pub struct Data {
-}
-
-impl Analysis<VecLang> for VecLangAnalysis {
-    type Data = Data;
-    fn merge(&self, _to: &mut Data, _from: Data) -> bool {
-        false
-    }
-
-    fn make(_egraph: &EGraph, _enode: &VecLang) -> Data {
-        Data { }
-    }
-}
+pub type EGraph = egg::EGraph<VecLang, ()>;
