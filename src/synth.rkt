@@ -58,7 +58,7 @@
             (~a "VERIFY-PROG: Output mismatch. " outs-diff)))
 
   ; Generate symbolic inputs for spec and sketch.
-  (define (init-env)
+  (define init-env
     (append
       (~> spec-ins
           to-size-set
@@ -75,10 +75,6 @@
                        (make-bv-list-zeros (cdr decl))))
                _))))
 
-  ; Need separate copies because the inner boxes are mutable
-  (define init-env-spec (init-env))
-  (define init-env-sketch (init-env))
-
   (define (interp-and-env prog init-env)
     (define-values (env _)
       (interp prog
@@ -86,8 +82,11 @@
               #:fn-map fn-map))
     env)
 
-  (define spec-env (interp-and-env spec init-env-spec))
-  (define sketch-env (interp-and-env sketch init-env-sketch))
+  (define spec-env (interp-and-env spec init-env))
+  (define sketch-env (interp-and-env sketch init-env))
+
+  (pretty-print (hash-ref spec-env `C))
+  (pretty-print (hash-ref sketch-env `C))
 
   ; Outputs from sketch are allowed to be bigger than the spec. Only consider
   ; elements upto the size in the spec for each output.
@@ -108,8 +107,8 @@
   (when (not (unsat? model))
     (pretty-display (~a "Verification unsuccessful. Environment differences:\n"
                       (show-diff
-                        (interp-and-env spec (evaluate init-env-spec model))
-                        (interp-and-env sketch (evaluate init-env-sketch model))
+                        (interp-and-env spec (evaluate init-env model))
+                        (interp-and-env sketch (evaluate init-env model))
                         (map vec-extern-decl-id spec-outs)))))
 
   model)

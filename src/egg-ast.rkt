@@ -82,7 +82,7 @@
       (define-values (v1-name v1-prog) (egg-to-dios v1))
       (define-values (v2-name v2-prog) (egg-to-dios v2))
       (define mul
-        (vec-app 'mul-out 'vec-mul (list v1-name v1-name)))
+        (vec-app 'mul-out 'vec-mul (list v1-name v2-name)))
       (values 'mul-out
               (flatten
                 (list v1-prog
