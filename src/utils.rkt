@@ -75,23 +75,28 @@
 
 ;;========================= BITVECTOR LISTS =========================
 
-(define (make-symbolic-bv-list ty size)
+(define-namespace-anchor a)
+(define (make-symbolic-with-prefix prefix ty)
+  (define ns (namespace-anchor->namespace a))
+  (eval `(begin (define-symbolic* ,prefix ,ty) ,prefix) ns))
+
+(define (make-symbolic-bv-list ty size [prefix 'v])
   (for/list ([_ (in-range size)])
-    (define-symbolic* v ty)
+    (define v (make-symbolic-with-prefix prefix ty))
     (box v)))
 
 (define (make-bv-list-empty size)
   (for/list ([_ (in-range size)])
     (box void)))
 
-(define (make-symbolic-bv-list-values size)
-  (make-symbolic-bv-list (bitvector (value-fin)) size))
+(define (make-symbolic-bv-list-values size [prefix 'v])
+  (make-symbolic-bv-list (bitvector (value-fin)) size prefix))
 
-(define (make-symbolic-bv-list-indices size)
-  (make-symbolic-bv-list (bitvector (index-fin)) size))
+(define (make-symbolic-bv-list-indices size [prefix 'idx])
+  (make-symbolic-bv-list (bitvector (index-fin)) size prefix))
 
-(define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-symbolic-bv-list-values (* rows cols))))
+(define (make-symbolic-matrix rows cols [prefix 'v])
+  (matrix rows cols (make-symbolic-bv-list-values (* rows cols) prefix)))
 
 (define (make-bv-list-zeros size)
   (for/list ([_ (in-range size)])
