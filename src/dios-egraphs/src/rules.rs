@@ -2,6 +2,7 @@ use egg::{rewrite as rw, *};
 
 use crate::{
     veclang::{EGraph, VecLang},
+    cost::VecCostFn
 };
 
 // Check if all the variables, in this case memories, are equivalent
@@ -12,6 +13,29 @@ fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst)
             egraph.find(subst[vars[0]]) == egraph.find(subst[*v])
         })
     }
+}
+
+/// Run the rewrite rules over the input program and return the best (cost, program)
+pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
+    let rules = rules();
+    let runner = Runner::default()
+        .with_expr(&prog)
+        .with_node_limit(900_000)
+        .with_time_limit(std::time::Duration::from_secs(120))
+        .with_iter_limit(60)
+        .run(&rules);
+
+    // print reason to STDERR.
+    eprintln!(
+        "Stopped after {} iterations, reason: {:?}",
+        runner.iterations.len(),
+        runner.stop_reason
+    );
+
+    let (eg, root) = (runner.egraph, runner.roots[0]);
+
+    let mut extractor = Extractor::new(&eg, VecCostFn { egraph: &eg });
+    extractor.find_best(root)
 }
 
 pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
