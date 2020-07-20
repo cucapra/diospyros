@@ -8,7 +8,7 @@ use crate::{
 fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let vars: Vec<Var> = vars.iter().map(|v| v.parse().unwrap()).collect();
     move |egraph, _, subst| {
-        vars.iter().all(|v| {
+        vars[1..].iter().all(|v| {
             egraph.find(subst[vars[0]]) == egraph.find(subst[*v])
         })
     }
