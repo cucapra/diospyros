@@ -15,7 +15,11 @@
          rosette/lib/angelic)
 
 (provide dft:keys
+         dft:only-spec
          dft:run-experiment)
+
+(define (dft:only-spec config)
+  (error 'dft:only-spec "Only spec generation not supported for DFT"))
 
 ; Given an array x of length N, compute the real and imaginary coefficients
 ; and the power spectrum

@@ -41,14 +41,20 @@
         (lambda (out) (pretty-print conc-prog out))
         #:exists 'replace))))
 
-(define (run-bench name params out-dir)
+(define (run-bench name params out-dir print-spec)
   (pretty-print params)
 
-  (define-values (run keys)
+  (define-values (run only-spec keys)
     (case name
-      [("2d-conv") (values conv2d:run-experiment conv2d:keys)]
-      [("mat-mul") (values matrix-mul:run-experiment matrix-mul:keys)]
-      [("dft")     (values dft:run-experiment dft:keys)]
+      [("2d-conv") (values conv2d:run-experiment
+                           conv2d:only-spec
+                           conv2d:keys)]
+      [("mat-mul") (values matrix-mul:run-experiment
+                           matrix-mul:only-spec
+                           matrix-mul:keys)]
+      [("dft")     (values dft:run-experiment
+                           dft:only-spec
+                           dft:keys)]
       [else (error 'run-bench
                    "Unknown benchmark ~a"
                    name)]))
@@ -62,15 +68,18 @@
                  key name)))
       spec))
 
-  (define spec
+  (define config
     (call-with-input-file params
       (lambda (in) (validator (read-json in)))))
 
-  (run spec (make-out-dir-writer out-dir)))
+  (if print-spec
+    (pretty-print (only-spec config))
+    (run config (make-out-dir-writer out-dir))))
 
 (define bench-name (make-parameter #f))
 (define param-file (make-parameter #f))
 (define output-dir (make-parameter #f))
+(define only-spec (make-parameter #f))
 
 (define bench-help
   (~a "Benchmark to run. Possibilities: "
@@ -86,6 +95,9 @@
     [("-p" "--param") params
                       "Location of the parameter file."
                       (param-file params)]
+    [("-s" "--only-spec")
+                      "Location of the parameter file."
+                      (only-spec #t)]
     [("-o" "--output-dir") out-dir
                            "Directory to save solutions in."
                            (output-dir out-dir)])
@@ -99,8 +111,8 @@
     (error 'main
            "Missing parameter file."))
 
-  (when (not (output-dir))
+  (when (not (or (output-dir) (only-spec)))
     (error 'main
            "Missing output directory for saving solutions in."))
 
-  (run-bench (bench-name) (param-file) (output-dir)))
+  (run-bench (bench-name) (param-file) (output-dir) (only-spec)))
