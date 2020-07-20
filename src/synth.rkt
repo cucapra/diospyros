@@ -58,7 +58,7 @@
             (~a "VERIFY-PROG: Output mismatch. " outs-diff)))
 
   ; Generate symbolic inputs for spec and sketch.
-  (define init-env
+  (define (init-env)
     (append
       (~> spec-ins
           to-size-set
@@ -75,7 +75,9 @@
                        (make-bv-list-zeros (cdr decl))))
                _))))
 
-  ; (define init-env-sketch (hash-copy init-env))
+  ; Need separate copies because the inner boxes are mutable
+  (define init-env-spec (init-env))
+  (define init-env-sketch (init-env))
 
   (define (interp-and-env prog init-env)
     (define-values (env _)
@@ -84,15 +86,8 @@
               #:fn-map fn-map))
     env)
 
-  (pretty-print spec)
-  (pretty-print sketch)
-
-  (define spec-env (interp-and-env spec init-env))
-  ;(define sketch-env (make-hash))
-  (define sketch-env (interp-and-env sketch init-env))
-
-  (pretty-print spec-env)
-  (pretty-print sketch-env)
+  (define spec-env (interp-and-env spec init-env-spec))
+  (define sketch-env (interp-and-env sketch init-env-sketch))
 
   ; Outputs from sketch are allowed to be bigger than the spec. Only consider
   ; elements upto the size in the spec for each output.
@@ -100,14 +95,9 @@
     (andmap (lambda (decl)
               (let ([id (car decl)]
                     [size (cdr decl)])
-                (pretty-print (take (hash-ref spec-env id) size))
-                (pretty-print (take (hash-ref sketch-env id) size))
                 (equal? (take (hash-ref spec-env id) size)
                         (take (hash-ref sketch-env id) size))))
             (set->list (to-size-set spec-outs))))
-
-  (pretty-print (set->list (to-size-set spec-outs)))
-  (pretty-print assertions)
 
   (define model
     (verify
@@ -118,8 +108,8 @@
   (when (not (unsat? model))
     (pretty-display (~a "Verification unsuccessful. Environment differences:\n"
                       (show-diff
-                        (interp-and-env spec (evaluate init-env model))
-                        (interp-and-env sketch (evaluate init-env model))
+                        (interp-and-env spec (evaluate init-env-spec model))
+                        (interp-and-env sketch (evaluate init-env-sketch model))
                         (map vec-extern-decl-id spec-outs)))))
 
   model)
