@@ -20,6 +20,8 @@ float c_spec[A_ROWS * B_COLS] __attribute__((section(".dram0.data")));
 // Diospyros kernel
 void kernel(float* input_A, float* input_B, float* input_C);
 
+void egg_kernel(float* input_A, float* input_B, float* input_C);
+
 // Expert kernel
 void matrix_multiply_2x3_3x3_expert(float* c, float* a, float* b);
 
@@ -116,16 +118,37 @@ int main(int argc, char **argv) {
   printf("Diospyros : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Diospyros",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
+  // Egg
+  if ((A_ROWS == 2) &&
+      (A_COLS == 2) &&
+      (B_ROWS == 2) &&
+      (B_COLS == 2)) {
+    start_cycle_timing;
+    egg_kernel(a, b, c);
+    stop_cycle_timing;
+    time = get_time();
+    print_matrix(c, A_ROWS, B_COLS);
+    output_check(c, c_spec, A_ROWS, B_COLS);
+    zero_matrix(c, A_ROWS, B_COLS);
+    printf("Egg : %d cycles\n", time);
+    fprintf(file, "%s,%d,%d,%d,%d,%d\n","Egg",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
+  }
+
   // Expert
-  start_cycle_timing;
-  matrix_multiply_2x3_3x3_expert(c, a, b);
-  stop_cycle_timing;
-  time = get_time();
-  print_matrix(c, A_ROWS, B_COLS);
-  output_check(c, c_spec, A_ROWS, B_COLS);
-  zero_matrix(c, A_ROWS, B_COLS);
-  printf("Expert : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Expert",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
+  if ((A_ROWS == 2) &&
+      (A_COLS == 3) &&
+      (B_ROWS == 3) &&
+      (B_COLS == 3)) {
+    start_cycle_timing;
+    matrix_multiply_2x3_3x3_expert(c, a, b);
+    stop_cycle_timing;
+    time = get_time();
+    print_matrix(c, A_ROWS, B_COLS);
+    output_check(c, c_spec, A_ROWS, B_COLS);
+    zero_matrix(c, A_ROWS, B_COLS);
+    printf("Expert : %d cycles\n", time);
+    fprintf(file, "%s,%d,%d,%d,%d,%d\n","Expert",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
+  }
 
   return 0;
 }

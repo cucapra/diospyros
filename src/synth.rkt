@@ -2,7 +2,7 @@
 
 (require racket/generator
          threading
-         rosette/lib/value-browser
+ ;        rosette/lib/value-browser
          "ast.rkt"
          "prog-sketch.rkt"
          "configuration.rkt"
