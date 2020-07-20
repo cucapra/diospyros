@@ -196,6 +196,25 @@
 
   (prog (map concretize (prog-insts p))))
 
+(define (to-bvs-prog p)
+  (define (to-bvs inst)
+    (match inst
+      [(vec-const id init type)
+        (vec-const id (map box (map bv-index (vector->list init))) type)]
+      [(vec-load dest-id src-id start end)
+       (vec-load dest-id
+                 src-id
+                 (bv-index start)
+                 (bv-index end))]
+      [(vec-store dest-id src-id start end)
+       (vec-store dest-id
+                  src-id
+                  (bv-index start)
+                  (bv-index end))]
+      [_ inst]))
+
+  (prog (map to-bvs (prog-insts p))))
+
 ;;========================= MATRICES =========================
 
 ; Print a matrix

@@ -49,12 +49,15 @@
                 #:cost-fn [cost-fn (thunk* (bv-cost 0))]
                 #:fn-map [fn-map (make-hash)]
                 #:symbolic? [symbolic? #f])
-  ; Setup the environment if it is an associative list.
+  ; Setup the environment if it is an associative list. Need to make new boxes
+  ; instead of mutating existing ones.
+
   (define env
     (if ((listof pair?) init-env)
       (let ([new-env (make-hash)])
+        (define (new-box b) (box (unbox b)))
         (for ([bind init-env])
-          (hash-set! new-env (car bind) (cdr bind)))
+          (hash-set! new-env (car bind) (map new-box (cdr bind))))
         new-env)
       init-env))
 

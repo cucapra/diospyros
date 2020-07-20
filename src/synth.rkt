@@ -72,7 +72,7 @@
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-vector (cdr decl) 0)))
+                       (make-bv-list-zeros (cdr decl))))
                _))))
 
   (define (interp-and-env prog init-env)
@@ -85,16 +85,18 @@
   (define spec-env (interp-and-env spec init-env))
   (define sketch-env (interp-and-env sketch init-env))
 
+  (pretty-print (hash-ref spec-env `C))
+  (pretty-print (hash-ref sketch-env `C))
+
   ; Outputs from sketch are allowed to be bigger than the spec. Only consider
   ; elements upto the size in the spec for each output.
   (define assertions
     (andmap (lambda (decl)
               (let ([id (car decl)]
                     [size (cdr decl)])
-                (equal? (vector-take (hash-ref spec-env id) size)
-                        (vector-take (hash-ref sketch-env id) size))))
+                (equal? (take (hash-ref spec-env id) size)
+                        (take (hash-ref sketch-env id) size))))
             (set->list (to-size-set spec-outs))))
-
 
   (define model
     (verify
