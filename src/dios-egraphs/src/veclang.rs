@@ -37,5 +37,4 @@ define_language! {
     }
 }
 
-
 pub type EGraph = egg::EGraph<VecLang, ()>;
