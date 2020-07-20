@@ -85,9 +85,6 @@
   (define spec-env (interp-and-env spec init-env))
   (define sketch-env (interp-and-env sketch init-env))
 
-  (pretty-print (hash-ref spec-env `C))
-  (pretty-print (hash-ref sketch-env `C))
-
   ; Outputs from sketch are allowed to be bigger than the spec. Only consider
   ; elements upto the size in the spec for each output.
   (define assertions

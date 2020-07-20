@@ -18,11 +18,8 @@ def max_symbolic_idx(expr):
     # For now, must be a symbolic value
     if not type(expr) is list:
         return idx_from_str(expr._val)
-
-    # Lists and arithmetic operations are simple renames
     if expr[0]._val in to_egg_renames:
         return max([max_symbolic_idx(e) for e in expr[1:]])
-    # Just remove box wrappers
     if expr[0]._val == 'box':
         return max_symbolic_idx(expr[1])
 
@@ -33,11 +30,11 @@ def to_value(val, max_idx, erase):
     idx = idx_from_str(val)
     v = ''
     if idx < (max_idx + 1)/2:
-        v += 'a'
+        v += 'A'
     else:
-        v += 'b'
+        v += 'B'
     if not erase:
-        v += str(idx)
+        v = "(Get {} {})".format(v,str(idx))
     return v
 
 
