@@ -10,6 +10,8 @@ to_egg_renames = {
     'bvmul' : '*',
 }
 
+first_input_size = 6
+
 def idx_from_str(s):
     return int(s.split('$')[-1])
 
@@ -29,10 +31,16 @@ def max_symbolic_idx(expr):
 def to_value(val, max_idx, erase):
     idx = idx_from_str(val)
     v = ''
-    if idx < (max_idx + 1)/2:
+    input_boundary = 0
+    if first_input_size == 0:
+        input_boundary = (max_idx + 1)/2
+    else:
+        input_boundary = first_input_size
+    if idx < input_boundary:
         v += 'A'
     else:
         v += 'B'
+        idx -= input_boundary
     if not erase:
         v = "(Get {} {})".format(v,str(idx))
     return v
@@ -54,7 +62,7 @@ def to_egg(expr, max_idx, erase):
     return expr
 
 def preprocess_egg_to_vecs(expr):
-    if expr[0] != "List":
+    if expr[0]._val != "List":
         print("Cannot preprocess expression")
         return expr
 

@@ -172,6 +172,80 @@ mod tests {
   }
 
   #[test]
+  fn vector_matrix_multiply_2x3_3x3_explicit_get() {
+    let start = "(List
+                  (+
+                    (* (Get A 0) (Get B 0))
+                    (* (Get A 1) (Get B 3))
+                    (* (Get A 2) (Get B 6)))
+                  (+
+                    (* (Get A 0) (Get B 1))
+                    (* (Get A 1) (Get B 4))
+                    (* (Get A 2) (Get B 7)))
+                  (+
+                    (* (Get A 0) (Get B 2))
+                    (* (Get A 1) (Get B 5))
+                    (* (Get A 2) (Get B 8)))
+                  (+
+                    (* (Get A 3) (Get B 0))
+                    (* (Get A 4) (Get B 3))
+                    (* (Get A 5) (Get B 6)))
+                  (+
+                    (* (Get A 3) (Get B 1))
+                    (* (Get A 4) (Get B 4))
+                    (* (Get A 5) (Get B 7)))
+                  (+
+                    (* (Get A 3) (Get B 2))
+                    (* (Get A 4) (Get B 5))
+                    (* (Get A 5) (Get B 8))))";
+    let exp_best = "(Concat
+                      (VecMAC
+                        (VecMAC
+                          (VecMul
+                            (LitVec4
+                              (Get A 2)
+                              (Get A 2)
+                              (Get A 2)
+                              (Get A 5))
+                            (LitVec4
+                              (Get B 6)
+                              (Get B 7)
+                              (Get B 8)
+                              (Get B 6)))
+                          (LitVec4
+                            (Get A 1)
+                            (Get A 1)
+                            (Get A 1)
+                            (Get A 4))
+                          (LitVec4
+                            (Get B 3)
+                            (Get B 4)
+                            (Get B 5)
+                            (Get B 3)))
+                        (LitVec4
+                          (Get A 0)
+                          (Get A 0)
+                          (Get A 0)
+                          (Get A 3))
+                        (LitVec4
+                          (Get B 0)
+                          (Get B 1)
+                          (Get B 2)
+                          (Get B 0)))
+                      (VecMAC
+                        (VecMAC
+                          (VecMul
+                            (Vec4 (Get B 7) (Get B 8) 0 0)
+                            (Vec4 (Get A 5) (Get A 5) 0 0))
+                          (Vec4 (Get B 4) (Get B 5) 0 0)
+                          (Vec4 (Get A 4) (Get A 4) 0 0))
+                        (Vec4 (Get B 1) (Get B 2) 0 0)
+                        (Vec4 (Get A 3) (Get A 3) 0 0)))";
+    let exp_best_cost = 6.826;
+    run_egpraph_with_start(start, exp_best, exp_best_cost);
+  }
+
+  #[test]
   fn vector_2d_conv_2x2_2x2() {
     let start = "(List
                    (* v0 v4)
