@@ -1,7 +1,9 @@
 #lang rosette
 
 (require "ast.rkt"
-         "utils.rkt")
+         "dsp-insts.rkt"
+         "utils.rkt"
+         "synth.rkt")
 
 (define-values (add mul)
   (values 'add
@@ -45,7 +47,7 @@
   ; TODO: handle multiple memories
   (define idxs (map egg-get-idx gets))
   (values
-    shuf-name
+    out-name
     (list
       (vec-const shuf-name (list->vector idxs) 'int)
       (vec-shuffle out-name shuf-name mems-used))))
@@ -80,7 +82,7 @@
       (define-values (v1-name v1-prog) (egg-to-dios v1))
       (define-values (v2-name v2-prog) (egg-to-dios v2))
       (define mul
-        (vec-app 'mul-out 'vec-mul (list v1-name v2-name)))
+        (vec-app 'mul-out 'vec-mul (list v1-name v1-name)))
       (values 'mul-out
               (flatten
                 (list v1-prog
@@ -99,52 +101,94 @@
           "(VecMAC
              (VecMul
                (LitVec4
-                 (Get a 0)
-                 (Get a 0)
-                 (Get a 2)
-                 (Get a 2))
+                 (Get A 0)
+                 (Get A 0)
+                 (Get A 2)
+                 (Get A 2))
                (LitVec4
-                 (Get b 0)
-                 (Get b 1)
-                 (Get b 0)
-                 (Get b 1)))
+                 (Get B 0)
+                 (Get B 1)
+                 (Get B 0)
+                 (Get B 1)))
              (LitVec4
-               (Get a 1)
-               (Get a 1)
-               (Get a 3)
-               (Get a 3))
+               (Get A 1)
+               (Get A 1)
+               (Get A 3)
+               (Get A 3))
              (LitVec4
-               (Get b 2)
-               (Get b 3)
-               (Get b 2)
-               (Get b 3)))")
+               (Get B 2)
+               (Get B 3)
+               (Get B 2)
+               (Get B 3)))")
         (define gold-ast
           (egg-vec-op 'vec-mac
                       (list
                         (egg-vec-op 'vec-mul
                                     (list
-                                      (egg-vec-4 (egg-get `a 0)
-                                                 (egg-get `a 0)
-                                                 (egg-get `a 2)
-                                                 (egg-get `a 2))
-                                      (egg-vec-4 (egg-get `b 0)
-                                                 (egg-get `b 1)
-                                                 (egg-get `b 0)
-                                                 (egg-get `b 1))))
-                        (egg-vec-4 (egg-get `a 1)
-                                   (egg-get `a 1)
-                                   (egg-get `a 3)
-                                   (egg-get `a 3))
-                        (egg-vec-4 (egg-get `b 2)
-                                   (egg-get `b 3)
-                                   (egg-get `b 2)
-                                   (egg-get `b 3)))))
-        (define dios-prog
+                                      (egg-vec-4 (egg-get `A 0)
+                                                 (egg-get `A 0)
+                                                 (egg-get `A 2)
+                                                 (egg-get `A 2))
+                                      (egg-vec-4 (egg-get `B 0)
+                                                 (egg-get `B 1)
+                                                 (egg-get `B 0)
+                                                 (egg-get `B 1))))
+                        (egg-vec-4 (egg-get `A 1)
+                                   (egg-get `A 1)
+                                   (egg-get `A 3)
+                                   (egg-get `A 3))
+                        (egg-vec-4 (egg-get `B 2)
+                                   (egg-get `B 3)
+                                   (egg-get `B 2)
+                                   (egg-get `B 3)))))
+        (define prog-smt
           (prog
-            (list
-              (vec-extern-decl `x 2 input-tag))))
+           (list
+            (vec-extern-decl 'A 4 'extern-input)
+            (vec-extern-decl 'B 4 'extern-input)
+            (vec-extern-decl 'C 4 'extern-output)
+            (vec-decl 'reg-C 4)
+            (vec-load 'C_0_4 'C 0 4)
+            (vec-const 'shuf0-0 '#(0 0 3 3) 'int)
+            (vec-const 'shuf1-0 '#(0 1 2 3) 'int)
+            (vec-shuffle 'reg-A 'shuf0-0 '(A))
+            (vec-shuffle 'reg-B 'shuf1-0 '(B))
+            (vec-write 'reg-C 'C_0_4)
+            (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+            (vec-write 'C_0_4 'out)
+            (vec-const 'shuf0-1 '#(1 1 2 2) 'int)
+            (vec-const 'shuf1-1 '#(2 3 0 1) 'int)
+            (vec-shuffle 'reg-A 'shuf0-1 '(A))
+            (vec-shuffle 'reg-B 'shuf1-1 '(B))
+            (vec-write 'reg-C 'C_0_4)
+            (vec-app 'out 'vec-mac '(reg-C reg-A reg-B))
+            (vec-write 'C_0_4 'out)
+            (vec-store 'C 'C_0_4 0 4))))
+        (define prelude
+          (list
+            (vec-extern-decl 'A 4 'extern-input)
+            (vec-extern-decl 'B 4 'extern-input)
+            (vec-extern-decl 'C 4 'extern-output)))
+        (define postlude
+          (list
+            (vec-store 'C 'mac-out 0 4)))
+
+        ; Check parsing from s-expression
         (define egg-ast (parse-from-string egg-s-exp))
         (check-equal? egg-ast gold-ast)
         (pretty-print egg-ast)
-        (define-values (_ res) (egg-to-dios egg-ast))
-        (pretty-print res)))))
+
+        ; Conversion from egg to dios dsl
+        (define-values (_ egg-res) (egg-to-dios egg-ast))
+        (define full-egg-prog
+          (prog (flatten (list prelude egg-res postlude))))
+        (pretty-print full-egg-prog)
+
+        ; Check equality to SMT-found version
+        (assert
+          (equal?
+            (unsat)
+            (verify-prog (to-bvs-prog prog-smt)
+                         (to-bvs-prog full-egg-prog)
+                         #:fn-map (hash 'vec-mac vector-mac
+                                        'vec-mul vector-multiply))))))))
