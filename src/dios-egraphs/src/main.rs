@@ -33,25 +33,10 @@ mod tests {
       cost::{*},
   };
 
-  fn run_egpraph_with_start(str : &str, exp_best : &str, exp_best_cost : f64) {
-    let rules = rules();
-    let start = str.parse().unwrap();
-    let runner = Runner::default()
-        .with_expr(&start)
-        .with_node_limit(900_000)
-        .with_time_limit(std::time::Duration::from_secs(120))
-        .with_iter_limit(60)
-        .run(&rules);
-    println!(
-        "Stopped after {} iterations, reason: {:?}",
-        runner.iterations.len(),
-        runner.stop_reason
-    );
+  fn run_egpraph_with_start(prog : &str, exp_best : &str, exp_best_cost : f64) {
 
-    let (eg, root) = (runner.egraph, runner.roots[0]);
-
-    let mut extractor = Extractor::new(&eg, VecCostFn { egraph: &eg });
-    let (best_cost, best) = extractor.find_best(root);
+    let start = prog.parse().unwrap();
+    let (best_cost, best) = run(&start);
 
     println!(
       "original:\n{}\nbest:\n{}\nbest cost {}",
