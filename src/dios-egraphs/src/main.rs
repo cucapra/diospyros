@@ -20,6 +20,17 @@ pub mod cost;
 // What are the principals behind creating these rules?
 
 fn main() {
+  use std::fs;
+
+  // Get a path string to parse a program.
+  let path = std::env::args().nth(1).expect("no input path provided.");
+
+  let prog_str = fs::read_to_string(path).expect("Failed to read the input file.");
+  let prog = prog_str.parse().unwrap();
+  let (cost, best) = rules::run(&prog);
+
+  println!("{}", best.pretty(40));
+  println!("\nCost: {}", cost);
 }
 
 #[cfg(test)]
