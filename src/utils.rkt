@@ -75,10 +75,8 @@
 
 ;;========================= BITVECTOR LISTS =========================
 
-(define-namespace-anchor a)
-(define (make-symbolic-with-prefix prefix ty)
-  (define ns (namespace-anchor->namespace a))
-  (eval `(begin (define-symbolic* ,prefix ,ty) ,prefix) ns))
+(define (make-symbolic-with-prefix name type)
+  (constant (list name ((current-oracle) name)) type))
 
 (define (make-symbolic-bv-list ty size [prefix 'v])
   (for/list ([_ (in-range size)])
