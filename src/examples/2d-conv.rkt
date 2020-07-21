@@ -25,7 +25,7 @@
     (make-symbolic-matrix I-rows I-cols 'I)
     (make-symbolic-matrix F-rows F-cols 'F)))
 
-  (matrix-conv-spec I F))
+  (matrix-elements (matrix-conv-spec I F)))
 
 ; Given an NxN input matrix, returns a smaller convolved matrix.
 (define (matrix-conv-spec input filter)

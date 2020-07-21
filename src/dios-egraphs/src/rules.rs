@@ -1,5 +1,7 @@
 use egg::{rewrite as rw, *};
 
+use itertools::Itertools;
+
 use crate::{
     veclang::{EGraph, VecLang},
     cost::VecCostFn
@@ -8,10 +10,12 @@ use crate::{
 // Check if all the variables, in this case memories, are equivalent
 fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let vars: Vec<Var> = vars.iter().map(|v| v.parse().unwrap()).collect();
+    let zero = VecLang::Num(0);
     move |egraph, _, subst| {
-        vars[1..].iter().all(|v| {
-            egraph.find(subst[vars[0]]) == egraph.find(subst[*v])
-        })
+        let non_zero_gets = vars.iter().filter(|v| {
+            !egraph[subst[**v]].nodes.contains(&zero)
+        }).unique_by(|v| {egraph.find(subst[**v])});
+        non_zero_gets.collect::<Vec<_>>().len() < 2
     }
 }
 
@@ -53,6 +57,7 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
         rw!("zero-1"; "?a" => "(+ ?a 0)"),
         rw!("zero-2"; "0" => "(* 0 0)"),
 
+        rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         rw!("litvec"; "(Vec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
             => "(LitVec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
             if is_all_same_memory(&["?a", "?b", "?c", "?d"])),

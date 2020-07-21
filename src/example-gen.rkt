@@ -42,8 +42,6 @@
         #:exists 'replace))))
 
 (define (run-bench name params out-dir print-spec)
-  (pretty-print params)
-
   (define-values (run only-spec keys)
     (case name
       [("2d-conv") (values conv2d:run-experiment

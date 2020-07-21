@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 egg = { git = "https://github.com/mwillsey/egg", rev = "cfbd470efd37e7366f454e27b5ba5b367dc103ff" }
 assert_approx_eq = "1.1.0"
+itertools = "0.9.0"

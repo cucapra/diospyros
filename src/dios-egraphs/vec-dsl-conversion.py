@@ -10,53 +10,24 @@ to_egg_renames = {
     'bvmul' : '*',
 }
 
-first_input_size = 6
-
-def idx_from_str(s):
-    return int(s.split('$')[-1])
-
-# For now, assume 2 inputs of equal size, 1/2 max [highest idx] + 1
-def max_symbolic_idx(expr):
-    # For now, must be a symbolic value
-    if not type(expr) is list:
-        return idx_from_str(expr._val)
-    if expr[0]._val in to_egg_renames:
-        return max([max_symbolic_idx(e) for e in expr[1:]])
-    if expr[0]._val == 'box':
-        return max_symbolic_idx(expr[1])
-
-    print("skipping: ", expr)
-    return expr
-
-def to_value(val, max_idx, erase):
-    idx = idx_from_str(val)
-    v = ''
-    input_boundary = 0
-    if first_input_size == 0:
-        input_boundary = (max_idx + 1)/2
-    else:
-        input_boundary = first_input_size
-    if idx < input_boundary:
-        v += 'A'
-    else:
-        v += 'B'
-        idx -= input_boundary
+def to_value(val, erase):
+    [pre, idx] = val.split('$')
     if not erase:
-        v = "(Get {} {})".format(v,str(idx))
-    return v
+        return "(Get {} {})".format(pre,idx)
+    return pre
 
 
-def to_egg(expr, max_idx, erase):
+def to_egg(expr, erase):
     # For now, must be a symbolic value
     if not type(expr) is list:
-        return to_value(expr._val, max_idx, erase)
+        return to_value(expr._val, erase)
     # Lists and arithmetic operations are simple renames
     if expr[0]._val in to_egg_renames:
         rename = to_egg_renames[(expr[0])._val]
-        return [rename] + [to_egg(e, max_idx, erase) for e in expr[1:]]
+        return [rename] + [to_egg(e, erase) for e in expr[1:]]
     # Just remove box wrappers
     if expr[0]._val == 'box':
-        return to_egg(expr[1], max_idx, erase)
+        return to_egg(expr[1], erase)
 
     print("skipping: ", expr)
     return expr
@@ -78,8 +49,7 @@ def preprocess_egg_to_vecs(expr):
 def rosette_to_egg(erase, preprocess):
     sexp = sexpdata.load(sys.stdin)
 
-    max_idx = max_symbolic_idx(sexp)
-    new = to_egg(sexp, max_idx, erase)
+    new = to_egg(sexp, erase)
     if preprocess:
         new = preprocess_egg_to_vecs(new)
     print(sexpdata.dumps(new, str_as='symbol'))
