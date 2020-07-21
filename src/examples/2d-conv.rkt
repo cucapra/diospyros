@@ -22,8 +22,8 @@
   (define F-cols (hash-ref config 'filter-cols))
   (define-values (I F)
     (values
-    (make-symbolic-matrix I-rows I-cols)
-    (make-symbolic-matrix F-rows F-cols)))
+    (make-symbolic-matrix I-rows I-cols 'I)
+    (make-symbolic-matrix F-rows F-cols 'F)))
 
   (matrix-conv-spec I F))
 
