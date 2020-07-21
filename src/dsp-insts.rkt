@@ -9,8 +9,14 @@
 (provide vector-shuffle
          vector-shuffle-set!
          vector-multiply
+         vector-max
          vector-add
+         vector-combine
          vector-reduce-sum
+         vector-amount
+         vector-average
+         vector-sqrt
+         vector-standard-deviation
          vector-mac
          vector-s-divide
          vector-negate
@@ -54,6 +60,11 @@
              [e2 v2])
     (box (bvmul (unbox e1) (unbox e2)))))
 
+;; VECTOR MAX
+
+(define (vector-max v)
+  (map max v))
+
 ;; VECTOR ADD
 (define (vector-add v1 v2)
   (assert (= (length v1) (length v2))
@@ -62,10 +73,53 @@
              [e2 v2])
     (box (bvadd (unbox e1) (unbox e2)))))
 
+;; VECTOR COMBINE
+(define (vector-combine v1 v2)
+  (append v1 v2))
+
 ;; VECTOR REDUCE SUM
 (define (vector-reduce-sum v)
   (define (combine b acc) (bvadd acc (unbox b)))
   (list (box (foldl combine (bv-value 0) v))))
+
+;;VECTOR AMOUNT
+(define (vector-amount v) 
+  (list (box (bv-value (length v)))))
+  
+
+;;VECTOR AVERAGE
+(define (vector-average v s)
+  (assert (= (length v) (length s))
+          "VECTOR-AVERAGE: length of vectors not equal")
+  (for/list ([n1 v]
+             [n2 s])
+    (box (bvsdiv (unbox n1) (unbox n2)))))
+
+;; DEFINE VECTOR SQUARED
+(define (bv-sqr v)
+  (bvmul v v))
+
+;; DEFINE VECTOR SQUARE ROOT
+(define (vector-sqrt s t)
+  (define (sum s t)
+    (cond
+      [(equal? s t) (if (equal? t (bv-value 1)) (append (map box s) (make-bv-list-zeros 3))
+                        "error: no exact square root")]
+      [else (if (equal? (for/list ([n1 s]
+                                   [n2 t]
+                                   #:when (equal? (bvmul n1 n1) n2))
+    n1) '())
+        (sum (map bvadd1 s) t) (append (map box s) (make-bv-list-zeros 3)))]))
+  (sum (list s) (list t)))
+
+
+;;VECTOR STANDARD DEVIATION
+(define (vector-standard-deviation v a h)
+  (define (thing t u) (bvadd u t))
+  (define (maybe p) (bvsub p (unbox (first a))))
+  (vector-sqrt (bv-value 0) (bvsdiv (foldl thing (bv-value 0)
+                           (map bv-sqr (map maybe (map unbox v))))
+             (bvsub (unbox (first h)) (bv-value 1)))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -115,6 +169,13 @@
       (let ([inp (value-bv-list 0 1 2 3 4)]
             [gold (value-bv-list 10)])
         (check-equal? (vector-reduce-sum inp) gold)))
+    
+;     (test-case
+;      "VECTOR-AVERAGE: basic example"
+;      (let ([inp (value-bv-list 1 2 3 6)]
+;            [gold (value-bv-list 3)])
+;        (check-equal? (vector-average inp 8) gold)))
+     
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
       (let ([inp (value-bv-list 0 1 2 3 4)]
