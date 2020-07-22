@@ -55,7 +55,7 @@
 
 ;
 
-(define model (solve (assert (equal? standard-deviation (value-bv-list 9 0 0 0)))))
+(define model (solve (assert (equal? standard-deviation (value-bv-list 2 0 0 0)))))
 
 model
 
@@ -70,17 +70,3 @@ model
 ;(evaluate (map bitvector->integer (map unbox sum-results)) model)
 ;(evaluate (map bitvector->integer (map unbox average-results)) model)
 (evaluate (map bitvector->integer (map unbox standard-deviation)) model)
-
-(define (vector-sqrt s t)
-  (define (sum s t)
-    (cond
-      [(equal? s t) (if (equal? t (bv-value 1)) (append (map box s) (make-bv-list-zeros 3))
-                        "error: no exact square root")]
-      [else (if (equal? (for/list ([n1 s]
-                                   [n2 t]
-                                   #:when (equal? (bvmul n1 n1) n2))
-    n1) '())
-        (sum (map bvadd1 s) t) (append (map box s) (make-bv-list-zeros 3)))]))
-  (sum (list s) (list t)))
-
-(map bitvector->integer (map unbox (vector-sqrt (bv-value 0) (bv-value 25))))
