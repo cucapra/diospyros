@@ -15,7 +15,9 @@
          vector-reduce-sum
          vector-amount
          vector-average
+         vector-sqr
          vector-sqrt
+         vector-sub-average
          vector-standard-deviation
          vector-mac
          vector-s-divide
@@ -95,31 +97,45 @@
              [n2 s])
     (box (bvsdiv (unbox n1) (unbox n2)))))
 
-;; DEFINE VECTOR SQUARED
-(define (bv-sqr v)
+;; VECTOR SQUARED
+(define (vector-sqr v)
   (bvmul v v))
 
-;; DEFINE VECTOR SQUARE ROOT
+;; VECTOR SUB AVERAGE
+(define (vector-sub-average v a)
+    (map bvsub v (unbox (first a))))
+
+;; VECTOR SQUARE ROOT
 (define (vector-sqrt s t)
   (define (sum s t)
-    (cond
-      [(equal? s t) (if (equal? t (bv-value 1)) (append (map box s) (make-bv-list-zeros 3))
-                        "error: no exact square root")]
-      [else (if (equal? (for/list ([n1 s]
-                                   [n2 t]
-                                   #:when (equal? (bvmul n1 n1) n2))
+      (if (equal? (for/list ([n1 s]
+                             [n2 t]
+                             #:when (equal? (bvmul n1 n1) (first t)))
     n1) '())
-        (sum (map bvadd1 s) t) (append (map box s) (make-bv-list-zeros 3)))]))
-  (sum (list s) (list t)))
+        (sum (map bvadd1 s) t)
+        (map box s))) ;; (append (map box s) (make-bv-list-zeros 3))?
+  (sum s t))
 
+; infinite loop
+;(define (vector-sqrt s t)
+  ;(define (sum s t)
+      ;(if (equal? (vector-sqr s) t)
+         ; (list (box s))     
+         ; (sum (bvadd1 s) t)))
+  ;(sum s t))
+
+;(map bitvector->integer (map unbox (vector-sqrt (bv-value 0) (bv-value 25))))
 
 ;;VECTOR STANDARD DEVIATION
 (define (vector-standard-deviation v a h)
   (define (thing t u) (bvadd u t))
   (define (maybe p) (bvsub p (unbox (first a))))
-  (vector-sqrt (bv-value 0) (bvsdiv (foldl thing (bv-value 0)
-                           (map bv-sqr (map maybe (map unbox v))))
-             (bvsub (unbox (first h)) (bv-value 1)))))
+  (vector-sqrt (list (bv-value 0)) (list (bvsdiv (foldl thing (bv-value 0)
+                           (map vector-sqr (map maybe (map unbox v))))
+             (bvsub (unbox (first h)) (bv-value 1))))))
+
+
+
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
