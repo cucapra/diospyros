@@ -46,11 +46,21 @@
     [_ (error 's-exp-to-ast "invalid s-expression: ~a" e)]))
 
 (define (egg-get-list-to-shuffle gets shuf-name out-name)
-  (define mems-used (remove-duplicates (map egg-get-name
-                                            (filter egg-get? gets))))
-  ; TODO: handle multiple memories
-  (define (get-idx v) (if (egg-get? v) (egg-get-idx v) 0))
+
+  (define has-zero (ormap (curry equal? 0) gets))
+  (define start (if has-zero (current-reg-size) 0))
+  (define (get-idx v)
+    (if (egg-get? v)
+        (+ start (egg-get-idx v))
+        0))
   (define idxs (map get-idx gets))
+
+  ; TODO: handle multiple memories
+  (define mems-used
+    (append
+      (if has-zero `(Z) `())
+      (remove-duplicates (map egg-get-name
+                              (filter egg-get? gets)))))
   (values
     out-name
     (list
@@ -312,7 +322,8 @@
           (list
             (vec-extern-decl 'A 6 'extern-input)
             (vec-extern-decl 'B 9 'extern-input)
-            (vec-extern-decl 'C 6 'extern-output)))
+            (vec-extern-decl 'C 6 'extern-output)
+            (vec-const 'Z '#(0) 'float)))
 
         ; Parse from s-expression
         (define egg-ast (parse-from-string egg-s-exp))
@@ -335,4 +346,143 @@
             (verify-prog (to-bvs-prog prog-smt)
                          (to-bvs-prog full-egg-prog)
                          #:fn-map (hash 'vec-mac vector-mac
+                                        'vec-mul vector-multiply)))))
+      (test-case
+        "2x2 2x2 2d conv"
+        (define egg-s-exp
+          "(Concat
+            (VecMAC
+              (VecMul
+                (LitVec4
+                  (Get I 0)
+                  (Get I 0)
+                  (Get I 1)
+                  (Get I 0))
+                (LitVec4
+                  (Get F 0)
+                  (Get F 1)
+                  (Get F 1)
+                  (Get F 2)))
+              (LitVec4 0 (Get F 0) 0 (Get F 0))
+              (LitVec4 0 (Get I 1) 0 (Get I 2)))
+            (Concat
+              (VecMAC
+                (VecMAC
+                  (VecMAC
+                    (VecMul
+                      (LitVec4 (Get I 3) 0 0 0)
+                      (LitVec4 (Get F 0) 0 0 0))
+                    (LitVec4 (Get F 1) (Get F 1) 0 0)
+                    (LitVec4 (Get I 2) (Get I 3) 0 0))
+                  (LitVec4 (Get I 1) 0 0 (Get I 3))
+                  (LitVec4 (Get F 2) 0 0 (Get F 2)))
+                (LitVec4
+                  (Get I 0)
+                  (Get I 1)
+                  (Get I 2)
+                  (Get I 2))
+                (LitVec4
+                  (Get F 3)
+                  (Get F 3)
+                  (Get F 2)
+                  (Get F 3)))
+              (VecMul
+                (LitVec4 (Get F 3) 0 0 0)
+                (LitVec4 (Get I 3) 0 0 0))))")
+
+        (define prog-smt
+          (prog
+            (list
+              (vec-extern-decl 'I 4 'extern-input)
+              (vec-extern-decl 'F 4 'extern-input)
+              (vec-extern-decl 'O 9 'extern-output)
+              (vec-const 'Z '#(0) 'float)
+              (vec-decl 'reg-O 4)
+              (vec-load 'O_0_4 'O 0 4)
+              (vec-load 'O_4_8 'O 4 8)
+              (vec-load 'O_8_9 'O 8 9)
+              (vec-const 'shuf0-0 '#(2 3 2 3) 'int)
+              (vec-const 'shuf1-0 '#(1 1 2 2) 'int)
+              (vec-shuffle 'reg-I 'shuf0-0 '(I Z))
+              (vec-shuffle 'reg-F 'shuf1-0 '(F Z))
+              (vec-write 'reg-O 'O_4_8)
+              (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+              (vec-write 'O_4_8 'out)
+              (vec-const 'shuf0-1 '#(0 1 1 2) 'int)
+              (vec-const 'shuf1-1 '#(3 3 7 3) 'int)
+              (vec-shuffle 'reg-I 'shuf0-1 '(I Z))
+              (vec-shuffle 'reg-F 'shuf1-1 '(F Z))
+              (vec-write 'reg-O 'O_4_8)
+              (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+              (vec-write 'O_4_8 'out)
+              (vec-const 'shuf0-2 '#(1 5 6 4) 'int)
+              (vec-const 'shuf1-2 '#(2 0 3 0) 'int)
+              (vec-shuffle 'reg-I 'shuf0-2 '(I Z))
+              (vec-shuffle 'reg-F 'shuf1-2 '(F Z))
+              (vec-write 'reg-O 'O_4_8)
+              (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+              (vec-write 'O_4_8 'out)
+              (vec-const 'shuf0-3 '#(0 1 1 2) 'int)
+              (vec-const 'shuf1-3 '#(0 0 1 0) 'int)
+              (vec-shuffle 'reg-I 'shuf0-3 '(I Z))
+              (vec-shuffle 'reg-F 'shuf1-3 '(F Z))
+              (vec-write 'reg-O 'O_0_4)
+              (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+              (vec-write 'O_0_4 'out)
+              (vec-const 'shuf0-4 '#(6 0 4 0) 'int)
+              (vec-const 'shuf1-4 '#(3 1 2 2) 'int)
+              (vec-shuffle 'reg-I 'shuf0-4 '(I Z))
+              (vec-shuffle 'reg-F 'shuf1-4 '(F Z))
+              (vec-write 'reg-O 'O_0_4)
+              (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+              (vec-write 'O_0_4 'out)
+              (vec-const 'shuf0-5 '#(3 0 2 3) 'int)
+              (vec-const 'shuf1-5 '#(0 5 6 6) 'int)
+              (vec-shuffle 'reg-I 'shuf0-5 '(I Z))
+              (vec-shuffle 'reg-F 'shuf1-5 '(F Z))
+              (vec-write 'reg-O 'O_4_8)
+              (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+              (vec-write 'O_4_8 'out)
+              (vec-const 'shuf0-6 '#(3 0 2 3) 'int)
+              (vec-const 'shuf1-6 '#(3 1 2 2) 'int)
+              (vec-shuffle 'reg-I 'shuf0-6 '(I Z))
+              (vec-shuffle 'reg-F 'shuf1-6 '(F Z))
+              (vec-write 'reg-O 'O_8_9)
+              (vec-app 'out 'vec-mac '(reg-O reg-I reg-F))
+              (vec-write 'O_8_9 'out)
+              (vec-store 'O 'O_0_4 0 4)
+              (vec-store 'O 'O_4_8 4 8)
+              (vec-store 'O 'O_8_9 8 9))))
+
+        (define prelude
+          (list
+            (vec-extern-decl 'I 4 'extern-input)
+            (vec-extern-decl 'F 4 'extern-input)
+            (vec-extern-decl 'O 9 'extern-output)
+            (vec-const 'Z '#(0) 'float)))
+
+        ; Parse from s-expression
+        (define egg-ast (parse-from-string egg-s-exp))
+        ; Conversion from egg to dios dsl
+        (define-values (names egg-res) (egg-to-dios egg-ast))
+
+        (pretty-print egg-res)
+
+        (define postlude
+          (for/list ([n (flatten names)]
+                     [i (in-naturals 0)])
+            (vec-store 'O n (* i 4) (* (+ i 1) 4))))
+
+        (define full-egg-prog
+          (prog (flatten (list prelude egg-res postlude))))
+        (pretty-print full-egg-prog)
+
+        ; Check equality to SMT-found version
+        (assert
+          (equal?
+            (unsat)
+            (verify-prog (to-bvs-prog prog-smt)
+                         (to-bvs-prog full-egg-prog)
+                         #:fn-map (hash 'vec-mac vector-mac
                                         'vec-mul vector-multiply))))))))
+

@@ -20,9 +20,9 @@
       (if (equal? (hash-ref env1 key)
                   (hash-ref env2 key))
         ""
-        (~a key " differs: "
+        (~a key " differs:\n"
             (hash-ref env1 key)
-            " "
+            "\n\n"
             (hash-ref env2 key))))
     "\n"))
 

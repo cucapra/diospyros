@@ -203,7 +203,9 @@
   (define (to-bvs inst)
     (match inst
       [(vec-const id init type)
-        (vec-const id (map box (map bv-index (vector->list init))) type)]
+        ; TODO: better way to determine bitwidth
+        (define bv-f (if (equal? type 'int) bv-index bv-value))
+        (vec-const id (map box (map bv-f (vector->list init))) type)]
       [(vec-load dest-id src-id start end)
        (vec-load dest-id
                  src-id
