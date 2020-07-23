@@ -16,7 +16,6 @@
          vector-amount
          vector-average
          vector-sqr
-         vector-sqrt
          vector-sub-average
          vector-standard-deviation
          vector-mac
@@ -105,16 +104,26 @@
 (define (vector-sub-average v a)
     (map bvsub v (unbox (first a))))
 
-;; VECTOR SQUARE ROOT
-(define (vector-sqrt s t)
-  (define (sum s t)
-      (if (equal? (for/list ([n1 s]
-                             [n2 t]
-                             #:when (equal? (bvmul n1 n1) (first t)))
-    n1) '())
-        (sum (map bvadd1 s) t)
-        (map box s))) ;; (append (map box s) (make-bv-list-zeros 3))?
-  (sum s t))
+;; BITVECTOR SQUARE ROOT
+(define (bv-sqrt t)
+  (define (check-sqrt guess)
+    (define guess-squared (bvmul guess guess))
+    (cond
+      [(bvsgt guess t)
+       ; The squared number is now greater than our target, so there must not be one
+       (error "No square root found")]
+      [(bvsgt guess (bv-value (sqrt (expt 2 (value-fin)))))
+       ; Case to ensure that the function terminates on symbolic values
+       (error "No square root found")]
+      [(equal? guess-squared t)
+       ; Success! We found the square root
+       ; TODO Jacob: fill in this case!
+       0]
+      [else
+       ; Recursive case, add 1 to the guess
+       ; TODO Jacob: fill in this case!   
+       0]))
+  (check-sqrt (bv-value 0)))
 
 ; infinite loop
 ;(define (vector-sqrt s t)
@@ -130,11 +139,11 @@
 (define (vector-standard-deviation v a h)
   (define (thing t u) (bvadd u t))
   (define (maybe p) (bvsub p (unbox (first a))))
-  (vector-sqrt (list (bv-value 0)) (list (bvsdiv (foldl thing (bv-value 0)
-                           (map vector-sqr (map maybe (map unbox v))))
-             (bvsub (unbox (first h)) (bv-value 1))))))
-
-
+  (define sqrt
+    (bv-sqrt (bvsdiv (foldl thing (bv-value 0)
+                            (map vector-sqr (map maybe (map unbox v))))
+                     (bvsub (unbox (first h)) (bv-value 1)))))
+  (append (list (box sqrt)) (make-bv-list-zeros 3)))
 
 
 ;; VECTOR-MAC
@@ -191,6 +200,14 @@
 ;      (let ([inp (value-bv-list 1 2 3 6)]
 ;            [gold (value-bv-list 3)])
 ;        (check-equal? (vector-average inp 8) gold)))
+
+    (test-case
+     "BITVECTOR_SQRT basic example"
+       (define (check-bv-sqrt int-value)
+         (bitvector->integer (bv-sqrt (bv-value int-value))))
+       (check-equal? (check-bv-sqrt 0) 0)
+       (check-equal? (check-bv-sqrt 4) 2))
+       ; TODO Jacob: add more tests)
      
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
