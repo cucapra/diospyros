@@ -11,8 +11,8 @@
          racket/generator
          rosette/lib/angelic)
 
-(provide standard-deviation:keys
-         standard-deviation:run-experiment)
+;(provide standard-deviation:keys
+;         standard-deviation:run-experiment)
 
 ;; Generate a spec for standard deviation between two lists of bitvectors.
 (define (standard-deviation-spec V-1 V-2)
@@ -24,39 +24,38 @@
   (pretty-print v) v)
 
 ;Generate program skecth for standard deviation
-
 (define (standard-deviation-shuffle-sketch V-1 V-2 iterations)
   ;Porgram preamble to define the inputs
   (define preamble
     (list
-     (vec-extern-decl '1 V-1 input-tag)
-     (vec-extern-decl '2 V-2 input-tag)
-     (vec-extern-decl '3 V-1 output-tag)
-     (vec-decl 'reg-R (current-reg-size))))
+     (vec-extern-decl 'A (length V-1) input-tag)
+     (vec-extern-decl 'B (length V-2) input-tag)
+     (vec-extern-decl 'C 4 output-tag)
+     (vec-decl 'reg-C (current-reg-size))))
   
-  (define-values (reg-ids reg-loads reg-stores)
-    (partition-bv-list '3 (V-1)))
+  (define-values (C-reg-ids C-reg-loads C-reg-stores)
+    (partition-bv-list 'C 4))
   
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated two shuffle vectors
-    (match-define (list shuf-1 shuf-2) shufs)
+    (match-define (list shuf-A shuf-B) shufs)
 
     ; Shuffle the inputs with symbolic shuffle vectors
     (define input-shuffle
       (list
-       (vec-shuffle 'reg-1 shuf-1 (list '1))
-       (vec-shuffle 'reg-2 shuf-2 (list '2))))
+       (vec-shuffle 'reg-A shuf-A (list 'A))
+       (vec-shuffle 'reg-B shuf-B (list 'B))))
     
     ; Use choose* to select an output register to both read and write
     (define output-mac
       (apply choose*
              (map (lambda (out-reg)
                     (list
-                     (vec-write 'reg-R out-reg)
-                     (vec-app 'out 'vec-add (list 'reg-1 'reg-2))
+                     (vec-write 'reg-C out-reg)
+                     (vec-app 'out 'vec-standard-deviation (list 'reg-A 'reg-B))
                      (vec-write out-reg 'out)))
-                  reg-ids)))
+                  C-reg-ids)))
     
     (append input-shuffle output-mac))
 
@@ -66,17 +65,17 @@
 
   (prog
    (append preamble
-           reg-loads
+           C-reg-loads
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
             iterations)
-            reg-stores)))
+            C-reg-stores)))
 
 ; Run Standard-deviation sketch with symbolic inputs. If input bitvectors
 ; are missing, interp will generate freash symbolic values.
 (define (run-standard-deviation-sketch sketch
-                                       size
+                                       C-size
                                        cost-fn
                                        [V-1 #f]
                                        [V-2 #f])
@@ -84,9 +83,9 @@
   (when (and V-1 V-2)
     ;(match-define elements-1 V-1)
     ;(match-define elements-2 V-2)
-    (hash-set! env '1 V-1)
-    (hash-set! env '2 V-2)
-    (hash-set! env '3 (make-bv-list-zeros size)))
+    (hash-set! env 'A V-1)
+    (hash-set! env 'B V-2)
+    (hash-set! env 'C (make-bv-list-zeros C-size)))
 
   (define-values (_ cost)
     (interp sketch
@@ -95,7 +94,7 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-standard-deviation vector-standard-deviation)))
 
-  (list (take (hash-ref env 'C) size) cost))
+  (list (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
 
@@ -120,15 +119,13 @@
      
 ; Run standard deviation with the given spec.
 ; Requires that spec be a hash with all the keys describes in standard-deviation:keys.
-
-(define (standard-deviation:run-experiment spec file-writer)
-  (pretty-print (~a "Running matrix multiply with config: " spec))
-  (define V-1 (hash-ref spec 'V-1))
-  (define V-2 (hash-ref spec 'V-2))
-  (define iterations (hash-ref spec 'iterations))
-  (define reg-size (hash-ref spec 'reg-size))
-  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
-                          (hash-ref spec 'pre-reg-of)))
+;(define (standard-deviation:run-experiment spec file-writer)
+  ;(pretty-print (~a "Running standard deviation with config: " spec))
+  (define V-1 4)
+  (define V-2 4)
+  (define iterations 4)
+  (define reg-size 4)
+  (define pre-reg-of #t)
 
   (assert (equal? V-1 V-2)
           "standard-deviation:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
@@ -176,7 +173,7 @@
                   sketch-func
                   (list A B)
                   #:get-inps (lambda (args) (flatten
-                                              (map matrix-elements args)))
+                                              (map V-1 V-2 args)))
                   #:min-cost (bv-cost 0)
                   #:assume assume))
 
@@ -187,7 +184,7 @@
         (let ([prog (evaluate standard-d model)])
           ;(file-writer prog cost)
           (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model))))))
+        (pretty-print (~a "failed to find solution: " model)))))
 
 
     
