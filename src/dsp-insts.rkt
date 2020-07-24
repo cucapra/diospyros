@@ -16,14 +16,13 @@
          vector-amount
          vector-average
          vector-sqr
-         vector-sqrt
-         vector-sub-average
          vector-standard-deviation
          vector-mac
          vector-s-divide
          vector-negate
          vector-cos
          vector-sin
+         bv-sqrt
          cosine
          sine)
 
@@ -64,9 +63,9 @@
 
 ;; VECTOR MAX
 
-(define (vector-max v)
-  (map max v))
-
+(define (vector-max v1 v2 v3 v4 v5 v6)
+  argmax v1 v2 v3 v4 v5 v6)
+  
 ;; VECTOR ADD
 (define (vector-add v1 v2)
   (assert (= (length v1) (length v2))
@@ -90,52 +89,48 @@
   
 
 ;;VECTOR AVERAGE
-(define (vector-average v s)
-  (assert (= (length v) (length s))
+(define (vector-average v h)
+  (assert (= (length v) (length h))
           "VECTOR-AVERAGE: length of vectors not equal")
   (for/list ([n1 v]
-             [n2 s])
+             [n2 h])
     (box (bvsdiv (unbox n1) (unbox n2)))))
 
 ;; VECTOR SQUARED
 (define (vector-sqr v)
   (bvmul v v))
 
-;; VECTOR SUB AVERAGE
-(define (vector-sub-average v a)
-    (map bvsub v (unbox (first a))))
-
-;; VECTOR SQUARE ROOT
-(define (vector-sqrt s t)
-  (define (sum s t)
-      (if (equal? (for/list ([n1 s]
-                             [n2 t]
-                             #:when (equal? (bvmul n1 n1) (first t)))
-    n1) '())
-        (sum (map bvadd1 s) t)
-        (map box s))) ;; (append (map box s) (make-bv-list-zeros 3))?
-  (sum s t))
-
-; infinite loop
-;(define (vector-sqrt s t)
-  ;(define (sum s t)
-      ;(if (equal? (vector-sqr s) t)
-         ; (list (box s))     
-         ; (sum (bvadd1 s) t)))
-  ;(sum s t))
-
-;(map bitvector->integer (map unbox (vector-sqrt (bv-value 0) (bv-value 25))))
+;; BITVECTOR SQUARE ROOT
+(define (bv-sqrt v)
+  (define (check-sqrt guess)
+    (define guess-squared (vector-sqr guess))
+    (cond
+      [(bvsgt guess v)
+       ; The squared number is now greater than our target, so there must not be one
+       (error "No square root found")]
+      [(bvsgt guess (bv-value (sqrt (expt 2 (value-fin)))))
+       ; Case to ensure that the function terminates on symbolic values
+       (error "No square root found")]
+      [(equal? guess-squared v)
+       ; Success! We found the square root
+       guess]
+      [else
+       ; Recursive case, add 1 to the guess   
+       (check-sqrt (bvadd1 guess))]))
+  (check-sqrt (bv-value 0)))
 
 ;;VECTOR STANDARD DEVIATION
 (define (vector-standard-deviation v a h)
-  (define (thing t u) (bvadd u t))
-  (define (maybe p) (bvsub p (unbox (first a))))
-  (vector-sqrt (list (bv-value 0)) (list (bvsdiv (foldl thing (bv-value 0)
-                           (map vector-sqr (map maybe (map unbox v))))
-             (bvsub (unbox (first h)) (bv-value 1))))))
-
-
-
+  ; Subs the vectors by the average
+  (define (sub-average v) (bvsub v (unbox (first a))))
+  ; Adds the squared vectors
+  (define (reduce-sum b acc) (bvadd acc b))
+  ; Square roots
+  (define sqrt
+    (bv-sqrt (bvsdiv (foldl reduce-sum (bv-value 0)
+                            (map vector-sqr (map sub-average (map unbox v))))
+                     (bvsub (unbox (first h)) (bv-value 1)))))
+  (append (list (box sqrt)) (make-bv-list-zeros 3)))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -185,12 +180,65 @@
       (let ([inp (value-bv-list 0 1 2 3 4)]
             [gold (value-bv-list 10)])
         (check-equal? (vector-reduce-sum inp) gold)))
-    
-;     (test-case
-;      "VECTOR-AVERAGE: basic example"
-;      (let ([inp (value-bv-list 1 2 3 6)]
-;            [gold (value-bv-list 3)])
-;        (check-equal? (vector-average inp 8) gold)))
+
+    (test-case
+     "VECTOR-COMBINE basic examples"
+       (define (check-vector-combine v1 v2)
+         (map bitvector->integer (map unbox (vector-combine v1 v2))))
+       (check-equal? (check-vector-combine (value-bv-list 1 2 3 4) (value-bv-list 5 6 7 8)) (list 1 2 3 4 5 6 7 8))
+       (check-equal? (check-vector-combine (value-bv-list 17 26 39 47) (value-bv-list 54 68 79 80)) (list 17 26 39 47 54 68 79 80))
+       (check-equal? (check-vector-combine (value-bv-list 0 8) (value-bv-list 9 10)) (list 0 8 9 10))
+       (check-equal? (check-vector-combine (value-bv-list 8 9 0) (value-bv-list 67 90 14)) (list 8 9 0 67 90 14))
+       (check-equal? (check-vector-combine (value-bv-list 1 2 3 4 5 6 7 8 9 10) (value-bv-list 11 12 13 14 15 16 17 18 19 20)) (list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)))
+
+    (test-case
+      "VECTOR-AMOUNT: basic examples"
+      (define (check-vector-amount v)
+         (map bitvector->integer (map unbox (vector-amount v))))
+       (check-equal? (check-vector-amount (value-bv-list 4 2 5 6)) (list 4))
+       (check-equal? (check-vector-amount (value-bv-list 8 4)) (list 2))
+       (check-equal? (check-vector-amount (value-bv-list 7 9 16 90 71)) (list 5))
+       (check-equal? (check-vector-amount (value-bv-list 1 2 3 4 5 6 7 8 9 10)) (list 10))
+       (check-equal? (check-vector-amount (value-bv-list 1)) (list 1)))
+
+     (test-case
+      "VECTOR-AVERAGE: basic examples"
+      (define (check-bv-average v h)
+         (map bitvector->integer (map unbox (vector-average v h))))
+       (check-equal? (check-bv-average (value-bv-list 4 0 0 0) (value-bv-list 2 0 0 0)) (list 2 -1 -1 -1))
+       (check-equal? (check-bv-average (value-bv-list 8 0 0 0) (value-bv-list 4 0 0 0)) (list 2 -1 -1 -1))
+       (check-equal? (check-bv-average (value-bv-list 16 0 0 0) (value-bv-list 4 0 0 0)) (list 4 -1 -1 -1))
+       (check-equal? (check-bv-average (value-bv-list 24 0 0 0) (value-bv-list 8 0 0 0)) (list 3 -1 -1 -1))
+       (check-equal? (check-bv-average (value-bv-list 36 0 0 0) (value-bv-list 6 0 0 0)) (list 6 -1 -1 -1))
+       (check-equal? (check-bv-average (value-bv-list 81 0 0 0) (value-bv-list 9 0 0 0)) (list 9 -1 -1 -1)))
+
+     (test-case
+      "VECTOR-SQR: basic examples"
+      (define (check-vector-sqr v)
+         (bitvector->integer (vector-sqr v)))
+       (check-equal? (check-vector-sqr (bv-value 2)) 4)
+       (check-equal? (check-vector-sqr (bv-value 4)) 16)
+       (check-equal? (check-vector-sqr (bv-value 5)) 25)
+       (check-equal? (check-vector-sqr (bv-value 10)) 100)
+       (check-equal? (check-vector-sqr (bv-value 9)) 81))
+     
+     (test-case
+     "BITVECTOR_SQRT basic examples"
+       (define (check-bv-sqrt int-value)
+         (bitvector->integer (bv-sqrt (bv-value int-value))))
+       (check-equal? (check-bv-sqrt 0) 0)
+       (check-equal? (check-bv-sqrt 4) 2)
+       (check-equal? (check-bv-sqrt 9) 3)
+       (check-equal? (check-bv-sqrt 16) 4)
+       (check-equal? (check-bv-sqrt 25) 5)
+       (check-equal? (check-bv-sqrt 36) 6)
+       (check-equal? (check-bv-sqrt 81) 9))
+
+     (test-case
+      "VECTOR-STANDARD-DEVIATION: basic example"
+      (define (check-vector-standard-deviation v a h)
+         (map bitvector->integer (map unbox (vector-standard-deviation v a h))))
+       (check-equal? (check-vector-standard-deviation (value-bv-list 1 2 3 6 1 2 3 6) (value-bv-list 3 -1 -1 -1) (value-bv-list 8 0 0 0)) (list 2 0 0 0)))
      
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
