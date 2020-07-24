@@ -70,3 +70,14 @@ model
 ;(evaluate (map bitvector->integer (map unbox sum-results)) model)
 ;(evaluate (map bitvector->integer (map unbox average-results)) model)
 (evaluate (map bitvector->integer (map unbox standard-deviation)) model)
+
+; infinite loop
+;(define (vector-sqrt s t)
+  ;(define (sum s t)
+      ;(if (equal? (vector-sqr s) t)
+         ; (list (box s))     
+         ; (sum (bvadd1 s) t)))
+  ;(sum s t))
+
+;(map bitvector->integer (map unbox (vector-sqrt (bv-value 0) (bv-value 25))))
+
