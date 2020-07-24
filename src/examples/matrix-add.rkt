@@ -11,6 +11,9 @@
          racket/generator
          rosette/lib/angelic)
 
+(provide matrix-add:keys
+         matrix-add:run-experiment)
+
 ;; Generate a spec for matrix add of a given size.
 (define (matrix-add-spec mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
@@ -24,7 +27,6 @@
   (for* ([i A-rows]
          [j B-cols])
     (define sum
-      ;(for/list ([k A-cols])
           (bvadd (matrix-ref mat-A i j)
              (matrix-ref mat-B i j)))
     (matrix-set! C i j sum))
@@ -134,7 +136,7 @@
 
 ; Run matrix add experiment with the given spec.
 ; Requires that spec be a hash with all the keys describes in matrix-add:keys.
-(define (matrix-mul:run-experiment spec file-writer)
+(define (matrix-add:run-experiment spec file-writer)
   (pretty-print (~a "Running matrix multiply with config: " spec))
   (define A-rows (hash-ref spec 'A-rows))
   (define A-cols (hash-ref spec 'A-cols))
@@ -207,7 +209,7 @@
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
         (let ([prog (evaluate madd model)])
-          ;(file-writer prog cost)
+          (file-writer prog cost)
           (pretty-print (concretize-prog prog)))
         (pretty-print (~a "failed to find solution: " model))))))
 
