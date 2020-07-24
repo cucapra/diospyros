@@ -123,14 +123,15 @@
      
 ; Run standard deviation with the given spec.
 ; Requires that spec be a hash with all the keys describes in standard-deviation:keys.
-;(define (standard-deviation:run-experiment spec file-writer)
-  ;(pretty-print (~a "Running standard deviation with config: " spec))
-  (define V-1 8)
-  (define V-2 4)
-  (define V-3 4)
-  (define iterations 4)
-  (define reg-size 4)
-  (define pre-reg-of #t)
+(define (standard-deviation:run-experiment spec file-writer)
+  (pretty-print (~a "Running standard deviation with config: " spec))
+  (define V-1 (hash-ref spec 'V-1))
+  (define V-2 (hash-ref spec 'V-2))
+  (define V-3 (hash-ref spec 'V-3))
+  (define iterations (hash-ref spec 'iterations))
+  (define reg-size (hash-ref spec 'reg-size))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
   (assert (equal? V-2 V-3)
           "standard-deviation:run-experiment: Invalid bitvector sizes. V-2 not equal to V-3")
@@ -187,9 +188,9 @@
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
         (let ([prog (evaluate standard-d model)])
-          ;(file-writer prog cost)
+          (file-writer prog cost)
           (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model)))))
+        (pretty-print (~a "failed to find solution: " model))))))
 
 
     
