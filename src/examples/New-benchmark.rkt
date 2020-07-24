@@ -15,8 +15,8 @@
 ;         standard-deviation:run-experiment)
 
 ;; Generate a spec for standard deviation between two lists of bitvectors.
-(define (standard-deviation-spec V-1 V-2)
-  (assert (= (length V-1) (length V-2)))
+(define (standard-deviation-spec V A H)
+  (assert (= (length A) (length H)))
     (make-bv-list-zeros 4))
 
 
@@ -24,28 +24,30 @@
   (pretty-print v) v)
 
 ;Generate program skecth for standard deviation
-(define (standard-deviation-shuffle-sketch V-1 V-2 iterations)
+(define (standard-deviation-shuffle-sketch V A H iterations)
   ;Porgram preamble to define the inputs
   (define preamble
     (list
-     (vec-extern-decl 'A (length V-1) input-tag)
-     (vec-extern-decl 'B (length V-2) input-tag)
-     (vec-extern-decl 'C 4 output-tag)
-     (vec-decl 'reg-C (current-reg-size))))
+     (vec-extern-decl 'A (length V) input-tag)
+     (vec-extern-decl 'B (length A) input-tag)
+     (vec-extern-decl 'C (length H) input-tag)
+     (vec-extern-decl 'D 4 output-tag)
+     (vec-decl 'reg-D (current-reg-size))))
   
-  (define-values (C-reg-ids C-reg-loads C-reg-stores)
-    (partition-bv-list 'C 4))
+  (define-values (D-reg-ids D-reg-loads D-reg-stores)
+    (partition-bv-list 'D 4))
   
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
-    ; Assumes that shuffle-gen generated two shuffle vectors
-    (match-define (list shuf-A shuf-B) shufs)
+    ; Assumes that shuffle-gen generated three shuffle vectors
+    (match-define (list shuf-A shuf-B shuf-C) shufs)
 
     ; Shuffle the inputs with symbolic shuffle vectors
     (define input-shuffle
       (list
        (vec-shuffle 'reg-A shuf-A (list 'A))
-       (vec-shuffle 'reg-B shuf-B (list 'B))))
+       (vec-shuffle 'reg-B shuf-B (list 'B))
+       (vec-shuffle 'reg-C shuf-C (list 'C))))
     
     ; Use choose* to select an output register to both read and write
     (define output-mac
@@ -53,39 +55,41 @@
              (map (lambda (out-reg)
                     (list
                      (vec-write 'reg-C out-reg)
-                     (vec-app 'out 'vec-standard-deviation (list 'reg-A 'reg-B))
+                     (vec-app 'out 'vec-standard-deviation (list 'reg-A 'reg-B 'reg-C))
                      (vec-write out-reg 'out)))
-                  C-reg-ids)))
+                  D-reg-ids)))
     
     (append input-shuffle output-mac))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
-    (symbolic-shuffle-gen 2))
+    (symbolic-shuffle-gen 3))
 
   (prog
    (append preamble
-           C-reg-loads
+           D-reg-loads
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
             iterations)
-            C-reg-stores)))
+            D-reg-stores)))
 
 ; Run Standard-deviation sketch with symbolic inputs. If input bitvectors
 ; are missing, interp will generate freash symbolic values.
 (define (run-standard-deviation-sketch sketch
-                                       C-size
+                                       D-size
                                        cost-fn
                                        [V-1 #f]
-                                       [V-2 #f])
+                                       [V-2 #f]
+                                       [V-3 #f])
   (define env (make-hash))
-  (when (and V-1 V-2)
+  (when (and V-1 V-2 V-3)
     ;(match-define elements-1 V-1)
     ;(match-define elements-2 V-2)
     (hash-set! env 'A V-1)
     (hash-set! env 'B V-2)
-    (hash-set! env 'C (make-bv-list-zeros C-size)))
+    (hash-set! env 'C V-3)
+    (hash-set! env 'D (make-bv-list-zeros D-size)))
 
   (define-values (_ cost)
     (interp sketch
@@ -94,19 +98,19 @@
             #:cost-fn cost-fn
             #:fn-map (hash 'vec-standard-deviation vector-standard-deviation)))
 
-  (list (take (hash-ref env 'C) C-size) cost))
+  (list (take (hash-ref env 'D) D-size) cost))
 
 ; Get statistics on a proposed synthesis solution
 
-(define (get-statistics C-size sol reg-of)
+(define (get-statistics D-size sol reg-of)
   (let*
      ([regs-cost (last (run-standard-deviation-sketch
                       sol
-                      C-size
+                      D-size
                       (make-register-cost reg-of)))]
      [class-uniq-cost (last (run-standard-deviation-sketch
                             sol
-                            C-size
+                            D-size
                             (make-shuffle-unique-cost prefix-equiv)))])
     (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
     (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
@@ -114,30 +118,32 @@
                
 ; Describe the configuration parameters for this benchmark
 (define standard-deviation:keys
-  (list 'V-1 'V-2 'iterations 'reg-size))
+  (list 'V-1 'V-2 'V-3 'iterations 'reg-size))
        
      
 ; Run standard deviation with the given spec.
 ; Requires that spec be a hash with all the keys describes in standard-deviation:keys.
 ;(define (standard-deviation:run-experiment spec file-writer)
   ;(pretty-print (~a "Running standard deviation with config: " spec))
-  (define V-1 4)
+  (define V-1 8)
   (define V-2 4)
+  (define V-3 4)
   (define iterations 4)
   (define reg-size 4)
   (define pre-reg-of #t)
 
-  (assert (equal? V-1 V-2)
-          "standard-deviation:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
+  (assert (equal? V-2 V-3)
+          "standard-deviation:run-experiment: Invalid bitvector sizes. V-2 not equal to V-3")
 
   ; Run the synthesis query
   (parameterize [(current-reg-size reg-size)]
     (define A (make-symbolic-bv-list (bitvector (value-fin)) 1))
     (define B (make-symbolic-bv-list (bitvector (value-fin)) 1))
-    (define C-size 4)
+    (define C (make-symbolic-bv-list (bitvector (value-fin)) 1))
+    (define D-size 4)
 
     ; Generate sketch prog
-    (define standard-d (standard-deviation-shuffle-sketch A B iterations))
+    (define standard-d (standard-deviation-shuffle-sketch A B C iterations))
 
     ; Determine whether to use the pre-computed register-of uninterpreted
     ; function, or pass the implementation to the solver directly
@@ -159,7 +165,7 @@
     (define (sketch-func args)
       (apply (curry run-standard-deviation-sketch
                     standard-d
-                    C-size
+                    D-size
                     (cost-fn))
              args))
 
@@ -171,9 +177,8 @@
     (define model-generator
       (synth-prog spec-func
                   sketch-func
-                  (list A B)
-                  #:get-inps (lambda (args) (flatten
-                                              (map V-1 V-2 args)))
+                  (list A B C)
+                  #:get-inps (lambda (args) (flatten args))
                   #:min-cost (bv-cost 0)
                   #:assume assume))
 

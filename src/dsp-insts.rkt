@@ -101,17 +101,17 @@
   (bvmul v v))
 
 ;; BITVECTOR SQUARE ROOT
-(define (bv-sqrt v)
+(define (bv-sqrt t)
   (define (check-sqrt guess)
-    (define guess-squared (vector-sqr guess))
+    (define guess-squared (bvmul guess guess))
     (cond
-      [(bvsgt guess v)
+      [(bvsgt guess t)
        ; The squared number is now greater than our target, so there must not be one
        (error "No square root found")]
       [(bvsgt guess (bv-value (sqrt (expt 2 (value-fin)))))
        ; Case to ensure that the function terminates on symbolic values
        (error "No square root found")]
-      [(equal? guess-squared v)
+      [(equal? guess-squared t)
        ; Success! We found the square root
        guess]
       [else
@@ -131,6 +131,7 @@
                             (map vector-sqr (map sub-average (map unbox v))))
                      (bvsub (unbox (first h)) (bv-value 1)))))
   (append (list (box sqrt)) (make-bv-list-zeros 3)))
+
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -239,6 +240,7 @@
       (define (check-vector-standard-deviation v a h)
          (map bitvector->integer (map unbox (vector-standard-deviation v a h))))
        (check-equal? (check-vector-standard-deviation (value-bv-list 1 2 3 6 1 2 3 6) (value-bv-list 3 -1 -1 -1) (value-bv-list 8 0 0 0)) (list 2 0 0 0)))
+
      
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
