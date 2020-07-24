@@ -1,6 +1,7 @@
 pub mod veclang;
 pub mod rules;
 pub mod cost;
+pub mod macsearcher;
 
 // Overall thoughts: start with spec, not the reference implementation
 // Mutation is hard: how do we model vector registers?
@@ -41,7 +42,6 @@ mod tests {
   use super::{
       veclang::{VecLang},
       rules::{*},
-      cost::{*},
   };
 
   fn run_egpraph_with_start(prog : &str, exp_best : &str, exp_best_cost : f64) {

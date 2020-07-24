@@ -4,7 +4,8 @@ use itertools::Itertools;
 
 use crate::{
     veclang::{EGraph, VecLang},
-    cost::VecCostFn
+    cost::VecCostFn,
+    macsearcher::build_mac_searcher
 };
 
 // Check if all the variables, in this case memories, are equivalent
@@ -43,6 +44,7 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
 }
 
 pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
+    let mac_searcher = build_mac_searcher();
     let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
         rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
@@ -109,6 +111,10 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
             => "(VecMAC (Vec4 ?a ?d 0 0)
                         (Vec4 ?b ?e 0 0)
                         (Vec4 ?c ?f 0 0))"),
+        // Either want:
+        // (+ ?a (* ?b ?c))
+        // (* ?b ?c)
+        // 0
         rw!("vec-mac-3"; "(Vec4 (+ ?a (* ?b ?c))
                                 (+ ?d (* ?e ?f))
                                 (+ ?g (* ?h ?i))
@@ -116,10 +122,8 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
             => "(VecMAC (Vec4 ?a ?d ?g 0)
                         (Vec4 ?b ?e ?h 0)
                         (Vec4 ?c ?f ?i 0))"),
-        rw!("vec-mac-4"; "(Vec4 (+ ?a (* ?b ?c))
-                                (+ ?d (* ?e ?f))
-                                (+ ?g (* ?h ?i))
-                                (+ ?j (* ?k ?l)))"
+
+        rw!("vec-mac-4"; mac_searcher
             => "(VecMAC (Vec4 ?a ?d ?g ?j)
                         (Vec4 ?b ?e ?h ?k)
                         (Vec4 ?c ?f ?i ?l))"),
