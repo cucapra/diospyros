@@ -37,7 +37,10 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
         runner.stop_reason
     );
 
-    let (eg, root) = (runner.egraph, runner.roots[0]);
+    let (mut eg, root) = (runner.egraph, runner.roots[0]);
+
+    // Always add the literal zero
+    eg.add(VecLang::Num(0));
 
     let mut extractor = Extractor::new(&eg, VecCostFn { egraph: &eg });
     extractor.find_best(root)
