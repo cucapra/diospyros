@@ -9,8 +9,9 @@
 (provide vector-shuffle
          vector-shuffle-set!
          vector-multiply
-         vector-max
+         vector-sort-largest
          vector-add
+         vector-sub
          vector-combine
          vector-reduce-sum
          vector-amount
@@ -61,10 +62,22 @@
              [e2 v2])
     (box (bvmul (unbox e1) (unbox e2)))))
 
-;; VECTOR MAX
+;; VECTOR SORT LARGEST
+(define (vector-sort-largest v)
+    (define (sorted>? x)
+      (cond       
+        [(empty? (rest x)) #true ]
+        [(bvuge (car x) (cadr x)) (sorted>? (cdr x))]
+        [else #f]))
+    ;(define sorting (map box (sort (map unbox v) bvsgt)))
+    (cond
+      [(> (length v) (length (bv-value (value-fin))))
+       (error "require bitvectors")]
+      [(equal? (sorted>? (map unbox v)) #t)
+       v]
+      [else
+       (vector-sort-largest (map box (sort (map unbox v) bvsgt)))]))
 
-(define (vector-max v1 v2 v3 v4 v5 v6)
-  argmax v1 v2 v3 v4 v5 v6)
   
 ;; VECTOR ADD
 (define (vector-add v1 v2)
@@ -73,6 +86,14 @@
   (for/list ([e1 v1]
              [e2 v2])
     (box (bvadd (unbox e1) (unbox e2)))))
+
+;; VECTOR SUB
+(define (vector-sub v1 v2)
+  (assert (= (length v1) (length v2))
+          "VECTOR-SUB: length of vectors not equal")
+  (for/list ([e1 v1]
+             [e2 v2])
+    (box (bvsub (unbox e1) (unbox e2)))))
 
 ;; VECTOR COMBINE
 (define (vector-combine v1 v2)
@@ -103,7 +124,7 @@
 ;; BITVECTOR SQUARE ROOT
 (define (bv-sqrt t)
   (define (check-sqrt guess)
-    (define guess-squared (bvmul guess guess))
+    (define guess-squared (vector-sqr guess))
     (cond
       [(bvsgt guess t)
        ; The squared number is now greater than our target, so there must not be one
