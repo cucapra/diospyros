@@ -23,11 +23,14 @@ fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst)
 /// Run the rewrite rules over the input program and return the best (cost, program)
 pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
     let rules = rules();
+    let mut init_eg : EGraph = EGraph::new(());
+    init_eg.add(VecLang::Num(0));
     let runner = Runner::default()
+        .with_egraph(init_eg)
         .with_expr(&prog)
         .with_node_limit(900_000)
         .with_time_limit(std::time::Duration::from_secs(120))
-        .with_iter_limit(60)
+        .with_iter_limit(1000)
         .run(&rules);
 
     // print reason to STDERR.
@@ -37,10 +40,9 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
         runner.stop_reason
     );
 
-    let (mut eg, root) = (runner.egraph, runner.roots[0]);
+    let (eg, root) = (runner.egraph, runner.roots[0]);
 
     // Always add the literal zero
-    eg.add(VecLang::Num(0));
 
     let mut extractor = Extractor::new(&eg, VecCostFn { egraph: &eg });
     extractor.find_best(root)
@@ -127,17 +129,17 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
                         (Vec4 ?c ?f ?i 0))"),
 
         rw!("vec-mac-4"; mac_searcher
-            => "(VecMAC (Vec4 ?a ?d ?g ?j)
-                        (Vec4 ?b ?e ?h ?k)
-                        (Vec4 ?c ?f ?i ?l))"),
+            => "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
+                        (Vec4 ?b0 ?b1 ?b2 ?b3)
+                        (Vec4 ?c0 ?c1 ?c2 ?c3))"),
     ];
 
     rules.extend(vec![
         // Very expensive rules to allow more hallucination of zeros
-        rw!("add-0"; "(+ ?a 0)" <=> "?a"),
-        rw!("add-1"; "(+ ?a 0 0)" <=> "?a"),
-        rw!("add-2"; "(+ ?a 0 0 0)" <=> "?a"),
-        rw!("add-3"; "(+ ?a ?b 0 0)" <=> "(+ ?a ?b)"),
+        // rw!("add-0"; "(+ ?a 0)" <=> "?a"),
+        // rw!("add-1"; "(+ ?a 0 0)" <=> "?a"),
+        // rw!("add-2"; "(+ ?a 0 0 0)" <=> "?a"),
+        // rw!("add-3"; "(+ ?a ?b 0 0)" <=> "(+ ?a ?b)"),
 
         rw!("add-4"; "(+ ?a ?b ?c)" <=> "(+ ?a (+ ?b ?c))"),
         rw!("add-5"; "(+ ?a ?b ?c ?d)" <=> "(+ ?a (+ ?b (+ ?c ?d)))"),

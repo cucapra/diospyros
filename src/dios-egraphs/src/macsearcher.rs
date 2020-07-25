@@ -7,41 +7,39 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct MacSearcher<L> {
-    pub full_mac_pattern: Pattern<L>,
-    pub vec4_pattern: Pattern<L>,
-    pub add_mul_pattern: Pattern<L>,
-    pub mul_pattern: Pattern<L>,
-    pub zero_pattern: Pattern<L>,
-
-    pub zero_id: Option<Id>,
+pub struct MacSearcher {
+    pub full_mac_pattern: Pattern<VecLang>,
+    pub vec4_pattern: Pattern<VecLang>,
+    pub add_mul_pattern: Pattern<VecLang>,
+    pub mul_pattern: Pattern<VecLang>,
+    pub zero_pattern: Pattern<VecLang>,
 }
 
-impl<L: Language> MacSearcher<L> {
+impl MacSearcher {
 }
 
-pub fn build_mac_searcher<L: Language>() -> MacSearcher<L> {
-    let full_mac_pattern : Pattern<L> = "(Vec4 (+ ?a0 (* ?b0 ?c0))
-                                               (+ ?a1 (* ?b1 ?c1))
-                                               (+ ?a2 (* ?b2 ?c2))
-                                               (+ ?a3 (* ?b3 ?c3)))"
-        .parse::<Pattern<L>>()
+pub fn build_mac_searcher() -> MacSearcher {
+    let full_mac_pattern = "(Vec4 (+ ?a0 (* ?b0 ?c0))
+                                  (+ ?a1 (* ?b1 ?c1))
+                                  (+ ?a2 (* ?b2 ?c2))
+                                  (+ ?a3 (* ?b3 ?c3)))"
+        .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let vec4_pattern : Pattern<L> = "(Vec4 ?x ?y ?z ?w)"
-        .parse::<Pattern<L>>()
+    let vec4_pattern = "(Vec4 ?x ?y ?z ?w)"
+        .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let add_mul_pattern : Pattern<L> = "(+ ?a (* ?b ?c))"
-        .parse::<Pattern<L>>()
+    let add_mul_pattern = "(+ ?a (* ?b ?c))"
+        .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let mul_pattern : Pattern<L> = "(* ?b ?c)"
-        .parse::<Pattern<L>>()
+    let mul_pattern = "(* ?b ?c)"
+        .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let zero_pattern : Pattern<L> = "0"
-        .parse::<Pattern<L>>()
+    let zero_pattern = "0"
+        .parse::<Pattern<VecLang>>()
         .unwrap();
 
     MacSearcher {
@@ -50,12 +48,11 @@ pub fn build_mac_searcher<L: Language>() -> MacSearcher<L> {
         add_mul_pattern,
         mul_pattern,
         zero_pattern,
-        zero_id : None,
     }
 }
 
-impl<L: Language, A: Analysis<L>> Searcher<L, A> for MacSearcher<L> {
-    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
+impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
+    fn search_eclass(&self, egraph: &EGraph<VecLang, A>, eclass: Id) -> Option<SearchMatches> {
 
         let vec4_matches = self.vec4_pattern.search_eclass(egraph, eclass);
         let vec4_mac_compatible = match vec4_matches {
@@ -70,11 +67,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MacSearcher<L> {
                 //     0                   here, map ?a -> 0, ?b -> 0, ?c -> 0
 
                 let mut new_substs : Vec<Subst> = Vec::new();
-
-                if self.zero_id.is_none() {
-                    // TODO: initialize zero_id to be the eclass of
-                    // VecLang::Const(0)
-                }
+                let zero_id = egraph.lookup(VecLang::Num(0)).unwrap();
 
                 // TODO: do we need to do combinatorial madness across the
                 // vector lanes?
@@ -89,13 +82,14 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MacSearcher<L> {
                     // for example, ?a0 through ?a3
                     for (i, vec4_var) in self.vec4_pattern.vars().iter().enumerate() {
 
+                        // TODO: abstract this out to be prettier
+
                         // Check if that variable matches add/mul
                         let child_eclass = substs.get(*vec4_var).unwrap();
                         if let Some(add_mul_match) = self.add_mul_pattern.search_eclass(egraph, *child_eclass) {
                             for s in add_mul_match.substs.iter() {
                                 for add_mul_var in self.add_mul_pattern.vars().iter() {
-                                    let vs : String = format!("{}", *add_mul_var);
-                                    let new_v = Var::from_str(&format!("{}{}", vs, i)).unwrap();
+                                    let new_v = Var::from_str(&format!("{}{}", *add_mul_var, i)).unwrap();
                                     new_sub.insert(new_v, *s.get(*add_mul_var).unwrap());
                                 }
                             }
@@ -103,15 +97,20 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MacSearcher<L> {
                         } else if let Some(mul_match) = self.mul_pattern.search_eclass(egraph, *child_eclass) {
                             for s in mul_match.substs.iter() {
                                 // for ?b and ?c
-                                for add_mul_var in self.mul_pattern.vars().iter() {
-                                    let vs : String = format!("{}", *add_mul_var);
-                                    let new_v = Var::from_str(&format!("{}{}", vs, i)).unwrap();
-                                    new_sub.insert(new_v, *s.get(*add_mul_var).unwrap());
+                                for mul_var in self.mul_pattern.vars().iter() {
+                                    let new_v = Var::from_str(&format!("{}{}", *mul_var, i)).unwrap();
+                                    new_sub.insert(new_v, *s.get(*mul_var).unwrap());
                                 }
                                 // ?a needs to map to a zero!
                                 let var_a = Var::from_str(&format!("?a{}", i)).unwrap();
-                                new_sub.insert(var_a, self.zero_id.unwrap());
+                                new_sub.insert(var_a, zero_id);
                             }
+                        // This lane is just 0
+                        } else if let Some(_) = self.zero_pattern.search_eclass(egraph, *child_eclass) {
+                            // ?a, ?b, and ?c all map to zero
+                            new_sub.insert(Var::from_str(&format!("?a{}", i)).unwrap(), zero_id);
+                            new_sub.insert(Var::from_str(&format!("?b{}", i)).unwrap(), zero_id);
+                            new_sub.insert(Var::from_str(&format!("?c{}", i)).unwrap(), zero_id);
 
                         // This lane isn't compatible, so the whole Vec4 can't
                         // be a MAC
@@ -134,7 +133,6 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MacSearcher<L> {
                 }
             }
         };
-        // self.full_mac_pattern.search_eclass(egraph, eclass)
         vec4_mac_compatible
     }
 

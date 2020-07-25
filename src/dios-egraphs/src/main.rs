@@ -69,7 +69,7 @@ mod tests {
   }
 
   #[test]
-  fn vector_mac_pairwise_add() {
+  fn vector_pairwise_mac() {
     let start = "(List
                    (+ (* a b) (+ (* c d) (* e f)))
                    (+ (* aa bb) (+ (* cc dd) (* ee ff))))";
@@ -85,7 +85,7 @@ mod tests {
   }
 
   #[test]
-  fn vector_mac_variadic_add() {
+  fn vector_variadic_add_mac() {
     let start = "(List
                    (+ (* a b) (* c d) (* e f))
                    (+ (* aa bb) (* cc dd) (* ee ff)))";
@@ -101,6 +101,32 @@ mod tests {
   }
 
   #[test]
+  fn vector_mac() {
+    let start = "(Vec4 (+ ?a0 (* ?b0 ?c0))
+                       (+ ?a1 (* ?b1 ?c1))
+                       (+ ?a2 (* ?b2 ?c2))
+                       (+ ?a3 (* ?b3 ?c3)))";
+    let exp_best = "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
+                            (Vec4 ?b0 ?b1 ?b2 ?b3)
+                            (Vec4 ?c0 ?c1 ?c2 ?c3))";
+    let exp_best_cost = 1.312;
+    run_egpraph_with_start(start, exp_best, exp_best_cost);
+  }
+
+  #[test]
+  fn vector_mac_just_mul_or_zero() {
+    let start = "(Vec4 (+ ?a0 (* ?b0 ?c0))
+                       (* ?b1 ?c1)
+                       0
+                       (+ ?a3 (* ?b3 ?c3)))";
+    let exp_best = "(VecMAC (Vec4 ?a0 0 0 ?a3)
+                            (Vec4 ?b0 ?b1 0 ?b3)
+                            (Vec4 ?c0 ?c1 0 ?c3))";
+    let exp_best_cost = 1.312;
+    run_egpraph_with_start(start, exp_best, exp_best_cost);
+  }
+
+  #[test]
   fn vector_matrix_multiply_2x2_2x2() {
     let start = "(List
                    (+ (* v0 v4) (* v1 v6))
@@ -109,10 +135,10 @@ mod tests {
                    (+ (* v2 v5) (* v3 v7)))";
     let exp_best = "(VecMAC
                       (VecMul
-                        (Vec4 v0 v0 v4 v5)
-                        (Vec4 v4 v5 v2 v2))
-                      (Vec4 v1 v1 v6 v7)
-                      (Vec4 v6 v7 v3 v3))";
+                        (Vec4 v1 v1 v6 v7)
+                        (Vec4 v6 v7 v3 v3))
+                      (Vec4 v4 v5 v2 v2)
+                      (Vec4 v0 v0 v4 v5))";
     let exp_best_cost = 2.416;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -120,6 +146,7 @@ mod tests {
   // Currently fails, need to prioritize same memories in vector
   #[test]
   fn vector_matrix_multiply_2x2_2x2_explicit_get() {
+    // TODO: with explicit searcher this can't find solution with 4 LitVec4s
     let start = "(List
                     (+ (* (Get a 0) (Get b 0)) (* (Get a 1) (Get b 2)))
                     (+ (* (Get a 0) (Get b 1)) (* (Get a 1) (Get b 3)))
