@@ -12,12 +12,14 @@
          vector-sort-largest
          vector-add
          vector-sub
+         vector-midpoint
          vector-combine
          vector-reduce-sum
          vector-amount
          vector-average
          vector-sqr
          vector-standard-deviation
+         vector-distance
          vector-mac
          vector-s-divide
          vector-negate
@@ -78,6 +80,17 @@
       [else
        (vector-sort-largest (map box (sort (map unbox v) bvsgt)))]))
 
+;(define (vector-sort v)
+;    (define (sorted>? x)
+;      (cond       
+;        [(empty? (rest x)) #true ]
+;        [(bvuge (car x) (cadr x)) (sorted>? (cdr x))]
+;        [else #f]))
+;    (define sorting (map box (sort (map unbox v) bvsgt)))
+;      (if (sorted>? (map unbox v))
+;           v
+;           (map box (sort (map unbox v) bvsgt))))
+
   
 ;; VECTOR ADD
 (define (vector-add v1 v2)
@@ -94,6 +107,15 @@
   (for/list ([e1 v1]
              [e2 v2])
     (box (bvsub (unbox e1) (unbox e2)))))
+
+;; VECTOR MIDPOINT
+(define (vector-midpoint v1 v2)
+  (assert (= (length v1) (length v2))
+          "VECTOR-MIDPOINT: length of vectors not equal")
+  (for/list ([e1 v1]
+             [e2 v2])
+    (box (bvsdiv (bvadd (unbox e1) (unbox e2)) (bv-value 2)))))
+
 
 ;; VECTOR COMBINE
 (define (vector-combine v1 v2)
@@ -140,7 +162,7 @@
        (check-sqrt (bvadd1 guess))]))
   (check-sqrt (bv-value 0)))
 
-;;VECTOR STANDARD DEVIATION
+;; VECTOR STANDARD DEVIATION
 (define (vector-standard-deviation v a h)
   ; Subs the vectors by the average
   (define (sub-average v) (bvsub v (unbox (first a))))
@@ -152,6 +174,16 @@
                             (map vector-sqr (map sub-average (map unbox v))))
                      (bvsub (unbox (first h)) (bv-value 1)))))
   (append (list (box sqrt)) (make-bv-list-zeros 3)))
+
+;; VECTOR DISTANCE
+(define (vector-distance v1 v2)
+  (define (reduce-sum b acc) (bvadd acc b))
+  (define distance    
+    (bv-sqrt (reduce-sum (vector-sqr (bvsub (unbox (car v2)) (unbox (car v1))))
+                (vector-sqr (bvsub (unbox (cadr v2)) (unbox (cadr v1)))))))
+  (append (list (box distance)) (make-bv-list-zeros 3)))
+  
+;(bitvector->integer (vector-distance (value-bv-list 4 6) (value-bv-list 1 2)))
 
 
 ;; VECTOR-MAC
@@ -204,6 +236,15 @@
         (check-equal? (vector-reduce-sum inp) gold)))
 
     (test-case
+     "BITVECTOR_MIDPOINT basic examples"
+       (define (check-bv-midpoint v1 v2)
+         (map bitvector->integer (map unbox (vector-midpoint v1 v2))))
+       (check-equal? (check-bv-midpoint (value-bv-list 4 1) (value-bv-list 10 5)) (list 7 3))
+       (check-equal? (check-bv-midpoint (value-bv-list -3 3) (value-bv-list 5 3)) (list 1 3))
+       (check-equal? (check-bv-midpoint (value-bv-list -4 5) (value-bv-list 2 -3)) (list -1 1))
+       (check-equal? (check-bv-midpoint (value-bv-list -9 -1) (value-bv-list -3 7)) (list -6 3)))
+
+    (test-case
      "VECTOR-COMBINE basic examples"
        (define (check-vector-combine v1 v2)
          (map bitvector->integer (map unbox (vector-combine v1 v2))))
@@ -253,7 +294,6 @@
        (check-equal? (check-bv-sqrt 9) 3)
        (check-equal? (check-bv-sqrt 16) 4)
        (check-equal? (check-bv-sqrt 25) 5)
-       (check-equal? (check-bv-sqrt 36) 6)
        (check-equal? (check-bv-sqrt 81) 9))
 
      (test-case
@@ -261,6 +301,14 @@
       (define (check-vector-standard-deviation v a h)
          (map bitvector->integer (map unbox (vector-standard-deviation v a h))))
        (check-equal? (check-vector-standard-deviation (value-bv-list 1 2 3 6 1 2 3 6) (value-bv-list 3 -1 -1 -1) (value-bv-list 8 0 0 0)) (list 2 0 0 0)))
+
+     (test-case
+     "BITVECTOR_DISTANCE basic examples"
+       (define (check-bv-distance v1 v2)
+         (map bitvector->integer (map unbox (vector-distance v1 v2))))
+       (check-equal? (check-bv-distance (value-bv-list 4 6) (value-bv-list 1 2)) (list 5 0 0 0))
+       (check-equal? (check-bv-distance (value-bv-list 6 0) (value-bv-list 8 0)) (list 2 0 0 0))
+       (check-equal? (check-bv-distance (value-bv-list 3 5) (value-bv-list -1 2)) (list 5 0 0 0)))
 
      
     (test-case
