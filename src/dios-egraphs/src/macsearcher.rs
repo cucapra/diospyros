@@ -15,9 +15,6 @@ pub struct MacSearcher {
     pub zero_pattern: Pattern<VecLang>,
 }
 
-impl MacSearcher {
-}
-
 pub fn build_mac_searcher() -> MacSearcher {
     let full_mac_pattern = "(Vec4 (+ ?a0 (* ?b0 ?c0))
                                   (+ ?a1 (* ?b1 ?c1))
@@ -26,7 +23,7 @@ pub fn build_mac_searcher() -> MacSearcher {
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let vec4_pattern = "(Vec4 ?x ?y ?z ?w)"
+    let vec4_pattern = "(Vec4 ?w ?x ?y ?z)"
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
@@ -51,46 +48,66 @@ pub fn build_mac_searcher() -> MacSearcher {
     }
 }
 
+impl MacSearcher {
+    fn all_matches_to_substs(all_matches : &[Vec<(Var, Id)>]) -> Vec<Subst> {
+        match all_matches.first() {
+            None => vec![Subst::with_capacity(12)],
+            Some(var_substs) => {
+                let mut new_substs : Vec<Subst> = Vec::new();
+                let substs = MacSearcher::all_matches_to_substs(&all_matches[1..]);
+                for (var, id) in var_substs.iter() {
+                    for sub in &substs {
+                        let mut sub_clone = sub.clone();
+                        sub_clone.insert(*var, *id);
+                        new_substs.push(sub_clone);
+                    }
+                }
+                new_substs
+            }
+        }
+    }
+}
+
+// We want each lane (?w, ?x, ?y, ?z) in (Vec4 ?w ?x ?y ?z) to match either:
+//     (+ ?a (* ?b ?c))
+//     (* ?b ?c)           here, map ?a -> 0
+//     0                   here, map ?a -> 0, ?b -> 0, ?c -> 0
 impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
     fn search_eclass(&self, egraph: &EGraph<VecLang, A>, eclass: Id) -> Option<SearchMatches> {
-
         let vec4_matches = self.vec4_pattern.search_eclass(egraph, eclass);
         let vec4_mac_compatible = match vec4_matches {
             None => None,
             Some(matches) => {
                 // Now we know the eclass is a Vec4. The question is: does it
                 // match a pattern compatible with a MAC?
-                //
-                // We want each lane (?x, ?y, ?z, ?v) to match either:
-                //     (+ ?a (* ?b ?c))
-                //     (* ?b ?c)           here, map ?a -> 0
-                //     0                   here, map ?a -> 0, ?b -> 0, ?c -> 0
-
                 let mut new_substs : Vec<Subst> = Vec::new();
                 let zero_id = egraph.lookup(VecLang::Num(0)).unwrap();
 
-                // TODO: do we need to do combinatorial madness across the
-                // vector lanes?
+                println!("SEARCH ECLASS------------------------------------");
 
                 // For each set of substitutions
                 for substs in matches.substs.iter() {
-                    let mut new_sub = Subst::with_capacity(12);
+                    println!("{:?}", substs);
                     let mut all_matches_found = true;
 
-                    // For each variable x, y, x, w in (Vec4 ?x ?y ?z ?w).
+                    let mut new_substs_options : Vec<Vec<(Var, Id)>> = Vec::new();
+
+                    // For each variable w, x, y, z in (Vec4 ?w ?x ?y ?z).
                     // We use the index i to disambiguate lanes, so we can have,
                     // for example, ?a0 through ?a3
                     for (i, vec4_var) in self.vec4_pattern.vars().iter().enumerate() {
 
                         // TODO: abstract this out to be prettier
+                        let mut new_var_substs : Vec<(Var, Id)> = Vec::new();
 
                         // Check if that variable matches add/mul
                         let child_eclass = substs.get(*vec4_var).unwrap();
                         if let Some(add_mul_match) = self.add_mul_pattern.search_eclass(egraph, *child_eclass) {
                             for s in add_mul_match.substs.iter() {
                                 for add_mul_var in self.add_mul_pattern.vars().iter() {
+                                    println!("matched {:?}", *add_mul_var);
                                     let new_v = Var::from_str(&format!("{}{}", *add_mul_var, i)).unwrap();
-                                    new_sub.insert(new_v, *s.get(*add_mul_var).unwrap());
+                                    new_var_substs.push((new_v, *s.get(*add_mul_var).unwrap()));
                                 }
                             }
                         // Check if that variable matches just a mul
@@ -99,18 +116,18 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                                 // for ?b and ?c
                                 for mul_var in self.mul_pattern.vars().iter() {
                                     let new_v = Var::from_str(&format!("{}{}", *mul_var, i)).unwrap();
-                                    new_sub.insert(new_v, *s.get(*mul_var).unwrap());
+                                    new_var_substs.push((new_v, *s.get(*mul_var).unwrap()));
                                 }
                                 // ?a needs to map to a zero!
                                 let var_a = Var::from_str(&format!("?a{}", i)).unwrap();
-                                new_sub.insert(var_a, zero_id);
+                                new_var_substs.push((var_a, zero_id));
                             }
                         // This lane is just 0
                         } else if let Some(_) = self.zero_pattern.search_eclass(egraph, *child_eclass) {
                             // ?a, ?b, and ?c all map to zero
-                            new_sub.insert(Var::from_str(&format!("?a{}", i)).unwrap(), zero_id);
-                            new_sub.insert(Var::from_str(&format!("?b{}", i)).unwrap(), zero_id);
-                            new_sub.insert(Var::from_str(&format!("?c{}", i)).unwrap(), zero_id);
+                            new_var_substs.push((Var::from_str(&format!("?a{}", i)).unwrap(), zero_id));
+                            new_var_substs.push((Var::from_str(&format!("?b{}", i)).unwrap(), zero_id));
+                            new_var_substs.push((Var::from_str(&format!("?c{}", i)).unwrap(), zero_id));
 
                         // This lane isn't compatible, so the whole Vec4 can't
                         // be a MAC
@@ -118,14 +135,20 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                             all_matches_found = false;
                             break;
                         }
+                        new_substs_options.push(new_var_substs);
                     }
                     if all_matches_found {
-                        new_substs.push(new_sub);
+                        // Now there is at least one match, but we need to make
+                        // potentially > 1 subst as children are combinatorial
+                        println!("?x {:?}\n?y {:?}\n?", );
+                        let mut all_substs = MacSearcher::all_matches_to_substs(&new_substs_options);
+                        new_substs.append(&mut all_substs);
                     }
                 };
                 if new_substs.is_empty() {
                     None
                 } else {
+                    println!("{:?}", new_substs);
                     Some(SearchMatches {
                         eclass : matches.eclass,
                         substs : new_substs,
