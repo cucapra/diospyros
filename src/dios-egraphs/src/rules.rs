@@ -5,7 +5,8 @@ use itertools::Itertools;
 use crate::{
     veclang::{EGraph, VecLang},
     cost::VecCostFn,
-    macsearcher::build_mac_searcher
+    macsearcher::build_mac_searcher,
+    binopsearcher::build_binop_searcher
 };
 
 // Check if all the variables, in this case memories, are equivalent
@@ -43,13 +44,11 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
     let (eg, root) = (runner.egraph, runner.roots[0]);
 
     // Always add the literal zero
-
     let mut extractor = Extractor::new(&eg, VecCostFn { egraph: &eg });
     extractor.find_best(root)
 }
 
 pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
-    let mac_searcher = build_mac_searcher();
     let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
         rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
@@ -59,10 +58,6 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
         rw!("assoc-mul-2"; "(* ?a ?b ?c)" => "(* (* ?a ?b) ?c))"),
         rw!("mul-0"; "(* ?a 0)" => "0"),
         rw!("mul-1"; "(* ?a 1)" => "?a"),
-
-        // Allow hallucination of 0's to allow pattern matching larger vectors
-        rw!("zero-1"; "?a" => "(+ ?a 0)"),
-        rw!("zero-2"; "0" => "(* 0 0)"),
 
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         rw!("litvec"; "(Vec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
@@ -92,57 +87,23 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
                         (Concat (Vec4 ?v4 ?v5 ?v6 ?v7)
                                 (Vec4 ?v8 0 0 0)))"),
 
-        // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-add-2"; "(Vec4 (+ ?a ?b) (+ ?c ?d) 0 0)"
-            => "(VecAdd (Vec4 ?a ?c 0 0) (Vec4 ?b ?d 0 0))"),
-        rw!("vec-add-3"; "(Vec4 (+ ?a ?b) (+ ?c ?d) (+ ?e ?f) 0)"
-            => "(VecAdd (Vec4 ?a ?c ?e 0) (Vec4 ?b ?d ?f 0))"),
-        rw!("vec-add-4"; "(Vec4 (+ ?a ?b) (+ ?c ?d) (+ ?e ?f) (+ ?g ?h))"
-            => "(VecAdd (Vec4 ?a ?c ?e ?g) (Vec4 ?b ?d ?f ?h))"),
+        rw!("vec-add"; { build_binop_searcher("+") }
+            => "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
+                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
-        // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-mul-2"; "(Vec4 (* ?a ?b) (* ?c ?d) 0 0)"
-            => "(VecMul (Vec4 ?a ?c 0 0) (Vec4 ?b ?d 0 0))"),
-        rw!("vec-mul-3"; "(Vec4 (* ?a ?b) (* ?c ?d) (* ?e ?f) 0)"
-            => "(VecMul (Vec4 ?a ?c ?e 0) (Vec4 ?b ?d ?f 0))"),
-        rw!("vec-mul-4"; "(Vec4 (* ?a ?b) (* ?c ?d) (* ?e ?f) (* ?g ?h))"
-            => "(VecMul (Vec4 ?a ?c ?e ?g) (Vec4 ?b ?d ?f ?h))"),
+        rw!("vec-mul"; { build_binop_searcher("*") }
+            => "(VecMul (Vec4 ?a0 ?a1 ?a2 ?a3)
+                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
-        // For now, hardcode vectors with 2-4 lanes
-        rw!("vec-mac-2"; "(Vec4 (+ ?a (* ?b ?c))
-                                (+ ?d (* ?e ?f))
-                                0
-                                0)"
-            => "(VecMAC (Vec4 ?a ?d 0 0)
-                        (Vec4 ?b ?e 0 0)
-                        (Vec4 ?c ?f 0 0))"),
-        // Either want:
-        // (+ ?a (* ?b ?c))
-        // (* ?b ?c)
-        // 0
-        rw!("vec-mac-3"; "(Vec4 (+ ?a (* ?b ?c))
-                                (+ ?d (* ?e ?f))
-                                (+ ?g (* ?h ?i))
-                                0)"
-            => "(VecMAC (Vec4 ?a ?d ?g 0)
-                        (Vec4 ?b ?e ?h 0)
-                        (Vec4 ?c ?f ?i 0))"),
-
-        rw!("vec-mac-4"; mac_searcher
+        rw!("vec-mac"; { build_mac_searcher() }
             => "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3)
                         (Vec4 ?c0 ?c1 ?c2 ?c3))"),
     ];
 
     rules.extend(vec![
-        // Very expensive rules to allow more hallucination of zeros
-        // rw!("add-0"; "(+ ?a 0)" <=> "?a"),
-        // rw!("add-1"; "(+ ?a 0 0)" <=> "?a"),
-        // rw!("add-2"; "(+ ?a 0 0 0)" <=> "?a"),
-        // rw!("add-3"; "(+ ?a ?b 0 0)" <=> "(+ ?a ?b)"),
-
-        rw!("add-4"; "(+ ?a ?b ?c)" <=> "(+ ?a (+ ?b ?c))"),
-        rw!("add-5"; "(+ ?a ?b ?c ?d)" <=> "(+ ?a (+ ?b (+ ?c ?d)))"),
+        rw!("add-variadic-1"; "(+ ?a ?b ?c)" <=> "(+ ?a (+ ?b ?c))"),
+        rw!("add-variadic-2"; "(+ ?a ?b ?c ?d)" <=> "(+ ?a (+ ?b (+ ?c ?d)))"),
     ].concat());
     return rules;
 }
