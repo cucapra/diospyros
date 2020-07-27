@@ -49,16 +49,18 @@ pub fn build_mac_searcher() -> MacSearcher {
 }
 
 impl MacSearcher {
-    fn all_matches_to_substs(all_matches : &[Vec<(Var, Id)>]) -> Vec<Subst> {
+    fn all_matches_to_substs(all_matches : &[Vec<Vec<(Var, Id)>>]) -> Vec<Subst> {
         match all_matches.first() {
             None => vec![Subst::with_capacity(12)],
             Some(var_substs) => {
                 let mut new_substs : Vec<Subst> = Vec::new();
                 let substs = MacSearcher::all_matches_to_substs(&all_matches[1..]);
-                for (var, id) in var_substs.iter() {
+                for var_match in var_substs.iter() {
                     for sub in &substs {
                         let mut sub_clone = sub.clone();
-                        sub_clone.insert(*var, *id);
+                        for (var, id) in var_match.iter() {
+                            sub_clone.insert(*var, *id);
+                        }
                         new_substs.push(sub_clone);
                     }
                 }
@@ -83,14 +85,10 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                 let mut new_substs : Vec<Subst> = Vec::new();
                 let zero_id = egraph.lookup(VecLang::Num(0)).unwrap();
 
-                println!("SEARCH ECLASS------------------------------------");
-
                 // For each set of substitutions
                 for substs in matches.substs.iter() {
-                    println!("{:?}", substs);
                     let mut all_matches_found = true;
-
-                    let mut new_substs_options : Vec<Vec<(Var, Id)>> = Vec::new();
+                    let mut new_substs_options : Vec<Vec<Vec<(Var, Id)>>> = Vec::new();
 
                     // For each variable w, x, y, z in (Vec4 ?w ?x ?y ?z).
                     // We use the index i to disambiguate lanes, so we can have,
@@ -98,36 +96,42 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                     for (i, vec4_var) in self.vec4_pattern.vars().iter().enumerate() {
 
                         // TODO: abstract this out to be prettier
-                        let mut new_var_substs : Vec<(Var, Id)> = Vec::new();
+                        let mut new_var_substs : Vec<Vec<(Var, Id)>> = Vec::new();
 
                         // Check if that variable matches add/mul
                         let child_eclass = substs.get(*vec4_var).unwrap();
                         if let Some(add_mul_match) = self.add_mul_pattern.search_eclass(egraph, *child_eclass) {
                             for s in add_mul_match.substs.iter() {
+                                let mut subs : Vec<(Var, Id)> = Vec::new();
                                 for add_mul_var in self.add_mul_pattern.vars().iter() {
-                                    println!("matched {:?}", *add_mul_var);
                                     let new_v = Var::from_str(&format!("{}{}", *add_mul_var, i)).unwrap();
-                                    new_var_substs.push((new_v, *s.get(*add_mul_var).unwrap()));
+                                    subs.push((new_v, *s.get(*add_mul_var).unwrap()));
                                 }
+                                new_var_substs.push(subs);
                             }
                         // Check if that variable matches just a mul
                         } else if let Some(mul_match) = self.mul_pattern.search_eclass(egraph, *child_eclass) {
                             for s in mul_match.substs.iter() {
+                                let mut subs : Vec<(Var, Id)> = Vec::new();
                                 // for ?b and ?c
                                 for mul_var in self.mul_pattern.vars().iter() {
                                     let new_v = Var::from_str(&format!("{}{}", *mul_var, i)).unwrap();
-                                    new_var_substs.push((new_v, *s.get(*mul_var).unwrap()));
+                                    subs.push((new_v, *s.get(*mul_var).unwrap()));
                                 }
                                 // ?a needs to map to a zero!
                                 let var_a = Var::from_str(&format!("?a{}", i)).unwrap();
-                                new_var_substs.push((var_a, zero_id));
+                                subs.push((var_a, zero_id));
+                                new_var_substs.push(subs);
                             }
                         // This lane is just 0
                         } else if let Some(_) = self.zero_pattern.search_eclass(egraph, *child_eclass) {
                             // ?a, ?b, and ?c all map to zero
-                            new_var_substs.push((Var::from_str(&format!("?a{}", i)).unwrap(), zero_id));
-                            new_var_substs.push((Var::from_str(&format!("?b{}", i)).unwrap(), zero_id));
-                            new_var_substs.push((Var::from_str(&format!("?c{}", i)).unwrap(), zero_id));
+                            let subs : Vec<(Var, Id)> = vec![
+                                (Var::from_str(&format!("?a{}", i)).unwrap(), zero_id),
+                                (Var::from_str(&format!("?b{}", i)).unwrap(), zero_id),
+                                (Var::from_str(&format!("?c{}", i)).unwrap(), zero_id),
+                            ];
+                            new_var_substs.push(subs);
 
                         // This lane isn't compatible, so the whole Vec4 can't
                         // be a MAC
@@ -140,7 +144,6 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                     if all_matches_found {
                         // Now there is at least one match, but we need to make
                         // potentially > 1 subst as children are combinatorial
-                        println!("?x {:?}\n?y {:?}\n?", );
                         let mut all_substs = MacSearcher::all_matches_to_substs(&new_substs_options);
                         new_substs.append(&mut all_substs);
                     }
@@ -148,7 +151,6 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                 if new_substs.is_empty() {
                     None
                 } else {
-                    println!("{:?}", new_substs);
                     Some(SearchMatches {
                         eclass : matches.eclass,
                         substs : new_substs,
