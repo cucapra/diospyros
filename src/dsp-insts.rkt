@@ -183,7 +183,6 @@
                 (vector-sqr (bvsub (unbox (cadr v2)) (unbox (cadr v1)))))))
   (append (list (box distance)) (make-bv-list-zeros 3)))
   
-;(bitvector->integer (vector-distance (value-bv-list 4 6) (value-bv-list 1 2)))
 
 
 ;; VECTOR-MAC
