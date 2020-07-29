@@ -60,7 +60,8 @@ mod tests {
     // assert_eq!(best, exp_best.parse().unwrap());
     // Right now as we change searchers, best is not super stable. Just log.
     if best != exp_best.parse().unwrap() {
-      print!("Best not equal\n {:?}\n{:?}", best, exp_best);
+      println!("Expected best not equal:{}",
+        exp_best.parse::<RecExpr<VecLang>>().unwrap().pretty(40));
     }
     assert_approx_eq!(best_cost, exp_best_cost, 0.000001);
   }
@@ -264,13 +265,13 @@ mod tests {
                       (VecMAC
                         (VecMAC
                           (VecMul
-                            (Vec4 (Get B 7) (Get B 8) 0 0)
-                            (Vec4 (Get A 5) (Get A 5) 0 0))
-                          (Vec4 (Get B 4) (Get B 5) 0 0)
-                          (Vec4 (Get A 4) (Get A 4) 0 0))
-                        (Vec4 (Get B 1) (Get B 2) 0 0)
-                        (Vec4 (Get A 3) (Get A 3) 0 0)))";
-    let exp_best_cost = 6.826;
+                            (LitVec4 (Get B 7) (Get B 8) 0 0)
+                            (LitVec4 (Get A 5) (Get A 5) 0 0))
+                          (LitVec4 (Get B 4) (Get B 5) 0 0)
+                          (LitVec4 (Get A 4) (Get A 4) 0 0))
+                        (LitVec4 (Get B 1) (Get B 2) 0 0)
+                        (LitVec4 (Get A 3) (Get A 3) 0 0)))";
+    let exp_best_cost = 6.232;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 
@@ -384,187 +385,96 @@ mod tests {
                       (VecMAC
                         (VecMAC
                           (VecMul
-                            (Vec4 0 v9 v9 v10)
-                            (Vec4 0 v1 v2 v2))
-                          (Vec4 0 0 v10 0)
-                          (Vec4 0 0 v1 0))
-                        (Vec4 v0 v0 v0 v1)
-                        (Vec4 v9 v10 v11 v11))
+                            (Vec4 0 0 v10 0)
+                            (Vec4 0 0 v1 0))
+                          (Vec4 0 v0 v9 v1)
+                          (Vec4 0 v10 v2 v11))
+                        (Vec4 v0 v9 v0 v10)
+                        (Vec4 v9 v1 v11 v2))
                       (Concat
-                        (VecAdd
+                        (VecMAC
                           (VecMAC
-                            (VecMAC
-                              (VecMul
-                                (Vec4 0 v9 v9 0)
-                                (Vec4 0 v3 v4 0))
-                              (Vec4 0 0 v10 0)
-                              (Vec4 0 0 v3 0))
-                            (Vec4 v11 v0 v1 0)
-                            (Vec4 v2 v12 v12 0))
-                          (Vec4
-                            0
-                            0
-                            (* v0 v13)
-                            (+
-                              (* v0 v14)
-                              (* v1 v13)
-                              (* v2 v12)
-                              (* v11 v3)
-                              (* v10 v4)
-                              (* v9 v5))))
-                        (Concat
-                          (VecAdd
                             (Vec4
-                              (* v1 v14)
                               0
                               0
+                              (+ (* v10 v3) (* v9 v4))
                               (+
-                                (* v0 v16)
-                                (* v1 v15)
-                                (* v3 v13)
-                                (* v12 v4)
-                                (* v10 v6)
-                                (* v9 v7)))
-                            (VecMAC
-                              (VecMAC
-                                (VecMul
-                                  (Vec4 v10 v11 v12 0)
-                                  (Vec4 v5 v5 v3 0))
-                                (Vec4 v11 0 v9 0)
-                                (Vec4 v4 0 v6 0))
-                              (Vec4 v2 v2 v0 0)
-                              (Vec4 v13 v14 v15 0)))
-                          (Concat
+                                (* v2 v12)
+                                (* v11 v3)
+                                (* v10 v4)
+                                (* v9 v5)))
+                            (Vec4 0 v0 v1 v1)
+                            (Vec4 0 v12 v12 v13))
+                          (Vec4 v11 v9 v0 v0)
+                          (Vec4 v2 v3 v13 v14))
+                        (Concat
+                          (VecMAC
                             (VecMAC
                               (VecMAC
                                 (Vec4
-                                  (+
-                                    (* v0 v17)
-                                    (* v1 v16)
-                                    (* v2 v15)
-                                    (* v3 v14)
-                                    (* v13 v4)
-                                    (* v12 v5)
-                                    (* v11 v6)
-                                    (* v10 v7)
-                                    (* v9 v8))
-                                  (+
-                                    (* v1 v17)
-                                    (* v2 v16)
-                                    (* v4 v14)
-                                    (* v13 v5)
-                                    (* v11 v7)
-                                    (* v10 v8))
-                                  (* v2 v17)
-                                  0)
-                                (Vec4 0 0 v14 v3)
-                                (Vec4 0 0 v5 v15))
-                              (Vec4 0 0 v11 v12)
-                              (Vec4 0 0 v8 v6))
-                            (Concat
-                              (VecAdd
+                                  (* v11 v4)
+                                  0
+                                  0
+                                  (+ (* v12 v4) (* v10 v6) (* v9 v7)))
+                                (Vec4 v10 0 v12 v3)
+                                (Vec4 v5 0 v3 v13))
+                              (Vec4 v2 v11 v9 v0)
+                              (Vec4 v13 v5 v6 v16))
+                            (Vec4 v1 v2 v0 v1)
+                            (Vec4 v14 v14 v15 v15))
+                          (Concat
+                            (VecMAC
+                              (VecMAC
                                 (VecMAC
                                   (Vec4
-                                    0
                                     (+
-                                      (* v3 v17)
-                                      (* v4 v16)
-                                      (* v5 v15)
-                                      (* v14 v6)
-                                      (* v13 v7)
-                                      (* v12 v8))
+                                      (* v3 v14)
+                                      (* v13 v4)
+                                      (* v12 v5)
+                                      (* v11 v6)
+                                      (* v10 v7)
+                                      (* v9 v8))
+                                    (+ (* v13 v5) (* v11 v7) (* v10 v8))
                                     0
                                     0)
-                                  (Vec4 v3 0 v4 v5)
-                                  (Vec4 v16 0 v17 v17))
+                                  (Vec4 v2 v4 v11 0)
+                                  (Vec4 v15 v14 v8 0))
+                                (Vec4 v1 v2 v2 v12)
+                                (Vec4 v16 v16 v17 v6))
+                              (Vec4 v0 v1 v14 v3)
+                              (Vec4 v17 v17 v5 v15))
+                            (Concat
+                              (VecMAC
                                 (VecMAC
-                                  (VecMAC
-                                    (VecMul
-                                      (Vec4 v12 0 v13 0)
-                                      (Vec4 v7 0 v8 0))
-                                    (Vec4 v13 0 v14 0)
-                                    (Vec4 v6 0 v7 0))
-                                  (Vec4 v4 0 v5 v14)
-                                  (Vec4 v15 0 v16 v8)))
+                                  (VecAdd
+                                    (VecMAC
+                                      (VecMul
+                                        (Vec4 0 v13 0 0)
+                                        (Vec4 0 v7 0 0))
+                                      (Vec4 v13 v8 v14 0)
+                                      (Vec4 v6 v12 v7 0))
+                                    (VecMAC
+                                      (VecMul
+                                        (Vec4 0 v5 0 0)
+                                        (Vec4 0 v15 0 0))
+                                      (Vec4 v12 v14 v13 0)
+                                      (Vec4 v7 v6 v8 0)))
+                                  (Vec4 v15 v16 v17 v8)
+                                  (Vec4 v4 v4 v4 v14))
+                                (Vec4 v3 v3 v5 v5)
+                                (Vec4 v16 v17 v16 v17))
                               (Concat
                                 (VecMAC
                                   (VecMAC
                                     (VecMul
-                                      (Vec4 0 v15 v15 v16)
-                                      (Vec4 0 v7 v8 v8))
-                                    (Vec4 0 0 v16 0)
-                                    (Vec4 0 0 v7 0))
-                                  (Vec4 v15 v6 v6 v7)
-                                  (Vec4 v6 v16 v17 v17))
+                                      (Vec4 0 0 v16 0)
+                                      (Vec4 0 0 v7 0))
+                                    (Vec4 0 v6 v15 v7)
+                                    (Vec4 0 v16 v8 v17))
+                                  (Vec4 v15 v15 v6 v16)
+                                  (Vec4 v6 v7 v17 v8))
                                 (List (* v17 v8))))))))";
-    let exp_best_cost = 467.526;
+    let exp_best_cost = 350.906;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
-
-  #[test]
-  fn test_equiv_expressions() {
-    let rules = rules();
-    let start_with_zero: RecExpr<VecLang>  = "(Vec4
-                    (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
-                    (+ (* v1 v7) (+ (* v3 v5) 0))
-                    (+ (* v2 v6) 0)
-                    (+ (* v2 v7) (+ (* v3 v6) 0)))"
-        .parse()
-        .unwrap();
-    let start_simplified: RecExpr<VecLang> = "(Vec4
-                    (+ (* v0 v7) (+ (* v1 v6) (+ (* v2 v5) (* v3 v4))))
-                    (+ (* v1 v7) (+ (* v3 v5) 0))
-                    (* v2 v6)
-                    (+ (* v2 v7) (+ (* v3 v6) 0)))"
-        .parse()
-        .unwrap();
-    let goal: RecExpr<VecLang> = "(VecMAC
-                  (VecMAC
-                    (VecMAC
-                      (Vec4 (* v3 v4) 0 0 0)
-                      (Vec4 v2 0 0 v6)
-                      (Vec4 v5 0 0 v3))
-                    (Vec4 v1 v5 0 0)
-                    (Vec4 v6 v3 0 0))
-                  (Vec4 v0 v7 v6 v7)
-                  (Vec4 v7 v1 v2 v2))"
-        .parse()
-        .unwrap();
-
-    let runner1 = Runner::default()
-        .with_expr(&start_with_zero)
-        .with_node_limit(100_000)
-        .with_time_limit(std::time::Duration::from_secs(20))
-        .with_iter_limit(60)
-        .run(&rules);
-    println!(
-        "Stopped after {} iterations, reason: {:?}",
-        runner1.iterations.len(),
-        runner1.stop_reason
-    );
-
-    let (mut egraph1, _) = (runner1.egraph, runner1.roots[0]);
-
-    assert_eq!(egraph1.add_expr(&start_with_zero), egraph1.add_expr(&start_simplified));
-    assert_eq!(egraph1.add_expr(&start_with_zero), egraph1.add_expr(&goal));
-    assert_eq!(egraph1.add_expr(&start_simplified), egraph1.add_expr(&goal));
-
-    let runner2 = Runner::default()
-        .with_expr(&start_simplified)
-        .with_node_limit(100_000)
-        .with_time_limit(std::time::Duration::from_secs(20))
-        .with_iter_limit(60)
-        .run(&rules);
-    println!(
-        "Stopped after {} iterations, reason: {:?}",
-        runner2.iterations.len(),
-        runner2.stop_reason
-    );
-
-    let (mut egraph2, _) = (runner2.egraph, runner2.roots[0]);
-
-    assert_eq!(egraph2.add_expr(&start_with_zero), egraph2.add_expr(&start_simplified));
-    assert_eq!(egraph2.add_expr(&start_with_zero), egraph2.add_expr(&goal));
-    assert_eq!(egraph2.add_expr(&start_simplified), egraph2.add_expr(&goal));
   }
 }

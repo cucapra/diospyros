@@ -29,9 +29,9 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
     let runner = Runner::default()
         .with_egraph(init_eg)
         .with_expr(&prog)
-        .with_node_limit(900_000)
-        .with_time_limit(std::time::Duration::from_secs(120))
-        .with_iter_limit(1000)
+        .with_node_limit(1_000_000)
+        .with_time_limit(std::time::Duration::from_secs(3600))
+        .with_iter_limit(5000)
         .run(&rules);
 
     // print reason to STDERR.
@@ -49,15 +49,29 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
 }
 
 pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
-    let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
+    let rules: Vec<Rewrite<VecLang, ()>> = vec![
+        // Basic associativity/commutativity/identities
         rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
-        rw!("assoc-add-1"; "(+ ?a ?b ?c)" => "(+ ?a (+ ?b ?c))"),
-        rw!("assoc-add-2"; "(+ ?a ?b ?c)" => "(+ (+ ?a ?b) ?c)"),
-        rw!("assoc-mul-1"; "(* ?a ?b ?c)" => "(* ?a (* ?b ?c))"),
-        rw!("assoc-mul-2"; "(* ?a ?b ?c)" => "(* (* ?a ?b) ?c))"),
+        rw!("assoc-add"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
+        rw!("assoc-mul"; "(* (* ?a ?b) ?c)" => "(* ?a (* ?b ?c))"),
+        rw!("add-0"; "(+ ?a 0)" => "?a"),
         rw!("mul-0"; "(* ?a 0)" => "0"),
         rw!("mul-1"; "(* ?a 1)" => "?a"),
+
+        // Variadic to nesting - hard coded
+        rw!("add-variadic-3"; "(+ ?a ?b ?c)" => "(+ ?a (+ ?b ?c))"),
+        rw!("add-variadic-4"; "(+ ?a ?b ?c ?d)" => "(+ ?a (+ ?b (+ ?c ?d)))"),
+        rw!("add-variadic-5"; "(+ ?a ?b ?c ?d ?e)" =>
+            "(+ ?a (+ ?b (+ ?c (+ ?d ?e))))"),
+        rw!("add-variadic-6"; "(+ ?a ?b ?c ?d ?e ?f)" =>
+            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e ?f)))))"),
+        rw!("add-variadic-7"; "(+ ?a ?b ?c ?d ?e ?f ?g)" =>
+            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f ?g))))))"),
+        rw!("add-variadic-8"; "(+ ?a ?b ?c ?d ?e ?f ?g ?h)" =>
+            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f (+ ?g ?h)))))))"),
+        rw!("add-variadic-9"; "(+ ?a ?b ?c ?d ?e ?f ?g ?h ?i)" =>
+            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f (+ ?g (+ ?h ?i))))))))"),
 
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         rw!("litvec"; "(Vec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
@@ -81,12 +95,12 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
             => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g 0))"),
         rw!("partition-8"; "(List ?a ?b ?c ?d ?e ?f ?g ?h)"
             => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g ?h))"),
-
         rw!("partition-9"; "(List ?v0 ?v1 ?v2 ?v3 ?v4 ?v5 ?v6 ?v7 ?v8)"
             => "(Concat (Vec4 ?v0 ?v1 ?v2 ?v3)
                         (Concat (Vec4 ?v4 ?v5 ?v6 ?v7)
                                 (Vec4 ?v8 0 0 0)))"),
 
+        // Custom searchers for vector ops
         rw!("vec-add"; { build_binop_searcher("+") }
             => "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3))"),
@@ -100,10 +114,5 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
                         (Vec4 ?b0 ?b1 ?b2 ?b3)
                         (Vec4 ?c0 ?c1 ?c2 ?c3))"),
     ];
-
-    rules.extend(vec![
-        rw!("add-variadic-1"; "(+ ?a ?b ?c)" <=> "(+ ?a (+ ?b ?c))"),
-        rw!("add-variadic-2"; "(+ ?a ?b ?c ?d)" <=> "(+ ?a (+ ?b (+ ?c ?d)))"),
-    ].concat());
     return rules;
 }
