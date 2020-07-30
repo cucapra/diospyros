@@ -11,8 +11,8 @@
          racket/generator
          rosette/lib/angelic)
 
-;(provide standard-deviation:keys
-;         standard-deviation:run-experiment)
+(provide standard-deviation:keys
+         standard-deviation:run-experiment)
 
 ;; Generate a spec for standard deviation between two lists of bitvectors.
 (define (standard-deviation-spec V A H)
@@ -84,8 +84,6 @@
                                        [V-3 #f])
   (define env (make-hash))
   (when (and V-1 V-2 V-3)
-    ;(match-define elements-1 V-1)
-    ;(match-define elements-2 V-2)
     (hash-set! env 'A V-1)
     (hash-set! env 'B V-2)
     (hash-set! env 'C V-3)
