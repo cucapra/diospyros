@@ -17,8 +17,7 @@
         "2d-conv"
         "dft"))
 
-; Return a function that creates a new file in the out-dir.
-(define (make-out-dir-writer out-dir)
+(define (create-base-directory out-dir)
   (define base
     (if (absolute-path? out-dir)
       out-dir
@@ -27,6 +26,11 @@
   (when (pr (not (directory-exists? base)))
     (pretty-print (format "Creating output directory: ~a" base))
     (make-directory base))
+  base)
+
+; Return a function that creates a new file in the out-dir.
+(define (make-out-dir-writer out-dir)
+  (define base (create-base-directory out-dir))
 
   ; Assumes that all files have a unique costs associated with them.
   (lambda (prog cost)
@@ -39,6 +43,18 @@
                          (build-path base _))])
       (call-with-output-file cost-path
         (lambda (out) (pretty-print conc-prog out))
+        #:exists 'replace))))
+
+; Return a function that creates a new file in the out-dir with a given name.
+(define (make-spec-out-dir-writer out-dir)
+  (define base (create-base-directory out-dir))
+  (lambda (spec name)
+    (let ([path (~> name
+                    (format "~a.rkt" _)
+                    string->path
+                    (build-path base _))])
+      (call-with-output-file path
+        (lambda (out) (pretty-print spec out))
         #:exists 'replace))))
 
 (define (run-bench name params out-dir print-spec)
@@ -71,7 +87,10 @@
       (lambda (in) (validator (read-json in)))))
 
   (if print-spec
-    (pretty-print (only-spec config))
+    (begin
+      (pretty-print (only-spec config))
+      ; TODO: write out prefix and postfix in dios DSL
+      ((make-spec-out-dir-writer out-dir) (only-spec config) "spec"))
     (run config (make-out-dir-writer out-dir))))
 
 (define bench-name (make-parameter #f))
