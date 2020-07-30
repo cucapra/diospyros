@@ -75,23 +75,26 @@
 
 ;;========================= BITVECTOR LISTS =========================
 
-(define (make-symbolic-bv-list ty size)
+(define (make-symbolic-with-prefix name type)
+  (constant (list name ((current-oracle) name)) type))
+
+(define (make-symbolic-bv-list ty size [prefix 'v])
   (for/list ([_ (in-range size)])
-    (define-symbolic* v ty)
+    (define v (make-symbolic-with-prefix prefix ty))
     (box v)))
 
 (define (make-bv-list-empty size)
   (for/list ([_ (in-range size)])
     (box void)))
 
-(define (make-symbolic-bv-list-values size)
-  (make-symbolic-bv-list (bitvector (value-fin)) size))
+(define (make-symbolic-bv-list-values size [prefix 'v])
+  (make-symbolic-bv-list (bitvector (value-fin)) size prefix))
 
-(define (make-symbolic-bv-list-indices size)
-  (make-symbolic-bv-list (bitvector (index-fin)) size))
+(define (make-symbolic-bv-list-indices size [prefix 'idx])
+  (make-symbolic-bv-list (bitvector (index-fin)) size prefix))
 
-(define (make-symbolic-matrix rows cols)
-  (matrix rows cols (make-symbolic-bv-list-values (* rows cols))))
+(define (make-symbolic-matrix rows cols [prefix 'v])
+  (matrix rows cols (make-symbolic-bv-list-values (* rows cols) prefix)))
 
 (define (make-bv-list-zeros size)
   (for/list ([_ (in-range size)])
@@ -195,6 +198,27 @@
       [_ inst]))
 
   (prog (map concretize (prog-insts p))))
+
+(define (to-bvs-prog p)
+  (define (to-bvs inst)
+    (match inst
+      [(vec-const id init type)
+        ; TODO: better way to determine bitwidth
+        (define bv-f (if (equal? type 'int) bv-index bv-value))
+        (vec-const id (map box (map bv-f (vector->list init))) type)]
+      [(vec-load dest-id src-id start end)
+       (vec-load dest-id
+                 src-id
+                 (bv-index start)
+                 (bv-index end))]
+      [(vec-store dest-id src-id start end)
+       (vec-store dest-id
+                  src-id
+                  (bv-index start)
+                  (bv-index end))]
+      [_ inst]))
+
+  (prog (map to-bvs (prog-insts p))))
 
 ;;========================= MATRICES =========================
 

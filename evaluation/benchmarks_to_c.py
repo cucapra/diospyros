@@ -15,48 +15,56 @@ from py_utils import *
 
 parameters = {
     conv2d : [
-        {
-            "input-rows": 2,
-            "input-cols": 2,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "iterations": 10,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 3,
-            "input-cols": 3,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "iterations": 15,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 4,
-            "input-cols": 4,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "iterations": 25,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 5,
-            "input-cols": 5,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "iterations": 35,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 3,
-            "input-cols": 3,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "iterations": 40,
-            "reg-size": 4
-        },
+        # {
+        #     "input-rows": 2,
+        #     "input-cols": 2,
+        #     "filter-rows": 2,
+        #     "filter-cols": 2,
+        #     "iterations": 10,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "input-rows": 3,
+        #     "input-cols": 3,
+        #     "filter-rows": 2,
+        #     "filter-cols": 2,
+        #     "iterations": 15,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "input-rows": 4,
+        #     "input-cols": 4,
+        #     "filter-rows": 2,
+        #     "filter-cols": 2,
+        #     "iterations": 25,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "input-rows": 5,
+        #     "input-cols": 5,
+        #     "filter-rows": 2,
+        #     "filter-cols": 2,
+        #     "iterations": 35,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "input-rows": 3,
+        #     "input-cols": 3,
+        #     "filter-rows": 3,
+        #     "filter-cols": 3,
+        #     "iterations": 40,
+        #     "reg-size": 4
+        # },
     ],
     matmul : [
+        {
+            "A-rows": 2,
+            "A-cols": 2,
+            "B-rows": 2,
+            "B-cols": 2,
+            "iterations": 2,
+            "reg-size": 4
+        },
         {
             "A-rows": 2,
             "A-cols": 3,
@@ -67,10 +75,10 @@ parameters = {
         }
     ],
     dft : [
-        {
-            "N" : 8,
-            "reg-size": 4
-        }
+        # {
+        #     "N" : 8,
+        #     "reg-size": 4
+        # }
     ]
 }
 

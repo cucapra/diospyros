@@ -12,7 +12,20 @@
          rosette/lib/angelic)
 
 (provide matrix-mul:keys
+         matrix-mul:only-spec
          matrix-mul:run-experiment)
+
+;; Runs the spec with symbolic inputs and returns the resulting formula.
+(define (matrix-mul:only-spec config)
+  (define A-rows (hash-ref config 'A-rows))
+  (define A-cols (hash-ref config 'A-cols))
+  (define B-rows (hash-ref config 'B-rows))
+  (define B-cols (hash-ref config 'B-cols))
+  (define A (make-symbolic-matrix A-rows A-cols 'A))
+  (define B (make-symbolic-matrix B-rows B-cols 'B))
+
+  (matrix-multiply-spec A B))
+
 
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)

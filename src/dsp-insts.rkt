@@ -63,7 +63,6 @@
   (for/list ([e1 v1]
              [e2 v2])
     (box (bvmul (unbox e1) (unbox e2)))))
-
 ;; DOT PRODUCT
 (define (dot-product v1 v2)
   (vector-reduce-sum (vector-multiply v1 v2)))
@@ -71,7 +70,7 @@
 ;; VECTOR SORT LARGEST
 ;(define (vector-sort-largest v)
 ;    (define (sorted>? x)
-;      (cond       
+;      (cond
 ;        [(empty? (rest x)) #true ]
 ;        [(bvuge (car x) (cadr x)) (sorted>? (cdr x))]
 ;        [else #f]))
@@ -84,8 +83,6 @@
 ;      [else
 ;       (vector-sort-largest (map box (sort (map unbox v) bvsgt)))]))
 
-
-  
 ;; VECTOR ADD
 (define (vector-add v1 v2)
   (assert (= (length v1) (length v2))
@@ -93,6 +90,7 @@
   (for/list ([e1 v1]
              [e2 v2])
     (box (bvadd (unbox e1) (unbox e2)))))
+
 
 ;; VECTOR SUB
 (define (vector-sub v1 v2)
@@ -121,9 +119,9 @@
   (list (box (foldl combine (bv-value 0) v))))
 
 ;;VECTOR AMOUNT
-(define (vector-amount v) 
+(define (vector-amount v)
   (list (box (bv-value (length v)))))
-  
+
 
 ;;VECTOR AVERAGE
 (define (vector-average v h)
@@ -152,7 +150,7 @@
        ; Success! We found the square root
        guess]
       [else
-       ; Recursive case, add 1 to the guess   
+       ; Recursive case, add 1 to the guess
        (check-sqrt (bvadd1 guess))]))
   (check-sqrt (bv-value 0)))
 
@@ -172,12 +170,10 @@
 ;; VECTOR DISTANCE
 (define (vector-distance v1 v2)
   (define (reduce-sum b acc) (bvadd acc b))
-  (define distance    
+  (define distance
     (bv-sqrt (reduce-sum (vector-sqr (bvsub (unbox (car v2)) (unbox (car v1))))
                 (vector-sqr (bvsub (unbox (cadr v2)) (unbox (cadr v1)))))))
   (append (list (box distance)) (make-bv-list-zeros 3)))
-  
-
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -286,7 +282,7 @@
        (check-equal? (check-vector-sqr (bv-value 5)) 25)
        (check-equal? (check-vector-sqr (bv-value 10)) 100)
        (check-equal? (check-vector-sqr (bv-value 9)) 81))
-     
+
      (test-case
      "BITVECTOR_SQRT basic examples"
        (define (check-bv-sqrt int-value)
@@ -312,7 +308,7 @@
        (check-equal? (check-bv-distance (value-bv-list 6 0) (value-bv-list 8 0)) (list 2 0 0 0))
        (check-equal? (check-bv-distance (value-bv-list 3 5) (value-bv-list -1 2)) (list 5 0 0 0)))
 
-     
+
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
       (let ([inp (value-bv-list 0 1 2 3 4)]

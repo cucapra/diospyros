@@ -12,7 +12,20 @@
          rosette/lib/angelic)
 
 (provide conv2d:keys
+         conv2d:only-spec
          conv2d:run-experiment)
+
+(define (conv2d:only-spec config)
+  (define I-rows (hash-ref config 'input-rows))
+  (define I-cols (hash-ref config 'input-cols))
+  (define F-rows (hash-ref config 'filter-rows))
+  (define F-cols (hash-ref config 'filter-cols))
+  (define-values (I F)
+    (values
+    (make-symbolic-matrix I-rows I-cols 'I)
+    (make-symbolic-matrix F-rows F-cols 'F)))
+
+  (matrix-elements (matrix-conv-spec I F)))
 
 ; Given an NxN input matrix, returns a smaller convolved matrix.
 (define (matrix-conv-spec input filter)

@@ -2,7 +2,7 @@
 
 (require racket/generator
          threading
-         rosette/lib/value-browser
+ ;        rosette/lib/value-browser
          "ast.rkt"
          "prog-sketch.rkt"
          "configuration.rkt"
@@ -20,9 +20,9 @@
       (if (equal? (hash-ref env1 key)
                   (hash-ref env2 key))
         ""
-        (~a key " differs: "
+        (~a key " differs:\n"
             (hash-ref env1 key)
-            " "
+            "\n\n"
             (hash-ref env2 key))))
     "\n"))
 
@@ -72,7 +72,7 @@
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-vector (cdr decl) 0)))
+                       (make-bv-list-zeros (cdr decl))))
                _))))
 
   (define (interp-and-env prog init-env)
@@ -91,10 +91,9 @@
     (andmap (lambda (decl)
               (let ([id (car decl)]
                     [size (cdr decl)])
-                (equal? (vector-take (hash-ref spec-env id) size)
-                        (vector-take (hash-ref sketch-env id) size))))
+                (equal? (take (hash-ref spec-env id) size)
+                        (take (hash-ref sketch-env id) size))))
             (set->list (to-size-set spec-outs))))
-
 
   (define model
     (verify
