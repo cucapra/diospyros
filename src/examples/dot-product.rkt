@@ -11,13 +11,17 @@
          racket/generator
          rosette/lib/angelic)
 
-(provide dot-product:keys
-         dot-product:run-experiment)
+;(provide dot-product:keys
+;         dot-product:run-experiment)
 
 ;; Generate a spec for dot product between two lists of bitvectors.
 (define (dot-product-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
-    (make-bv-list-zeros 4))
+    (make-bv-list-zeros 4)
+  ;(for* ([i V-1]
+   ;      [j V-2])
+          (vector-reduce-sum (vector-multiply V-1 V-2)))
+
 
 
 (define (print v)
@@ -53,7 +57,8 @@
              (map (lambda (out-reg)
                     (list
                      (vec-write 'reg-C out-reg)
-                     (vec-app 'out 'dot-product (list 'reg-A 'reg-B))
+                     (vec-app 'mul-result 'vec-mul (list 'reg-A 'reg-B))
+                     (vec-app 'out 'vec-sum (list 'mul-result))
                      (vec-write out-reg 'out)))
                   C-reg-ids)))
     
@@ -90,7 +95,8 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'dot-product dot-product)))
+            #:fn-map (hash 'vec-mul vector-multiply
+                           'vec-sum vector-reduce-sum)))
 
   (list (take (hash-ref env 'C) C-size) cost))
 
@@ -117,14 +123,13 @@
      
 ; Run dot product with the given spec.
 ; Requires that spec be a hash with all the keys describes in dot product:keys.
-(define (dot-product:run-experiment spec file-writer)
-  (pretty-print (~a "Running dot prodcut with config: " spec))
-  (define V1 (hash-ref spec 'V1))
-  (define V2 (hash-ref spec 'V2))
-  (define iterations (hash-ref spec 'iterations))
-  (define reg-size (hash-ref spec 'reg-size))
-  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
-                          (hash-ref spec 'pre-reg-of)))
+;(define (dot-product:run-experiment spec file-writer)
+ ; (pretty-print (~a "Running dot prodcut with config: " spec))
+  (define V1 2)
+  (define V2 2)
+  (define iterations 4)
+  (define reg-size 4)
+  (define pre-reg-of #t)
 
   (assert (equal? V1 V2)
           "dot product:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
@@ -171,7 +176,7 @@
       (synth-prog spec-func
                   sketch-func
                   (list A B)
-                  #:get-inps (lambda (args) (flatten args))
+                  #:get-inps (lambda (args) (flatten (map unbox args)))
                   #:min-cost (bv-cost 0)
                   #:assume assume))
 
@@ -180,6 +185,6 @@
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
         (let ([prog (evaluate dot-product-v model)])
-          (file-writer prog cost)
+          ;(file-writer prog cost)
           (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model))))))
+        (pretty-print (~a "failed to find solution: " model)))))
