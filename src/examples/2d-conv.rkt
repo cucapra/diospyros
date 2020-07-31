@@ -15,6 +15,19 @@
          conv2d:only-spec
          conv2d:run-experiment)
 
+(define (prelude I-rows I-cols F-rows F-cols)
+  (define output-rows (sub1 (+ I-rows F-rows)))
+  (define output-cols (sub1 (+ I-cols F-cols)))
+  (list
+    (vec-extern-decl 'I (* I-rows I-cols) input-tag)
+    (vec-extern-decl 'F (* F-rows F-cols) input-tag)
+    (vec-extern-decl 'O (* output-rows output-cols) output-tag)
+    (vec-const 'Z (make-bv-list-zeros 1) float-type)))
+
+;; Runs the spec with symbolic inputs and returns:
+;; - the resulting formula.
+;; - the prelude instructions (list)
+;; - outputs that the postlude should write to
 (define (conv2d:only-spec config)
   (define I-rows (hash-ref config 'input-rows))
   (define I-cols (hash-ref config 'input-cols))
@@ -25,7 +38,9 @@
     (make-symbolic-matrix I-rows I-cols 'I)
     (make-symbolic-matrix F-rows F-cols 'F)))
 
-  (matrix-elements (matrix-conv-spec I F)))
+  (values (matrix-elements (matrix-conv-spec I F))
+          (prog (prelude I-rows I-cols F-rows F-cols))
+          (list 'O)))
 
 ; Given an NxN input matrix, returns a smaller convolved matrix.
 (define (matrix-conv-spec input filter)
@@ -121,12 +136,9 @@
 
   ;Program preamble to define the "zero" vector.
   (define preamble
-    (list
-     (vec-extern-decl 'I (length I-elements) input-tag)
-     (vec-extern-decl 'F (length F-elements) input-tag)
-     (vec-extern-decl 'O output-size output-tag)
-     (vec-const 'Z (make-bv-list-zeros 1) float-type)
-     (vec-decl 'reg-O (current-reg-size))))
+    (append
+      (prelude i-rows i-cols f-rows f-cols)
+      (list (vec-decl 'reg-O (current-reg-size)))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)
     (partition-bv-list 'O output-size))

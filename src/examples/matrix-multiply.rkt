@@ -15,7 +15,23 @@
          matrix-mul:only-spec
          matrix-mul:run-experiment)
 
-;; Runs the spec with symbolic inputs and returns the resulting formula.
+(define (prelude A-rows A-cols B-rows B-cols)
+  (list
+    (vec-extern-decl 'A (* A-rows A-cols) input-tag)
+    (vec-extern-decl 'B (* B-rows B-cols) input-tag)
+    (vec-extern-decl 'C (* A-rows B-cols) output-tag)))
+
+(define (postlude output-names)
+  (for/list ([n output-names]
+             [i (in-naturals 0)])
+    (let* ([start (* i (current-reg-size))]
+           [end (* (+ i 1) (current-reg-size))])
+      (vec-store 'C n start end))))
+
+;; Runs the spec with symbolic inputs and returns:
+;; - the resulting formula.
+;; - the prelude instructions (list)
+;; - outputs that the postlude should write to
 (define (matrix-mul:only-spec config)
   (define A-rows (hash-ref config 'A-rows))
   (define A-cols (hash-ref config 'A-cols))
@@ -24,8 +40,9 @@
   (define A (make-symbolic-matrix A-rows A-cols 'A))
   (define B (make-symbolic-matrix B-rows B-cols 'B))
 
-  (matrix-multiply-spec A B))
-
+  (values (matrix-multiply-spec A B)
+          (prog (prelude A-rows A-cols B-rows B-cols))
+          (list 'C)))
 
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)
@@ -56,13 +73,12 @@
 (define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
   (match-define (matrix A-rows A-cols _) mat-A)
   (match-define (matrix B-rows B-cols _) mat-B)
+
   ; Program preamble to define the inputs
   (define preamble
-    (list
-     (vec-extern-decl 'A (* A-rows A-cols) input-tag)
-     (vec-extern-decl 'B (* B-rows B-cols) input-tag)
-     (vec-extern-decl 'C (* A-rows B-cols) output-tag)
-     (vec-decl 'reg-C (current-reg-size))))
+    (append
+     (prelude A-rows A-cols B-rows B-cols)
+     (list (vec-decl 'reg-C (current-reg-size)))))
 
   (define-values (C-reg-ids C-reg-loads C-reg-stores)
     (partition-bv-list 'C (* A-rows B-cols)))

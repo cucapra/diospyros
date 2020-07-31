@@ -88,9 +88,11 @@
 
   (if print-spec
     (begin
-      (pretty-print (only-spec config))
-      ; TODO: write out prefix and postfix in dios DSL
-      ((make-spec-out-dir-writer out-dir) (only-spec config) "spec"))
+      (define-values (spec prelude outputs) (only-spec config))
+      (define out-writer (make-spec-out-dir-writer out-dir))
+      (out-writer spec "spec")
+      (out-writer (concretize-prog  prelude) "prelude")
+      (out-writer outputs "outputs"))
     (run config (make-out-dir-writer out-dir))))
 
 (define bench-name (make-parameter #f))
