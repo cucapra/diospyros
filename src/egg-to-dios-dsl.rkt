@@ -36,7 +36,7 @@
     [(egg-get name idx) e]
     [(egg-vec-4 v1 v2 v3 v4)
       (let ([vs (list v1 v2 v3 v4)])
-        (define (get-or-zero? v) (or (egg-get? v) (= v 0)))
+        (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
         (when (not (andmap get-or-zero? vs))
           (error 'egg-to-dios
             "Expected only egg-get within egg-vec-4: ~a"
@@ -75,7 +75,8 @@
       (values (list v1-name v2-name)
         (flatten
           (list v1-prog
-                v2-prog)))]))
+                v2-prog)))]
+    [_ (error 'egg-to-dios "cannot compile: ~a" e)]))
 
 (define partial
   "(VecMAC
