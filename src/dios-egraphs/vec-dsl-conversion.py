@@ -33,7 +33,7 @@ def to_egg(expr, erase):
     return expr
 
 def preprocess_egg_to_vecs(expr):
-    if expr[0]._val != "List":
+    if expr[0] != "List":
         print("Cannot preprocess expression")
         return expr
 

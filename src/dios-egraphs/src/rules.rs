@@ -30,7 +30,7 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
         .with_egraph(init_eg)
         .with_expr(&prog)
         .with_node_limit(10_000_000)
-        .with_time_limit(std::time::Duration::from_secs(3600))
+        .with_time_limit(std::time::Duration::from_secs(180))
         .with_iter_limit(10_000)
         .run(&rules);
 
