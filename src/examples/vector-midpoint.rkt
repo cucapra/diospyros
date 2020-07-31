@@ -17,7 +17,10 @@
 ;; Generate a spec for vector midpoint between two lists of bitvectors.
 (define (vector-midpoint-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
-    (make-bv-list-zeros 4))
+  (define C
+            (make-bv-list-zeros 4))
+  vector-midpoint V-1 V-2
+  C)
 
 
 (define (print v)
