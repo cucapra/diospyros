@@ -33,17 +33,46 @@
 ; Functional expression -> (name, list of DSL instructions)
 (define (egg-to-dios e)
   (match e
-    [(egg-get name idx) e]
+    [0
+     (define zero (new-name 'z))
+     (define bind-name (new-name 'let))
+     (values
+       bind-name
+       (let-bind bind-name zero float-type)) ]
+    [(egg-get name idx)
+     (define bind-name (new-name 'get))
+     (values
+       bind-name
+       (array-get bind-name name idx))]
+    [(egg-binop op lhs rhs)
+     (define-values (l-name l-prog) (egg-to-dios lhs))
+     (define-values (r-name r-prog) (egg-to-dios rhs))
+     (define op-res (new-name 'op))
+     (define op-out
+       (scalar-binop op-res op l-name r-name))
+     (values op-res
+             (flatten
+               (list l-prog
+                     r-prog
+                     op-out)))]
     [(egg-vec-4 v1 v2 v3 v4)
       (let ([vs (list v1 v2 v3 v4)])
         (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
-        (when (not (andmap get-or-zero? vs))
-          (error 'egg-to-dios
-            "Expected only egg-get within egg-vec-4: ~a"
-            vs))
-        (egg-get-list-to-shuffle vs
-                                 (new-name `shufs)
-                                 (new-name `shuf-out)))]
+        (if (andmap get-or-zero? vs)
+          (egg-get-list-to-shuffle vs
+                                   (new-name `shufs)
+                                   (new-name `shuf-out))
+          (begin
+            (let-values ([(n1 p1) (egg-to-dios v1)]
+                         [(n2 p2) (egg-to-dios v2)]
+                         [(n3 p3) (egg-to-dios v3)]
+                         [(n4 p4) (egg-to-dios v4)])
+              (define name (new-name 'lit))
+              (define vlit
+                (vec-lit name (list n1 n2 n3 n4) float-type))
+              (values name
+                      (flatten
+                        (list p1 p2 p3 p4 vlit)))))))]
     [(egg-vec-op `vec-mac (list acc v1 v2))
       (define-values (acc-name acc-prog) (egg-to-dios acc))
       (define-values (v1-name v1-prog) (egg-to-dios v1))

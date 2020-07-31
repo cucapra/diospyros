@@ -23,6 +23,9 @@
 ; Set constant vector in memory, with initialization.
 (struct vec-const (id init type) #:transparent)
 
+; Vector composed of compound expressions. Used to represent {a[0], b[1], a[1]}
+(struct vec-lit (id elems type) #:transparent)
+
 ; Vector declaration, no initialization.
 (struct vec-decl (id size) #:transparent)
 
@@ -55,7 +58,10 @@
 
 ; Perform a binary op on scalar operations. Does not allow for nested
 ; expressions: l-id and r-id must be variable names.
-(struct scalar-binop (id l-id r-id) #:transparent)
+(struct scalar-binop (id op l-id r-id) #:transparent)
+
+; Let binding
+(struct let-bind (id e type) #:transparent)
 
 (require (for-syntax racket/base
                      syntax/parse)
