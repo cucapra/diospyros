@@ -10,28 +10,38 @@
 
 (module+ main
   (define out-file (make-parameter #f))
+  (define egg (make-parameter #f))
   (define intermediate (make-parameter #f))
 
-  (define file-to-compile
+  (define input-path
     (command-line
       #:program "Diospyros compiler"
       #:once-each
       [("-o" "--out-file") out
                            "C file to write to."
                            (out-file out)]
+      [("-e" "--egg") "Input is an egg kernel (input should be a directory)"
+                      (egg #t)]
       [("--no-compile") "Output intermediate vector-lang program"
                         (intermediate #t)]
-      [("--supress-git") "Output intermediate vector-lang program"
-                        (supress-git-info #t)]
-      #:args (filename)
-      filename))
-
-  (define input-string (read (open-input-file file-to-compile)))
+      [("--suppress-git") "Don't write git info out"
+                        (suppress-git-info #t)]
+      #:args (path)
+      path))
 
   ; To eval the input, use the current namespace
   (define-namespace-anchor a)
   (define ns (namespace-anchor->namespace a))
-  (define input-program (eval input-string ns))
+
+  (define input-program
+    (if egg
+      (begin
+        ; TODO: call egg-to-dios-dsl with spec, prelude, outputs
+        (list))
+      (begin
+        (define input-string (read (open-input-file input-path)))
+        (eval input-string ns))))
+
 
   ; Compute the intermediate program.
   (define i-prog

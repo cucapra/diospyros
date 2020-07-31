@@ -2,11 +2,11 @@
 
 (require "../c-ast.rkt")
 
-(provide supress-git-info
+(provide suppress-git-info
          git-info-comment)
 
 ; Supress the git information header
-(define supress-git-info (make-parameter #f))
+(define suppress-git-info (make-parameter #f))
 
 ; Return the non-error string output of a system command
 (define (get-command-output cmd)

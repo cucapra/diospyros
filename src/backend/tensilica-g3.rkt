@@ -387,7 +387,7 @@
     (c-seq
       (list
         ; Include a comment with git info
-        (if (not (supress-git-info))
+        (if (not (suppress-git-info))
           (git-info-comment)
           (c-empty))
         decl-consts
