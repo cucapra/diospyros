@@ -49,7 +49,9 @@
                          (eval
                            (read-file-from-path input-path egg-prelude)
                            ns)
-                         (read-file-from-path input-path egg-outputs)))
+                         (eval
+                           (read-file-from-path input-path egg-outputs)
+                           ns)))
       (begin
         (define input-string (read (open-input-file input-path)))
         (eval input-string ns))))
