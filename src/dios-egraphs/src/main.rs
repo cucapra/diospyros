@@ -23,14 +23,20 @@ pub mod binopsearcher;
 // What are the principals behind creating these rules?
 
 fn main() {
-  use std::fs;
+  use std::{env, fs};
 
   // Get a path string to parse a program.
   let path = std::env::args().nth(1).expect("no input path provided.");
+  let timeout = env::var("TIMEOUT")
+      .ok()
+      .and_then(|t| t.parse::<u64>().ok())
+      .unwrap_or(180);
 
-  let prog_str = fs::read_to_string(path).expect("Failed to read the input file.");
+  let prog_str = fs::read_to_string(path)
+      .expect("Failed to read the input file.");
+
   let prog = prog_str.parse().unwrap();
-  let (cost, best) = rules::run(&prog);
+  let (cost, best) = rules::run(&prog, timeout);
 
   println!("{}", best.pretty(40));
   println!("\nCost: {}", cost);

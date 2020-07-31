@@ -22,7 +22,7 @@ fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst)
 }
 
 /// Run the rewrite rules over the input program and return the best (cost, program)
-pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
+pub fn run(prog: &RecExpr<VecLang>, timeout: u64) -> (f64, RecExpr<VecLang>) {
     let rules = rules();
     let mut init_eg : EGraph = EGraph::new(());
     init_eg.add(VecLang::Num(0));
@@ -30,7 +30,7 @@ pub fn run(prog: &RecExpr<VecLang>) -> (f64, RecExpr<VecLang>) {
         .with_egraph(init_eg)
         .with_expr(&prog)
         .with_node_limit(10_000_000)
-        .with_time_limit(std::time::Duration::from_secs(180))
+        .with_time_limit(std::time::Duration::from_secs(timeout))
         .with_iter_limit(10_000)
         .run(&rules);
 
