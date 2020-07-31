@@ -287,6 +287,22 @@
     (for/list ([inst (prog-insts rprog)])
       (match inst
 
+        [(let-bind id expr type)
+         (c-decl "float" #f (c-id id) #f (c-bare expr))]
+
+        [(array-get id arr idx)
+         (c-decl "float" #f (c-id id) #f (c-bare (format "~a[~a]" arr idx)))]
+
+        [(scalar-binop id op lhs rhs)
+         (c-decl "float" #f (c-id id) #f
+                 (c-bare (format "~a ~a ~a" lhs op rhs)))]
+
+        [(vec-lit id elems type)
+         (c-decl "float" #f (c-id id) (length elems)
+                 (c-bare (format "{~a}"
+                                 (string-join
+                                   (map symbol->string elems) ", "))))]
+
         [(vec-const _ _ _)
          (error 'tensilica-g3-compile
                 "Constants should not be present in the body")]

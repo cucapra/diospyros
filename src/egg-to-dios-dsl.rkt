@@ -35,10 +35,9 @@
   (match e
     [0
      (define zero (new-name 'z))
-     (define bind-name (new-name 'let))
      (values
-       bind-name
-       (let-bind bind-name zero float-type)) ]
+       zero
+       (let-bind zero "0" float-type)) ]
     [(egg-get name idx)
      (define bind-name (new-name 'get))
      (values
