@@ -151,8 +151,8 @@
                   (length sketch-out))
           (format
             "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
-            (vector-length spec-out)
-            (vector-length sketch-out)))
+            (length spec-out)
+            (length sketch-out)))
 
   ; Use this named variable to get back the cost from the model.
   (define-symbolic* c (bitvector (cost-fin)))
