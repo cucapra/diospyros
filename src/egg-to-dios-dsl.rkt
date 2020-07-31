@@ -1,33 +1,12 @@
 #lang rosette
 
 (require "ast.rkt"
+         "egg-ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
          "synth.rkt")
 
-(define (parse-from-string s)
-  (parse (open-input-string s)))
-
-(define (parse port)
-  (define s-exp (read port))
-  (s-exp-to-ast s-exp))
-
 (define new-name (make-name-gen))
-
-(define (s-exp-to-ast e)
-  (match e
-    [`(VecMAC ,acc , v1, v2)
-      (egg-vec-op `vec-mac (map s-exp-to-ast (list acc v1 v2)))]
-    [`(VecMul , v1, v2)
-      (egg-vec-op `vec-mul (map s-exp-to-ast (list v1 v2)))]
-    [(or `(Vec4 , v1, v2, v3, v4) `(LitVec4 , v1, v2, v3, v4))
-      (apply egg-vec-4 (map s-exp-to-ast (list v1 v2 v3 v4)))]
-    [`(Get , a, idx)
-      (egg-get a idx)]
-    [0 0]
-    [`(Concat , v1, v2)
-      (egg-concat (s-exp-to-ast v1) (s-exp-to-ast v2))]
-    [_ (error 's-exp-to-ast "invalid s-expression: ~a" e)]))
 
 (define (egg-get-list-to-shuffle gets shuf-name out-name)
   (define has-zero (ormap (curry equal? 0) gets))
@@ -54,18 +33,45 @@
 ; Functional expression -> (name, list of DSL instructions)
 (define (egg-to-dios e)
   (match e
-    [(egg-get name idx) e]
+    [0
+     (define zero (new-name 'z))
+     (values
+       zero
+       (let-bind zero "0" float-type)) ]
+    [(egg-get name idx)
+     (define bind-name (new-name 'get))
+     (values
+       bind-name
+       (array-get bind-name name idx))]
+    [(egg-binop op lhs rhs)
+     (define-values (l-name l-prog) (egg-to-dios lhs))
+     (define-values (r-name r-prog) (egg-to-dios rhs))
+     (define op-res (new-name 'op))
+     (define op-out
+       (scalar-binop op-res op l-name r-name))
+     (values op-res
+             (flatten
+               (list l-prog
+                     r-prog
+                     op-out)))]
     [(egg-vec-4 v1 v2 v3 v4)
       (let ([vs (list v1 v2 v3 v4)])
-        (define (get-or-zero? v) (or (egg-get? v) (= v 0)))
-        (when (not (andmap get-or-zero? vs))
-          (error 'egg-to-dios
-            "Expected only egg-get within egg-vec-4: ~a"
-            vs))
-        (egg-get-list-to-shuffle vs
-                                 (new-name `shufs)
-                                 (new-name `shuf-out)))]
-    [(egg-scalar-op op args) e]
+        (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
+        (if (andmap get-or-zero? vs)
+          (egg-get-list-to-shuffle vs
+                                   (new-name `shufs)
+                                   (new-name `shuf-out))
+          (begin
+            (let-values ([(n1 p1) (egg-to-dios v1)]
+                         [(n2 p2) (egg-to-dios v2)]
+                         [(n3 p3) (egg-to-dios v3)]
+                         [(n4 p4) (egg-to-dios v4)])
+              (define name (new-name 'lit))
+              (define vlit
+                (vec-lit name (list n1 n2 n3 n4) float-type))
+              (values name
+                      (flatten
+                        (list p1 p2 p3 p4 vlit)))))))]
     [(egg-vec-op `vec-mac (list acc v1 v2))
       (define-values (acc-name acc-prog) (egg-to-dios acc))
       (define-values (v1-name v1-prog) (egg-to-dios v1))
@@ -97,8 +103,28 @@
       (values (list v1-name v2-name)
         (flatten
           (list v1-prog
-                v2-prog)))]))
+                v2-prog)))]
+    [_ (error 'egg-to-dios "cannot compile: ~a" e)]))
 
+(define partial
+  "(VecMAC
+     (Vec4
+      0
+      (* (Get I 0) (Get F 2))
+      (+
+       (* (Get I 1) (Get F 2))
+       (+
+        (* (Get F 1) (Get I 4))
+        (* (Get F 0) (Get I 5))))
+      (+
+       (* (Get I 2) (Get F 2))
+       (+
+        (* (Get F 1) (Get I 5))
+        (* (Get F 0) (Get I 6)))))
+     (LitVec4 0 0 0 0)
+     (LitVec4 0 0 0 0))")
+
+(parse-from-string partial)
 
 (module+ test
   (require rackunit
