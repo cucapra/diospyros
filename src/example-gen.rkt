@@ -90,9 +90,9 @@
     (begin
       (define-values (spec prelude outputs) (only-spec config))
       (define out-writer (make-spec-out-dir-writer out-dir))
-      (out-writer spec "spec")
-      (out-writer (concretize-prog  prelude) "prelude")
-      (out-writer outputs "outputs"))
+      (out-writer spec egg-spec)
+      (out-writer (concretize-prog prelude) egg-prelude)
+      (out-writer outputs egg-outputs))
     (run config (make-out-dir-writer out-dir))))
 
 (define bench-name (make-parameter #f))

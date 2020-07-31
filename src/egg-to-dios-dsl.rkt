@@ -6,6 +6,26 @@
          "utils.rkt"
          "synth.rkt")
 
+
+(provide egg-to-dios-dsl)
+
+(define (egg-to-dios-dsl egg-res prelude outputs)
+  (define egg-ast (s-exp-to-ast egg-res))
+  (define-values (out-names body) (egg-to-dios egg-ast))
+
+  (define postlude
+    (for/list ([n (flatten out-names)]
+               [i (in-naturals 0)])
+      (let* ([start (* i (current-reg-size))]
+             [end (* (+ i 1) (current-reg-size))])
+        ; TODO: handle multiple outputs
+        (vec-store (first outputs) n start end))))
+
+  (prog
+    (append (prog-insts prelude)
+            body
+            postlude)))
+
 (define new-name (make-name-gen))
 
 (define (egg-get-list-to-shuffle gets shuf-name out-name)
@@ -123,8 +143,6 @@
         (* (Get F 0) (Get I 6)))))
      (LitVec4 0 0 0 0)
      (LitVec4 0 0 0 0))")
-
-(parse-from-string partial)
 
 (module+ test
   (require rackunit

@@ -3,10 +3,19 @@
 (require "compiler.rkt"
          "ast.rkt"
          "c-ast.rkt"
+         "configuration.rkt"
          "backend/tensilica-g3.rkt"
          "backend/backend-utils.rkt"
+         "egg-to-dios-dsl.rkt"
          threading
          racket/cmdline)
+
+(define (read-file-from-path path file)
+  (define dir-path
+    (if (absolute-path? path)
+      path
+      (build-path (current-directory) path)))
+  (read (open-input-file (build-path dir-path (format "~a.rkt" file)))))
 
 (module+ main
   (define out-file (make-parameter #f))
@@ -36,12 +45,16 @@
   (define input-program
     (if egg
       (begin
-        ; TODO: call egg-to-dios-dsl with spec, prelude, outputs
-        (list))
+        (egg-to-dios-dsl (read-file-from-path input-path egg-res)
+                         (eval
+                           (read-file-from-path input-path egg-prelude)
+                           ns)
+                         (read-file-from-path input-path egg-outputs)))
       (begin
         (define input-string (read (open-input-file input-path)))
         (eval input-string ns))))
 
+  (pretty-print input-program)
 
   ; Compute the intermediate program.
   (define i-prog

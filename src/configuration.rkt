@@ -20,3 +20,7 @@
 ; BV length for representing the program cost
 (define cost-fin
   (make-parameter 10))
+
+; Egg intermediate files
+(define-values (egg-spec egg-prelude egg-outputs egg-res)
+  (values "spec" "prelude" "outputs" "res"))

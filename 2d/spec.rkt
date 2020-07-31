@@ -1,0 +1,30 @@
+(list
+ (box (bvmul I$0 F$0))
+ (box (bvadd (bvmul I$0 F$1) (bvmul I$1 F$0)))
+ (box (bvadd (bvmul I$1 F$1) (bvmul I$2 F$0)))
+ (box (bvadd (bvmul I$2 F$1) (bvmul I$3 F$0)))
+ (box (bvmul I$3 F$1))
+ (box (bvadd (bvmul I$0 F$2) (bvmul I$4 F$0)))
+ (box (bvadd (bvmul I$0 F$3) (bvmul I$1 F$2) (bvmul I$4 F$1) (bvmul I$5 F$0)))
+ (box (bvadd (bvmul I$1 F$3) (bvmul I$2 F$2) (bvmul I$5 F$1) (bvmul I$6 F$0)))
+ (box (bvadd (bvmul I$2 F$3) (bvmul I$3 F$2) (bvmul I$6 F$1) (bvmul I$7 F$0)))
+ (box (bvadd (bvmul I$3 F$3) (bvmul I$7 F$1)))
+ (box (bvadd (bvmul I$4 F$2) (bvmul I$8 F$0)))
+ (box (bvadd (bvmul I$4 F$3) (bvmul I$5 F$2) (bvmul I$8 F$1) (bvmul I$9 F$0)))
+ (box (bvadd (bvmul I$5 F$3) (bvmul I$6 F$2) (bvmul I$9 F$1) (bvmul I$10 F$0)))
+ (box
+  (bvadd (bvmul I$6 F$3) (bvmul I$7 F$2) (bvmul I$10 F$1) (bvmul I$11 F$0)))
+ (box (bvadd (bvmul I$7 F$3) (bvmul I$11 F$1)))
+ (box (bvadd (bvmul I$8 F$2) (bvmul I$12 F$0)))
+ (box
+  (bvadd (bvmul I$8 F$3) (bvmul I$9 F$2) (bvmul I$12 F$1) (bvmul I$13 F$0)))
+ (box
+  (bvadd (bvmul I$9 F$3) (bvmul I$10 F$2) (bvmul I$13 F$1) (bvmul I$14 F$0)))
+ (box
+  (bvadd (bvmul I$10 F$3) (bvmul I$11 F$2) (bvmul I$14 F$1) (bvmul I$15 F$0)))
+ (box (bvadd (bvmul I$11 F$3) (bvmul I$15 F$1)))
+ (box (bvmul I$12 F$2))
+ (box (bvadd (bvmul I$12 F$3) (bvmul I$13 F$2)))
+ (box (bvadd (bvmul I$13 F$3) (bvmul I$14 F$2)))
+ (box (bvadd (bvmul I$14 F$3) (bvmul I$15 F$2)))
+ (box (bvmul I$15 F$3)))
