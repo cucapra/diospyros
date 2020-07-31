@@ -18,10 +18,15 @@
 (define (dot-product-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
     (make-bv-list-zeros 4)
-  ;(for* ([i V-1]
-   ;      [j V-2])
-          (vector-reduce-sum (vector-multiply V-1 V-2)))
+  (define (vector-reduce-sum v)
+    (define (combine b acc) (bvadd acc b))
+     (foldl combine (bv-value 0) v))
 
+  (for/list ([i V-1]
+             [j V-2])
+    (define thing
+          (bvmul (unbox i) (unbox j)))
+    (vector-reduce-sum thing)))
 
 
 (define (print v)
