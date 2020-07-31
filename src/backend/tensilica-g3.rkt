@@ -298,7 +298,7 @@
                  (c-bare (format "~a ~a ~a" lhs op rhs)))]
 
         [(vec-lit id elems type)
-         (c-decl "float" #f (c-id id) (length elems)
+         (c-decl "xb_vecMxf32" #f (c-id id) (length elems)
                  (c-bare (format "{~a}"
                                  (string-join
                                    (map symbol->string elems) ", "))))]
