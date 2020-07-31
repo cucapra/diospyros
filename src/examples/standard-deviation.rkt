@@ -17,7 +17,10 @@
 ;; Generate a spec for standard deviation between two lists of bitvectors.
 (define (standard-deviation-spec V A H)
   (assert (= (length A) (length H)))
-    (make-bv-list-zeros 4))
+    (define C
+            (make-bv-list-zeros 4))
+  vector-standard-deviation V A H 
+  C)
 
 
 (define (print v)
