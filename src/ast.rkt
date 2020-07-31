@@ -49,6 +49,14 @@
 ; Vector write (copy).
 (struct vec-write (dst src) #:transparent)
 
+;; ========== Scalar Operations ===========
+; Get a value from a array and assign it to `id`.
+(struct array-get (id arr-id idx) #:transparent)
+
+; Perform a binary op on scalar operations. Does not allow for nested
+; expressions: l-id and r-id must be variable names.
+(struct scalar-binop (id l-id r-id) #:transparent)
+
 (require (for-syntax racket/base
                      syntax/parse)
          racket/syntax

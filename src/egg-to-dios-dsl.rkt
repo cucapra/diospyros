@@ -1,33 +1,12 @@
 #lang rosette
 
 (require "ast.rkt"
+         "egg-ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
          "synth.rkt")
 
-(define (parse-from-string s)
-  (parse (open-input-string s)))
-
-(define (parse port)
-  (define s-exp (read port))
-  (s-exp-to-ast s-exp))
-
 (define new-name (make-name-gen))
-
-(define (s-exp-to-ast e)
-  (match e
-    [`(VecMAC ,acc , v1, v2)
-      (egg-vec-op `vec-mac (map s-exp-to-ast (list acc v1 v2)))]
-    [`(VecMul , v1, v2)
-      (egg-vec-op `vec-mul (map s-exp-to-ast (list v1 v2)))]
-    [(or `(Vec4 , v1, v2, v3, v4) `(LitVec4 , v1, v2, v3, v4))
-      (apply egg-vec-4 (map s-exp-to-ast (list v1 v2 v3 v4)))]
-    [`(Get , a, idx)
-      (egg-get a idx)]
-    [0 0]
-    [`(Concat , v1, v2)
-      (egg-concat (s-exp-to-ast v1) (s-exp-to-ast v2))]
-    [_ (error 's-exp-to-ast "invalid s-expression: ~a" e)]))
 
 (define (egg-get-list-to-shuffle gets shuf-name out-name)
   (define has-zero (ormap (curry equal? 0) gets))
@@ -65,7 +44,6 @@
         (egg-get-list-to-shuffle vs
                                  (new-name `shufs)
                                  (new-name `shuf-out)))]
-    [(egg-scalar-op op args) e]
     [(egg-vec-op `vec-mac (list acc v1 v2))
       (define-values (acc-name acc-prog) (egg-to-dios acc))
       (define-values (v1-name v1-prog) (egg-to-dios v1))
@@ -99,6 +77,25 @@
           (list v1-prog
                 v2-prog)))]))
 
+(define partial
+  "(VecMAC
+     (Vec4
+      0
+      (* (Get I 0) (Get F 2))
+      (+
+       (* (Get I 1) (Get F 2))
+       (+
+        (* (Get F 1) (Get I 4))
+        (* (Get F 0) (Get I 5))))
+      (+
+       (* (Get I 2) (Get F 2))
+       (+
+        (* (Get F 1) (Get I 5))
+        (* (Get F 0) (Get I 6)))))
+     (LitVec4 0 0 0 0)
+     (LitVec4 0 0 0 0))")
+
+(parse-from-string partial)
 
 (module+ test
   (require rackunit
