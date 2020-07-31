@@ -20,13 +20,14 @@
     (make-bv-list-zeros 4)
   (define (vector-reduce-sum v)
     (define (combine b acc) (bvadd acc b))
-     (foldl combine (bv-value 0) v))
-
+     (list (box (foldl combine (bv-value 0) v))))
+  
+  (define thing
   (for/list ([i V-1]
              [j V-2])
-    (define thing
-          (bvmul (unbox i) (unbox j)))
-    (vector-reduce-sum thing)))
+          (bvmul (unbox i) (unbox j))))
+  
+  (vector-reduce-sum thing))
 
 
 (define (print v)
