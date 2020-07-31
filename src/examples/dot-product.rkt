@@ -17,7 +17,8 @@
 ;; Generate a spec for dot product between two lists of bitvectors.
 (define (dot-product-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
-    (make-bv-list-zeros 4)
+  (define C
+            (make-bv-list-zeros 4))
   (define (vector-reduce-sum v)
     (define (combine b acc) (bvadd acc b))
      (list (box (foldl combine (bv-value 0) v))))
@@ -26,8 +27,9 @@
   (for/list ([i V-1]
              [j V-2])
           (bvmul (unbox i) (unbox j))))
+  (vector-reduce-sum thing)
   
-  (vector-reduce-sum thing))
+  C)
 
 
 (define (print v)
