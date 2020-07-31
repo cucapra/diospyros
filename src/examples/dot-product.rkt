@@ -18,9 +18,16 @@
 (define (dot-product-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
     (make-bv-list-zeros 4)
-  ;(for* ([i V-1]
-   ;      [j V-2])
-          (vector-reduce-sum (vector-multiply V-1 V-2)))
+  (define (vector-reduce-sum v)
+    (define (combine b acc) (bvadd acc b))
+     (foldl combine (bv-value 0) v))
+
+  (for/list ([i V-1]
+             [j V-2])
+    (define thing
+          (bvmul (unbox i) (unbox j)))
+    (vector-reduce-sum thing)))
+  
 
 
 
@@ -136,8 +143,8 @@
 
   ; Run the synthesis query
   (parameterize [(current-reg-size reg-size)]
-    (define A (make-symbolic-bv-list (bitvector (value-fin)) 1))
-    (define B (make-symbolic-bv-list (bitvector (value-fin)) 1))
+    (define A (make-symbolic-bv-list-values 2))
+    (define B (make-symbolic-bv-list-values 2))
     (define C-size 4)
 
     ; Generate sketch prog
@@ -176,7 +183,7 @@
       (synth-prog spec-func
                   sketch-func
                   (list A B)
-                  #:get-inps (lambda (args) (flatten (map unbox args)))
+                  #:get-inps (lambda (args) (flatten args))
                   #:min-cost (bv-cost 0)
                   #:assume assume))
 
