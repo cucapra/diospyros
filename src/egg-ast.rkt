@@ -43,8 +43,12 @@
       (egg-get a idx)]
     [`(Concat ,v1 ,v2)
       (egg-concat (s-exp-to-ast v1) (s-exp-to-ast v2))]
-    [`(+ ,lhs ,rhs)
-      (egg-binop '+ (s-exp-to-ast lhs) (s-exp-to-ast rhs))]
-    [`(* ,lhs ,rhs)
-      (egg-binop '* (s-exp-to-ast lhs) (s-exp-to-ast rhs))]
+    [`(+ , vs ...)
+      (assert (> (length vs) 1))
+      (let ([xs (map s-exp-to-ast vs)])
+        (foldl (curry egg-binop '+) (first xs) (rest xs)))]
+    [`(* , vs ...)
+      (assert (> (length vs) 1))
+      (let ([xs (map s-exp-to-ast vs)])
+        (foldl (curry egg-binop '*) (first xs) (rest xs)))]
     [_ (error 's-exp-to-ast "invalid s-expression: ~a" e)]))
