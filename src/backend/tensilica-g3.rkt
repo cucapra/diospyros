@@ -19,8 +19,11 @@
 ; Returns name for the register used to align loads to memory `id'.
 (define align-reg-name (make-prefix-id "align_"))
 
+; Returns a name for a mutable pointer to an input
+(define (mut-name id) (format "~a_mut" id))
+
 ; Returns the name for an input
-(define input-name (make-prefix-id "input_"))
+(define input-name (make-prefix-id ""))
 
 ; Map of constant values to string representations
 (define (make-const-map)
@@ -64,14 +67,14 @@
    [(equal? type float-type) "float"]))
 
 (define (deref-type type)
-   (match type
-     ["int *" "int"]
-     ["float *" "float"]))
+  (when (not (string-suffix? type " *"))
+    (error 'tensilica-g3-compile
+           "Unable to deference type: ~a"
+           type))
+  (string-trim type " *"))
 
 (define (ref-type type)
-   (match type
-     ["int" "int *"]
-     ["float" "float *"]))
+  (format "~a *" type))
 
 ; Track the tag associated with vec-extern-decl. Maintain order.
 (define (make-arg-tag-tracker)
@@ -131,7 +134,7 @@
             (list (c-id dst)
                   (align-reg-name src)
                   (c-cast "xb_vecMxf32 *"
-                          (c-id src))
+                          (c-id  (mut-name src)))
                   (c-num (* (current-reg-size)
                             (- end start)))))))
 
@@ -159,7 +162,7 @@
     (map (lambda (inp)
            (match (type-ref inp)
             ["int *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]
-            ["float *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]
+            ["float *" (c-deref (c-cast "xb_vecMxf32 *" (c-id inp)))]
             ["xb_vecMx32" (c-id inp)]
             ["xb_vecMxf32"
               (c-call (c-id "PDX_MOV_MX32_FROM_MXF32")
@@ -322,12 +325,23 @@
                  (c-bare (format "~a ~a ~a" lhs op rhs)))]
 
         [(vec-lit id elems type)
+          ;          ["float *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]))
          (define c-ty (c-type type))
-         (type-set id (ref-type c-ty))
-         (c-decl c-ty #f (c-id id) (length elems)
+         (define tens-ty (match (ref-type c-ty)
+           ["int *" "xb_vecMx32 *"]
+           ["float *" "xb_vecMxf32 *"]))
+
+         (define id-tmp (format "~a_tmp" id))
+         (type-set id-tmp (ref-type c-ty))
+         (type-set id (deref-type tens-ty))
+
+         (list
+          (c-decl c-ty #f (c-id id-tmp) (length elems)
                  (c-bare (format "{~a}"
                                  (string-join
-                                   (map symbol->string elems) ", "))))]
+                                   (map symbol->string elems) ", "))))
+          (c-decl (deref-type tens-ty) #f (c-id id) #f
+            (c-deref (c-cast tens-ty (c-id id-tmp)))))]
 
         [(vec-const _ _ _)
          (error 'tensilica-g3-compile
@@ -342,13 +356,15 @@
         ; register.
         [(vec-extern-decl id size tag)
          ; TODO: vec-extern-decl should have a type flag
+         ; Aligning loads pump the pointer, so make a mutable copy
          (type-set id "float *")
+         (type-set (mut-name id) "float *")
          (set-arg-tag! id tag)
          (let* ([inp-name (input-name id)]
                 [decl
                   (c-decl "float *"
                           "__restrict"
-                          (c-id id)
+                          (c-id (mut-name id))
                           #f
                           inp-name)]
                 [load-name (align-reg-name id)])

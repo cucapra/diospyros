@@ -75,7 +75,8 @@
                       id)]
               [(not (or (false? init)
                         (c-bare? init)
-                        (c-id? init)))
+                        (c-id? init)
+                        (c-deref? init)))
                (error type-name
                       "Invalid init: ~a. Id: ~a."
                       init
