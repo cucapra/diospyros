@@ -54,10 +54,10 @@
 (define (egg-to-dios e)
   (match e
     [0
-     (define zero (new-name 'z))
+     (define zero (new-name 'Z))
      (values
        zero
-       (let-bind zero "0" float-type)) ]
+       (let-bind zero "0" float-type))]
     [(egg-get name idx)
      (define bind-name (new-name 'get))
      (values
@@ -116,6 +116,17 @@
                 (list v1-prog
                       v2-prog
                       mul)))]
+    [(egg-vec-op `vec-add (list v1 v2))
+      (define-values (v1-name v1-prog) (egg-to-dios v1))
+      (define-values (v2-name v2-prog) (egg-to-dios v2))
+      (define add-name (new-name 'add-out))
+      (define add
+        (vec-app add-name 'vec-add (list v1-name v2-name)))
+      (values add-name
+              (flatten
+                (list v1-prog
+                      v2-prog
+                      add)))]
     [(egg-concat v1 v2)
       (define-values (v1-name v1-prog) (egg-to-dios v1))
       (define-values (v2-name v2-prog) (egg-to-dios v2))

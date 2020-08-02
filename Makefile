@@ -26,4 +26,4 @@ clean:
 	./dios-example-gen --only-spec -b $* -p $*-params -o $*-out
 	cat $*-out/spec.rkt | python3 src/dios-egraphs/vec-dsl-conversion.py -p > $*-out/spec-egg.rkt
 	cargo run --manifest-path src/dios-egraphs/Cargo.toml $*-out/spec-egg.rkt > $*-out/res.rkt
-	./dios -e $*-out
+	./dios -e $*-out -o $*-out/kernel.c

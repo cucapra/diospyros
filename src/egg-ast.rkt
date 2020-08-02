@@ -37,6 +37,8 @@
       (egg-vec-op `vec-mac (map s-exp-to-ast (list acc v1 v2)))]
     [`(VecMul ,v1 ,v2)
       (egg-vec-op `vec-mul (map s-exp-to-ast (list v1 v2)))]
+    [`(VecAdd ,v1 ,v2)
+      (egg-vec-op `vec-add (map s-exp-to-ast (list v1 v2)))]
     [(or `(Vec4 ,v1 ,v2 ,v3 ,v4) `(LitVec4 ,v1 ,v2 ,v3 ,v4))
       (apply egg-vec-4 (map s-exp-to-ast (list v1 v2 v3 v4)))]
     [`(Get ,a ,idx)
