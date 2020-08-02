@@ -58,6 +58,21 @@
                #:before-first "{"
                #:after-last "}"))
 
+(define (c-type type)
+ (cond
+   [(equal? type int-type) "int"]
+   [(equal? type float-type) "float"]))
+
+(define (deref-type type)
+   (match type
+     ["int *" "int"]
+     ["float *" "float"]))
+
+(define (ref-type type)
+   (match type
+     ["int" "int *"]
+     ["float" "float *"]))
+
 ; Track the tag associated with vec-extern-decl. Maintain order.
 (define (make-arg-tag-tracker)
   (define map (make-hash))
@@ -269,12 +284,9 @@
       (for/list ([inst all-consts])
         (match inst
           [(vec-const id init type)
-           (define c-type
-             (cond
-               [(equal? type int-type) "int"]
-               [(equal? type float-type) "float"]))
-           (type-set id (~a c-type " *"))
-           (c-decl c-type
+           (define c-ty (c-type type))
+           (type-set id (~a c-ty " *"))
+           (c-decl c-ty
                    "__attribute__((section(\".dram0.data\")))"
                    (c-id id)
                    (current-reg-size)
@@ -288,17 +300,31 @@
       (match inst
 
         [(let-bind id expr type)
-         (c-decl "float" #f (c-id id) #f (c-bare expr))]
+         (define c-ty (c-type type))
+         (type-set id c-ty)
+         (c-decl c-ty #f (c-id id) #f (c-bare expr))]
 
         [(array-get id arr idx)
-         (c-decl "float" #f (c-id id) #f (c-bare (format "~a[~a]" arr idx)))]
+         (define c-ty (deref-type (type-ref arr)))
+         (type-set id c-ty)
+         (c-decl c-ty #f (c-id id) #f (c-bare (format "~a[~a]" arr idx)))]
 
         [(scalar-binop id op lhs rhs)
-         (c-decl "float" #f (c-id id) #f
+         (define c-ty-l (type-ref lhs))
+         (define c-ty-r (type-ref rhs))
+         (when (not (equal? c-ty-l c-ty-r))
+          (error 'tensilica-g3-compile
+                "Types for LHS and RHS in scalar binop do not match ~a ~a"
+                c-ty-l
+                c-ty-r))
+         (type-set id c-ty-l)
+         (c-decl c-ty-l #f (c-id id) #f
                  (c-bare (format "~a ~a ~a" lhs op rhs)))]
 
         [(vec-lit id elems type)
-         (c-decl "xb_vecMxf32" #f (c-id id) (length elems)
+         (define c-ty (c-type type))
+         (type-set id (ref-type c-ty))
+         (c-decl c-ty #f (c-id id) (length elems)
                  (c-bare (format "{~a}"
                                  (string-join
                                    (map symbol->string elems) ", "))))]
@@ -315,6 +341,7 @@
         ; input for the function arguments of this kernel and an aligning
         ; register.
         [(vec-extern-decl id size tag)
+         ; TODO: vec-extern-decl should have a type flag
          (type-set id "float *")
          (set-arg-tag! id tag)
          (let* ([inp-name (input-name id)]
