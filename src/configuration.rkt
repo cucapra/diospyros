@@ -15,7 +15,7 @@
 
 ; BV length for representing indices in shuffle vectors
 (define index-fin
-  (make-parameter 6))
+  (make-parameter 10))
 
 ; BV length for representing the program cost
 (define cost-fin
