@@ -19,9 +19,8 @@
   (assert (= (length A) (length H)))
     (define C
             (make-bv-list-zeros 4))
-  vector-standard-deviation V A H 
+  vector-standard-deviation V A H
   C)
-
 
 (define (print v)
   (pretty-print v) v)
@@ -36,10 +35,10 @@
      (vec-extern-decl 'C (length H) input-tag)
      (vec-extern-decl 'D 4 output-tag)
      (vec-decl 'reg-D (current-reg-size))))
-  
+
   (define-values (D-reg-ids D-reg-loads D-reg-stores)
     (partition-bv-list 'D 4))
-  
+
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
@@ -51,18 +50,18 @@
        (vec-shuffle 'reg-A shuf-A (list 'A))
        (vec-shuffle 'reg-B shuf-B (list 'B))
        (vec-shuffle 'reg-C shuf-C (list 'C))))
-    
+
     ; Use choose* to select an output register to both read and write
-    (define output-mac
+    (define output-standard-deviation
       (apply choose*
              (map (lambda (out-reg)
                     (list
-                     (vec-write 'reg-C out-reg)
+                     (vec-write 'reg-D out-reg)
                      (vec-app 'out 'vec-standard-deviation (list 'reg-A 'reg-B 'reg-C))
                      (vec-write out-reg 'out)))
                   D-reg-ids)))
-    
-    (append input-shuffle output-mac))
+
+    (append input-shuffle output-standard-deviation))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -97,7 +96,11 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-standard-deviation vector-standard-deviation)))
+            #:fn-map (hash 'vec-combine vector-combine
+                           'vec-sum vector-reduce-sum
+                           'vec-amount? vector-amount
+                           'vec-average vector-average
+                           'vec-standard-deviation vector-standard-deviation)))
 
   (list (take (hash-ref env 'D) D-size) cost))
 
@@ -116,12 +119,12 @@
     (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
     (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
     (pretty-print '-------------------------------------------------------)))
-               
+
 ; Describe the configuration parameters for this benchmark
 (define standard-deviation:keys
   (list 'V-1 'V-2 'V-3 'iterations 'reg-size))
-       
-     
+
+
 ; Run standard deviation with the given spec.
 ; Requires that spec be a hash with all the keys describes in standard-deviation:keys.
 (define (standard-deviation:run-experiment spec file-writer)
@@ -194,7 +197,7 @@
         (pretty-print (~a "failed to find solution: " model))))))
 
 
-    
+
 
 
 

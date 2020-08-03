@@ -108,9 +108,6 @@ def get_baseline_names(benchmark):
         return baselines + ["Expert"]
     if benchmark == matadd:
         return baselines + ["Expert"]
-    if benchmark == matsub:
-        return baselines + ["Expert"]
-    return baselines
 
 def get_kernel_name_formatted(kernel):
     if kernel == "Naive hard size":

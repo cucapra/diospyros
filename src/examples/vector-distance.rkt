@@ -22,7 +22,6 @@
   vector-distance V-1 V-2
   C)
 
-
 (define (print v)
   (pretty-print v) v)
 
@@ -35,10 +34,10 @@
      (vec-extern-decl 'B (length V-2) input-tag)
      (vec-extern-decl 'C 4 output-tag)
      (vec-decl 'reg-C (current-reg-size))))
-  
+
   (define-values (C-reg-ids C-reg-loads C-reg-stores)
     (partition-bv-list 'C 4))
-  
+
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
@@ -49,7 +48,7 @@
       (list
        (vec-shuffle 'reg-A shuf-A (list 'A))
        (vec-shuffle 'reg-B shuf-B (list 'B))))
-    
+
     ; Use choose* to select an output register to both read and write
     (define output-distance
       (apply choose*
@@ -59,7 +58,7 @@
                      (vec-app 'out 'vec-distance (list 'reg-A 'reg-B))
                      (vec-write out-reg 'out)))
                   C-reg-ids)))
-    
+
     (append input-shuffle output-distance))
 
   ; Shuffle vectors for each iteration
@@ -112,12 +111,12 @@
     (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
     (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
     (pretty-print '-------------------------------------------------------)))
-               
+
 ; Describe the configuration parameters for this benchmark
 (define vector-distance:keys
   (list 'V1 'V2 'iterations 'reg-size))
-       
-     
+
+
 ; Run vector distance with the given spec.
 ; Requires that spec be a hash with all the keys describes in vector distance:keys.
 (define (vector-distance:run-experiment spec file-writer)

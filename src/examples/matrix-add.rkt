@@ -65,7 +65,7 @@
        (vec-shuffle 'reg-B shuf-B (list 'B))))
 
     ; Use choose* to select an output register to both read and write
-    (define output-mac
+    (define output-add
       (apply choose*
         (map (lambda (out-reg)
           (list
@@ -74,7 +74,7 @@
             (vec-write out-reg 'out)))
         C-reg-ids)))
 
-    (append input-shuffles output-mac))
+    (append input-shuffles output-add))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen

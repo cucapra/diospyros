@@ -9,6 +9,8 @@
          "./examples/2d-conv.rkt"
          "./examples/matrix-add.rkt"
          "./examples/matrix-multiply.rkt"
+         "./examples/matrix-add.rkt"
+         "./examples/dot-product.rkt"
          "./examples/discrete-fourier-transform.rkt")
 
 
@@ -16,6 +18,7 @@
 (define known-benches
   (list "mat-mul"
         "mat-add"
+        "dot-product"
         "2d-conv"
         "dft"))
 
@@ -75,6 +78,10 @@
       [("dft")     (values dft:run-experiment
                            dft:only-spec
                            dft:keys)]
+      [("dot-product") (values dot-product:run-experiment
+                               (lambda (_)
+                                 (pretty-print "mat-add only-spec not implemented"))
+                               dot-product:keys)]
       [else (error 'run-bench
                    "Unknown benchmark ~a"
                    name)]))

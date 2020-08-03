@@ -11,8 +11,8 @@
          racket/generator
          rosette/lib/angelic)
 
-;(provide matrix-sub:keys
-;         matrix-sub:run-experiment)
+(provide matrix-sub:keys
+         matrix-sub:run-experiment)
 
 ;; Generate a spec for matrix sub of a given size.
 (define (matrix-sub-spec mat-A mat-B)
@@ -27,7 +27,7 @@
   (for* ([i A-rows]
          [j B-cols])
     (define sum
-          (bvadd (matrix-ref mat-A i j)
+          (bvsub (matrix-ref mat-A i j)
              (matrix-ref mat-B i j)))
     (matrix-set! C i j sum))
 
@@ -136,15 +136,16 @@
 
 ; Run matrix sub experiment with the given spec.
 ; Requires that spec be a hash with all the keys describes in matrix-sub:keys.
-;(define (matrix-sub:run-experiment spec file-writer)
-  ;(pretty-print (~a "Running matrix sub with config: " spec))
-  (define A-rows 2)
-  (define A-cols 2)
-  (define B-rows 2)
-  (define B-cols 2)
-  (define iterations 4)
-  (define reg-size 4)
-  (define pre-reg-of #t)
+(define (matrix-sub:run-experiment spec file-writer)
+  (pretty-print (~a "Running matrix sub with config: " spec))
+  (define A-rows (hash-ref spec 'A-rows))
+  (define A-cols (hash-ref spec 'A-cols))
+  (define B-rows (hash-ref spec 'B-rows))
+  (define B-cols (hash-ref spec 'B-cols))
+  (define iterations (hash-ref spec 'iterations))
+  (define reg-size (hash-ref spec 'reg-size))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
   (assert (equal? A-cols B-cols)
           "matrix-sub:run-experiment: Invalid matrix sizes. A-cols not equal to B-cols")
@@ -210,4 +211,4 @@
         (let ([prog (evaluate msub model)])
           ;(file-writer prog cost)
           (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model)))))
+        (pretty-print (~a "failed to find solution: " model))))))
