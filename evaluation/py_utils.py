@@ -5,10 +5,12 @@ harness_dir = "evaluation/"
 
 conv2d = "2d-conv"
 matmul = "mat-mul"
+matadd = "mat-add"
 dft = "dft"
 
 benchmarks = [
     matmul,
+    matadd,
     conv2d,
     dft,
 ]

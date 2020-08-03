@@ -34,14 +34,6 @@ def get_color_palette(benchmark):
         # For matmul, use purple for the expert
         palette.append(sns.color_palette("colorblind", 5)[4])
 
-    if benchmark == matadd:
-        # For matadd, use purple for the expert
-        palette.append(sns.color_palette("colorblind", 5)[4])
-
-    if benchmark == matsub:
-        # For matsub, use purple for the expert
-        palette.append(sns.color_palette("colorblind", 5)[4])
-
     return palette
 
 def get_y_limit(benchmark):
@@ -51,18 +43,18 @@ def get_y_limit(benchmark):
         return 325
     if benchmark == matadd:
         return 325
-    if benchmark == matsub:
-        return 325
-    if benchmark == standardeviation:
-        return 400
-    if benchmark == vectormidpoint:
-        return 325
-    if benchmark == vectordistance:
-        return 325
+#    if benchmark == matsub:
+#        return 325
+#    if benchmark == standardeviation:
+#        return 400
+#    if benchmark == vectormidpoint:
+#        return 325
+#    if benchmark == vectordistance:
+#        return 325
 
     print("Error: need y limit for benchmark", benchmark)
 
-def get_size_formatted(benchmark, row, vector):
+def get_size_formatted(benchmark, row):
     if benchmark == conv2d:
         return "{}×{} Input, {}×{} Filter".format(row["I_ROWS"],
                                                   row["I_COLS"],
@@ -88,25 +80,23 @@ def get_size_formatted(benchmark, row, vector):
 #    print("Error: need size formatting for benchmark", benchmark)
 
 #def get_size_vector_formatted(benchmark, vector):
-    if benchmark == standarddeviation:
-        return "{}×{} by {}×{}".format(vector["V_1"],
-                                       vector["V_2"],
-                                       vector["V_3"])
-    if benchmark == vectormidpoint:
-        return "{}×{} by {}×{}".format(vector["V_1"],
-                                       vector["V_2"])
+#    if benchmark == standarddeviation:
+#        return "{}×{} by {}×{}".format(vector["V_1"],
+#                                       vector["V_2"],
+#                                       vector["V_3"])
+#    if benchmark == vectormidpoint:
+#        return "{}×{} by {}×{}".format(vector["V_1"],
+#                                       vector["V_2"])
 
-    if benchmark == vectordistance:
-        return "{}×{} by {}×{}".format(vector["V_1"],
-                                       vector["V_2"])
+#     if benchmark == vectordistance:
+#        return "{}×{} by {}×{}".format(vector["V_1"],
+#                                       vector["V_2"])
 
     print("Error: need size formatting for benchmark", benchmark)
 
 def get_baseline_names(benchmark):
     baselines = ["Naive", "Naive hard size", "Nature"]
     if benchmark == matmul:
-        return baselines + ["Expert"]
-    if benchmark == matadd:
         return baselines + ["Expert"]
 
 def get_kernel_name_formatted(kernel):
@@ -165,11 +155,11 @@ def write_summary_statistics(benchmark, benchmark_data, file):
         if row["Kernel"] == "Nature":
             nature_cycles[row["Size"]] = float(row["Cycles (simulation)"])
 
-    for _, vector in benchmark_data.itervectors():
-        if vector["Kernel"] == "Naive":
-            naive_cycles[vector["Size"]] = float(vector["Cycles (simulation)"])
-        if vector["Kernel"] == "Nature":
-            nature_cycles[vector["Size"]] = float(vector["Cycles (simulation)"])
+    #for _, vector in benchmark_data.itervectors():
+    #    if vector["Kernel"] == "Naive":
+    #        naive_cycles[vector["Size"]] = float(vector["Cycles (simulation)"])
+    #    if vector["Kernel"] == "Nature":
+    #        nature_cycles[vector["Size"]] = float(vector["Cycles (simulation)"])
 
     speedups_naive = []
     speedups_nature = []
@@ -196,24 +186,24 @@ def write_summary_statistics(benchmark, benchmark_data, file):
                     "Speedup vs. Naive" : format_fl(speedup_naive),
                     "Speedup vs. Nature" : format_fl(speedup_nature),
                 })
-        for _, r in benchmark_data.itervectors():
-            size = r["Size"]
-            cycles = r["Cycles (simulation)"]
+        #for _, r in benchmark_data.itervectors():
+        #    size = r["Size"]
+        #    cycles = r["Cycles (simulation)"]
 
-            speedup_naive = naive_cycles[size]/cycles
-            speedup_nature = nature_cycles[size]/cycles
+        #    speedup_naive = naive_cycles[size]/cycles
+        #    speedup_nature = nature_cycles[size]/cycles
 
-            if "Diospyros (fastest)" in r["Kernel"]:
-                speedups_naive.append(speedup_naive)
-                speedups_nature.append(speedup_nature)
+        #   if "Diospyros (fastest)" in r["Kernel"]:
+        #        speedups_naive.append(speedup_naive)
+        #        speedups_nature.append(speedup_nature)
 
-                writer.writevector({
-                    "Kernel" : r["Kernel"],
-                    "Size" : size,
-                    "Cycles" : r["Cycles (simulation)"],
-                    "Speedup vs. Naive" : format_fl(speedup_naive),
-                    "Speedup vs. Nature" : format_fl(speedup_nature),
-                })
+        #       writer.writevector({
+        #            "Kernel" : r["Kernel"],
+        #            "Size" : size,
+        #            "Cycles" : r["Cycles (simulation)"],
+        #            "Speedup vs. Naive" : format_fl(speedup_naive),
+        #            "Speedup vs. Nature" : format_fl(speedup_nature),
+        #       })
 
         writer.writerow({
             "Kernel" : "Min Diospyros speedup over X",
@@ -227,12 +217,12 @@ def write_summary_statistics(benchmark, benchmark_data, file):
             "Speedup vs. Naive" : format_fl(max(speedups_naive)),
             "Speedup vs. Nature" : format_fl(max(speedups_nature)),
         })
-        writer.writevector({
-            "Kernel" : "Max Diospyros speedup over X",
-            "Size" : "","Cycles" : "",
-            "Speedup vs. Naive" : format_fl(max(speedups_naive)),
-            "Speedup vs. Nature" : format_fl(max(speedups_nature)),
-        })
+        #writer.writevector({
+        #    "Kernel" : "Max Diospyros speedup over X",
+        #    "Size" : "","Cycles" : "",
+        #    "Speedup vs. Naive" : format_fl(max(speedups_naive)),
+        #    "Speedup vs. Nature" : format_fl(max(speedups_nature)),
+        #})
 
 
 def format_and_chart_data(full_file, summary_file):
@@ -247,8 +237,8 @@ def format_and_chart_data(full_file, summary_file):
     # Iterate for each benchmark
     for benchmark, rows in chart_data.items():
         benchmark_data = pd.DataFrame(columns=['Kernel', 'Size', 'Cycles (simulation)'])
-    for benchmark, vectors in chart_data.items():
-        benchmark_data = pd.DataFrame(columns=['Kernel', 'Size', 'Cycles (simulation)'])
+    #for benchmark, vectors in chart_data.items():
+    #    benchmark_data = pd.DataFrame(columns=['Kernel', 'Size', 'Cycles (simulation)'])
 
 
         # Gather data by kernel size first
@@ -256,9 +246,9 @@ def format_and_chart_data(full_file, summary_file):
         for row in rows:
             size = get_size_formatted(benchmark, row)
             data_per_size[size].append(row)
-        for vector in vectors:
-            size = get_size_formatted(benchmark, vector)
-            data_per_size[size].append(vector)
+        #for vector in vectors:
+        #    size = get_size_formatted(benchmark, vector)
+        #    data_per_size[size].append(vector)
 
         # For each size, go through the baselines first, then find the first
         # (lowest cost from the cost model) and fastest (lowest actual cycles)
@@ -266,12 +256,12 @@ def format_and_chart_data(full_file, summary_file):
         for size, data in sorted(data_per_size.items(), reverse=True):
             for i, kernel in enumerate(get_baseline_names(benchmark)):
                 kernel_row = next(x for x in data if x["kernel"] == kernel)
-                kernel_vector = next(x for x in data if x["kernel"] == kernel)
+               # kernel_vector = next(x for x in data if x["kernel"] == kernel)
                 benchmark_data = benchmark_data.append({
                     'Kernel': get_kernel_name_formatted(kernel),
                     'Size': size,
                     'Cycles (simulation)': int(kernel_row["cycles"]),
-                    'Cycles (simulation)': int(kernel_vector["cycles"]),
+                   # 'Cycles (simulation)': int(kernel_vector["cycles"]),
                     'Order' : i if i < 3 else 5},
                     ignore_index=True)
 
@@ -297,7 +287,7 @@ def format_and_chart_data(full_file, summary_file):
 
 def read_csvs(dir, benchmarks, out):
     rows = 0
-    vectors = 0
+   # vectors = 0
     files = []
     for benchmark in benchmarks:
         b_dir = os.path.join(dir, benchmark)
@@ -329,12 +319,12 @@ def read_csvs(dir, benchmarks, out):
                             row["cost"] = os.path.basename(pre).replace("sol-", "")
                             writer.writerow(row)
                             rows += 1
-                        for vector in reader:
-                            vector["benchmark"] = benchmark
-                            vector["cost"] = os.path.basename(pre).replace("sol-", "")
-                            writer.writevector(vector)
-                            vectors += 1
-    print("Combined {} individual runs into one CSV: {}".format(vectors, out))
+                        #for vector in reader:
+                        #    vector["benchmark"] = benchmark
+                        #    vector["cost"] = os.path.basename(pre).replace("sol-", "")
+                        #    writer.writevector(vector)
+                        #    vectors += 1
+    print("Combined {} individual runs into one CSV: {}".format(rows, out))
     return files
 
 def main():

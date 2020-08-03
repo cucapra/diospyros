@@ -57,6 +57,24 @@ parameters = {
         # },
     ],
     matmul : [
+        #{
+        #    "A-rows": 2,
+        #    "A-cols": 2,
+        #    "B-rows": 2,
+        #    "B-cols": 2,
+        #    "iterations": 2,
+        #    "reg-size": 4
+        #},
+        #{
+        #    "A-rows": 2,
+        #    "A-cols": 3,
+        #    "B-rows": 3,
+        #    "B-cols": 3,
+        #    "iterations": 6,
+        #    "reg-size": 4
+        #}
+    ],
+    matadd : [
         {
             "A-rows": 2,
             "A-cols": 2,
@@ -65,14 +83,14 @@ parameters = {
             "iterations": 2,
             "reg-size": 4
         },
-        {
-            "A-rows": 2,
-            "A-cols": 3,
-            "B-rows": 3,
-            "B-cols": 3,
-            "iterations": 6,
-            "reg-size": 4
-        }
+        #{
+        #    "A-rows": 3,
+        #    "A-cols": 3,
+        #    "B-rows": 3,
+        #    "B-cols": 3,
+        #    "iterations": 6,
+        #    "reg-size": 4
+        #}
     ],
     dft : [
         # {
