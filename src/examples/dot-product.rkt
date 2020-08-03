@@ -11,24 +11,24 @@
          racket/generator
          rosette/lib/angelic)
 
-;(provide dot-product:keys
-;         dot-product:run-experiment)
+(provide dot-product:keys
+        dot-product:run-experiment)
 
 ;; Generate a spec for dot product between two lists of bitvectors.
 (define (dot-product-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
   (define C
-            (make-bv-list-zeros 4))
+            (make-bv-list-zeros (length V-1)))
   (define (vector-reduce-sum v)
     (define (combine b acc) (bvadd acc b))
      (list (box (foldl combine (bv-value 0) v))))
-  
+
   (define thing
   (for/list ([i V-1]
              [j V-2])
           (bvmul (unbox i) (unbox j))))
   (vector-reduce-sum thing)
-  
+
   C)
 
 
@@ -43,12 +43,12 @@
     (list
      (vec-extern-decl 'A (length V-1) input-tag)
      (vec-extern-decl 'B (length V-2) input-tag)
-     (vec-extern-decl 'C 4 output-tag)
+     (vec-extern-decl 'C (length V-1) output-tag)
      (vec-decl 'reg-C (current-reg-size))))
-  
+
   (define-values (C-reg-ids C-reg-loads C-reg-stores)
-    (partition-bv-list 'C 4))
-  
+    (partition-bv-list 'C (length V-1)))
+
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
     ; Assumes that shuffle-gen generated three shuffle vectors
@@ -59,7 +59,7 @@
       (list
        (vec-shuffle 'reg-A shuf-A (list 'A))
        (vec-shuffle 'reg-B shuf-B (list 'B))))
-    
+
     ; Use choose* to select an output register to both read and write
     (define output-dot-product
       (apply choose*
@@ -70,7 +70,7 @@
                      (vec-app 'out 'vec-sum (list 'mul-result))
                      (vec-write out-reg 'out)))
                   C-reg-ids)))
-    
+
     (append input-shuffle output-dot-product))
 
   ; Shuffle vectors for each iteration
@@ -124,30 +124,30 @@
     (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
     (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
     (pretty-print '-------------------------------------------------------)))
-               
+
 ; Describe the configuration parameters for this benchmark
 (define dot-product:keys
   (list 'V1 'V2 'iterations 'reg-size))
-       
-     
+
 ; Run dot product with the given spec.
 ; Requires that spec be a hash with all the keys describes in dot product:keys.
-;(define (dot-product:run-experiment spec file-writer)
- ; (pretty-print (~a "Running dot prodcut with config: " spec))
-  (define V1 2)
-  (define V2 2)
-  (define iterations 4)
-  (define reg-size 4)
-  (define pre-reg-of #t)
+(define (dot-product:run-experiment spec file-writer)
+ (pretty-print (~a "Running dot prodcut with config: " spec))
+  (define V1 (hash-ref spec 'V1))
+  (define V2 (hash-ref spec 'V2))
+  (define iterations (hash-ref spec 'iterations))
+  (define reg-size (hash-ref spec 'reg-size))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
 
   (assert (equal? V1 V2)
           "dot product:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
 
   ; Run the synthesis query
   (parameterize [(current-reg-size reg-size)]
-    (define A (make-symbolic-bv-list-values 2))
-    (define B (make-symbolic-bv-list-values 2))
-    (define C-size 4)
+    (define A (make-symbolic-bv-list-values V1))
+    (define B (make-symbolic-bv-list-values V1))
+    (define C-size V1)
 
     ; Generate sketch prog
     (define dot-product-v (dot-product-shuffle-sketch A B iterations))
@@ -194,6 +194,7 @@
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
         (let ([prog (evaluate dot-product-v model)])
-          ;(file-writer prog cost)
+          (file-writer prog cost)
           (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model)))))
+        (pretty-print (~a "failed to find solution: " model))))))
+

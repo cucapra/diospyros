@@ -8,6 +8,8 @@
          "./configuration.rkt"
          "./examples/2d-conv.rkt"
          "./examples/matrix-multiply.rkt"
+         "./examples/matrix-add.rkt"
+         "./examples/dot-product.rkt"
          "./examples/discrete-fourier-transform.rkt")
 
 
@@ -15,6 +17,7 @@
 (define known-benches
   (list "mat-mul"
         "mat-add"
+        "dot-product"
         "2d-conv"
         "dft"))
 
@@ -50,6 +53,7 @@
       [("2d-conv") (values conv2d:run-experiment conv2d:keys)]
       [("mat-mul") (values matrix-mul:run-experiment matrix-mul:keys)]
       [("mat-add") (values matrix-add:run-experiment matrix-add:keys)]
+      [("dot-product") (values dot-product:run-experiment dot-product:keys)]
       [("dft")     (values dft:run-experiment dft:keys)]
       [else (error 'run-bench
                    "Unknown benchmark ~a"
