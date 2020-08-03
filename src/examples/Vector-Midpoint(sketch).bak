@@ -11,33 +11,20 @@
          racket/generator
          rosette/lib/angelic)
 
-;(provide dot-product:keys
-;         dot-product:run-experiment)
+;(provide vector-midpoint:keys
+;         vector-midpoint:run-experiment)
 
-;; Generate a spec for dot product between two lists of bitvectors.
-(define (dot-product-spec V-1 V-2)
+;; Generate a spec for vector midpoint between two lists of bitvectors.
+(define (vector-midpoint-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
-  (define C
-            (make-bv-list-zeros 4))
-  (define (vector-reduce-sum v)
-    (define (combine b acc) (bvadd acc b))
-     (list (box (foldl combine (bv-value 0) v))))
-  
-  (define thing
-  (for/list ([i V-1]
-             [j V-2])
-          (bvmul (unbox i) (unbox j))))
-  (vector-reduce-sum thing)
-  
-  C)
-
+    (make-bv-list-zeros 4))
 
 
 (define (print v)
   (pretty-print v) v)
 
-;Generate program skecth for dot product
-(define (dot-product-shuffle-sketch V-1 V-2 iterations)
+;Generate program skecth for vector midpoint
+(define (vector-midpoint-shuffle-sketch V-1 V-2 iterations)
   ;Porgram preamble to define the inputs
   (define preamble
     (list
@@ -61,17 +48,16 @@
        (vec-shuffle 'reg-B shuf-B (list 'B))))
     
     ; Use choose* to select an output register to both read and write
-    (define output-dot-product
+    (define output-midpoint
       (apply choose*
              (map (lambda (out-reg)
                     (list
                      (vec-write 'reg-C out-reg)
-                     (vec-app 'mul-result 'vec-mul (list 'reg-A 'reg-B))
-                     (vec-app 'out 'vec-sum (list 'mul-result))
+                     (vec-app 'out 'vec-midpoint (list 'reg-A 'reg-B))
                      (vec-write out-reg 'out)))
                   C-reg-ids)))
     
-    (append input-shuffle output-dot-product))
+    (append input-shuffle output-midpoint))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -86,9 +72,9 @@
             iterations)
             C-reg-stores)))
 
-; Run dot-prodcut sketch with symbolic inputs. If input bitvectors
+; Run vector-midpoint sketch with symbolic inputs. If input bitvectors
 ; are missing, interp will generate freash symbolic values.
-(define (run-dot-product-sketch sketch
+(define (run-vector-midpoint-sketch sketch
                                     C-size
                                     cost-fn
                                     [V1 #f]
@@ -104,8 +90,7 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mul vector-multiply
-                           'vec-sum vector-reduce-sum)))
+            #:fn-map (hash 'vec-midpoint vector-midpoint)))
 
   (list (take (hash-ref env 'C) C-size) cost))
 
@@ -113,11 +98,11 @@
 
 (define (get-statistics C-size sol reg-of)
   (let*
-     ([regs-cost (last (run-dot-product-sketch
+     ([regs-cost (last (run-vector-midpoint-sketch
                       sol
                       C-size
                       (make-register-cost reg-of)))]
-     [class-uniq-cost (last (run-dot-product-sketch
+     [class-uniq-cost (last (run-vector-midpoint-sketch
                             sol
                             C-size
                             (make-shuffle-unique-cost prefix-equiv)))])
@@ -126,14 +111,14 @@
     (pretty-print '-------------------------------------------------------)))
                
 ; Describe the configuration parameters for this benchmark
-(define dot-product:keys
+(define vector-midpoint:keys
   (list 'V1 'V2 'iterations 'reg-size))
        
      
-; Run dot product with the given spec.
-; Requires that spec be a hash with all the keys describes in dot product:keys.
-;(define (dot-product:run-experiment spec file-writer)
- ; (pretty-print (~a "Running dot prodcut with config: " spec))
+; Run vector midpoint with the given spec.
+; Requires that spec be a hash with all the keys describes in vector midpoint:keys.
+;(define (vector-midpoint:run-experiment spec file-writer)
+;  (pretty-print (~a "Running vector midpoint with config: " spec))
   (define V1 2)
   (define V2 2)
   (define iterations 4)
@@ -141,16 +126,16 @@
   (define pre-reg-of #t)
 
   (assert (equal? V1 V2)
-          "dot product:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
+          "vector midpoint:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
 
   ; Run the synthesis query
   (parameterize [(current-reg-size reg-size)]
-    (define A (make-symbolic-bv-list-values 2))
-    (define B (make-symbolic-bv-list-values 2))
+    (define A (make-symbolic-bv-list (bitvector (value-fin)) 1))
+    (define B (make-symbolic-bv-list (bitvector (value-fin)) 1))
     (define C-size 4)
 
     ; Generate sketch prog
-    (define dot-product-v (dot-product-shuffle-sketch A B iterations))
+    (define midpoint-v (vector-midpoint-shuffle-sketch A B iterations))
 
     ; Determine whether to use the pre-computed register-of uninterpreted
     ; function, or pass the implementation to the solver directly
@@ -170,15 +155,15 @@
 
     ;Create function for sketch evaluation
     (define (sketch-func args)
-      (apply (curry run-dot-product-sketch
-                    dot-product-v
+      (apply (curry run-vector-midpoint-sketch
+                    midpoint-v
                     C-size
                     (cost-fn))
              args))
 
      ; Functionalize spec for minimization prog
     (define (spec-func args)
-      (apply dot-product-spec args))
+      (apply vector-midpoint-spec args))
 
     ; Get a generator back from the synthesis procedure
     (define model-generator
@@ -193,7 +178,7 @@
     ; solutions.
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
-        (let ([prog (evaluate dot-product-v model)])
+        (let ([prog (evaluate midpoint-v model)])
           ;(file-writer prog cost)
           (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model)))))
+        (pretty-print (~a "failed to find solution: " model))))))

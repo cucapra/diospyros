@@ -25,7 +25,6 @@
          vector-cos
          vector-sin
          bv-sqrt
-         dot-product
          cosine
          sine)
 
@@ -63,28 +62,6 @@
   (for/list ([e1 v1]
              [e2 v2])
     (box (bvmul (unbox e1) (unbox e2)))))
-
-;; DOT PRODUCT
-(define (dot-product v1 v2)
-  (vector-reduce-sum (vector-multiply v1 v2)))
-
-;; VECTOR SORT LARGEST
-;(define (vector-sort-largest v)
-;    (define (sorted>? x)
-;      (cond       
-;        [(empty? (rest x)) #true ]
-;        [(bvuge (car x) (cadr x)) (sorted>? (cdr x))]
-;        [else #f]))
-    ;(define sorting (map box (sort (map unbox v) bvsgt)))
-;    (cond
-;      [(> (length v) (length (bv-value (value-fin))))
-;       (error "require bitvectors")]
-;      [(equal? (sorted>? (map unbox v)) #t)
-;       v]
-;      [else
-;       (vector-sort-largest (map box (sort (map unbox v) bvsgt)))]))
-
-
   
 ;; VECTOR ADD
 (define (vector-add v1 v2)
@@ -227,15 +204,6 @@
       (let ([inp (value-bv-list 0 1 2 3 4)]
             [gold (value-bv-list 10)])
         (check-equal? (vector-reduce-sum inp) gold)))
-
-    (test-case
-     "DOT-PRODUCT basic examples"
-       (define (check-dot-product v1 v2)
-         (map bitvector->integer (map unbox (dot-product v1 v2))))
-       (check-equal? (check-dot-product (value-bv-list 24 1) (value-bv-list 1 1)) (list 25))
-       (check-equal? (check-dot-product (value-bv-list 10 6) (value-bv-list 5 3)) (list 68))
-       (check-equal? (check-dot-product (value-bv-list 7 9) (value-bv-list 2 1)) (list 23))
-       (check-equal? (check-dot-product (value-bv-list 6 0) (value-bv-list 6 0)) (list 36)))
 
     (test-case
      "BITVECTOR-MIDPOINT basic examples"

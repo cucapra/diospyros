@@ -11,67 +11,53 @@
          racket/generator
          rosette/lib/angelic)
 
-;(provide dot-product:keys
-;         dot-product:run-experiment)
+(provide standard-deviation:keys
+         standard-deviation:run-experiment)
 
-;; Generate a spec for dot product between two lists of bitvectors.
-(define (dot-product-spec V-1 V-2)
+;; Generate a spec for standard deviation between two lists of bitvectors.
+(define (standard-deviation-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
-  (define C
-            (make-bv-list-zeros 4))
-  (define (vector-reduce-sum v)
-    (define (combine b acc) (bvadd acc b))
-     (list (box (foldl combine (bv-value 0) v))))
-  
-  (define thing
-  (for/list ([i V-1]
-             [j V-2])
-          (bvmul (unbox i) (unbox j))))
-  (vector-reduce-sum thing)
-  
-  C)
-
+    (make-bv-list-zeros 4))
 
 
 (define (print v)
   (pretty-print v) v)
 
-;Generate program skecth for dot product
-(define (dot-product-shuffle-sketch V-1 V-2 iterations)
+;Generate program skecth for standard deviation
+(define (standard-deviation-shuffle-sketch V-1 V-2 iterations)
   ;Porgram preamble to define the inputs
   (define preamble
     (list
-     (vec-extern-decl 'A (length V-1) input-tag)
-     (vec-extern-decl 'B (length V-2) input-tag)
-     (vec-extern-decl 'C 4 output-tag)
+     (vec-extern-decl 'A V-1 input-tag)
+     (vec-extern-decl 'B V-2 input-tag)
+     (vec-extern-decl 'C V-1 output-tag)
      (vec-decl 'reg-C (current-reg-size))))
   
-  (define-values (C-reg-ids C-reg-loads C-reg-stores)
-    (partition-bv-list 'C 4))
+  (define-values (reg-ids reg-loads reg-stores)
+    (partition-bv-list 'C (V-1)))
   
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
-    ; Assumes that shuffle-gen generated three shuffle vectors
-    (match-define (list shuf-A shuf-B) shufs)
+    ; Assumes that shuffle-gen generated two shuffle vectors
+    (match-define (list shuf-1 shuf-2) shufs)
 
     ; Shuffle the inputs with symbolic shuffle vectors
     (define input-shuffle
       (list
-       (vec-shuffle 'reg-A shuf-A (list 'A))
-       (vec-shuffle 'reg-B shuf-B (list 'B))))
+       (vec-shuffle 'reg-1 shuf-1 (list '1))
+       (vec-shuffle 'reg-2 shuf-2 (list '2))))
     
     ; Use choose* to select an output register to both read and write
-    (define output-dot-product
+    (define output-mac
       (apply choose*
              (map (lambda (out-reg)
                     (list
-                     (vec-write 'reg-C out-reg)
-                     (vec-app 'mul-result 'vec-mul (list 'reg-A 'reg-B))
-                     (vec-app 'out 'vec-sum (list 'mul-result))
+                     (vec-write 'reg-R out-reg)
+                     (vec-app 'out 'vec-add (list 'reg-1 'reg-2))
                      (vec-write out-reg 'out)))
-                  C-reg-ids)))
+                  reg-ids)))
     
-    (append input-shuffle output-dot-product))
+    (append input-shuffle output-mac))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -79,45 +65,46 @@
 
   (prog
    (append preamble
-           C-reg-loads
+           reg-loads
            (sketch-compute-shuffle-interleave
             shuffle-gen
             compute-gen
             iterations)
-            C-reg-stores)))
+            reg-stores)))
 
-; Run dot-prodcut sketch with symbolic inputs. If input bitvectors
+; Run Standard-deviation sketch with symbolic inputs. If input bitvectors
 ; are missing, interp will generate freash symbolic values.
-(define (run-dot-product-sketch sketch
-                                    C-size
-                                    cost-fn
-                                    [V1 #f]
-                                    [V2 #f])
+(define (run-standard-deviation-sketch sketch
+                                       size
+                                       cost-fn
+                                       [V-1 #f]
+                                       [V-2 #f])
   (define env (make-hash))
-  (when (and V1 V2)
-    (hash-set! env 'A V1)
-    (hash-set! env 'B V2)
-    (hash-set! env 'C (make-bv-list-zeros C-size)))
+  (when (and V-1 V-2)
+    ;(match-define elements-1 V-1)
+    ;(match-define elements-2 V-2)
+    (hash-set! env '1 V-1)
+    (hash-set! env '2 V-2)
+    (hash-set! env '3 (make-bv-list-zeros size)))
 
   (define-values (_ cost)
     (interp sketch
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mul vector-multiply
-                           'vec-sum vector-reduce-sum)))
+            #:fn-map (hash 'vec-standard-deviation vector-standard-deviation)))
 
-  (list (take (hash-ref env 'C) C-size) cost))
+  (list (take (hash-ref env 'C) size) cost))
 
 ; Get statistics on a proposed synthesis solution
 
 (define (get-statistics C-size sol reg-of)
   (let*
-     ([regs-cost (last (run-dot-product-sketch
+     ([regs-cost (last (run-standard-deviation-sketch
                       sol
                       C-size
                       (make-register-cost reg-of)))]
-     [class-uniq-cost (last (run-dot-product-sketch
+     [class-uniq-cost (last (run-standard-deviation-sketch
                             sol
                             C-size
                             (make-shuffle-unique-cost prefix-equiv)))])
@@ -126,31 +113,33 @@
     (pretty-print '-------------------------------------------------------)))
                
 ; Describe the configuration parameters for this benchmark
-(define dot-product:keys
-  (list 'V1 'V2 'iterations 'reg-size))
+(define standard-deviation:keys
+  (list 'V-1 'V-2 'iterations 'reg-size))
        
      
-; Run dot product with the given spec.
-; Requires that spec be a hash with all the keys describes in dot product:keys.
-;(define (dot-product:run-experiment spec file-writer)
- ; (pretty-print (~a "Running dot prodcut with config: " spec))
-  (define V1 2)
-  (define V2 2)
-  (define iterations 4)
-  (define reg-size 4)
-  (define pre-reg-of #t)
+; Run standard deviation with the given spec.
+; Requires that spec be a hash with all the keys describes in standard-deviation:keys.
 
-  (assert (equal? V1 V2)
-          "dot product:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
+(define (standard-deviation:run-experiment spec file-writer)
+  ;(pretty-print (~a "Running matrix multiply with config: " spec))
+  (define V-1 (hash-ref spec 'V-1))
+  (define V-2 (hash-ref spec 'V-2))
+  (define iterations (hash-ref spec 'iterations))
+  (define reg-size (hash-ref spec 'reg-size))
+  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
+                          (hash-ref spec 'pre-reg-of)))
+
+  (assert (equal? V-1 V-2)
+          "standard-deviation:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
 
   ; Run the synthesis query
   (parameterize [(current-reg-size reg-size)]
-    (define A (make-symbolic-bv-list-values 2))
-    (define B (make-symbolic-bv-list-values 2))
+    (define A (make-symbolic-bv-list (bitvector (value-fin)) 1))
+    (define B (make-symbolic-bv-list (bitvector (value-fin)) 1))
     (define C-size 4)
 
     ; Generate sketch prog
-    (define dot-product-v (dot-product-shuffle-sketch A B iterations))
+    (define standard-d (standard-deviation-shuffle-sketch A B iterations))
 
     ; Determine whether to use the pre-computed register-of uninterpreted
     ; function, or pass the implementation to the solver directly
@@ -170,22 +159,23 @@
 
     ;Create function for sketch evaluation
     (define (sketch-func args)
-      (apply (curry run-dot-product-sketch
-                    dot-product-v
+      (apply (curry run-standard-deviation-sketch
+                    standard-d
                     C-size
                     (cost-fn))
              args))
 
      ; Functionalize spec for minimization prog
     (define (spec-func args)
-      (apply dot-product-spec args))
+      (apply standard-deviation-spec args))
 
     ; Get a generator back from the synthesis procedure
     (define model-generator
       (synth-prog spec-func
                   sketch-func
                   (list A B)
-                  #:get-inps (lambda (args) (flatten args))
+                  #:get-inps (lambda (args) (flatten
+                                              (map matrix-elements args)))
                   #:min-cost (bv-cost 0)
                   #:assume assume))
 
@@ -193,7 +183,15 @@
     ; solutions.
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
-        (let ([prog (evaluate dot-product-v model)])
+        (let ([prog (evaluate standard-d model)])
           ;(file-writer prog cost)
           (pretty-print (concretize-prog prog)))
-        (pretty-print (~a "failed to find solution: " model)))))
+        (pretty-print (~a "failed to find solution: " model))))))
+
+
+    
+
+
+
+
+

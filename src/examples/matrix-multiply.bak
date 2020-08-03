@@ -11,15 +11,14 @@
          racket/generator
          rosette/lib/angelic)
 
-(provide matrix-sub:keys
-         matrix-sub:run-experiment)
+(provide matrix-mul:keys
+         matrix-mul:run-experiment)
 
-;; Generate a spec for matrix sub of a given size.
-(define (matrix-sub-spec mat-A mat-B)
+;; Generate a spec for matrix multiply of a given size.
+(define (matrix-multiply-spec mat-A mat-B)
   (match-define (matrix A-rows A-cols A-elements) mat-A)
   (match-define (matrix B-rows B-cols B-elements) mat-B)
-  (assert (= A-cols B-cols))
-  (assert (= A-rows B-rows))
+  (assert (= A-cols B-rows))
   (define C
     (matrix A-rows
             B-cols
@@ -27,19 +26,21 @@
   (for* ([i A-rows]
          [j B-cols])
     (define sum
-          (bvsub (matrix-ref mat-A i j)
-             (matrix-ref mat-B i j)))
+      (apply
+        bvadd
+        (for/list ([k A-cols])
+          (bvmul (matrix-ref mat-A i k)
+             (matrix-ref mat-B k j)))))
     (matrix-set! C i j sum))
 
   (matrix-elements C))
-
 
 (define (pr v)
   (pretty-print v)
   v)
 
-; Generate program sketch for matrix sub
-(define (matrix-sub-shuffle-sketch mat-A mat-B iterations)
+; Generate program sketch for matrix multiply
+(define (matrix-mul-shuffle-sketch mat-A mat-B iterations)
   (match-define (matrix A-rows A-cols _) mat-A)
   (match-define (matrix B-rows B-cols _) mat-B)
   ; Program preamble to define the inputs
@@ -65,16 +66,16 @@
        (vec-shuffle 'reg-B shuf-B (list 'B))))
 
     ; Use choose* to select an output register to both read and write
-    (define output-sub
+    (define output-mac
       (apply choose*
         (map (lambda (out-reg)
           (list
             (vec-write 'reg-C out-reg)
-            (vec-app 'out 'vec-sub (list 'reg-A 'reg-B))
+            (vec-app 'out 'vec-mac (list 'reg-C 'reg-A 'reg-B))
             (vec-write out-reg 'out)))
         C-reg-ids)))
 
-    (append input-shuffles output-sub))
+    (append input-shuffles output-mac))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -89,9 +90,9 @@
             iterations)
            C-reg-stores)))
 
-; Run a matrix sub sketch with symbolic inputs. If input matrices
+; Run a matrix multiply sketch with symbolic inputs. If input matrices
 ; are missing, interp will generate fresh symbolic values.
-(define (run-matrix-sub-sketch sketch
+(define (run-matrix-mul-sketch sketch
                                C-size
                                cost-fn
                                [mat-A #f]
@@ -110,18 +111,18 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-sub vector-sub)))
+            #:fn-map (hash 'vec-mac vector-mac)))
 
   (list (take (hash-ref env 'C) C-size) cost))
 
 ; Get statistics on a proposed synthesis solution
 (define (get-statistics C-size sol reg-of)
   (let*
-     ([regs-cost (last (run-matrix-sub-sketch
+     ([regs-cost (last (run-matrix-mul-sketch
                       sol
                       C-size
                       (make-register-cost reg-of)))]
-     [class-uniq-cost (last (run-matrix-sub-sketch
+     [class-uniq-cost (last (run-matrix-mul-sketch
                             sol
                             C-size
                             (make-shuffle-unique-cost prefix-equiv)))])
@@ -131,13 +132,14 @@
 
 
 ; Describe the configuration parameters for this benchmarks
-(define matrix-sub:keys
+(define matrix-mul:keys
   (list 'A-rows 'A-cols 'B-rows 'B-cols 'iterations 'reg-size))
 
-; Run matrix sub experiment with the given spec.
-; Requires that spec be a hash with all the keys describes in matrix-sub:keys.
-(define (matrix-sub:run-experiment spec file-writer)
-  (pretty-print (~a "Running matrix sub with config: " spec))
+
+; Run matrix multiply experiment with the given spec.
+; Requires that spec be a hash with all the keys describes in matrix-mul:keys.
+(define (matrix-mul:run-experiment spec file-writer)
+  ;(pretty-print (~a "Running matrix multiply with config: " spec))
   (define A-rows (hash-ref spec 'A-rows))
   (define A-cols (hash-ref spec 'A-cols))
   (define B-rows (hash-ref spec 'B-rows))
@@ -147,10 +149,8 @@
   (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
                           (hash-ref spec 'pre-reg-of)))
 
-  (assert (equal? A-cols B-cols)
-          "matrix-sub:run-experiment: Invalid matrix sizes. A-cols not equal to B-cols")
-  (assert (equal? A-rows B-rows)
-          "matrix-sub:run-experiment: Invalid matrix sizes. A-rows not equal to B-rows")
+  (assert (equal? A-cols B-rows)
+          "matrix-mul:run-experiment: Invalid matrix sizes. A-cols not equal to B-rows")
 
   ; Run the synthesis query
   (parameterize [(current-reg-size reg-size)]
@@ -164,7 +164,7 @@
            (current-reg-size)))
 
     ; Generate sketch prog
-    (define msub (matrix-sub-shuffle-sketch A B iterations))
+    (define mmul (matrix-mul-shuffle-sketch A B iterations))
 
     ; Determine whether to use the pre-computed register-of uninterpreted
     ; function, or pass the implementation to the solver directly
@@ -184,15 +184,15 @@
 
     ; Create function for sketch evaluation
     (define (sketch-func args)
-      (apply (curry run-matrix-sub-sketch
-                    msub
+      (apply (curry run-matrix-mul-sketch
+                    mmul
                     C-size
                     (cost-fn))
              args))
 
     ; Functionalize spec for minimization prog
     (define (spec-func args)
-      (apply matrix-sub-spec args))
+      (apply matrix-multiply-spec args))
 
     ; Get a generator back from the synthesis procedure
     (define model-generator
@@ -208,7 +208,7 @@
     ; solutions.
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
-        (let ([prog (evaluate msub model)])
-          ;(file-writer prog cost)
+        (let ([prog (evaluate mmul model)])
+          (file-writer prog cost)
           (pretty-print (concretize-prog prog)))
         (pretty-print (~a "failed to find solution: " model))))))

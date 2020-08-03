@@ -75,7 +75,7 @@
 
 ;;========================= BITVECTOR LISTS =========================
 
-(define (make-symbolic-bv-list ty size v)
+(define (make-symbolic-bv-list ty size)
   (for/list ([_ (in-range size)])
     (define-symbolic* v ty)
     (box v)))
@@ -261,7 +261,7 @@
     [v (error 'bv-length "Unexpected value: ~a" v)]))
 
 ; Returns number of vectors accessed by an index vector assuming each vector
-; contains reg-size elements. Passed a specific implementation of register-of
+; contains reg-size elements. Passed a fific implementation of register-of
 ; to use.
 (define (reg-used idxs reg-of)
   ; Check how many distinct registers these indices fall within.

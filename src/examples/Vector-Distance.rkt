@@ -11,20 +11,22 @@
          racket/generator
          rosette/lib/angelic)
 
-(provide vector-midpoint:keys
-         vector-midpoint:run-experiment)
+(provide vector-distance:keys
+         vector-distance:run-experiment)
 
-;; Generate a spec for vector midpoint between two lists of bitvectors.
-(define (vector-midpoint-spec V-1 V-2)
+;; Generate a spec for vector distance between two lists of bitvectors.
+(define (vector-distance-spec V-1 V-2)
   (assert (= (length V-1) (length V-2)))
-    (make-bv-list-zeros 4))
-
+  (define C
+            (make-bv-list-zeros 4))
+  vector-distance V-1 V-2
+  C)
 
 (define (print v)
   (pretty-print v) v)
 
-;Generate program skecth for vector midpoint
-(define (vector-midpoint-shuffle-sketch V-1 V-2 iterations)
+;Generate program skecth for vector distance
+(define (vector-distance-shuffle-sketch V-1 V-2 iterations)
   ;Porgram preamble to define the inputs
   (define preamble
     (list
@@ -48,16 +50,16 @@
        (vec-shuffle 'reg-B shuf-B (list 'B))))
     
     ; Use choose* to select an output register to both read and write
-    (define output-midpoint
+    (define output-distance
       (apply choose*
              (map (lambda (out-reg)
                     (list
                      (vec-write 'reg-C out-reg)
-                     (vec-app 'out 'vec-midpoint (list 'reg-A 'reg-B))
+                     (vec-app 'out 'vec-distance (list 'reg-A 'reg-B))
                      (vec-write out-reg 'out)))
                   C-reg-ids)))
     
-    (append input-shuffle output-midpoint))
+    (append input-shuffle output-distance))
 
   ; Shuffle vectors for each iteration
   (define shuffle-gen
@@ -72,9 +74,9 @@
             iterations)
             C-reg-stores)))
 
-; Run vector-midpoint sketch with symbolic inputs. If input bitvectors
+; Run vector-distance sketch with symbolic inputs. If input bitvectors
 ; are missing, interp will generate freash symbolic values.
-(define (run-vector-midpoint-sketch sketch
+(define (run-vector-distance-sketch sketch
                                     C-size
                                     cost-fn
                                     [V1 #f]
@@ -90,7 +92,7 @@
             env
             #:symbolic? #t
             #:cost-fn cost-fn
-            #:fn-map (hash 'vec-midpoint vector-midpoint)))
+            #:fn-map (hash 'vec-distance vector-distance)))
 
   (list (take (hash-ref env 'C) C-size) cost))
 
@@ -98,11 +100,11 @@
 
 (define (get-statistics C-size sol reg-of)
   (let*
-     ([regs-cost (last (run-vector-midpoint-sketch
+     ([regs-cost (last (run-vector-distance-sketch
                       sol
                       C-size
                       (make-register-cost reg-of)))]
-     [class-uniq-cost (last (run-vector-midpoint-sketch
+     [class-uniq-cost (last (run-vector-distance-sketch
                             sol
                             C-size
                             (make-shuffle-unique-cost prefix-equiv)))])
@@ -111,14 +113,14 @@
     (pretty-print '-------------------------------------------------------)))
                
 ; Describe the configuration parameters for this benchmark
-(define vector-midpoint:keys
+(define vector-distance:keys
   (list 'V1 'V2 'iterations 'reg-size))
        
      
-; Run vector midpoint with the given spec.
-; Requires that spec be a hash with all the keys describes in vector midpoint:keys.
-(define (vector-midpoint:run-experiment spec file-writer)
-  (pretty-print (~a "Running vector midpoint with config: " spec))
+; Run vector distance with the given spec.
+; Requires that spec be a hash with all the keys describes in vector distance:keys.
+(define (vector-distance:run-experiment spec file-writer)
+  (pretty-print (~a "Running vector distance with config: " spec))
   (define V1 (hash-ref spec 'V1))
   (define V2 (hash-ref spec 'V2))
   (define iterations (hash-ref spec 'iterations))
@@ -127,7 +129,7 @@
                           (hash-ref spec 'pre-reg-of)))
 
   (assert (equal? V1 V2)
-          "vector midpoint:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
+          "vector distance:run-experiment: Invalid bitvector sizes. V-1 not equal to V-2")
 
   ; Run the synthesis query
   (parameterize [(current-reg-size reg-size)]
@@ -136,7 +138,7 @@
     (define C-size 4)
 
     ; Generate sketch prog
-    (define midpoint-v (vector-midpoint-shuffle-sketch A B iterations))
+    (define distance-v (vector-distance-shuffle-sketch A B iterations))
 
     ; Determine whether to use the pre-computed register-of uninterpreted
     ; function, or pass the implementation to the solver directly
@@ -156,15 +158,15 @@
 
     ;Create function for sketch evaluation
     (define (sketch-func args)
-      (apply (curry run-vector-midpoint-sketch
-                    midpoint-v
+      (apply (curry run-vector-distance-sketch
+                    distance-v
                     C-size
                     (cost-fn))
              args))
 
      ; Functionalize spec for minimization prog
     (define (spec-func args)
-      (apply vector-midpoint-spec args))
+      (apply vector-distance-spec args))
 
     ; Get a generator back from the synthesis procedure
     (define model-generator
@@ -179,7 +181,7 @@
     ; solutions.
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
-        (let ([prog (evaluate midpoint-v model)])
-          ;(file-writer prog cost)
+        (let ([prog (evaluate distance-v model)])
+          (file-writer prog cost)
           (pretty-print (concretize-prog prog)))
         (pretty-print (~a "failed to find solution: " model))))))

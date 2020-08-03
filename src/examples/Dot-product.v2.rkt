@@ -82,11 +82,6 @@
 
 ; Task for Jacob: write dot product using the vector DSL
 
-(define/prog dot-product-p
-  ('x = vec-extern-decl 4 int-type)
-  ('y = vec-extern-decl 4 int-type)
-  ; TODO: fill in
-  ))
 
 
                                                            

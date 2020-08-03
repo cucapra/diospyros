@@ -1,0 +1,46 @@
+#lang rosette
+
+(require "../ast.rkt"
+         "../dsp-insts.rkt"
+         "../interp.rkt"
+         "../utils.rkt"
+         "../prog-sketch.rkt"
+         "../synth.rkt"
+         "../configuration.rkt"
+         racket/trace
+         racket/generator
+         rosette/lib/angelic)
+
+;Multiply or sum multiple bitvector couples and print the
+;couple that produces the largest number
+
+(define/prog largest-sum
+  ('x = vec-extern-decl 4 int-type)
+  ('y = vec-extern-decl 4 int-type)
+  ('s = vec-extern-decl 4 int-type)
+  ('t = vec-extern-decl 4 int-type)
+  ('o = vec-extern-decl 4 int-type)
+  ('p = vec-extern-decl 4 int-type)
+  ;('group = vec-app 'vec-group (list 'x 's 'o))
+  ;('group-one = vec-app 'vec-sum (list 'x))
+  ;('group-two = vec-app 'vec-sum (list 's))
+  ;('group-three = vec-app 'vec-sum (list 'o))
+  ('vec-compare = vec-app 'vec-largest? (list 'x 'y 's 't 'o 'p)))
+
+(define action (make-hash))
+(hash-set! action 'x (value-bv-list 1 2 3 4))
+(hash-set! action 'y (value-bv-list 1 2 3 6))
+(hash-set! action 's (value-bv-list 4 7 8 9))
+(hash-set! action 't (value-bv-list 0 8 4 5))
+(hash-set! action 'o (value-bv-list 10 12 14 16))
+(hash-set! action 'p (value-bv-list 15 12 18 20))
+
+(define function-map (hash 'vec-largest? vector-max))
+
+(interp largest-sum action #:fn-map function-map)
+
+(define results (hash-ref action 'vec-compare))
+
+(map bitvector->integer (map unbox results))
+
+

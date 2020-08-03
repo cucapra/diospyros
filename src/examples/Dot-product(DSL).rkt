@@ -29,20 +29,13 @@
                            'vec-mul vector-multiply
                            'vec-sum vector-reduce-sum))
 
-;Interpret the dot-product-p when action and function map are applied
+;Interpret the dot-product-p when action and function-map are applied
 
 (interp dot-product-p action #:fn-map function-map)
 
 ;Defines add-results as the value of the product of two boxed lists
 
 (define results (hash-ref action 'sum-result))
-
-;Calculates the sum of the bitvectors turned into integers
-
-(define (sum-of-integers p)
-  (cond
-    [(empty? (rest p)) (first p)]
-    [else (+ (first p) (sum-of-integers (rest p)))]))
 
 ;Unboxes the add-results and turns the values into integers
 ;Sends Integers to sum-of-integers
@@ -58,6 +51,8 @@
 
 ; Hint: define symbolic bitvectors for the input
 ; (solve (equal? results (value-bv-list 0 1 2 3)))
+
+
 
 
 

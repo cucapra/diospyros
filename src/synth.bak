@@ -20,9 +20,9 @@
       (if (equal? (hash-ref env1 key)
                   (hash-ref env2 key))
         ""
-        (~a key " differs: "
+        (~a key " differs:\n"
             (hash-ref env1 key)
-            " "
+            "\n\n"
             (hash-ref env2 key))))
     "\n"))
 
@@ -72,7 +72,7 @@
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-vector (cdr decl) 0)))
+                       (make-bv-list-zeros (cdr decl))))
                _))))
 
   (define (interp-and-env prog init-env)
@@ -91,10 +91,9 @@
     (andmap (lambda (decl)
               (let ([id (car decl)]
                     [size (cdr decl)])
-                (equal? (vector-take (hash-ref spec-env id) size)
-                        (vector-take (hash-ref sketch-env id) size))))
+                (equal? (take (hash-ref spec-env id) size)
+                        (take (hash-ref sketch-env id) size))))
             (set->list (to-size-set spec-outs))))
-
 
   (define model
     (verify
@@ -139,8 +138,8 @@
   (match-define (list sketch-out cost) sketch-res)
 
   ; Debugging: uncomment to show spec and sketch in the value debugger
-  (pretty-print (render-value/snip spec-out))
-  (pretty-print (render-value/snip sketch-out))
+  ; (pretty-print (render-value/snip spec-out))
+  ; (pretty-print (render-value/snip sketch-out))
 
 
   ; NOTE(rachit): Unfortunately there doesn't seem to be a `boxof` contract
@@ -152,8 +151,8 @@
                   (length sketch-out))
           (format
             "SYNTH-PROG: lengths of sketch and spec outputs don't match. Spec: ~a. Sketch: ~a"
-            (vector-length spec-out)
-            (vector-length sketch-out)))
+            (length spec-out)
+            (length sketch-out)))
 
   ; Use this named variable to get back the cost from the model.
   (define-symbolic* c (bitvector (cost-fin)))

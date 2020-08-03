@@ -11,8 +11,8 @@
          racket/generator
          rosette/lib/angelic)
 
-;Multiply or sum multiple bitvector couples and print the
-;couple that produces the largest number
+;Checks if the bitvector list is sorted from largest tp smallest
+;If not then the list is sorted
 
 (define/prog sort-largest
   ('x = vec-extern-decl 2 int-type)
