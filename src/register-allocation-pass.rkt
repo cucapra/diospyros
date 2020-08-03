@@ -83,6 +83,7 @@
      (define-id id)
      (inst-result inst `())]
     [(vec-extern-decl id size _)
+     ;; XXX(rachit): What does this conditional do?
      (if (has-vector-uses? id)
          (begin
            (match-define (inst-result insts final)
@@ -91,6 +92,21 @@
          (begin
            (define-id id)
            (inst-result inst `())))]
+    [(let-bind id expr type)
+     (define-id id)
+     (inst-result inst `())]
+    [(vec-lit id elems type)
+     (define-id id)
+     (check-defined elems)
+     (inst-result inst `())]
+    [(scalar-binop id _ l r)
+     (define-id id)
+     (check-defined (list l r))
+     (inst-result inst `())]
+    [(array-get id arr-id idx)
+     (define-id id)
+     (check-defined (list arr-id))
+     (inst-result inst `())]
     [(vec-const id init type)
      (define-id id)
      (alloc-const env id init type)]
@@ -139,7 +155,11 @@
            (vec-extern-decl _ _ _)
            (vec-load _ _ _ _)
            (vec-store _ _ _ _)
-           (vec-write _ _))
+           (vec-write _ _)
+           (let-bind _ _ _)
+           (scalar-binop _ _ _ _)
+           (vec-lit _ _ _)
+           (array-get _ _ _))
        void]
       [_ (assert #f (~a "unknown instruction " inst))]))
   has-vector-uses?)

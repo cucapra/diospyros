@@ -29,7 +29,7 @@ pub fn run(prog: &RecExpr<VecLang>, timeout: u64) -> (f64, RecExpr<VecLang>) {
     let runner = Runner::default()
         .with_egraph(init_eg)
         .with_expr(&prog)
-        .with_node_limit(10_000_000)
+        .with_node_limit(900_000)
         .with_time_limit(std::time::Duration::from_secs(timeout))
         .with_iter_limit(10_000)
         .run(&rules);

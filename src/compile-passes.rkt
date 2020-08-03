@@ -131,6 +131,21 @@
         [(vec-write dst src)
          (vec-write (rename-use dst)
                     (rename-use src))]
+        [(let-bind id expr type)
+         (let-bind (rename-binding id) expr type)]
+
+        [(array-get id arr-id idx)
+         (array-get (rename-binding id) (rename-use arr-id) idx)]
+
+        [(vec-lit id elems type)
+         (vec-lit (rename-binding id) (map rename-use elems) type)]
+
+        [(scalar-binop id op l r)
+         (scalar-binop (rename-binding id)
+                       op
+                       (rename-use l)
+                       (rename-use r))]
+
         [_ (error 'ssa (~a "not yet implemented" inst))])))
 
   (prog new-insts))
@@ -142,6 +157,9 @@
   (define const-map (make-hash))
   ; Map renamed variable id to canonical variable id.
   (define name-map (make-hash))
+  (define (add-binding! id)
+    (hash-set! name-map id id)
+    id)
   (define (rename id)
     (hash-ref name-map id))
 
@@ -161,6 +179,15 @@
              (list inst)))]
         [(or (vec-decl id _) (vec-extern-decl id _ _))
          (hash-set! name-map id id)
+         (list inst)]
+        [(vec-lit id elems type)
+         (add-binding! id)
+         (list inst)]
+        [(array-get id arr-id idx)
+         (add-binding! id)
+         (list inst)]
+        [(let-bind id expr type)
+         (add-binding! id)
          (list inst)]
         [(vec-shuffle id idxs inps)
          (hash-set! name-map id id)
