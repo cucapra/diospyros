@@ -13,7 +13,8 @@
 
 (provide matrix-mul:keys
          matrix-mul:only-spec
-         matrix-mul:run-experiment)
+         matrix-mul:run-experiment
+         matrix-multiply-spec)
 
 (define (prelude A-rows A-cols B-rows B-cols)
   (list

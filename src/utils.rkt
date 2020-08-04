@@ -233,7 +233,7 @@
       (loop (drop els cols) (cons (take els cols) acc)))))
 
 ; Matrix implementation and helper methods.
-(struct matrix (rows cols elements) #:transparent)
+(struct matrix (rows cols elements) #:transparent #:mutable)
 
 (define (matrix-ref mat row col)
   (match-define (matrix rows cols elements) mat)
