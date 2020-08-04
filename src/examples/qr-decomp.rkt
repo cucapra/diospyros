@@ -16,14 +16,6 @@
 (define (eq-as-value? i j)
   (if (equal? i j) (bv-value 1) (bv-value 0)))
 
-; TODO: maybe replace uninterpreted function?
-(define (sgn-as-float x)
-  (pretty-print x)
-  (cond
-    [(bvslt x (bv-value 0)) -1.0]
-    [(bvsgt x (bv-value 0)) 1.0]
-    [else 0.0]))
-
 (define-symbolic bv-sqrt (~> (bitvector (value-fin))
                           (bitvector (value-fin))))
 (define-symbolic bv-sgn (~> (bitvector (value-fin))
@@ -55,8 +47,6 @@
   ; Initialize R to be a copy of A's elements
   (define R (matrix n n (map box (map unbox A-elements))))
 
-  (pretty-print R)
-
   ; Create Q as a zero matrix of the same size
   (define Q (matrix n n (make-bv-list-zeros (* n n))))
 
@@ -73,8 +63,6 @@
           [i (in-naturals 0)])
      (bv-list-set! x (bv-index i) (matrix-ref R row k))
      (bv-list-set! e (bv-index i) (matrix-ref I row k)))
-
-    (pretty-print x)
 
     ; alpha is a scalar
     (define alpha
@@ -114,7 +102,7 @@
     (define Q-t (matrix n n (make-bv-list-zeros (* n n))))
     (for* ([i (in-range m)]
            [j (in-range m)])
-       (matrix-set! Q-min i j (q-i Q-min i j k)))
+       (matrix-set! Q-t i j (q-i Q-min i j k)))
 
     (if (equal? k 0)
       (begin
