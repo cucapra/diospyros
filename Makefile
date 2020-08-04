@@ -5,6 +5,8 @@ MAKEFLAGS += --jobs=2
 
 RACKET_SRC := src/*.rkt src/examples/*.rkt src/backend/*.rkt
 
+CARGO_FLAGS := --release
+
 test: build
 
 test-all: test build
@@ -21,9 +23,18 @@ dios-example-gen: $(RACKET_SRC)
 clean:
 	rm -rf dios dios-example-gen
 
-# TODO: separate out this into substeps
-%-egg: build
-	./dios-example-gen --only-spec -b $* -p $*-params -o $*-out
-	cat $*-out/spec.rkt | python3 src/dios-egraphs/vec-dsl-conversion.py -p > $*-out/spec-egg.rkt
-	cargo run --manifest-path src/dios-egraphs/Cargo.toml $*-out/spec-egg.rkt > $*-out/res.rkt
-	./dios -e $*-out -o $*-out/kernel.c
+# Build spec
+%-out: %-params dios dios-example-gen
+	./dios-example-gen --only-spec -b $* -p  $< -o $@
+
+# Pre-process spec for egg
+%-out/spec-egg.rkt: %-out
+	cat $*-out/spec.rkt | python3 src/dios-egraphs/vec-dsl-conversion.py -p > $@
+
+# Run egg rewriter
+%-out/res.rkt: %-out/spec-egg.rkt
+	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $< > $@
+
+# Backend code gen
+%-egg: %-out/res.rkt
+	./dios -e -o $*-out/kernel.c $*-out
