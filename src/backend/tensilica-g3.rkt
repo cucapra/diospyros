@@ -350,6 +350,9 @@
         [(vec-app out 'vec-add inputs)
          (gen-vecMxf2-pure-app "PDX_ADD_MXF32" type-set type-ref out inputs)]
 
+        [(vec-app out 'vec-sub inputs)
+         (gen-vecMxf2-pure-app "PDX_SUB_MXF32" type-set type-ref out inputs)]
+
         [(vec-app out 'vec-s-div inputs)
          (gen-vecMxf2-pure-app "PDX_DIV_MXF32" type-set type-ref out inputs)]
 

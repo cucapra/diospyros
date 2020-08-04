@@ -92,6 +92,62 @@ parameters = {
         #    "reg-size": 4
         #}
     ],
+    matsub : [
+        #{
+        #    "A-rows": 2,
+        #    "A-cols": 2,
+        #    "B-rows": 2,
+        #    "B-cols": 2,
+        #    "iterations": 2,
+        #    "reg-size": 4
+        #},
+        #{
+        #    "A-rows": 3,
+        #    "A-cols": 3,
+        #    "B-rows": 3,
+        #    "B-cols": 3,
+        #    "iterations": 6,
+        #    "reg-size": 4
+        #}
+    ],
+  #  standarddeviation : [
+        #{
+        #    "A-rows": 2,
+        #    "A-cols": 2,
+        #    "B-rows": 2,
+        #    "B-cols": 2,
+        #    "iterations": 2,
+        #    "reg-size": 4
+        #},
+        #{
+        #    "A-rows": 3,
+        #    "A-cols": 3,
+        #    "B-rows": 3,
+        #    "B-cols": 3,
+        #    "iterations": 6,
+        #    "reg-size": 4
+        #}
+   # ],
+   # vecdistance : [ 
+        #{
+        #    "A-rows": 2,
+        #    "A-cols": 2,
+        #    "B-rows": 2,
+        #    "B-cols": 2,
+        #    "iterations": 2,
+        #    "reg-size": 4
+        #},
+    # ],
+    #vecmidpoint : [
+        #{
+        #    "A-rows": 2,
+        #    "A-cols": 2,
+        #    "B-rows": 2,
+        #    "B-cols": 2,
+        #    "iterations": 2,
+        #    "reg-size": 4
+        #},
+     #],
     dft : [
         # {
         #     "N" : 8,
@@ -109,6 +165,20 @@ def params_to_name(benchmark, params):
                                             params["iterations"],
                                             params["reg-size"])
     if benchmark == matmul:
+        return '{}x{}_{}x{}_{}i_{}r'.format(params["A-rows"],
+                                            params["A-cols"],
+                                            params["B-rows"],
+                                            params["B-cols"],
+                                            params["iterations"],
+                                            params["reg-size"])
+    if benchmark == matadd:
+        return '{}x{}_{}x{}_{}i_{}r'.format(params["A-rows"],
+                                            params["A-cols"],
+                                            params["B-rows"],
+                                            params["B-cols"],
+                                            params["iterations"],
+                                            params["reg-size"])
+    if benchmark == matsub:
         return '{}x{}_{}x{}_{}i_{}r'.format(params["A-rows"],
                                             params["A-cols"],
                                             params["B-rows"],
@@ -215,6 +285,20 @@ def dimmensions_for_benchmark(benchmark, params):
                 "F_COLS=" + str(params["filter-cols"]),
             ]
     if benchmark == matmul:
+        return [
+                "A_ROWS=" + str(params["A-rows"]),
+                "A_COLS=" + str(params["A-cols"]),
+                "B_ROWS=" + str(params["B-rows"]),
+                "B_COLS=" + str(params["B-cols"]),
+            ]
+    if benchmark == matadd:
+        return [
+                "A_ROWS=" + str(params["A-rows"]),
+                "A_COLS=" + str(params["A-cols"]),
+                "B_ROWS=" + str(params["B-rows"]),
+                "B_COLS=" + str(params["B-cols"]),
+            ]
+    if benchmark == matsub:
         return [
                 "A_ROWS=" + str(params["A-rows"]),
                 "A_COLS=" + str(params["A-cols"]),

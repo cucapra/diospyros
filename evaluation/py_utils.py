@@ -15,7 +15,7 @@ dft = "dft"
 benchmarks = [
     matmul,
     matadd,
-    matsub
+    matsub,
     #standarddeviation,
     #vecdistance,
     #vecmidpoint,
