@@ -120,6 +120,7 @@
 
 (define (bv-list-set! lst idx val)
   (assert (list? lst) (~a "Expected a list, got " lst))
+  (assert (bv? idx) (~a "Expected a bitvector, got " lst))
   (match lst
     [(cons box tail)
       (if (bveq idx (bv-index 0))
@@ -129,6 +130,7 @@
 
 (define (bv-list-get lst idx)
   (assert (list? lst) (~a "Expected a list, got " lst))
+  (assert (bv? idx) (~a "Expected a bitvector, got " lst))
   (match lst
     [(cons box tail)
       (if (bveq idx (bv-index 0))
