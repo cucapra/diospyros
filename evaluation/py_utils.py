@@ -6,11 +6,19 @@ harness_dir = "evaluation/"
 conv2d = "2d-conv"
 matmul = "mat-mul"
 matadd = "mat-add"
+matsub = "mat-sub"
+#standarddeviation = "standard-deviation"
+#vecdistance = "vec-distance"
+#vecmidpoint = "vec-midpoint"
 dft = "dft"
 
 benchmarks = [
     matmul,
     matadd,
+    matsub
+    #standarddeviation,
+    #vecdistance,
+    #vecmidpoint,
     conv2d,
     dft,
 ]

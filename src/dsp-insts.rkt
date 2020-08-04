@@ -63,21 +63,6 @@
              [e2 v2])
     (box (bvmul (unbox e1) (unbox e2)))))
 
-;; VECTOR SORT LARGEST
-;(define (vector-sort-largest v)
-;    (define (sorted>? x)
-;      (cond
-;        [(empty? (rest x)) #true ]
-;        [(bvuge (car x) (cadr x)) (sorted>? (cdr x))]
-;        [else #f]))
-    ;(define sorting (map box (sort (map unbox v) bvsgt)))
-;    (cond
-;      [(> (length v) (length (bv-value (value-fin))))
-;       (error "require bitvectors")]
-;      [(equal? (sorted>? (map unbox v)) #t)
-;       v]
-;      [else
-;       (vector-sort-largest (map box (sort (map unbox v) bvsgt)))]))
 
 ;; VECTOR ADD
 (define (vector-add v1 v2)
