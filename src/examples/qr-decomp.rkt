@@ -20,9 +20,12 @@
                           (bitvector (value-fin))))
 (define-symbolic bv-sgn (~> (bitvector (value-fin))
                           (bitvector (value-fin))))
+(define (sqrt-mock x)
+  (bv-value (round (sqrt (bitvector->integer x)))))
 
 (define (vector-norm v
-                     [sqrt-func bv-sqrt])
+                     ; [sqrt-func bv-sqrt])
+                    [sqrt-func sqrt-mock])
   (define (bv-sqr x) (bvmul (unbox x) (unbox x)))
   (sqrt-func (apply bvadd (map bv-sqr v))))
 
@@ -38,8 +41,15 @@
     (matrix-set! I i j (eq-as-value? i j)))
   I)
 
+(define (sgn-mock x)
+  (cond
+    [(bvslt x (bv-value 0)) (bv-value -1)]
+    [(bvsgt x (bv-value 0)) (bv-value 1)]
+    [else (bv-value 0)]))
+
 (define (househoulder A
-                     [sgn-func bv-sgn])
+                     ; [sgn-func bv-sgn])
+                     [sgn-func sgn-mock])
   (match-define (matrix A-rows A-cols A-elements) A)
   (assert (equal? A-rows A-cols))
   (define n A-rows)
@@ -120,13 +130,17 @@
   (values (matrix-transpose Q) R))
 
 
-(define in (make-symbolic-matrix 3 3))
+;(define in (make-symbolic-matrix 3 3))
+; [[12, -51, 4], [6, 167, -68], [-4, 24, -41]]
+(define in (matrix 3
+                   3
+                   (value-bv-list 12 -51 4 6 167 -68 -4 24 -41)))
 ; (pretty-print in)
 ; (pretty-print (matrix-transpose in))
 
 (define-values (Q R) (househoulder in))
-(pretty-print Q)
-(pretty-print R)
+(pretty-print (map bitvector->integer (map unbox (matrix-elements Q))))
+(pretty-print (map bitvector->integer (map unbox (matrix-elements R))))
 
 (pretty-print 'done)
 

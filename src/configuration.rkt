@@ -11,15 +11,15 @@
 
 ; Reasoning precision for values
 (define value-fin
-  (make-parameter 8))
+  (make-parameter 20))
 
 ; BV length for representing indices in shuffle vectors
 (define index-fin
-  (make-parameter 10))
+  (make-parameter 20))
 
 ; BV length for representing the program cost
 (define cost-fin
-  (make-parameter 10))
+  (make-parameter 20))
 
 ; Egg intermediate files
 (define-values (egg-spec egg-prelude egg-outputs egg-res)
