@@ -10,7 +10,11 @@
          "./examples/matrix-add.rkt"
          "./examples/matrix-multiply.rkt"
          "./examples/matrix-add.rkt"
+         "./examples/matrix-subtract.rkt"
          "./examples/dot-product.rkt"
+         ;"./examples/standard-deviation.rkt"
+         ;"./examples/vector-distance.rkt"
+         ;"./examples/vector-midpoint.rkt"
          "./examples/discrete-fourier-transform.rkt")
 
 
@@ -18,7 +22,11 @@
 (define known-benches
   (list "mat-mul"
         "mat-add"
+        "mat-sub"
         "dot-product"
+        ;"standard-deviation"
+        ;"vec-distance"
+        ;"vec-midpoint"
         "2d-conv"
         "dft"))
 
@@ -75,13 +83,29 @@
                            (lambda (_)
                             (pretty-print "mat-add only-spec not implemented"))
                            matrix-add:keys)]
+      [("mat-sub") (values matrix-sub:run-experiment
+                           (lambda (_)
+                            (pretty-print "mat-sub only-spec not implemented"))
+                           matrix-sub:keys)]
       [("dft")     (values dft:run-experiment
                            dft:only-spec
                            dft:keys)]
       [("dot-product") (values dot-product:run-experiment
                                (lambda (_)
-                                 (pretty-print "mat-add only-spec not implemented"))
+                                 (pretty-print "dot-product only-spec not implemented"))
                                dot-product:keys)]
+      ;[("standard-deviation") (values standard-deviation:run-experiment
+      ;                     (lambda (_)
+      ;                      (pretty-print "standard-deviation only-spec not implemented"))
+      ;                     standard-deviation:keys)]
+      ;[("vec-distance") (values vector-distance:run-experiment
+      ;                     (lambda (_)
+      ;                      (pretty-print "vector-distance only-spec not implemented"))
+      ;                     vector-distance:keys)]
+      ;[("vec-midpoint") (values vector-midpoint:run-experiment
+      ;                     (lambda (_)
+      ;                      (pretty-print "vector-midpoint only-spec not implemented"))
+      ;                     vector-midpoint:keys)]
       [else (error 'run-bench
                    "Unknown benchmark ~a"
                    name)]))
