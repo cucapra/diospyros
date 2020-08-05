@@ -60,6 +60,10 @@
 ; expressions: l-id and r-id must be variable names.
 (struct scalar-binop (id op l-id r-id) #:transparent)
 
+; Perform a unary op on scalar operations. Does not allow for nested
+; expressions: v-id must be a variable name.
+(struct scalar-unnop (id op v-id) #:transparent)
+
 ; Let binding
 (struct let-bind (id e type) #:transparent)
 

@@ -46,6 +46,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::VecAdd(..) => OP,
             VecLang::VecMul(..) => OP,
             VecLang::VecMAC(..) => OP,
+            _ => OP,
         };
         enode.fold(op_cost, |sum, id| sum + costs(id))
     }

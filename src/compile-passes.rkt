@@ -145,6 +145,10 @@
                        op
                        (rename-use l)
                        (rename-use r))]
+        [(scalar-unnop id op v)
+         (scalar-unnop (rename-binding id)
+                       op
+                       (rename-use v))]
 
         [_ (error 'ssa (~a "not yet implemented" inst))])))
 

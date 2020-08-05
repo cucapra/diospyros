@@ -53,11 +53,11 @@
 ; Functional expression -> (name, list of DSL instructions)
 (define (egg-to-dios e)
   (match e
-    [0
-     (define zero (new-name 'Z))
+    [(? number? a)
+     (define name (new-name (format "~v" a)))
      (values
-       zero
-       (let-bind zero "0" float-type))]
+       name
+       (let-bind name (format "~v" a) float-type))]
     [(egg-get name idx)
      (define bind-name (new-name 'get))
      (values
@@ -73,6 +73,15 @@
              (flatten
                (list l-prog
                      r-prog
+                     op-out)))]
+    [(egg-unnop op v)
+     (define-values (v-name v-prog) (egg-to-dios v))
+     (define op-res (new-name 'op))
+     (define op-out
+       (scalar-unnop op-res op v-name))
+     (values op-res
+             (flatten
+               (list v-prog
                      op-out)))]
     [(egg-vec-4 v1 v2 v3 v4)
       (let ([vs (list v1 v2 v3 v4)])

@@ -8,6 +8,13 @@ define_language! {
         // children nodes
         "+" = Add(Box<[Id]>),
         "*" = Mul(Box<[Id]>),
+        "" = Minus(Box<[Id]>),
+
+        "/" = Div([Id; 2]),
+
+        "sgn" = Sgn([Id; 1]),
+        "sqrt" = Sqrt([Id; 1]),
+        "neg" = Neg([Id; 1]),
 
         // Lists have a variable number of elements
         "List" = List(Box<[Id]>),

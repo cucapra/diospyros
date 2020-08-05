@@ -8,14 +8,19 @@
          "./configuration.rkt"
          "./examples/2d-conv.rkt"
          "./examples/matrix-multiply.rkt"
-         "./examples/discrete-fourier-transform.rkt")
+         "./examples/discrete-fourier-transform.rkt"
+         "./examples/qr-decomp.rkt")
 
+
+(error-print-width 999999999999999999999999999)
+(pretty-print-depth #f)
 
 ; Set of known benchmarks we can run.
 (define known-benches
   (list "mat-mul"
         "2d-conv"
-        "dft"))
+        "dft"
+        "qr-decomp"))
 
 (define (create-base-directory out-dir)
   (define base
@@ -69,6 +74,9 @@
       [("dft")     (values dft:run-experiment
                            dft:only-spec
                            dft:keys)]
+      [("qr-decomp") (values (lambda (_) 0)
+                             qr-decomp:only-spec
+                             qr-decomp:keys)]
       [else (error 'run-bench
                    "Unknown benchmark ~a"
                    name)]))

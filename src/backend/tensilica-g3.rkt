@@ -324,6 +324,12 @@
          (c-decl c-ty-l #f (c-id id) #f
                  (c-bare (format "~a ~a ~a" lhs op rhs)))]
 
+        [(scalar-unnop id op v)
+         (define c-ty-v (type-ref v))
+         (type-set id c-ty-v)
+         (c-decl c-ty-v #f (c-id id) #f
+                 (c-bare (format "~a(~a)" op v)))]
+
         [(vec-lit id elems type)
           ;          ["float *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]))
          (define c-ty (c-type type))

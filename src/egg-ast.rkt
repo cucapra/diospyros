@@ -21,6 +21,7 @@
 (struct egg-list (args) #:transparent)
 (struct egg-vec-4 (v0 v1 v2 v3) #:transparent)
 (struct egg-concat (hd tl) #:transparent)
+(struct egg-unnop (op v) #:transparent)
 (struct egg-binop (op lhs rhs) #:transparent)
 
 (define (parse-from-string s)
@@ -32,7 +33,7 @@
 
 (define (s-exp-to-ast e)
   (match e
-    [0 0]
+    [(? number? a) a]
     [`(VecMAC ,acc ,v1 ,v2)
       (egg-vec-op `vec-mac (map s-exp-to-ast (list acc v1 v2)))]
     [`(VecMul ,v1 ,v2)
@@ -46,11 +47,21 @@
     [`(Concat ,v1 ,v2)
       (egg-concat (s-exp-to-ast v1) (s-exp-to-ast v2))]
     [`(+ , vs ...)
-      (assert (> (length vs) 1))
+      (assert (> (length vs) 1) "+")
       (let ([xs (map s-exp-to-ast vs)])
         (foldl (curry egg-binop '+) (first xs) (rest xs)))]
     [`(* , vs ...)
-      (assert (> (length vs) 1))
+      (assert (> (length vs) 1) "*")
       (let ([xs (map s-exp-to-ast vs)])
         (foldl (curry egg-binop '*) (first xs) (rest xs)))]
+    [`(/ , vs ...)
+      (assert (> (length vs) 1) "/")
+      (let ([xs (map s-exp-to-ast vs)])
+        (foldl (curry egg-binop '/) (first xs) (rest xs)))]
+    [`(neg , v)
+      (egg-unnop 'neg (s-exp-to-ast v))]
+    [`(sgn , v)
+      (egg-unnop 'sgn (s-exp-to-ast v))]
+    [`(sqrt , v)
+      (egg-unnop 'sqrt (s-exp-to-ast v))]
     [_ (error 's-exp-to-ast "invalid s-expression: ~a" e)]))

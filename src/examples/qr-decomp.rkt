@@ -1,9 +1,37 @@
 #lang rosette
-(require "../utils.rkt"
+(require "../ast.rkt"
          "../configuration.rkt"
+         "../utils.rkt"
          "matrix-multiply.rkt")
 
-;(require math/matrix math/array)
+(provide qr-decomp:only-spec
+         qr-decomp:keys)
+
+;; Runs the spec with symbolic inputs and returns:
+;; - the resulting formula.
+;; - the prelude instructions (list)
+;; - outputs that the postlude should write to
+(define (qr-decomp:only-spec config)
+  (define n (hash-ref config 'N))
+  (define A (make-symbolic-matrix n n 'A))
+
+  (define prelude
+    (list
+      (vec-extern-decl 'A (* n n) input-tag)
+      (vec-extern-decl 'Q (* n n) output-tag)
+      (vec-extern-decl 'R (* n n) output-tag)
+      (vec-const 'Z (make-bv-list-zeros 1) float-type)))
+
+  (define-values (Q R) (househoulder A))
+
+  ; (values (list (matrix-elements Q) (matrix-elements R))
+  (values (matrix-elements Q)
+          (prog prelude)
+          (list 'Q 'R)))
+           ; (list 'Q)))
+
+(define qr-decomp:keys
+  (list 'N 'reg-size))
 
 (define (matrix-transpose m)
   (match-define (matrix rows cols elems) m)
@@ -24,8 +52,8 @@
   (bv-value (round (sqrt (bitvector->integer x)))))
 
 (define (vector-norm v
-                     ; [sqrt-func bv-sqrt])
-                    [sqrt-func sqrt-mock])
+                     [sqrt-func bv-sqrt])
+                    ; [sqrt-func sqrt-mock])
   (define (bv-sqr x) (bvmul (unbox x) (unbox x)))
   (sqrt-func (apply bvadd (map bv-sqr v))))
 
@@ -48,8 +76,8 @@
     [else (bv-value 0)]))
 
 (define (househoulder A
-                     ; [sgn-func bv-sgn])
-                     [sgn-func sgn-mock])
+                     [sgn-func bv-sgn])
+                     ; [sgn-func sgn-mock])
   (match-define (matrix A-rows A-cols A-elements) A)
   (assert (equal? A-rows A-cols))
   (define n A-rows)
@@ -132,15 +160,15 @@
 
 ;(define in (make-symbolic-matrix 3 3))
 ; [[12, -51, 4], [6, 167, -68], [-4, 24, -41]]
-(define in (matrix 3
-                   3
-                   (value-bv-list 12 -51 4 6 167 -68 -4 24 -41)))
+; (define in (matrix 3
+;                    3
+;                    (value-bv-list 12 -51 4 6 167 -68 -4 24 -41)))
 ; (pretty-print in)
 ; (pretty-print (matrix-transpose in))
 
-(define-values (Q R) (househoulder in))
-(pretty-print (map bitvector->integer (map unbox (matrix-elements Q))))
-(pretty-print (map bitvector->integer (map unbox (matrix-elements R))))
+; (define-values (Q R) (househoulder in))
+; (pretty-print (map bitvector->integer (map unbox (matrix-elements Q))))
+; (pretty-print (map bitvector->integer (map unbox (matrix-elements R))))
 
-(pretty-print 'done)
+; (pretty-print 'done)
 
