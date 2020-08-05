@@ -209,6 +209,6 @@
     (for ([(model cost) (sol-producer model-generator)])
       (if (sat? model)
         (let ([prog (evaluate msub model)])
-          ;(file-writer prog cost)
+          (file-writer prog cost)
           (pretty-print (concretize-prog prog)))
         (pretty-print (~a "failed to find solution: " model))))))
