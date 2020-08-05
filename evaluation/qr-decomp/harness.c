@@ -9,37 +9,39 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-#include "../../../diospyros-private/src/utils.h"
+#include "../../../../diospyros-private/src/utils.h"
 
-float a[N] __attribute__((section(".dram0.data")));
-float q[N] __attribute__((section(".dram0.data")));
-float q_spec[N] __attribute__((section(".dram0.data")));
+float a[N * N] __attribute__((section(".dram0.data")));
+float q[N * N] __attribute__((section(".dram0.data")));
+float r[N * N] __attribute__((section(".dram0.data")));
+float q_spec[N * N] __attribute__((section(".dram0.data")));
+float r_spec[N * N] __attribute__((section(".dram0.data")));
 
 // Diospyros kernel
-void kernel(float * input_N);
+void kernel(float * A, float * Q, float * R);
 
 int main(int argc, char **argv) {
 
   FILE *file = fopen(OUTFILE, "w");
-  if (file == NULL) return -1;
+  if (file == NULL) file = stdout;;
 
   init_rand(10);
 
-  create_random_mat(a, 1, N);
-  zero_matrix(q, 1, N);
-  zero_matrix(q, 1, N);
+  create_random_mat(a, N, N);
+  zero_matrix(q, N, N);
+  zero_matrix(r, N, N);
 
-  print_matrix(a, 1, N);
+  print_matrix(a, N, N);
 
 
   int time = 0;
 
   // Diospyros
   start_cycle_timing;
-  kernel(a);
+  kernel(a, q, r);
   stop_cycle_timing;
   time = get_time();
-  print_matrix(q, O_ROWS, O_COLS);
+  print_matrix(q, N, N);
   printf("Diospyros : %d cycles\n", time);
 
   return 0;

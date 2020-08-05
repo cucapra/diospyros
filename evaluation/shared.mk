@@ -1,9 +1,9 @@
-SRC := *.c
+SRC := harness.c
 KERNEL_SRC := kernel.c
 
-XCC := xt-xcc
+XCC := xt-xc++
 XRUN := xt-run
-XCC_FLAGS += -std=c99 -O3
+XCC_FLAGS += -std=c++11 -O3 -mlongcalls -mtext-section-literals
 XSIM_FLAGS := --summary --mem_model
 
 NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
