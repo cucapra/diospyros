@@ -10,7 +10,7 @@ dft = "dft"
 benchmarks = [
     matmul,
     conv2d,
-    dft,
+    # dft,
 ]
 
 def make_dir(d):

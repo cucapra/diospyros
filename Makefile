@@ -1,4 +1,5 @@
 .PHONY: test build test-all
+.PRECIOUS: %-out/res.rkt %-out/spec-egg.rkt
 
 # By default, run two jobs
 MAKEFLAGS += --jobs=2
@@ -28,7 +29,7 @@ clean:
 	./dios-example-gen --only-spec -b $* -p  $< -o $@
 
 # Pre-process spec for egg
-%-out/spec-egg.rkt: %-out
+%-out/spec-egg.rkt: %-out src/dios-egraphs/vec-dsl-conversion.py
 	cat $*-out/spec.rkt | python3 src/dios-egraphs/vec-dsl-conversion.py -p > $@
 
 # Run egg rewriter
