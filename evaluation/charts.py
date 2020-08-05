@@ -20,7 +20,7 @@ from py_utils import *
 print("Setting matplot configurations")
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
-matplotlib.rcParams['text.usetex'] = True
+# matplotlib.rcParams['text.usetex'] = True
 
 def get_color_palette(benchmark):
     # Use a diverging color palette for the two versions of the naive baseline
@@ -69,7 +69,8 @@ def get_baseline_names(benchmark):
     baselines = ["Naive", "Naive hard size", "Nature"]
     if benchmark == matmul:
         return baselines + ["Expert"]
-#    if benchmark == matadd:
+    if benchmark == matadd:
+        return ["Naive", "Naive hard size"]
     return baselines
 
 def get_kernel_name_formatted(kernel):
@@ -198,7 +199,7 @@ def format_and_chart_data(full_file, summary_file):
                     'Order' : i if i < 3 else 5},
                     ignore_index=True)
 
-            rosette_data = [x for x in data if x["kernel"] == "Rosette"]
+            rosette_data = [x for x in data if x["kernel"] == "Diospyros"]
             highest_cost = max(rosette_data, key=lambda r: int(r["cost"]))
             benchmark_data = benchmark_data.append({
                 'Kernel': "Diospyros (first)",
@@ -216,7 +217,7 @@ def format_and_chart_data(full_file, summary_file):
                 ignore_index=True)
 
         chart(benchmark, benchmark_data, figsize=(8,3))
-        write_summary_statistics(benchmark, benchmark_data, summary_file)
+        # write_summary_statistics(benchmark, benchmark_data, summary_file)
 
 def read_csvs(dir, benchmarks, out):
     rows = 0
