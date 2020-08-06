@@ -37,6 +37,7 @@ extern "C" {
                     float32_t* B, const float32_t* V,                         
                     int M, int N_, int P);
   size_t matinvqrrotf_getScratchSize(int M, int N_, int P);
+  void transpmf(const float32_t * x, int M, int N_, float32_t * z);
 }
 
 int main(int argc, char **argv) {
@@ -73,7 +74,7 @@ int main(int argc, char **argv) {
   printf("R:\n");  // `a` now holds R (upper triangular).
   print_matrix(a, N, N);
   
-  // Apply Housholder rotations to obtain Q.
+  // Apply Housholder rotations to obtain Q'.
   print_matrix(nat_v, 2*N-N+1, N/2+N);
   scratchSize = matinvqrrotf_getScratchSize(N, N, N);
   if (sizeof(scratch) < scratchSize) {
@@ -81,8 +82,11 @@ int main(int argc, char **argv) {
     return 1;
   }
   matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
+
+  // Transpose that to get Q.
+  transpmf(nat_b, N, N, q);
   printf("Q:\n");
-  print_matrix(nat_b, N, N);
+  print_matrix(q, N, N);
   return 0;
 
   // Diospyros
