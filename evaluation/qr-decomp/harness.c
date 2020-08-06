@@ -9,7 +9,9 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-#include "../../../../diospyros-private/src/utils.h"
+// XXX Adrian temporarily modified this because the private directory is
+// directly alongside the public directory in his setup...
+#include "../../../diospyros-private/src/utils.h"
 
 float a[N * N] __attribute__((section(".dram0.data")));
 float q[N * N] __attribute__((section(".dram0.data")));
@@ -19,6 +21,13 @@ float r_spec[N * N] __attribute__((section(".dram0.data")));
 
 // Diospyros kernel
 void kernel(float * A, float * Q, float * R);
+
+// Nature functions.
+extern "C" {
+  void matinvqrf(void *pScr,
+                 float32_t* A,float32_t* V,float32_t* D, int M, int N_);
+  size_t matinvqrf_getScratchSize(int M, int N_);
+}
 
 int main(int argc, char **argv) {
 
@@ -35,6 +44,11 @@ int main(int argc, char **argv) {
 
 
   int time = 0;
+
+  // Nature.
+  size_t scratchSize = matinvqrf_getScratchSize(N, N);
+  printf("scratch size: %i\n", scratchSize);
+  return 0;
 
   // Diospyros
   start_cycle_timing;
