@@ -23,6 +23,7 @@ float r_spec[N * N] __attribute__((section(".dram0.data")));
 float scratch[N] __attribute__((section(".dram0.data")));
 float nat_v[(2*N-N+1)*(N/2+N)] __attribute__((section(".dram0.data")));
 float nat_d[N] __attribute__((section(".dram0.data")));
+float nat_b[N*N] __attribute__((section(".dram0.data")));
 
 // Diospyros kernel
 void kernel(float * A, float * Q, float * R);
@@ -32,6 +33,10 @@ extern "C" {
   void matinvqrf(void *pScr,
                  float32_t* A,float32_t* V,float32_t* D, int M, int N_);
   size_t matinvqrf_getScratchSize(int M, int N_);
+  void matinvqrrotf(void *pScr,                                              
+                    float32_t* B, const float32_t* V,                         
+                    int M, int N_, int P);
+  size_t matinvqrrotf_getScratchSize(int M, int N_, int P);
 }
 
 int main(int argc, char **argv) {
@@ -57,12 +62,24 @@ int main(int argc, char **argv) {
     return 1;
   }
   matinvqrf(scratch, a, nat_v, nat_d, N, N);
-  print_matrix(a, N, N);  // `a` now holds R (upper triangular).
-  print_matrix(nat_v, 2*N-N+1, N/2+N);
-  for (int i = 0; i < N - 1; ++i) {
-    printf("v_%i: ", i);
-    print_matrix(nat_v + N*i, N-i, 1);
+  printf("R:\n");  // `a` now holds R (upper triangular).
+  print_matrix(a, N, N);
+  
+  // ?? identity
+  zero_matrix(nat_b, N, N);
+  for (int i = 0; i < N; ++i) {
+    nat_b[i*N + i] = 1;
   }
+
+  // ??
+  print_matrix(nat_v, 2*N-N+1, N/2+N);
+  scratchSize = matinvqrrotf_getScratchSize(N, N, N);
+  if (sizeof(scratch) < scratchSize) {
+    printf("scratch is too small!\n");
+    return 1;
+  }
+  matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
+  print_matrix(nat_b, 2*N-N+1, N/2+N);
   return 0;
 
   // Diospyros
