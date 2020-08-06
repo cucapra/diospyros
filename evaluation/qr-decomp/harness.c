@@ -57,9 +57,12 @@ int main(int argc, char **argv) {
     return 1;
   }
   matinvqrf(scratch, a, nat_v, nat_d, N, N);
-  print_matrix(a, N, N);  // `a` now holds R (upper triangle).
-  print_matrix(nat_d, N, 1);  // d is just the recip. of the diagonal of R (so useless?).
+  print_matrix(a, N, N);  // `a` now holds R (upper triangular).
   print_matrix(nat_v, 2*N-N+1, N/2+N);
+  for (int i = 0; i < N - 1; ++i) {
+    printf("v_%i: ", i);
+    print_matrix(nat_v + N*i, N-i, 1);
+  }
   return 0;
 
   // Diospyros
