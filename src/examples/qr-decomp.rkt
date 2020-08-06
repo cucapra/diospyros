@@ -138,8 +138,8 @@
 
     ; "Pad out" the Q minor matrix with elements from the identity
     (define Q-t (matrix n n (make-bv-list-zeros (* n n))))
-    (for* ([i (in-range m)]
-           [j (in-range m)])
+    (for* ([i (in-range n)]
+           [j (in-range n)])
        (matrix-set! Q-t i j (q-i Q-min i j k)))
 
     (if (equal? k 0)
