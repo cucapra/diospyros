@@ -56,8 +56,6 @@
         (define input-string (read (open-input-file input-path)))
         (eval input-string ns))))
 
-  (pretty-print input-program)
-
   ; Compute the intermediate program.
   (define i-prog
     (~> input-program

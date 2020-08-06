@@ -331,7 +331,6 @@
                  (c-bare (format "~a(~a)" op v)))]
 
         [(vec-lit id elems type)
-          ;          ["float *" (c-deref (c-cast "xb_vecMx32 *" (c-id inp)))]))
          (define c-ty (c-type type))
          (define tens-ty (match (ref-type c-ty)
            ["int *" "xb_vecMx32 *"]

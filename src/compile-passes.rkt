@@ -215,6 +215,16 @@
     [(vec-shuffle-set! id _ _) id]
     ; TODO: functions might mutate/write to args
     [(vec-app id _ _) id]
+    [(let-bind id expr type)
+     id]
+    [(array-get id arr-id idx)
+     id]
+    [(vec-lit id elems type)
+     id]
+    [(scalar-binop id op l r)
+     id]
+    [(scalar-unnop id op v)
+     id]
     [_ void]))
 
 ; Get the cannonical value for an instruction
@@ -222,17 +232,42 @@
   (match i
     [(or (vec-decl id size) (vec-extern-decl id size _))
      ; Declarations should not be deduplicated, so keep id
-     '(`vec-decl id)]
+     (list `vec-decl id)]
     [(vec-const id init type)
-     '(`vec-const init type)]
+     (list `vec-const init type)]
     [(vec-shuffle id idxs inps)
-     '(`vec-shuffle (id-to-num idxs) (map id-to-num inps))]
+     (list `vec-shuffle (id-to-num idxs) (map id-to-num inps))]
     [(vec-shuffle-set! out-vec idxs inp)
-     '(vec-shuffle-set! (id-to-num idxs) (id-to-num inp))]
+     (list `vec-shuffle-set! (id-to-num idxs) (id-to-num inp))]
     [(vec-app id f inps)
-     '(vec-app f (id-to-num inps))]
+     (list `vec-app f (id-to-num inps))]
     [(vec-void-app f inps)
-     '(vec-void-app f (id-to-num inps))]))
+     (list `vec-void-app f (id-to-num inps))]
+    [(vec-load dest-id src-id start end)
+     (list `vec-load (id-to-num dest-id) (id-to-num src-id) start end)]
+    [(vec-store dest-id src-id start end)
+     (list `vec-store (id-to-num dest-id) (id-to-num src-id) start end)]
+    [(vec-write dst src)
+     (list `vec-write (id-to-num dst) (id-to-num src))]
+    [(let-bind id expr type)
+     (list `let-bind expr type)]
+    [(array-get id arr-id idx)
+     (list `array-get
+           (id-to-num arr-id)
+           idx)]
+    [(vec-lit id elems type)
+     (list `vec-lit
+           (map id-to-num elems)
+           type)]
+    [(scalar-binop id op l r)
+     (list `scalar-binop
+           op
+           (id-to-num l)
+           (id-to-num r))]
+    [(scalar-unnop id op v)
+     (list `scalar-unnop
+            op
+            (id-to-num v))]))
 
 ; Local value numbering
 (define (lvn p)
@@ -298,12 +333,13 @@
         [already-mapped
          (define num (lookup-value cannonical))
          (hash-set! id-to-num id num)
-         (list `identity (hash-ref num-to-id num))]
+         (list)]
         ; New, unseen value
         [else
          (define new-num (add-to-numbering id))
          (define new-id
-           (if last-write id ; Keep last write for output
+           (if (or last-write (vec-extern-decl? i))
+               id ; Keep last write for extern decl or output
                (string->symbol (format "lvn_~a" new-num))))
 
          ; Save this new value number
@@ -316,8 +352,8 @@
          (match i
            [(vec-decl _ size)
             (vec-decl new-id size)]
-           [(vec-extern-decl _ size tag)
-            (vec-extern-decl new-id size tag)]
+           [(vec-extern-decl id size tag)
+            (vec-extern-decl id size tag)]
            [(vec-const _ init type)
             (vec-const new-id init type)]
            [(vec-shuffle _ idxs inps)
@@ -327,9 +363,32 @@
            [(vec-app _ f inps)
             (vec-app new-id f (map replace-arg inps))]
            [(vec-void-app f inps)
-            (vec-void-app f (map replace-arg inps))])])))
+            (vec-void-app f (map replace-arg inps))]
+           [(vec-load dest-id src-id start end)
+            (vec-load (replace-arg dest-id)
+                      (replace-arg src-id)
+                      start
+                      end)]
+           [(vec-store dest-id src-id start end)
+            (vec-store (replace-arg dest-id)
+                       (replace-arg src-id)
+                       start
+                       end)]
+           [(vec-write dst src)
+            (vec-write (replace-arg dst)
+                       (replace-arg src))]
+           [(let-bind _ expr type)
+            (let-bind new-id expr type)]
+           [(array-get _ arr-id idx)
+            (array-get new-id (replace-arg arr-id) idx)]
+           [(vec-lit _ elems type)
+            (vec-lit new-id (map replace-arg elems) type)]
+           [(scalar-binop id op l r)
+            (scalar-binop new-id op (replace-arg l) (replace-arg r))]
+           [(scalar-unnop _ op v)
+            (scalar-unnop new-id op (replace-arg v))])])))
 
-  (prog new-insts))
+  (prog (flatten new-insts)))
 
 
 (module+ test
