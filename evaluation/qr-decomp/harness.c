@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
-  print_matrix(nat_b, 2*N-N+1, N/2+N);
+  print_matrix(nat_b, N, N);
   return 0;
 
   // Diospyros
