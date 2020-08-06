@@ -27,8 +27,8 @@
   ; (values (list (matrix-elements Q) (matrix-elements R))
   (values (matrix-elements Q)
           (prog prelude)
-          (list 'Q 'R)))
-           ; (list 'Q)))
+          ; (list 'Q 'R)))
+           (list 'Q)))
 
 (define qr-decomp:keys
   (list 'N 'reg-size))

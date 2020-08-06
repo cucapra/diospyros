@@ -54,6 +54,7 @@
 (define (egg-to-dios e)
   (match e
     [(? number? a)
+     ; TODO: don't redefine
      (define name (new-name (format "~v" a)))
      (values
        name
@@ -101,6 +102,29 @@
               (values name
                       (flatten
                         (list p1 p2 p3 p4 vlit)))))))]
+    [(egg-list vs)
+      (define-values (zero-n zero-p) (egg-to-dios 0))
+      (define (egg-to-tuple v)
+        (define-values (n p) (egg-to-dios v))
+        (list n p))
+      (define vs-egg (map egg-to-tuple vs))
+      (define names (map first vs-egg))
+      (define progs (map second vs-egg))
+      (define vlits
+        (for/list ([i (in-range 0 (length vs) (current-reg-size))])
+          (define (access-or-zero j)
+            (if (< (+ i j) (length names))
+                (list-ref names (+ i j))
+                zero-n))
+          (define name (new-name 'lit))
+          (list name
+                (vec-lit name
+                         (map access-or-zero (stream->list (in-range (current-reg-size))))
+                         float-type))))
+
+      (values (map first vlits)
+              (flatten
+                (list zero-p progs (map second vlits))))]
     [(egg-vec-op `vec-mac (list acc v1 v2))
       (define-values (acc-name acc-prog) (egg-to-dios acc))
       (define-values (v1-name v1-prog) (egg-to-dios v1))

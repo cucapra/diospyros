@@ -42,6 +42,8 @@
       (egg-vec-op `vec-add (map s-exp-to-ast (list v1 v2)))]
     [(or `(Vec4 ,v1 ,v2 ,v3 ,v4) `(LitVec4 ,v1 ,v2 ,v3 ,v4))
       (apply egg-vec-4 (map s-exp-to-ast (list v1 v2 v3 v4)))]
+    [`(List , vs ...)
+      (egg-list (map s-exp-to-ast vs))]
     [`(Get ,a ,idx)
       (egg-get a idx)]
     [`(Concat ,v1 ,v2)
