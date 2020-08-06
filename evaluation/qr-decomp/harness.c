@@ -56,6 +56,14 @@ int main(int argc, char **argv) {
   int time = 0;
 
   // Nature.
+
+  // We need an extra identity matrix for the second step.
+  zero_matrix(nat_b, N, N);
+  for (int i = 0; i < N; ++i) {
+    nat_b[i*N + i] = 1;
+  }
+
+  // Start with main QR decomposition call.
   size_t scratchSize = matinvqrf_getScratchSize(N, N);
   if (sizeof(scratch) < scratchSize) {
     printf("scratch is too small!\n");
@@ -65,13 +73,7 @@ int main(int argc, char **argv) {
   printf("R:\n");  // `a` now holds R (upper triangular).
   print_matrix(a, N, N);
   
-  // ?? identity
-  zero_matrix(nat_b, N, N);
-  for (int i = 0; i < N; ++i) {
-    nat_b[i*N + i] = 1;
-  }
-
-  // ??
+  // Apply Housholder rotations to obtain Q.
   print_matrix(nat_v, 2*N-N+1, N/2+N);
   scratchSize = matinvqrrotf_getScratchSize(N, N, N);
   if (sizeof(scratch) < scratchSize) {
@@ -79,6 +81,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
+  printf("Q:\n");
   print_matrix(nat_b, N, N);
   return 0;
 
