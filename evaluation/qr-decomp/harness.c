@@ -40,24 +40,7 @@ extern "C" {
   void transpmf(const float32_t * x, int M, int N_, float32_t * z);
 }
 
-int main(int argc, char **argv) {
-
-  FILE *file = fopen(OUTFILE, "w");
-  if (file == NULL) file = stdout;;
-
-  init_rand(10);
-
-  create_random_mat(a, N, N);
-  zero_matrix(q, N, N);
-  zero_matrix(r, N, N);
-
-  print_matrix(a, N, N);
-
-
-  int time = 0;
-
-  // Nature.
-
+int nature_qr() {
   // We need an extra identity matrix for the second step.
   zero_matrix(nat_b, N, N);
   for (int i = 0; i < N; ++i) {
@@ -87,6 +70,30 @@ int main(int argc, char **argv) {
   transpmf(nat_b, N, N, q);
   printf("Q:\n");
   print_matrix(q, N, N);
+  return 0;
+}
+
+int main(int argc, char **argv) {
+
+  FILE *file = fopen(OUTFILE, "w");
+  if (file == NULL) file = stdout;;
+
+  init_rand(10);
+
+  create_random_mat(a, N, N);
+  zero_matrix(q, N, N);
+  zero_matrix(r, N, N);
+
+  print_matrix(a, N, N);
+
+
+  int time = 0;
+
+  // Nature.
+  int err = nature_qr();
+  if (err) {
+    return err;
+  }
   return 0;
 
   // Diospyros
