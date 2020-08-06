@@ -40,11 +40,20 @@ extern "C" {
   void transpmf(const float32_t * x, int M, int N_, float32_t * z);
 }
 
+/**
+ * QR decomposition using Nature kernels.
+ */
 int nature_qr(const float *A, float *Q, float *R) {
-  // We need an extra identity matrix for the second step.
-  zero_matrix(nat_b, N, N);
-  for (int i = 0; i < N; ++i) {
-    nat_b[i*N + i] = 1;
+  // Check that our scratch array is big enough for both steps.
+  size_t scratchSize = matinvqrf_getScratchSize(N, N);
+  if (sizeof(scratch) < scratchSize) {
+    printf("scratch is too small for matinvqrf!\n");
+    return 1;
+  }
+  scratchSize = matinvqrrotf_getScratchSize(N, N, N);
+  if (sizeof(scratch) < scratchSize) {
+    printf("scratch is too small for matinvqrrotf!\n");
+    return 1;
   }
 
   // Copy A into R (because it's overwritten in the first step).
@@ -53,20 +62,16 @@ int nature_qr(const float *A, float *Q, float *R) {
   }
 
   // Start with main QR decomposition call.
-  size_t scratchSize = matinvqrf_getScratchSize(N, N);
-  if (sizeof(scratch) < scratchSize) {
-    printf("scratch is too small!\n");
-    return 1;
-  }
   // The `R` used here is an in/out parameter: A in input, R on output.
   matinvqrf(scratch, R, nat_v, nat_d, N, N);
   
-  // Apply Housholder rotations to obtain Q'.
-  scratchSize = matinvqrrotf_getScratchSize(N, N, N);
-  if (sizeof(scratch) < scratchSize) {
-    printf("scratch is too small!\n");
-    return 1;
+  // We need an extra identity matrix for the second step.
+  zero_matrix(nat_b, N, N);
+  for (int i = 0; i < N; ++i) {
+    nat_b[i*N + i] = 1;
   }
+
+  // Apply Housholder rotations to obtain Q'.
   matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
 
   // Transpose that to get Q.
