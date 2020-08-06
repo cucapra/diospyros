@@ -19,6 +19,11 @@ float r[N * N] __attribute__((section(".dram0.data")));
 float q_spec[N * N] __attribute__((section(".dram0.data")));
 float r_spec[N * N] __attribute__((section(".dram0.data")));
 
+// For Nature.
+float scratch[N] __attribute__((section(".dram0.data")));
+float nat_v[(2*N-N+1)*N/2+N] __attribute__((section(".dram0.data")));
+float nat_d[N] __attribute__((section(".dram0.data")));
+
 // Diospyros kernel
 void kernel(float * A, float * Q, float * R);
 
@@ -47,7 +52,12 @@ int main(int argc, char **argv) {
 
   // Nature.
   size_t scratchSize = matinvqrf_getScratchSize(N, N);
-  printf("scratch size: %i\n", scratchSize);
+  if (sizeof(scratch) < scratchSize) {
+    printf("scratch is too small!\n");
+    return 1;
+  }
+  matinvqrf(scratch, a, nat_v, nat_d, N, N);
+  print_matrix(a, N, N);  // `a` now holds R (upper triangle).
   return 0;
 
   // Diospyros
