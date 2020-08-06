@@ -43,6 +43,8 @@ def get_y_limit(benchmark):
         return 325
     if benchmark == matadd:
         return 325
+    if benchmark == matsub:
+        return 325
 
     print("Error: need y limit for benchmark", benchmark)
 
@@ -62,6 +64,11 @@ def get_size_formatted(benchmark, row):
                                        row["A_COLS"],
                                        row["B_ROWS"],
                                        row["B_COLS"])
+    if benchmark == matsub:
+        return "{}~W{} by {}~W{}".format(row["A_ROWS"],
+                                       row["A_COLS"],
+                                       row["B_ROWS"],
+                                       row["B_COLS"])
 
     print("Error: need size formatting for benchmark", benchmark)
 
@@ -69,6 +76,8 @@ def get_baseline_names(benchmark):
     baselines = ["Naive", "Naive hard size", "Nature"]
     if benchmark == matmul:
         return baselines + ["Expert"]
+    if benchmark == matadd:
+        return ["Naive", "Naive hard size"]
     if benchmark == matadd:
         return ["Naive", "Naive hard size"]
     return baselines

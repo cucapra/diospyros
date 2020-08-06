@@ -13,14 +13,14 @@ matsub = "mat-sub"
 dft = "dft"
 
 benchmarks = [
-    matmul,
-    matadd,
+#    matmul,
+#    matadd,
     matsub,
     #standarddeviation,
     #vecdistance,
     #vecmidpoint,
-    conv2d,
-    dft,
+ #   conv2d,
+  #  dft,
 ]
 
 def make_dir(d):

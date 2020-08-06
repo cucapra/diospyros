@@ -75,14 +75,14 @@ parameters = {
         #}
     ],
     matadd : [
-        {
-            "A-rows": 2,
-            "A-cols": 2,
-            "B-rows": 2,
-            "B-cols": 2,
-            "iterations": 2,
-            "reg-size": 4
-        },
+        #{
+        #    "A-rows": 2,
+        #    "A-cols": 2,
+        #    "B-rows": 2,
+        #    "B-cols": 2,
+        #    "iterations": 2,
+        #    "reg-size": 4
+        #},
         #{
         #    "A-rows": 3,
         #    "A-cols": 3,
@@ -93,14 +93,14 @@ parameters = {
         #}
     ],
     matsub : [
-        #{
-        #    "A-rows": 2,
-        #    "A-cols": 2,
-        #    "B-rows": 2,
-        #    "B-cols": 2,
-        #    "iterations": 2,
-        #    "reg-size": 4
-        #},
+        {
+            "A-rows": 2,
+            "A-cols": 2,
+            "B-rows": 2,
+            "B-cols": 2,
+            "iterations": 2,
+            "reg-size": 4
+        },
         #{
         #    "A-rows": 3,
         #    "A-cols": 3,

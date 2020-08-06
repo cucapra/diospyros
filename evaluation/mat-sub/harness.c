@@ -26,10 +26,7 @@ void kernel(float* input_A, float* input_B, float* input_C);
  void naive_matrix_sub(float *a, float *b, float *c, int row1, int col1, int col2) {
    for (int y = 0; y < row1; y++) {
      for (int x = 0; x < col2; x++) {
-      // c[col2 * y + x] = 0;
-      // for (int k = 0; k < col1; k++) {
          c[col2 * y + x] = a[col1 * y + x] - b[col2 * y + x];
-       }
      }
    }
  }
@@ -37,10 +34,8 @@ void kernel(float* input_A, float* input_B, float* input_C);
  void naive_matrix_sub_hard_size(float *a, float *b, float *c) {
    for (int y = 0; y < A_ROWS; y++) {
      for (int x = 0; x < B_COLS; x++) {
-      // c[B_COLS * y + x] = 0;
-      // for (int k = 0; k < A_COLS; k++) {
          c[B_COLS * y + x] = a[A_COLS * y + x] - b[B_COLS * y + x];
-       }
+       
      }
    }
  }
