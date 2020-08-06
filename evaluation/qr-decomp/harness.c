@@ -9,9 +9,7 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-// XXX Adrian temporarily modified this because the private directory is
-// directly alongside the public directory in his setup...
-#include "../../../diospyros-private/src/utils.h"
+#include "../../../../diospyros-private/src/utils.h"
 
 float a[N * N] __attribute__((section(".dram0.data")));
 float q[N * N] __attribute__((section(".dram0.data")));
