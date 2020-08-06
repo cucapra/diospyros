@@ -11,7 +11,7 @@ NATURE_INC := -I $(NATURE_DIR)/include -I $(NATURE_DIR)/include_private -DXCHAL_
 
 PARAMS += -DOUTFILE='"$(OUTFILE)"'
 
-ALL_OBJS := $(NATURE_OBJS) $(EXPERT_OBJ) $(EGG_OBJ)
+ALL_OBJS := $(NATURE_OBJS) $(EXPERT_OBJ)
 
 # Make Nature objects individually
 %.o: $(NATURE_DIR)/%.c
