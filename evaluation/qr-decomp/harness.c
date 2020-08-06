@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   }
   matinvqrf(scratch, a, nat_v, nat_d, N, N);
   print_matrix(a, N, N);  // `a` now holds R (upper triangle).
-  print_matrix(nat_d, N, 1);
+  print_matrix(nat_d, N, 1);  // d is just the recip. of the diagonal of R (so useless?).
   print_matrix(nat_v, 2*N-N+1, N/2+N);
   return 0;
 
