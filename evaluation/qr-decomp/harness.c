@@ -40,11 +40,16 @@ extern "C" {
   void transpmf(const float32_t * x, int M, int N_, float32_t * z);
 }
 
-int nature_qr() {
+int nature_qr(const float *A, float *Q, float *R) {
   // We need an extra identity matrix for the second step.
   zero_matrix(nat_b, N, N);
   for (int i = 0; i < N; ++i) {
     nat_b[i*N + i] = 1;
+  }
+
+  // Copy A into R (because it's overwritten in the first step).
+  for (int i = 0; i < N * N; ++i) {
+    R[i] = A[i];
   }
 
   // Start with main QR decomposition call.
@@ -53,12 +58,10 @@ int nature_qr() {
     printf("scratch is too small!\n");
     return 1;
   }
-  matinvqrf(scratch, a, nat_v, nat_d, N, N);
-  printf("R:\n");  // `a` now holds R (upper triangular).
-  print_matrix(a, N, N);
+  // The `R` used here is an in/out parameter: A in input, R on output.
+  matinvqrf(scratch, R, nat_v, nat_d, N, N);
   
   // Apply Housholder rotations to obtain Q'.
-  print_matrix(nat_v, 2*N-N+1, N/2+N);
   scratchSize = matinvqrrotf_getScratchSize(N, N, N);
   if (sizeof(scratch) < scratchSize) {
     printf("scratch is too small!\n");
@@ -67,9 +70,7 @@ int nature_qr() {
   matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
 
   // Transpose that to get Q.
-  transpmf(nat_b, N, N, q);
-  printf("Q:\n");
-  print_matrix(q, N, N);
+  transpmf(nat_b, N, N, Q);
   return 0;
 }
 
@@ -90,10 +91,16 @@ int main(int argc, char **argv) {
   int time = 0;
 
   // Nature.
-  int err = nature_qr();
+  int err = nature_qr(a, q, r);
   if (err) {
     return err;
   }
+
+  // XXX Just printing and exiting early as a test for now.
+  printf("Q:");
+  print_matrix(q, N, N);
+  printf("R:");
+  print_matrix(r, N, N);
   return 0;
 
   // Diospyros
