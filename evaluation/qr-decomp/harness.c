@@ -21,7 +21,7 @@ float r_spec[N * N] __attribute__((section(".dram0.data")));
 
 // For Nature.
 float scratch[N] __attribute__((section(".dram0.data")));
-float nat_v[(2*N-N+1)*N/2+N] __attribute__((section(".dram0.data")));
+float nat_v[(2*N-N+1)*(N/2+N)] __attribute__((section(".dram0.data")));
 float nat_d[N] __attribute__((section(".dram0.data")));
 
 // Diospyros kernel
@@ -58,6 +58,8 @@ int main(int argc, char **argv) {
   }
   matinvqrf(scratch, a, nat_v, nat_d, N, N);
   print_matrix(a, N, N);  // `a` now holds R (upper triangle).
+  print_matrix(nat_d, N, 1);
+  print_matrix(nat_v, 2*N-N+1, N/2+N);
   return 0;
 
   // Diospyros
