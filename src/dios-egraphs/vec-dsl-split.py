@@ -48,7 +48,7 @@ def split_into(prog, parts_num):
 
             parts += splits
 
-        if len(splits) >= parts_num:
+        if len(parts) >= parts_num:
             break
 
     return parts
