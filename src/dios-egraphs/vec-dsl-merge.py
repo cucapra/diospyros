@@ -14,7 +14,10 @@ def merge_all(progs):
     cur_prog = []
     progs.reverse()
     for prog in progs:
-        cur_prog = ["Concat", prog, cur_prog]
+        if cur_prog == []:
+            cur_prog = prog
+        else:
+            cur_prog = [sexpdata.Symbol("Concat"), prog, cur_prog]
 
     return cur_prog
 

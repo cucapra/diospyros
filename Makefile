@@ -43,7 +43,7 @@ ifdef SPLIT
 			$*-out/specs/"$$file" \
 			> $*-out/opt/"$$file"; \
 	done
-	./src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $(wildcard $*-out/opt/spec*) > $@
+	./src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $*-out/opt/spec* > $@
 else
 	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $< > $@
 endif
