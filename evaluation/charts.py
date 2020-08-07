@@ -38,9 +38,9 @@ def get_color_palette(benchmark):
 
 def get_y_limit(benchmark):
     if benchmark == conv2d:
-        return 3500
+        return 4500
     if benchmark == matmul:
-        return 325
+        return 800
 
     print("Error: need y limit for benchmark", benchmark)
 
@@ -60,8 +60,8 @@ def get_size_formatted(benchmark, row):
 
 def get_baseline_names(benchmark):
     baselines = ["Naive", "Naive hard size", "Nature"]
-    if benchmark == matmul:
-        return baselines + ["Expert"]
+    # if benchmark == matmul:
+    #     return baselines + ["Expert"]
     return baselines
 
 def get_kernel_name_formatted(kernel):
@@ -134,7 +134,7 @@ def write_summary_statistics(benchmark, benchmark_data, file):
             speedup_naive = naive_cycles[size]/cycles
             speedup_nature = nature_cycles[size]/cycles
 
-            if "Diospyros (fastest)" in r["Kernel"]:
+            if "Diospyros" in r["Kernel"]:
                 speedups_naive.append(speedup_naive)
                 speedups_nature.append(speedup_nature)
 
@@ -190,22 +190,22 @@ def format_and_chart_data(full_file, summary_file):
                     'Order' : i if i < 3 else 5},
                     ignore_index=True)
 
-            rosette_data = [x for x in data if x["kernel"] == "Rosette"]
-            highest_cost = max(rosette_data, key=lambda r: int(r["cost"]))
+            dios_data = [x for x in data if x["kernel"] == "Diospyros"]
+            highest_cost = max(dios_data, key=lambda r: int(r["cycles"]))
             benchmark_data = benchmark_data.append({
-                'Kernel': "Diospyros (first)",
+                'Kernel': "Diospyros",
                 'Size': size,
                 'Cycles (simulation)': int(highest_cost["cycles"]),
                 'Order' : 3},
                 ignore_index=True)
 
-            fastest = min(rosette_data, key=lambda r: int(r["cycles"]))
-            benchmark_data = benchmark_data.append({
-                'Kernel': "Diospyros (fastest)",
-                'Size': size,
-                'Cycles (simulation)': int(fastest["cycles"]),
-                'Order' : 4},
-                ignore_index=True)
+            # fastest = min(dios_data, key=lambda r: int(r["cycles"]))
+            # benchmark_data = benchmark_data.append({
+            #     'Kernel': "Diospyros (fastest)",
+            #     'Size': size,
+            #     'Cycles (simulation)': int(fastest["cycles"]),
+            #     'Order' : 4},
+            #     ignore_index=True)
 
         chart(benchmark, benchmark_data, figsize=(8,3))
         write_summary_statistics(benchmark, benchmark_data, summary_file)
@@ -234,13 +234,12 @@ def read_csvs(dir, benchmarks, out):
                         reader = csv.DictReader(csvfile)
                         if not writer:
                             fields = reader.fieldnames
-                            fields = ["benchmark", "cost"] + fields
+                            fields = ["benchmark"] + fields
                             writer = csv.DictWriter(outfile, fieldnames=fields)
                             writer.writeheader()
 
                         for row in reader:
                             row["benchmark"] = benchmark
-                            row["cost"] = os.path.basename(pre).replace("sol-", "")
                             writer.writerow(row)
                             rows += 1
     print("Combined {} individual runs into one CSV: {}".format(rows, out))
