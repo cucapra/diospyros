@@ -17,8 +17,65 @@ float r[N * N] __attribute__((section(".dram0.data")));
 float q_spec[N * N] __attribute__((section(".dram0.data")));
 float r_spec[N * N] __attribute__((section(".dram0.data")));
 
+// For Nature.
+float scratch[N] __attribute__((section(".dram0.data")));
+float nat_v[(2*N-N+1)*(N/2+N)] __attribute__((section(".dram0.data")));
+float nat_d[N] __attribute__((section(".dram0.data")));
+float nat_b[N*N] __attribute__((section(".dram0.data")));
+
 // Diospyros kernel
 void kernel(float * A, float * Q, float * R);
+
+// Nature functions.
+extern "C" {
+  void matinvqrf(void *pScr,
+                 float32_t* A,float32_t* V,float32_t* D, int M, int N_);
+  size_t matinvqrf_getScratchSize(int M, int N_);
+  void matinvqrrotf(void *pScr,                                              
+                    float32_t* B, const float32_t* V,                         
+                    int M, int N_, int P);
+  size_t matinvqrrotf_getScratchSize(int M, int N_, int P);
+  void transpmf(const float32_t * x, int M, int N_, float32_t * z);
+}
+
+/**
+ * QR decomposition using Nature kernels.
+ */
+int nature_qr(const float *A, float *Q, float *R) {
+  // Check that our scratch array is big enough for both steps.
+  size_t scratchSize = matinvqrf_getScratchSize(N, N);
+  if (sizeof(scratch) < scratchSize) {
+    printf("scratch is too small for matinvqrf!\n");
+    return 1;
+  }
+  scratchSize = matinvqrrotf_getScratchSize(N, N, N);
+  if (sizeof(scratch) < scratchSize) {
+    printf("scratch is too small for matinvqrrotf!\n");
+    return 1;
+  }
+
+  // Copy A into R (because it's overwritten in the first step).
+  for (int i = 0; i < N * N; ++i) {
+    R[i] = A[i];
+  }
+
+  // Start with main QR decomposition call.
+  // The `R` used here is an in/out parameter: A in input, R on output.
+  matinvqrf(scratch, R, nat_v, nat_d, N, N);
+  
+  // We need an extra identity matrix for the second step.
+  zero_matrix(nat_b, N, N);
+  for (int i = 0; i < N; ++i) {
+    nat_b[i*N + i] = 1;
+  }
+
+  // Apply Housholder rotations to obtain Q'.
+  matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
+
+  // Transpose that to get Q.
+  transpmf(nat_b, N, N, Q);
+  return 0;
+}
 
 int main(int argc, char **argv) {
 
@@ -35,6 +92,19 @@ int main(int argc, char **argv) {
 
 
   int time = 0;
+
+  // Nature.
+  int err = nature_qr(a, q, r);
+  if (err) {
+    return err;
+  }
+
+  // XXX Just printing and exiting early as a test for now.
+  printf("Q:");
+  print_matrix(q, N, N);
+  printf("R:");
+  print_matrix(r, N, N);
+  return 0;
 
   // Diospyros
   start_cycle_timing;

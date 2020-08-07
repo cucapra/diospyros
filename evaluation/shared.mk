@@ -1,9 +1,11 @@
 SRC := harness.c
 KERNEL_SRC := kernel.c
 
-XCC := xt-xc++
+XCC := xt-xcc
+XCXX := xt-xc++
 XRUN := xt-run
-XCC_FLAGS += -std=c++11 -O3 -mlongcalls -mtext-section-literals
+XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals
+XCXX_FLAGS += -std=c++11 -O3 -mlongcalls -mtext-section-literals
 XSIM_FLAGS := --summary --mem_model
 
 NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
@@ -23,7 +25,7 @@ clean:
 	rm -rf $(OBJECT) $(ALL_OBJS)
 
 $(OBJECT): $(ALL_OBJS) $(KERNEL_SRC) $(SRC)
-	$(XCC) $(PARAMS) $(XCC_FLAGS) $(NATURE_INC) $(ALL_OBJS) $(KERNEL_SRC) $(SRC) -o $(OBJECT)
+	$(XCXX) $(PARAMS) $(XCXX_FLAGS) $(NATURE_INC) $(ALL_OBJS) $(KERNEL_SRC) $(SRC) -o $(OBJECT)
 
 run: $(OBJECT)
 	$(XRUN) $(OBJECT)
