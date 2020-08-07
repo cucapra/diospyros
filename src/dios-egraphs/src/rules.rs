@@ -17,7 +17,7 @@ fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst)
         let non_zero_gets = vars.iter().filter(|v| {
             !egraph[subst[**v]].nodes.contains(&zero)
         }).unique_by(|v| {egraph.find(subst[**v])});
-        non_zero_gets.collect::<Vec<_>>().len() < 2
+        non_zero_gets.count() < 2
     }
 }
 
@@ -114,5 +114,5 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
                         (Vec4 ?b0 ?b1 ?b2 ?b3)
                         (Vec4 ?c0 ?c1 ?c2 ?c3))"),
     ];
-    return rules;
+    rules
 }
