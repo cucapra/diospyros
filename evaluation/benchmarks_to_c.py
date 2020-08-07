@@ -336,6 +336,7 @@ def run_benchmark(dir, benchmark, build, force):
         params_json = os.path.join(params_config, "params.json")
         with open(params_json, 'r') as f:
             params = json.load(f)
+            print(params)
         for file in listdir(params_config):
             pre, ext = os.path.splitext(file)
             if ext != ".c":
