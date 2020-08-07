@@ -68,7 +68,7 @@ def main():
     print(f'Created {len(all_splits)} splits from program.')
     for (idx, part) in enumerate(all_splits):
         # Save parts into files named prefix-idx
-        with open(f'{args.prefix}-{idx}', 'w') as f:
+        with open(f'{args.prefix}{idx}', 'w') as f:
             f.write(sexpdata.dumps(part))
 
 
