@@ -34,13 +34,15 @@
   ; Add optimization passes like const elimination.
   (define ssa-prog (ssa p))
   (define elim-prog (const-elim ssa-prog))
-  (define trunc-prog (allocate-and-truncate elim-prog))
+  ; (define trunc-prog (allocate-and-truncate elim-prog))
+  (define lvn-prog (lvn elim-prog))
+  (define trunc-prog (allocate-and-truncate lvn-prog))
 
   (when (check-transform-with-fn-map)
     (assert
       (equal?
         (unsat)
-        (verify-prog p
-                     trunc-prog
+        (verify-prog (to-bvs-prog p)
+                     (to-bvs-prog trunc-prog)
                      #:fn-map (check-transform-with-fn-map)))))
   trunc-prog)

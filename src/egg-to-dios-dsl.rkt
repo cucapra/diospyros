@@ -11,7 +11,7 @@
 
 (define (egg-to-dios-dsl egg-res prelude outputs)
   (define egg-ast (s-exp-to-ast egg-res))
-  (define-values (out-names body) (egg-to-dios egg-ast))
+  (define-values (out-names body) (egg-to-dios-prog egg-ast))
 
   (define postlude
     (for/list ([n (flatten out-names)]
@@ -51,124 +51,146 @@
       (vec-shuffle out-name shuf-name mems-used))))
 
 ; Functional expression -> (name, list of DSL instructions)
-(define (egg-to-dios e)
-  (match e
-    [(? number? a)
-     ; TODO: don't redefine
-     (define name (new-name (format "~v" a)))
-     (values
-       name
-       (let-bind name (format "~v" a) float-type))]
-    [(egg-get name idx)
-     (define bind-name (new-name 'get))
-     (values
-       bind-name
-       (array-get bind-name name idx))]
-    [(egg-binop op lhs rhs)
-     (define-values (l-name l-prog) (egg-to-dios lhs))
-     (define-values (r-name r-prog) (egg-to-dios rhs))
-     (define op-res (new-name 'op))
-     (define op-out
-       (scalar-binop op-res op l-name r-name))
-     (values op-res
-             (flatten
-               (list l-prog
-                     r-prog
-                     op-out)))]
-    [(egg-unnop op v)
-     (define-values (v-name v-prog) (egg-to-dios v))
-     (define op-res (new-name 'op))
-     (define op-out
-       (scalar-unnop op-res op v-name))
-     (values op-res
-             (flatten
-               (list v-prog
-                     op-out)))]
-    [(egg-vec-4 v1 v2 v3 v4)
-      (let ([vs (list v1 v2 v3 v4)])
-        (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
-        (if (andmap get-or-zero? vs)
-          (egg-get-list-to-shuffle vs
-                                   (new-name `shufs)
-                                   (new-name `shuf-out))
-          (begin
-            (let-values ([(n1 p1) (egg-to-dios v1)]
-                         [(n2 p2) (egg-to-dios v2)]
-                         [(n3 p3) (egg-to-dios v3)]
-                         [(n4 p4) (egg-to-dios v4)])
-              (define name (new-name 'lit))
-              (define vlit
-                (vec-lit name (list n1 n2 n3 n4) float-type))
-              (values name
-                      (flatten
-                        (list p1 p2 p3 p4 vlit)))))))]
-    [(egg-list vs)
-      (define-values (zero-n zero-p) (egg-to-dios 0))
-      (define (egg-to-tuple v)
-        (define-values (n p) (egg-to-dios v))
-        (list n p))
-      (define vs-egg (map egg-to-tuple vs))
-      (define names (map first vs-egg))
-      (define progs (map second vs-egg))
-      (define vlits
-        (for/list ([i (in-range 0 (length vs) (current-reg-size))])
-          (define (access-or-zero j)
-            (if (< (+ i j) (length names))
-                (list-ref names (+ i j))
-                zero-n))
-          (define name (new-name 'lit))
-          (list name
-                (vec-lit name
-                         (map access-or-zero (stream->list (in-range (current-reg-size))))
-                         float-type))))
+(define (egg-to-dios-prog p)
 
-      (values (map first vlits)
-              (flatten
-                (list zero-p progs (map second vlits))))]
-    [(egg-vec-op `vec-mac (list acc v1 v2))
-      (define-values (acc-name acc-prog) (egg-to-dios acc))
-      (define-values (v1-name v1-prog) (egg-to-dios v1))
-      (define-values (v2-name v2-prog) (egg-to-dios v2))
-      (define mac-name (new-name 'mac-out))
-      (define mac
-        (vec-app mac-name 'vec-mac (list acc-name v1-name v2-name)))
-      (values mac-name
-              (flatten
-                (list acc-prog
-                      v1-prog
-                      v2-prog
-                      mac)))]
-    [(egg-vec-op `vec-mul (list v1 v2))
-      (define-values (v1-name v1-prog) (egg-to-dios v1))
-      (define-values (v2-name v2-prog) (egg-to-dios v2))
-      (define mul-name (new-name 'mul-out))
-      (define mul
-        (vec-app mul-name 'vec-mul (list v1-name v2-name)))
-      (values mul-name
-              (flatten
-                (list v1-prog
-                      v2-prog
-                      mul)))]
-    [(egg-vec-op `vec-add (list v1 v2))
-      (define-values (v1-name v1-prog) (egg-to-dios v1))
-      (define-values (v2-name v2-prog) (egg-to-dios v2))
-      (define add-name (new-name 'add-out))
-      (define add
-        (vec-app add-name 'vec-add (list v1-name v2-name)))
-      (values add-name
-              (flatten
-                (list v1-prog
-                      v2-prog
-                      add)))]
-    [(egg-concat v1 v2)
-      (define-values (v1-name v1-prog) (egg-to-dios v1))
-      (define-values (v2-name v2-prog) (egg-to-dios v2))
-      ; TODO: abusing the meaning of the first value here slightly
-      (values (list v1-name v2-name)
-        (flatten
-          (list v1-prog
-                v2-prog)))]
-    [_ (error 'egg-to-dios "cannot compile: ~a" e)]))
+  (define mapped-consts-or-gets (make-hash))
+  (define has-const-or-get? (curry hash-has-key? mapped-consts-or-gets))
+  (define const-or-get-name (curry hash-ref mapped-consts-or-gets))
+  (define (set-const-or-get v name) (hash-set! mapped-consts-or-gets v name))
+
+  ; Don't redefine constants or array accesses
+  (define seen-const-or-get-names (mutable-set))
+  (define seen? (curry set-member? seen-const-or-get-names))
+  (define mark-seen (curry set-add! seen-const-or-get-names))
+
+  (define (egg-to-dios e)
+    (match e
+      [(? number? a)
+       (define name (format "const_~v" a))
+       (values
+         name
+         (if (seen? name)
+           (list)
+           ; TODO: handle int type
+           (begin
+             (mark-seen name)
+             (let-bind name (format "~v" a) float-type))))]
+      [(egg-get name idx)
+       (define get-name (format "get_~v_~v" name idx))
+       (values
+         get-name
+         (if (seen? get-name)
+           (list)
+           (begin
+             (mark-seen get-name)
+             (array-get get-name name idx))))]
+      [(egg-binop op lhs rhs)
+       (define-values (l-name l-prog) (egg-to-dios lhs))
+       (define-values (r-name r-prog) (egg-to-dios rhs))
+       (define op-res (new-name 'op))
+       (define op-out
+         (scalar-binop op-res op l-name r-name))
+       (values op-res
+               (flatten
+                 (list l-prog
+                       r-prog
+                       op-out)))]
+      [(egg-unnop op v)
+       (define-values (v-name v-prog) (egg-to-dios v))
+       (define op-res (new-name 'op))
+       (define op-out
+         (scalar-unnop op-res op v-name))
+       (values op-res
+               (flatten
+                 (list v-prog
+                       op-out)))]
+      [(egg-vec-4 v1 v2 v3 v4)
+        (let ([vs (list v1 v2 v3 v4)])
+          (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
+          (if (andmap get-or-zero? vs)
+            (egg-get-list-to-shuffle vs
+                                     (new-name `shufs)
+                                     (new-name `shuf-out))
+            (begin
+              (let-values ([(n1 p1) (egg-to-dios v1)]
+                           [(n2 p2) (egg-to-dios v2)]
+                           [(n3 p3) (egg-to-dios v3)]
+                           [(n4 p4) (egg-to-dios v4)])
+                (define name (new-name 'lit))
+                (define vlit
+                  (vec-lit name (list n1 n2 n3 n4) float-type))
+                (values name
+                        (flatten
+                          (list p1 p2 p3 p4 vlit)))))))]
+      [(egg-list vs)
+        (define-values (zero-n zero-p) (egg-to-dios 0))
+        (define (egg-to-tuple v)
+          (define-values (n p) (egg-to-dios v))
+          (list n p))
+        (define vs-egg (map egg-to-tuple vs))
+        (define names (map first vs-egg))
+        (define progs (map second vs-egg))
+        (define vlits
+          (for/list ([i (in-range 0 (length vs) (current-reg-size))])
+            (define (access-or-zero j)
+              (if (< (+ i j) (length names))
+                  (list-ref names (+ i j))
+                  zero-n))
+            (define name (new-name 'lit))
+            (list name
+                  (vec-lit name
+                           (map access-or-zero (stream->list (in-range (current-reg-size))))
+                           float-type))))
+
+        (values (map first vlits)
+                (flatten
+                  (list zero-p progs (map second vlits))))]
+      [(egg-vec-op `vec-mac (list acc v1 v2))
+        (define-values (acc-name acc-prog) (egg-to-dios acc))
+        (define-values (v1-name v1-prog) (egg-to-dios v1))
+        (define-values (v2-name v2-prog) (egg-to-dios v2))
+        (define mac-name (new-name 'mac-out))
+        (define mac
+          (vec-app mac-name 'vec-mac (list acc-name v1-name v2-name)))
+        (values mac-name
+                (flatten
+                  (list acc-prog
+                        v1-prog
+                        v2-prog
+                        mac)))]
+      [(egg-vec-op `vec-mul (list v1 v2))
+        (define-values (v1-name v1-prog) (egg-to-dios v1))
+        (define-values (v2-name v2-prog) (egg-to-dios v2))
+        (define mul-name (new-name 'mul-out))
+        (define mul
+          (vec-app mul-name 'vec-mul (list v1-name v2-name)))
+        (values mul-name
+                (flatten
+                  (list v1-prog
+                        v2-prog
+                        mul)))]
+      [(egg-vec-op `vec-add (list v1 v2))
+        (define-values (v1-name v1-prog) (egg-to-dios v1))
+        (define-values (v2-name v2-prog) (egg-to-dios v2))
+        (define add-name (new-name 'add-out))
+        (define add
+          (vec-app add-name 'vec-add (list v1-name v2-name)))
+        (values add-name
+                (flatten
+                  (list v1-prog
+                        v2-prog
+                        add)))]
+      [(egg-concat v1 v2)
+        (define-values (v1-name v1-prog) (egg-to-dios v1))
+        (define-values (v2-name v2-prog) (egg-to-dios v2))
+        ; TODO: abusing the meaning of the first value here slightly
+        (values (list v1-name v2-name)
+          (flatten
+            (list v1-prog
+                  v2-prog)))]
+      [_ (error 'egg-to-dios "cannot compile: ~a" e)]))
+
+  (egg-to-dios p))
 
 (define partial
   "(VecMAC
@@ -278,7 +300,7 @@
         (pretty-print egg-ast)
 
         ; Conversion from egg to dios dsl
-        (define-values (_ egg-res) (egg-to-dios egg-ast))
+        (define-values (_ egg-res) (egg-to-dios-prog egg-ast))
         (define full-egg-prog
           (prog (flatten (list prelude egg-res postlude))))
         (pretty-print full-egg-prog)
@@ -401,7 +423,7 @@
         ; Parse from s-expression
         (define egg-ast (parse-from-string egg-s-exp))
         ; Conversion from egg to dios dsl
-        (define-values (names egg-res) (egg-to-dios egg-ast))
+        (define-values (names egg-res) (egg-to-dios-prog egg-ast))
 
         (define postlude
           (for/list ([n names]
@@ -538,7 +560,7 @@
         (define egg-ast (parse-from-string egg-s-exp))
 
         ; Conversion from egg to dios dsl
-        (define-values (names egg-res) (egg-to-dios egg-ast))
+        (define-values (names egg-res) (egg-to-dios-prog egg-ast))
         (pretty-print egg-res)
 
         (define postlude

@@ -145,6 +145,29 @@
              [src (env-ref src-id)])
          (bv-list-copy! dest (bv-index 0) src))]
 
+      [(let-bind id expr _)
+       (env-set! id (list (box expr)))]
+
+      [(array-get id arr-id idx)
+       (let* ([arr (env-ref arr-id)]
+              [elem (bv-list-get arr idx)])
+         (env-set! id (list (box elem))))]
+
+      [(vec-lit id elems _)
+        (env-set! id (map first (map env-ref elems)))
+        (pretty-print (env-ref id))]
+
+      [(scalar-binop id op l r)
+       (let ([l-val (unbox (first (env-ref l)))]
+             [r-val (unbox (first (env-ref r)))]
+             [fn (hash-ref fn-map op)])
+         (env-set! id (list (box (fn l-val r-val)))))]
+
+      [(scalar-unnop id op v)
+       (let ([val (unbox (first (env-ref v)))]
+             [fn (hash-ref fn-map op)])
+         (env-set! id (list (box (fn val)))))]
+
       [_ (assert #f (~a "unknown instruction " inst))]))
 
   (values env cur-cost))

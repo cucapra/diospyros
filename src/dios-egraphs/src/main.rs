@@ -36,6 +36,7 @@ fn main() {
       .expect("Failed to read the input file.");
 
   let prog = prog_str.parse().unwrap();
+  eprintln!("Running egg with timeout {:?}s", timeout);
   let (cost, best) = rules::run(&prog, timeout);
 
   println!("{}", best.pretty(40));

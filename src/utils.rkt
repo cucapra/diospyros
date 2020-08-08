@@ -218,6 +218,10 @@
                   src-id
                   (bv-index start)
                   (bv-index end))]
+      [(array-get id a i)
+       (array-get id a (bv-index i))]
+      [(let-bind id expr type)
+       (let-bind id (bv-value (string->number expr)) type)]
       [_ inst]))
 
   (prog (map to-bvs (prog-insts p))))
