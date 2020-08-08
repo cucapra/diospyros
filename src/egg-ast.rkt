@@ -51,15 +51,15 @@
     [`(+ , vs ...)
       (assert (> (length vs) 1) "+")
       (let ([xs (map s-exp-to-ast vs)])
-        (foldr (curry egg-binop '+) (last xs) (drop xs 1)))]
+        (foldr (curry egg-binop '+) (last xs) (drop-right xs 1)))]
     [`(* , vs ...)
       (assert (> (length vs) 1) "*")
       (let ([xs (map s-exp-to-ast vs)])
-        (foldr (curry egg-binop '*) (last xs) (drop xs 1)))]
+        (foldr (curry egg-binop '*) (last xs) (drop-right xs 1)))]
     [`(/ , vs ...)
       (assert (> (length vs) 1) "/")
       (let ([xs (map s-exp-to-ast vs)])
-        (foldr (curry egg-binop '/) (last xs) (drop xs 1)))]
+        (foldr (curry egg-binop '/) (last xs) (drop-right xs 1)))]
     [`(neg , v)
       (egg-unnop 'neg (s-exp-to-ast v))]
     [`(sgn , v)
