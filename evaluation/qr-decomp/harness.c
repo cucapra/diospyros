@@ -31,8 +31,8 @@ extern "C" {
   void matinvqrf(void *pScr,
                  float32_t* A,float32_t* V,float32_t* D, int M, int N_);
   size_t matinvqrf_getScratchSize(int M, int N_);
-  void matinvqrrotf(void *pScr,                                              
-                    float32_t* B, const float32_t* V,                         
+  void matinvqrrotf(void *pScr,
+                    float32_t* B, const float32_t* V,
                     int M, int N_, int P);
   size_t matinvqrrotf_getScratchSize(int M, int N_, int P);
   void transpmf(const float32_t * x, int M, int N_, float32_t * z);
@@ -62,7 +62,7 @@ int nature_qr(const float *A, float *Q, float *R) {
   // Start with main QR decomposition call.
   // The `R` used here is an in/out parameter: A in input, R on output.
   matinvqrf(scratch, R, nat_v, nat_d, N, N);
-  
+
   // We need an extra identity matrix for the second step.
   zero_matrix(nat_b, N, N);
   for (int i = 0; i < N; ++i) {
@@ -84,20 +84,28 @@ int main(int argc, char **argv) {
 
   init_rand(10);
 
-  create_random_mat(a, N, N);
+  // create_random_mat(a, N, N);
+
+  float a_init[N * N] = {12, -51, 4, 6, 167, -68, -4, 24, -41};
+  for (int i = 0; i < (N * N); i++) {
+    a[i] = a_init[i];
+  }
+
   zero_matrix(q, N, N);
   zero_matrix(r, N, N);
 
   print_matrix(a, N, N);
 
+  // Use Nature as spec for now
+  int err = nature_qr(a, q_spec, r_spec);
+  if (err) {
+    return err;
+  }
+
 
   int time = 0;
 
   // Nature.
-  int err = nature_qr(a, q, r);
-  if (err) {
-    return err;
-  }
 
   // XXX Just printing and exiting early as a test for now.
   printf("Q:");
@@ -106,6 +114,19 @@ int main(int argc, char **argv) {
   print_matrix(r, N, N);
   return 0;
 
+  // Nature
+  start_cycle_timing;
+  int err = nature_qr(a, q, r);
+  if (err) {
+    return err;
+  }
+  stop_cycle_timing;
+  time = get_time();
+  print_matrix(q, N, N);
+  zero_matrix(q, N, N);
+  zero_matrix(r, N, N);
+  printf("Nature : %d cycles\n", time);
+
   // Diospyros
   start_cycle_timing;
   kernel(a, q, r);
@@ -113,6 +134,8 @@ int main(int argc, char **argv) {
   time = get_time();
   print_matrix(q, N, N);
   printf("Diospyros : %d cycles\n", time);
+  output_check(q, q_spec, N, N);
+
 
   return 0;
 }
