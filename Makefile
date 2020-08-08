@@ -34,7 +34,19 @@ clean:
 
 # Run egg rewriter
 %-out/res.rkt: %-out/spec-egg.rkt
+ifdef SPLIT
+	mkdir -p $*-out/specs $*-out/opt
+	./src/dios-egraphs/vec-dsl-split.py -n $(SPLIT) -p $*-out/specs/spec <$<
+	for file in $$(ls $*-out/specs/); do \
+		cargo run $(CARGO_FLAGS) \
+			--manifest-path src/dios-egraphs/Cargo.toml \
+			$*-out/specs/"$$file" \
+			> $*-out/opt/"$$file"; \
+	done
+	./src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $*-out/opt/spec* > $@
+else
 	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $< > $@
+endif
 
 # Backend code gen
 %-egg: %-out/res.rkt

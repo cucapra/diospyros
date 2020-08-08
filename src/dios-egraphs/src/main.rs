@@ -40,7 +40,7 @@ fn main() {
   let (cost, best) = rules::run(&prog, timeout);
 
   println!("{}", best.pretty(40));
-  println!("\nCost: {}", cost);
+  eprintln!("\nCost: {}", cost);
 }
 
 #[cfg(test)]
