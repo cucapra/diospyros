@@ -129,12 +129,12 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
         //     => "(VecSgn (Vec4 ?a0 ?a1 ?a2 ?a3))"),
 
 
-        rw!("vec-mul-sgn"; "(Vec4 (* ?b0 (sgn ?a0))
-                                  (* ?b1 (sgn ?a1))
-                                  (* ?b2 (sgn ?a2))
-                                  (* ?b3 (sgn ?a3)))"
-            => "(VecMulSgn (Vec4 ?a0 ?a1 ?a2 ?a3)
-                           (Vec4 ?b0 ?b1 ?b2 ?b3))"),
+        // rw!("vec-mul-sgn"; "(Vec4 (* ?b0 (sgn ?a0))
+        //                           (* ?b1 (sgn ?a1))
+        //                           (* ?b2 (sgn ?a2))
+        //                           (* ?b3 (sgn ?a3)))"
+        //     => "(VecMulSgn (Vec4 ?a0 ?a1 ?a2 ?a3)
+        //                    (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
         rw!("vec-add"; { build_binop_searcher("+") }
             => "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
