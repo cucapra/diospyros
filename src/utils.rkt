@@ -31,6 +31,14 @@
     (hash-set! var-map base num)
     (out-app (format "~a_~a" base (number->string num)))))
 
+; Align vectors by padding to a multiple of current-reg-size
+(define (align-to-reg-size vec)
+  (define len (length vec))
+  (define align-len
+    (* (current-reg-size) (exact-ceiling (/ len (current-reg-size)))))
+  (let ([fill (make-list (- align-len len) (box (bv-value 0)))])
+    (append vec fill)))
+
 ;;========================= BITVECTORS =========================
 
 (define (bv-overflow? width val)

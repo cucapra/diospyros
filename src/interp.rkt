@@ -27,13 +27,7 @@
 (define (write-vec! memory start vec)
   (bv-list-copy! memory start vec))
 
-; Align vectors by padding to a multiple of current-reg-size
-(define (align vec)
-  (define len (length vec))
-  (define align-len
-    (* (current-reg-size) (exact-ceiling (/ len (current-reg-size)))))
-  (let ([fill (make-list (- align-len len) (box (bv-value 0)))])
-    (append vec fill)))
+(define align align-to-reg-size)
 
 ; Interpretation function that takes a program and an external memory.
 ; MUTATES the memory in place during program interpretation.

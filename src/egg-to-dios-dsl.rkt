@@ -13,13 +13,18 @@
   (define egg-ast (s-exp-to-ast egg-res))
   (define-values (out-names body) (egg-to-dios-prog egg-ast))
 
+  (define out-name-list (box (flatten out-names)))
   (define postlude
-    (for/list ([n (flatten out-names)]
-               [i (in-naturals 0)])
-      (let* ([start (* i (current-reg-size))]
-             [end (* (+ i 1) (current-reg-size))])
-        ; TODO: handle multiple outputs
-        (vec-store (first outputs) n start end))))
+    (flatten
+      (for/list ([o outputs])
+        (match-define (list o-name size) o)
+        (for/list ([n (in-range 0 size (current-reg-size))])
+          (let* ([start n]
+                 [end (min size (+ start (current-reg-size)))])
+            (define store-inst
+              (vec-store o-name (first (unbox out-name-list)) start end))
+            (set-box! out-name-list (rest (unbox out-name-list)))
+            store-inst)))))
 
   (prog
     (append (prog-insts prelude)
