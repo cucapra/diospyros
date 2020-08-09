@@ -1,6 +1,7 @@
 #lang rosette
 
 (require rosette/solver/smt/z3)
+(require rosette/solver/smt/boolector)
 
 (provide (all-defined-out))
 

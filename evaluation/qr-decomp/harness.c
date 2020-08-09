@@ -84,39 +84,42 @@ int main(int argc, char **argv) {
 
   init_rand(10);
 
-  // create_random_mat(a, N, N);
+  // float a_init[N * N] = {12, -51, 4, 6, 167, -68, -4, 24, -41};
+  // for (int i = 0; i < (N * N); i++) {
+  //   a[i] = a_init[i];
+  // }
 
-  float a_init[N * N] = {12, -51, 4, 6, 167, -68, -4, 24, -41};
-  for (int i = 0; i < (N * N); i++) {
-    a[i] = a_init[i];
-  }
-
+  create_random_mat(a, N, N);
   zero_matrix(q, N, N);
   zero_matrix(r, N, N);
+  zero_matrix(q_spec, N, N);
+  zero_matrix(r_spec, N, N);
 
   print_matrix(a, N, N);
 
-  // Use Nature as spec for now
+  // printf("Starting Nature spec run\n");
+
+  // // Use Nature as spec for now
   int err = nature_qr(a, q_spec, r_spec);
   if (err) {
     return err;
   }
 
-
+  // printf("After Nature spec run\n");
   int time = 0;
 
   // Nature.
 
   // XXX Just printing and exiting early as a test for now.
-  printf("Q:");
-  print_matrix(q, N, N);
-  printf("R:");
-  print_matrix(r, N, N);
-  return 0;
+  // printf("Q:");
+  // print_matrix(q, N, N);
+  // printf("R:");
+  // print_matrix(r, N, N);
+  // return 0;
 
   // Nature
   start_cycle_timing;
-  int err = nature_qr(a, q, r);
+  err = nature_qr(a, q, r);
   if (err) {
     return err;
   }

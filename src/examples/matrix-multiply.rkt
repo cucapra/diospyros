@@ -20,7 +20,8 @@
   (list
     (vec-extern-decl 'A (* A-rows A-cols) input-tag)
     (vec-extern-decl 'B (* B-rows B-cols) input-tag)
-    (vec-extern-decl 'C (* A-rows B-cols) output-tag)))
+    (vec-extern-decl 'C (* A-rows B-cols) output-tag)
+    (vec-const 'Z (make-bv-list-zeros 1) float-type)))
 
 (define (postlude output-names)
   (for/list ([n output-names]

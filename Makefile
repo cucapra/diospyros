@@ -25,7 +25,7 @@ clean:
 	rm -rf dios dios-example-gen
 
 # Build spec
-%-out: %-params dios dios-example-gen
+%-out: %-params
 	./dios-example-gen --only-spec -b $* -p  $< -o $@
 
 # Pre-process spec for egg

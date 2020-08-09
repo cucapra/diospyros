@@ -15,6 +15,7 @@ from py_utils import *
 
 parameters = {
     conv2d : [
+<<<<<<< Updated upstream
         # {
         #     "input-rows": 2,
         #     "input-cols": 2,
@@ -53,6 +54,118 @@ parameters = {
         #     "filter-rows": 3,
         #     "filter-cols": 3,
         #     "iterations": 40,
+=======
+        {
+            "input-rows": 2,
+            "input-cols": 2,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 4,
+            "input-cols": 4,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 5,
+            "input-cols": 5,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 6,
+            "input-cols": 6,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 7,
+            "input-cols": 7,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 8,
+            "input-cols": 8,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 4,
+            "input-cols": 4,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 5,
+            "input-cols": 5,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 6,
+            "input-cols": 6,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 7,
+            "input-cols": 7,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 8,
+            "input-cols": 8,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 9,
+            "input-cols": 9,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 10,
+            "input-cols": 10,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        # {
+        #     "input-rows": 128,
+        #     "input-cols": 128,
+        #     "filter-rows": 8,
+        #     "filter-cols": 8,
+>>>>>>> Stashed changes
         #     "reg-size": 4
         # },
     ],
@@ -108,10 +221,16 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     # Call example-gen, AKA synthesis. This is long running, so include an
     # for a timeout (which will usually still write early found solutions)
     gen = sp.Popen([
+<<<<<<< Updated upstream
         "./dios-example-gen",
         "-b", benchmark,
         "-p", params_f,
         "-o", p_dir
+=======
+        "make",
+        "-B",
+        "{}-egg".format(benchmark)
+>>>>>>> Stashed changes
         ])
 
     def kill(process):
@@ -121,6 +240,16 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     timer = Timer(timeout, kill, [gen])
     try:
         print("Running synthesis for {}, timeout: {}".format(benchmark, timeout))
+<<<<<<< Updated upstream
+=======
+        sp.call([
+            "cp",
+            params_f,
+            "{}-params".format(benchmark)])
+        sp.call([
+            "cat",
+            params_f,])
+>>>>>>> Stashed changes
         timer.start()
         gen.communicate()
     finally:
@@ -216,6 +345,7 @@ def run_benchmark(dir, benchmark, build, force):
         params_json = os.path.join(params_config, "params.json")
         with open(params_json, 'r') as f:
             params = json.load(f)
+            print(params)
         for file in listdir(params_config):
             pre, ext = os.path.splitext(file)
             if ext != ".c":
@@ -233,6 +363,7 @@ def run_benchmark(dir, benchmark, build, force):
                 sp.call(["make", "-C", harness, "clean"])
 
             set_dimms = dimmensions_for_benchmark(benchmark, params)
+            print(set_dimms)
             set_kernel = "KERNEL_SRC=" + os.path.abspath(file)
             set_output = "OUTFILE=" + os.path.abspath(csv_file)
             sp.call(["make", "-C", harness, "run", set_kernel, set_output] + set_dimms)
