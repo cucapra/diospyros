@@ -9,7 +9,7 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-#include "../../../../diospyros-private/src/utils.h"
+#include "../../../diospyros-private/src/utils.h"
 
 float a[N * N] __attribute__((section(".dram0.data")));
 float q[N * N] __attribute__((section(".dram0.data")));
@@ -97,9 +97,9 @@ int main(int argc, char **argv) {
 
   print_matrix(a, N, N);
 
-  // printf("Starting Nature spec run\n");
+  printf("Starting Nature spec run\n");
 
-  // // Use Nature as spec for now
+  // Use Nature as spec for now
   int err = nature_qr(a, q_spec, r_spec);
   if (err) {
     return err;
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   time = get_time();
   print_matrix(q, N, N);
   printf("Diospyros : %d cycles\n", time);
-  output_check(q, q_spec, N, N);
+  output_check_abs(q, q_spec, N, N);
 
 
   return 0;

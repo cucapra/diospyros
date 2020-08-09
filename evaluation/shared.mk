@@ -5,7 +5,7 @@ XCC := xt-xcc
 XCXX := xt-xc++
 XRUN := xt-run
 XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals
-XCXX_FLAGS += -std=c++11 -O3 -mlongcalls -mtext-section-literals
+XCXX_FLAGS += -std=c++11 -O3 -LNO:SIMD -LNO:SIMD_V -keep –c
 XSIM_FLAGS := --summary --mem_model
 
 NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library

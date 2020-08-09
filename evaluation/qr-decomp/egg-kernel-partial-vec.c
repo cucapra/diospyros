@@ -1,3 +1,23 @@
+#include <float.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xtensa/sim.h>
+#include <xtensa/tie/xt_pdxn.h>
+#include <xtensa/tie/xt_timer.h>
+#include <xtensa/xt_profiling.h>
+
+float sgn(float v);
+float neg(float v);
+
+float sgn(float v) {
+  return (v > 0) - (v < 0);
+}
+
+float neg(float v) {
+  return -v;
+}
 /*
 Git revision: 24401fb
 
