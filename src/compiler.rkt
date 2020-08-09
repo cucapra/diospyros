@@ -34,7 +34,6 @@
   ; Add optimization passes like const elimination.
   (define ssa-prog (ssa p))
   (define elim-prog (const-elim ssa-prog))
-  ; (define trunc-prog (allocate-and-truncate elim-prog))
   (define lvn-prog (lvn elim-prog))
   (define trunc-prog (allocate-and-truncate lvn-prog))
 

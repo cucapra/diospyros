@@ -240,9 +240,9 @@
     [(vec-shuffle-set! out-vec idxs inp)
      (list `vec-shuffle-set! (id-to-num idxs) (id-to-num inp))]
     [(vec-app id f inps)
-     (list `vec-app f (id-to-num inps))]
+     (list `vec-app f (map id-to-num inps))]
     [(vec-void-app f inps)
-     (list `vec-void-app f (id-to-num inps))]
+     (list `vec-void-app f (map id-to-num inps))]
     [(vec-load dest-id src-id start end)
      (list `vec-load (id-to-num dest-id) (id-to-num src-id) start end)]
     [(vec-store dest-id src-id start end)

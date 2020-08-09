@@ -158,28 +158,26 @@
                         v1-prog
                         v2-prog
                         mac)))]
-      [(egg-vec-op `vec-mul (list v1 v2))
+      [(egg-vec-op op (list v1 v2))
         (define-values (v1-name v1-prog) (egg-to-dios v1))
         (define-values (v2-name v2-prog) (egg-to-dios v2))
-        (define mul-name (new-name 'mul-out))
-        (define mul
-          (vec-app mul-name 'vec-mul (list v1-name v2-name)))
-        (values mul-name
+        (define out-name (new-name (string->symbol (format "~a-out" op))))
+        (define op-inst
+          (vec-app out-name op (list v1-name v2-name)))
+        (values out-name
                 (flatten
                   (list v1-prog
                         v2-prog
-                        mul)))]
-      [(egg-vec-op `vec-add (list v1 v2))
-        (define-values (v1-name v1-prog) (egg-to-dios v1))
-        (define-values (v2-name v2-prog) (egg-to-dios v2))
-        (define add-name (new-name 'add-out))
-        (define add
-          (vec-app add-name 'vec-add (list v1-name v2-name)))
-        (values add-name
+                        op-inst)))]
+      [(egg-vec-op op (list v))
+        (define-values (v-name v-prog) (egg-to-dios v))
+        (define out-name (new-name (string->symbol (format "~a-out" op))))
+        (define op-inst
+          (vec-app out-name op (list v-name)))
+        (values out-name
                 (flatten
-                  (list v1-prog
-                        v2-prog
-                        add)))]
+                  (list v-prog
+                        op-inst)))]
       [(egg-concat v1 v2)
         (define-values (v1-name v1-prog) (egg-to-dios v1))
         (define-values (v2-name v2-prog) (egg-to-dios v2))

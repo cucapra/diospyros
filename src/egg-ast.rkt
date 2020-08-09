@@ -40,6 +40,14 @@
       (egg-vec-op `vec-mul (map s-exp-to-ast (list v1 v2)))]
     [`(VecAdd ,v1 ,v2)
       (egg-vec-op `vec-add (map s-exp-to-ast (list v1 v2)))]
+    [`(VecDiv ,v1 ,v2)
+      (egg-vec-op `vec-div (map s-exp-to-ast (list v1 v2)))]
+    [`(VecNeg ,v)
+      (egg-vec-op `vec-div (list (s-exp-to-ast v)))]
+    [`(VecSqrt ,v)
+      (egg-vec-op `vec-sqrt (list (s-exp-to-ast v)))]
+    [`(VecSgn ,v)
+      (egg-vec-op `vec-sgn (list (s-exp-to-ast v)))]
     [(or `(Vec4 ,v1 ,v2 ,v3 ,v4) `(LitVec4 ,v1 ,v2 ,v3 ,v4))
       (apply egg-vec-4 (map s-exp-to-ast (list v1 v2 v3 v4)))]
     [`(List , vs ...)

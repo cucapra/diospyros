@@ -40,8 +40,8 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::LitVec4(..) => LITERAL,
 
             // But scalar and vector ops cost something
-            VecLang::Add(..) => OP,
-            VecLang::Mul(..) => OP,
+            VecLang::Add(vals) =>  BIG * (vals.iter().count() as f64 - 1.),
+            VecLang::Mul(vals) => BIG * (vals.iter().count() as f64 - 1.),
 
             VecLang::VecAdd(..) => OP,
             VecLang::VecMul(..) => OP,
