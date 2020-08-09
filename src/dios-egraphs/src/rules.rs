@@ -59,6 +59,13 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
         rw!("mul-0"; "(* ?a 0)" => "0"),
         rw!("mul-1"; "(* ?a 1)" => "?a"),
 
+        rw!("add-0-inv"; "?a" => "(+ ?a 0)"),
+        rw!("mul-1-inv"; "?a" => "(* ?a 1)"),
+
+
+        // Sign and negate
+         rw!("neg-sgn"; "(neg (sgn ?a))" => "(sgn (neg ?a))"),
+
         // Variadic to nesting - hard coded
         rw!("add-variadic-3"; "(+ ?a ?b ?c)" => "(+ ?a (+ ?b ?c))"),
         rw!("add-variadic-4"; "(+ ?a ?b ?c ?d)" => "(+ ?a (+ ?b (+ ?c ?d)))"),
@@ -72,6 +79,19 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
             "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f (+ ?g ?h)))))))"),
         rw!("add-variadic-9"; "(+ ?a ?b ?c ?d ?e ?f ?g ?h ?i)" =>
             "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f (+ ?g (+ ?h ?i))))))))"),
+
+        rw!("mul-variadic-3"; "(* ?a ?b ?c)" => "(* ?a (* ?b ?c))"),
+        rw!("mul-variadic-4"; "(* ?a ?b ?c ?d)" => "(* ?a (* ?b (* ?c ?d)))"),
+        rw!("mul-variadic-5"; "(* ?a ?b ?c ?d ?e)" =>
+            "(* ?a (* ?b (* ?c (* ?d ?e))))"),
+        rw!("mul-variadic-6"; "(* ?a ?b ?c ?d ?e ?f)" =>
+            "(* ?a (* ?b (* ?c (* ?d (* ?e ?f)))))"),
+        rw!("mul-variadic-7"; "(* ?a ?b ?c ?d ?e ?f ?g)" =>
+            "(* ?a (* ?b (* ?c (* ?d (* ?e (* ?f ?g))))))"),
+        rw!("mul-variadic-8"; "(* ?a ?b ?c ?d ?e ?f ?g ?h)" =>
+            "(* ?a (* ?b (* ?c (* ?d (* ?e (* ?f (* ?g ?h)))))))"),
+        rw!("mul-variadic-9"; "(* ?a ?b ?c ?d ?e ?f ?g ?h ?i)" =>
+            "(* ?a (* ?b (* ?c (* ?d (* ?e (* ?f (* ?g (* ?h ?i))))))))"),
 
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         rw!("litvec"; "(Vec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
@@ -101,12 +121,32 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
                                 (Vec4 ?v8 0 0 0)))"),
 
         // Custom searchers for vector ops
+        rw!("vec-neg"; "(Vec4 (neg ?a0) (neg ?a1) (neg ?a2) (neg ?a3))"
+            => "(VecNeg (Vec4 ?a0 ?a1 ?a2 ?a3))"),
+        rw!("vec-sqrt"; "(Vec4 (sqrt ?a0) (sqrt ?a1) (sqrt ?a2) (sqrt ?a3))"
+            => "(VecSqrt (Vec4 ?a0 ?a1 ?a2 ?a3))"),
+        // rw!("vec-sgn"; "(Vec4 (sgn ?a0) (sgn ?a1) (sgn ?a2) (sgn ?a3))"
+        //     => "(VecSgn (Vec4 ?a0 ?a1 ?a2 ?a3))"),
+
+
+        rw!("vec-mul-sgn"; "(Vec4 (* ?b0 (sgn ?a0))
+                                  (* ?b1 (sgn ?a1))
+                                  (* ?b2 (sgn ?a2))
+                                  (* ?b3 (sgn ?a3)))"
+            => "(VecMulSgn (Vec4 ?a0 ?a1 ?a2 ?a3)
+                           (Vec4 ?b0 ?b1 ?b2 ?b3))"),
+
         rw!("vec-add"; { build_binop_searcher("+") }
             => "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
         rw!("vec-mul"; { build_binop_searcher("*") }
             => "(VecMul (Vec4 ?a0 ?a1 ?a2 ?a3)
+                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
+
+        // TODO: zero replacement won't work here!
+        rw!("vec-div"; { build_binop_searcher("/") }
+            => "(VecDiv (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
         rw!("vec-mac"; { build_mac_searcher() }

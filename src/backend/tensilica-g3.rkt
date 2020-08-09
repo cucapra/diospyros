@@ -426,6 +426,18 @@
         [(vec-void-app 'vec-negate inputs)
          (gen-vecMxf2-pure-app "PDX_NEG_MXF32" type-set type-ref (first inputs) inputs)]
 
+        [(vec-app out 'vec-neg inputs)
+         (gen-vecMxf2-pure-app "PDX_NEG_MXF32" type-set type-ref out inputs)]
+
+        [(vec-app out 'vec-sqrt inputs)
+         (gen-vecMxf2-pure-app "PDX_SQRT_MXF32" type-set type-ref out inputs)]
+
+        [(vec-app out 'vec-div inputs)
+         (gen-vecMxf2-pure-app "PDX_DIV_MXF32" type-set type-ref out inputs)]
+
+        [(vec-app out 'vec-mul-sgn inputs)
+         (gen-vecMxf2-pure-app "PDX_MULSGN_MX32" type-set type-ref out inputs)]
+
         [(or (vec-void-app _ _) (vec-app _ _ _))
           (error 'tensilica-g3-compile
                    "Cannot compile app instruction: ~a"

@@ -8,7 +8,7 @@ define_language! {
         // children nodes
         "+" = Add(Box<[Id]>),
         "*" = Mul(Box<[Id]>),
-        "" = Minus(Box<[Id]>),
+        "-" = Minus(Box<[Id]>),
 
         "/" = Div([Id; 2]),
 
@@ -33,6 +33,12 @@ define_language! {
         // Vector operations that take 2 vectors of inputs
         "VecAdd" = VecAdd([Id; 2]),
         "VecMul" = VecMul([Id; 2]),
+        "VecDiv" = VecDiv([Id; 2]),
+        "VecMulSgn" = VecMulSgn([Id; 2]),
+
+        // Vector operations that take 1 vector of inputs
+        "VecNeg" = VecNeg([Id; 1]),
+        "VecSqrt" = VecSqrt([Id; 1]),
 
         // MAC takes 3 lists: acc, v1, v2
         "VecMAC" = VecMAC([Id; 3]),
