@@ -29,7 +29,7 @@ pub fn run(prog: &RecExpr<VecLang>, timeout: u64) -> (f64, RecExpr<VecLang>) {
     let runner = Runner::default()
         .with_egraph(init_eg)
         .with_expr(&prog)
-        .with_node_limit(900_000)
+        .with_node_limit(1_000_000)
         .with_time_limit(std::time::Duration::from_secs(timeout))
         .with_iter_limit(10_000)
         .run(&rules);
@@ -64,34 +64,8 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
 
 
         // Sign and negate
-         rw!("neg-sgn"; "(neg (sgn ?a))" => "(sgn (neg ?a))"),
+        rw!("neg-sgn"; "(neg (sgn ?a))" => "(sgn (neg ?a))"),
 
-        // Variadic to nesting - hard coded
-        rw!("add-variadic-3"; "(+ ?a ?b ?c)" => "(+ ?a (+ ?b ?c))"),
-        rw!("add-variadic-4"; "(+ ?a ?b ?c ?d)" => "(+ ?a (+ ?b (+ ?c ?d)))"),
-        rw!("add-variadic-5"; "(+ ?a ?b ?c ?d ?e)" =>
-            "(+ ?a (+ ?b (+ ?c (+ ?d ?e))))"),
-        rw!("add-variadic-6"; "(+ ?a ?b ?c ?d ?e ?f)" =>
-            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e ?f)))))"),
-        rw!("add-variadic-7"; "(+ ?a ?b ?c ?d ?e ?f ?g)" =>
-            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f ?g))))))"),
-        rw!("add-variadic-8"; "(+ ?a ?b ?c ?d ?e ?f ?g ?h)" =>
-            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f (+ ?g ?h)))))))"),
-        rw!("add-variadic-9"; "(+ ?a ?b ?c ?d ?e ?f ?g ?h ?i)" =>
-            "(+ ?a (+ ?b (+ ?c (+ ?d (+ ?e (+ ?f (+ ?g (+ ?h ?i))))))))"),
-
-        rw!("mul-variadic-3"; "(* ?a ?b ?c)" => "(* ?a (* ?b ?c))"),
-        rw!("mul-variadic-4"; "(* ?a ?b ?c ?d)" => "(* ?a (* ?b (* ?c ?d)))"),
-        rw!("mul-variadic-5"; "(* ?a ?b ?c ?d ?e)" =>
-            "(* ?a (* ?b (* ?c (* ?d ?e))))"),
-        rw!("mul-variadic-6"; "(* ?a ?b ?c ?d ?e ?f)" =>
-            "(* ?a (* ?b (* ?c (* ?d (* ?e ?f)))))"),
-        rw!("mul-variadic-7"; "(* ?a ?b ?c ?d ?e ?f ?g)" =>
-            "(* ?a (* ?b (* ?c (* ?d (* ?e (* ?f ?g))))))"),
-        rw!("mul-variadic-8"; "(* ?a ?b ?c ?d ?e ?f ?g ?h)" =>
-            "(* ?a (* ?b (* ?c (* ?d (* ?e (* ?f (* ?g ?h)))))))"),
-        rw!("mul-variadic-9"; "(* ?a ?b ?c ?d ?e ?f ?g ?h ?i)" =>
-            "(* ?a (* ?b (* ?c (* ?d (* ?e (* ?f (* ?g (* ?h ?i))))))))"),
 
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         rw!("litvec"; "(Vec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"

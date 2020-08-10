@@ -1,6 +1,7 @@
 import argparse
 import sexpdata
 import sys
+import functools
 
 # Convert specs from our Rosette expressions to ones in our little egg language.
 
@@ -30,7 +31,18 @@ def to_egg(expr, erase):
     # Lists and arithmetic operations are simple renames
     if expr[0]._val in to_egg_renames:
         rename = to_egg_renames[(expr[0])._val]
-        return [rename] + [to_egg(e, erase) for e in expr[1:]]
+        children = [to_egg(e, erase) for e in expr[1:]]
+        # return [rename] + children
+        if len(children) < 3 or expr[0]._val == "list":
+            return [rename] + children
+        else:
+            # Make variadic things binary for now
+            # Fold right over operator
+            children_rev = children[::-1]
+            expr = functools.reduce(lambda x, y: [rename] + [y, x],
+                children_rev[1:],
+                children_rev[0])
+            return expr
     # Just remove box wrappers
     if expr[0]._val == 'box':
         return to_egg(expr[1], erase)
