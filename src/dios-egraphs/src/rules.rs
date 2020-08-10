@@ -51,8 +51,8 @@ pub fn run(prog: &RecExpr<VecLang>, timeout: u64) -> (f64, RecExpr<VecLang>) {
 pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
     let rules: Vec<Rewrite<VecLang, ()>> = vec![
         // Basic associativity/commutativity/identities
-        rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
-        rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
+        // rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+        // rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
         // rw!("assoc-add"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         // rw!("assoc-mul"; "(* (* ?a ?b) ?c)" => "(* ?a (* ?b ?c))"),
         rw!("add-0"; "(+ ?a 0)" => "?a"),

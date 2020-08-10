@@ -11,7 +11,8 @@ use crate::{
 pub struct MacSearcher {
     pub full_mac_pattern: Pattern<VecLang>,
     pub vec4_pattern: Pattern<VecLang>,
-    pub add_mul_pattern: Pattern<VecLang>,
+    pub add_mul_pattern1: Pattern<VecLang>,
+    pub add_mul_pattern2: Pattern<VecLang>,
     pub mul_pattern: Pattern<VecLang>,
     pub zero_pattern: Pattern<VecLang>,
 }
@@ -28,7 +29,11 @@ pub fn build_mac_searcher() -> MacSearcher {
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let add_mul_pattern = "(+ ?a (* ?b ?c))"
+    let add_mul_pattern1 = "(+ ?a (* ?b ?c))"
+        .parse::<Pattern<VecLang>>()
+        .unwrap();
+
+    let add_mul_pattern2 = "(+ (* ?b ?c) ?a)"
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
@@ -43,7 +48,8 @@ pub fn build_mac_searcher() -> MacSearcher {
     MacSearcher {
         full_mac_pattern,
         vec4_pattern,
-        add_mul_pattern,
+        add_mul_pattern1,
+        add_mul_pattern2,
         mul_pattern,
         zero_pattern,
     }
@@ -82,10 +88,19 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
 
                         // Check if that variable matches add/mul
                         let child_eclass = substs.get(*vec4_var).unwrap();
-                        if let Some(add_mul_match) = self.add_mul_pattern.search_eclass(egraph, *child_eclass) {
+                        if let Some(add_mul_match) = self.add_mul_pattern1.search_eclass(egraph, *child_eclass) {
                             for s in add_mul_match.substs.iter() {
                                 let mut subs : Vec<(Var, Id)> = Vec::new();
-                                for add_mul_var in self.add_mul_pattern.vars().iter() {
+                                for add_mul_var in self.add_mul_pattern1.vars().iter() {
+                                    let new_v = Var::from_str(&format!("{}{}", *add_mul_var, i)).unwrap();
+                                    subs.push((new_v, *s.get(*add_mul_var).unwrap()));
+                                }
+                                new_var_substs.push(subs);
+                            }
+                        } else if let Some(add_mul_match) = self.add_mul_pattern2.search_eclass(egraph, *child_eclass) {
+                            for s in add_mul_match.substs.iter() {
+                                let mut subs : Vec<(Var, Id)> = Vec::new();
+                                for add_mul_var in self.add_mul_pattern2.vars().iter() {
                                     let new_v = Var::from_str(&format!("{}{}", *add_mul_var, i)).unwrap();
                                     subs.push((new_v, *s.get(*add_mul_var).unwrap()));
                                 }
