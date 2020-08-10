@@ -20,44 +20,6 @@ parameters = {
         #     "input-cols": 2,
         #     "filter-rows": 2,
         #     "filter-cols": 2,
-        #     "iterations": 10,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 3,
-        #     "input-cols": 3,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "iterations": 15,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 4,
-        #     "input-cols": 4,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "iterations": 25,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 5,
-        #     "input-cols": 5,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "iterations": 35,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 3,
-        #     "input-cols": 3,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "iterations": 40,
-        # {
-        #     "input-rows": 2,
-        #     "input-cols": 2,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
         #     "reg-size": 4
         # },
         # {
@@ -172,7 +134,6 @@ parameters = {
         #     "A-cols": 2,
         #     "B-rows": 2,
         #     "B-cols": 2,
-        #     "iterations": 2,
         #     "reg-size": 4
         # },
         # {
@@ -180,7 +141,48 @@ parameters = {
         #     "A-cols": 3,
         #     "B-rows": 3,
         #     "B-cols": 3,
-        #     "iterations": 6,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "A-rows": 3,
+        #     "A-cols": 3,
+        #     "B-rows": 3,
+        #     "B-cols": 3,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "A-rows": 4,
+        #     "A-cols": 4,
+        #     "B-rows": 4,
+        #     "B-cols": 4,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "A-rows": 5,
+        #     "A-cols": 5,
+        #     "B-rows": 5,
+        #     "B-cols": 5,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "A-rows": 6,
+        #     "A-cols": 6,
+        #     "B-rows": 6,
+        #     "B-cols": 6,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "A-rows": 7,
+        #     "A-cols": 7,
+        #     "B-rows": 7,
+        #     "B-cols": 7,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "A-rows": 8,
+        #     "A-cols": 8,
+        #     "B-rows": 8,
+        #     "B-cols": 8,
         #     "reg-size": 4
         # },
         {
@@ -268,7 +270,8 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     gen = sp.Popen([
         "make",
         "-B",
-        "{}-egg".format(benchmark)])
+        "{}-egg".format(benchmark),
+        "SPLIT=100"])
 
     def kill(process):
         print("Hit timeout, killing synthesis subprocess")
