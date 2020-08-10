@@ -246,12 +246,13 @@
             #f
             (c-id out)
             #f
-            #f))
+            (c-call (c-id name) vec-inputs)))
   ; Function application
-  (define app
-    (c-assign (c-id out)
-              (c-call (c-id name) vec-inputs)))
-  (list out-decl app))
+  ; (define app
+  ;   (c-assign (c-id out)
+  ;             (c-call (c-id name) vec-inputs)))
+  ; (list out-decl app))
+  (list out-decl))
 
 (define (gen-vecMxf2-void-app name type-ref inputs)
   ; Convert inputs to xb_vecMxf32 if needed
@@ -436,7 +437,26 @@
          (gen-vecMxf2-pure-app "PDX_DIV_MXF32" type-set type-ref out inputs)]
 
         [(vec-app out 'vec-mul-sgn inputs)
-         (gen-vecMxf2-pure-app "PDX_MULSGN_MX32" type-set type-ref out inputs)]
+         (gen-vecMxf2-pure-app "PDX_MULSGN_32" type-set type-ref out inputs)]
+
+        ; PDX_AND_M2X64(PDX_MOV_M2X64_FROM_M2XF64(X_re),PDX_MOVCI_M2X64(PDX_MOVVI_INT64_MININT))
+        [(vec-app out 'vec-sgn inputs)
+         ; (define vec-inputs (map (curry to-vecMxf2 type-ref) inputs))
+         ; ; Declare out register.
+         ; (type-set out "xb_vecMxf32")
+         ; (define out-decl
+         ;   (c-decl "xb_vecMxf32"
+         ;           #f
+         ;           (c-id out)
+         ;           #f
+         ;           #f))
+         ; ; Function application
+         ; (define app
+         ;   (c-assign (c-id out)
+         ;             (c-bare (format "PDX_AND_M2X32(PDX_MOV_M2X32_FROM_M2XF32(~a),PDX_MOVCI_M2X32(PDX_MOVVI_INT32_MININT))"
+         ;                              (first inputs)))))
+         ; (list out-decl app)
+         (gen-vecMxf2-pure-app "sgn_MXF32" type-set type-ref out inputs)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _))
           (error 'tensilica-g3-compile

@@ -18,7 +18,8 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
     {
         const LITERAL: f64 = 0.001;
         const STRUCTURE: f64 = 0.1;
-        const OP: f64 = 1.;
+        const VEC_OP: f64 = 1.;
+        const OP: f64 = 100.;
         const BIG: f64 = 100.0;
         let op_cost = match enode {
             // You get literals for extremely cheap
@@ -42,11 +43,20 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             // But scalar and vector ops cost something
             VecLang::Add(vals) => OP * (vals.iter().count() as f64 - 1.),
             VecLang::Mul(vals) => OP * (vals.iter().count() as f64 - 1.),
+            VecLang::Minus(vals) => OP * (vals.iter().count() as f64 - 1.),
+            VecLang::Div(vals) => OP * (vals.iter().count() as f64 - 1.),
 
-            VecLang::VecAdd(..) => OP,
-            VecLang::VecMul(..) => OP,
-            VecLang::VecMAC(..) => OP,
-            _ => OP,
+            VecLang::Sgn(..) => OP,
+            VecLang::Neg(..) => OP,
+            VecLang::Sqrt(..) => OP,
+
+            VecLang::VecAdd(..) => VEC_OP,
+            VecLang::VecMul(..) => VEC_OP,
+            VecLang::VecMAC(..) => VEC_OP,
+            VecLang::VecDiv(..) => VEC_OP,
+            VecLang::VecNeg(..) => VEC_OP,
+            VecLang::VecSqrt(..) => VEC_OP,
+            VecLang::VecSgn(..) => VEC_OP,
         };
         enode.fold(op_cost, |sum, id| sum + costs(id))
     }

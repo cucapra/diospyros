@@ -34,11 +34,12 @@ define_language! {
         "VecAdd" = VecAdd([Id; 2]),
         "VecMul" = VecMul([Id; 2]),
         "VecDiv" = VecDiv([Id; 2]),
-        "VecMulSgn" = VecMulSgn([Id; 2]),
+        // "VecMulSgn" = VecMulSgn([Id; 2]),
 
         // Vector operations that take 1 vector of inputs
         "VecNeg" = VecNeg([Id; 1]),
         "VecSqrt" = VecSqrt([Id; 1]),
+        "VecSgn" = VecSgn([Id; 1]),
 
         // MAC takes 3 lists: acc, v1, v2
         "VecMAC" = VecMAC([Id; 3]),
