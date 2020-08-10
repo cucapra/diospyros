@@ -42,6 +42,8 @@
   (define-namespace-anchor a)
   (define ns (namespace-anchor->namespace a))
 
+  (print (format "Reading input program from ~a" input-path))
+
   (define input-program
     (if egg
       (begin
@@ -55,6 +57,8 @@
       (begin
         (define input-string (read (open-input-file input-path)))
         (eval input-string ns))))
+
+  (print "Optimizing intermediate program")
 
   ; Compute the intermediate program.
   (define i-prog
@@ -73,6 +77,8 @@
             (lambda (out) (display prog out))
             #:exists 'replace)
           (display prog)))
+
+       (print "Compiling to Tensilica backend")
 
       (~> i-prog
           tensilica-g3-compile
