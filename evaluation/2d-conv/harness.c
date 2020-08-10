@@ -19,6 +19,12 @@ float f[F_ROWS * F_COLS] __attribute__((section(".dram0.data")));
 float o[O_ROWS * O_COLS] __attribute__((section(".dram0.data")));
 float o_spec[O_ROWS * O_COLS] __attribute__((section(".dram0.data")));
 
+extern "C" {
+  // Nature kernel
+  void conv2df(const float32_t *x, int M, int N,
+              const float32_t *y, int P, int Q, float32_t * z);
+}
+
 // Diospyros kernel
 void kernel(float * input_I, float * input_F, float * input_O);
 
@@ -70,10 +76,6 @@ void naive_convolution_hard_size(float *in, float *f, float *o) {
     }
   }
 }
-
-// Nature kernel
-void conv2df(const float32_t *x, int M, int N,
-            const float32_t *y, int P, int Q, float32_t * z);
 
 int main(int argc, char **argv) {
 

@@ -17,11 +17,17 @@ float c[A_ROWS * B_COLS] __attribute__((section(".dram0.data")));
 
 float c_spec[A_ROWS * B_COLS] __attribute__((section(".dram0.data")));
 
+extern "C" {
+  // Expert kernel
+  void matrix_multiply_2x3_3x3_expert(float* c, float* a, float* b);
+  // Nature kernel
+  void matmmltf(const float32_t *x, int M, int N, const float32_t *y,
+    int P, float32_t *z);
+}
+
 // Diospyros kernel
 void kernel(float* input_A, float* input_B, float* input_C);
 
-// Expert kernel
-void matrix_multiply_2x3_3x3_expert(float* c, float* a, float* b);
 
 // Naive
  void naive_matrix_multiply(float *a, float *b, float *c, int row1, int col1, int col2) {
@@ -46,10 +52,6 @@ void matrix_multiply_2x3_3x3_expert(float* c, float* a, float* b);
      }
    }
  }
-
-// Nature kernel
-void matmmltf(const float32_t *x, int M, int N, const float32_t *y,
-  int P, float32_t *z);
 
 
 int main(int argc, char **argv) {
