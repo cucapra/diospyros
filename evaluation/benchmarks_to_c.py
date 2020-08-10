@@ -15,46 +15,6 @@ from py_utils import *
 
 parameters = {
     conv2d : [
-<<<<<<< Updated upstream
-        # {
-        #     "input-rows": 2,
-        #     "input-cols": 2,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "iterations": 10,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 3,
-        #     "input-cols": 3,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "iterations": 15,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 4,
-        #     "input-cols": 4,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "iterations": 25,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 5,
-        #     "input-cols": 5,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "iterations": 35,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 3,
-        #     "input-cols": 3,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "iterations": 40,
-=======
         {
             "input-rows": 2,
             "input-cols": 2,
@@ -165,7 +125,6 @@ parameters = {
         #     "input-cols": 128,
         #     "filter-rows": 8,
         #     "filter-cols": 8,
->>>>>>> Stashed changes
         #     "reg-size": 4
         # },
     ],
@@ -175,7 +134,6 @@ parameters = {
             "A-cols": 2,
             "B-rows": 2,
             "B-cols": 2,
-            "iterations": 2,
             "reg-size": 4
         },
         {
@@ -183,32 +141,71 @@ parameters = {
             "A-cols": 3,
             "B-rows": 3,
             "B-cols": 3,
-            "iterations": 6,
             "reg-size": 4
-        }
+        },
+        {
+            "A-rows": 3,
+            "A-cols": 3,
+            "B-rows": 3,
+            "B-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 4,
+            "A-cols": 4,
+            "B-rows": 4,
+            "B-cols": 4,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 5,
+            "A-cols": 5,
+            "B-rows": 5,
+            "B-cols": 5,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 6,
+            "A-cols": 6,
+            "B-rows": 6,
+            "B-cols": 6,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 7,
+            "A-cols": 7,
+            "B-rows": 7,
+            "B-cols": 7,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 8,
+            "A-cols": 8,
+            "B-rows": 8,
+            "B-cols": 8,
+            "reg-size": 4
+        },
     ],
-    dft : [
-        # {
-        #     "N" : 8,
-        #     "reg-size": 4
-        # }
-    ]
+    # dft : [
+    #     # {
+    #     #     "N" : 8,
+    #     #     "reg-size": 4
+    #     # }
+    # ]
 }
 
 def params_to_name(benchmark, params):
     if benchmark == conv2d:
-        return '{}x{}_{}x{}_{}i_{}r'.format(params["input-rows"],
+        return '{}x{}_{}x{}_{}r'.format(params["input-rows"],
                                             params["input-cols"],
                                             params["filter-rows"],
                                             params["filter-cols"],
-                                            params["iterations"],
                                             params["reg-size"])
     if benchmark == matmul:
-        return '{}x{}_{}x{}_{}i_{}r'.format(params["A-rows"],
+        return '{}x{}_{}x{}_{}r'.format(params["A-rows"],
                                             params["A-cols"],
                                             params["B-rows"],
                                             params["B-cols"],
-                                            params["iterations"],
                                             params["reg-size"])
     if benchmark == dft:
         return '{}_{}r'.format(params["N"],
@@ -220,18 +217,11 @@ def params_to_name(benchmark, params):
 def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     # Call example-gen, AKA synthesis. This is long running, so include an
     # for a timeout (which will usually still write early found solutions)
+    # TODO clean this up
     gen = sp.Popen([
-<<<<<<< Updated upstream
-        "./dios-example-gen",
-        "-b", benchmark,
-        "-p", params_f,
-        "-o", p_dir
-=======
         "make",
         "-B",
-        "{}-egg".format(benchmark)
->>>>>>> Stashed changes
-        ])
+        "{}-egg".format(benchmark)])
 
     def kill(process):
         print("Hit timeout, killing synthesis subprocess")
@@ -240,8 +230,6 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     timer = Timer(timeout, kill, [gen])
     try:
         print("Running synthesis for {}, timeout: {}".format(benchmark, timeout))
-<<<<<<< Updated upstream
-=======
         sp.call([
             "cp",
             params_f,
@@ -249,9 +237,36 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
         sp.call([
             "cat",
             params_f,])
->>>>>>> Stashed changes
         timer.start()
         gen.communicate()
+
+        # TODO clean this up
+        sp.call([
+            "mv",
+            "{}-out/kernel.c".format(benchmark),
+            "{}/egg-kernel.c".format(p_dir)])
+
+        imports = """#include <float.h>
+                     #include <math.h>
+                     #include <stdint.h>
+                     #include <stdio.h>
+                     #include <stdlib.h>
+                     #include <xtensa/sim.h>
+                     #include <xtensa/tie/xt_pdxn.h>
+                     #include <xtensa/tie/xt_timer.h>
+                     #include <xtensa/xt_profiling.h>
+
+                     """
+
+        if benchmark == dft:
+            imports += """#define PI 3.1415926535897932384626433832795
+                          xb_vecMxf32 cos_MXF32(xb_vecMxf32 v);
+                          xb_vecMxf32 sin_MXF32(xb_vecMxf32 v);"""
+
+        with open("{}/egg-kernel.c".format(p_dir), 'r+') as f:
+            content = f.read()
+            f.seek(0, 0)
+            f.write(imports + '\n' + content)
     finally:
         timer.cancel()
 
@@ -271,51 +286,51 @@ def synthesize_benchmark(dir, benchmark, timeout):
 
         call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
 
-def compile_benchmark(dir, benchmark, force):
-    b_dir = os.path.join(dir, benchmark)
-    built = 0
-    for params_config in listdir(b_dir):
-        if not os.path.isdir(params_config):
-            continue
-        for file in listdir(params_config):
-            pre, ext = os.path.splitext(file)
-            if ext != ".rkt":
-                continue
+# def compile_benchmark(dir, benchmark, force):
+#     b_dir = os.path.join(dir, benchmark)
+#     built = 0
+#     for params_config in listdir(b_dir):
+#         if not os.path.isdir(params_config):
+#             continue
+#         for file in listdir(params_config):
+#             pre, ext = os.path.splitext(file)
+#             if ext != ".rkt":
+#                 continue
 
-            c_file = pre + ".c"
-            if not force and os.path.exists(c_file):
-                print("Skipping already-build C file: {}".format(c_file))
-                continue
+#             c_file = pre + ".c"
+#             if not force and os.path.exists(c_file):
+#                 print("Skipping already-build C file: {}".format(c_file))
+#                 continue
 
-            print("Compiling to file {}".format(file))
-            sp.call(["./dios", "-o", c_file, file])
-            built += 1
+#             print("Compiling to file {}".format(file))
+#             sp.call(["./dios", "-o", c_file, file])
+#             built += 1
 
-            # As a stopgap, add imports
-            imports = """#include <float.h>
-                         #include <math.h>
-                         #include <stdint.h>
-                         #include <stdio.h>
-                         #include <stdlib.h>
-                         #include <xtensa/sim.h>
-                         #include <xtensa/tie/xt_pdxn.h>
-                         #include <xtensa/tie/xt_timer.h>
-                         #include <xtensa/xt_profiling.h>
+#             # As a stopgap, add imports
+#             imports = """#include <float.h>
+#                          #include <math.h>
+#                          #include <stdint.h>
+#                          #include <stdio.h>
+#                          #include <stdlib.h>
+#                          #include <xtensa/sim.h>
+#                          #include <xtensa/tie/xt_pdxn.h>
+#                          #include <xtensa/tie/xt_timer.h>
+#                          #include <xtensa/xt_profiling.h>
 
-                         """
+#                          """
 
-            if benchmark == dft:
-                imports += """#define PI 3.1415926535897932384626433832795
-                              xb_vecMxf32 cos_MXF32(xb_vecMxf32 v);
-                              xb_vecMxf32 sin_MXF32(xb_vecMxf32 v);"""
+#             if benchmark == dft:
+#                 imports += """#define PI 3.1415926535897932384626433832795
+#                               xb_vecMxf32 cos_MXF32(xb_vecMxf32 v);
+#                               xb_vecMxf32 sin_MXF32(xb_vecMxf32 v);"""
 
-            with open(c_file, 'r+') as f:
-                content = f.read()
-                f.seek(0, 0)
-                f.write(imports + '\n' + content)
+#             with open(c_file, 'r+') as f:
+#                 content = f.read()
+#                 f.seek(0, 0)
+#                 f.write(imports + '\n' + content)
 
-    if built < 1:
-        print("Warning: no Racket files found to build, nothing done")
+#     if built < 1:
+#         print("Warning: no Racket files found to build, nothing done")
 
 def dimmensions_for_benchmark(benchmark, params):
     if benchmark == conv2d:
@@ -413,9 +428,9 @@ def main():
     if not args.skipsynth:
         for b in benchmarks:
             synthesize_benchmark(cur_results_dir, b, args.timeout)
-    if not args.skipc:
-        for b in benchmarks:
-            compile_benchmark(cur_results_dir, b, args.force)
+    # if not args.skipc:
+    #     for b in benchmarks:
+    #         compile_benchmark(cur_results_dir, b, args.force)
     if not args.skiprun:
         for b in benchmarks:
             run_benchmark(cur_results_dir, b, args.build, args.force)

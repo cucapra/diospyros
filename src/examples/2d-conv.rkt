@@ -202,8 +202,7 @@
 (define conv2d:keys
   (list 'input-rows 'input-cols
         'filter-rows 'filter-cols
-        'reg-size
-        'iterations))
+        'reg-size))
 
 (define (conv2d:run-experiment spec file-writer)
   (define I-rows (hash-ref spec 'input-rows))

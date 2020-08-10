@@ -166,7 +166,7 @@
 
 ; Describe the configuration parameters for this benchmarks
 (define matrix-mul:keys
-  (list 'A-rows 'A-cols 'B-rows 'B-cols 'iterations 'reg-size))
+  (list 'A-rows 'A-cols 'B-rows 'B-cols 'reg-size))
 
 
 ; Run matrix multiply experiment with the given spec.
