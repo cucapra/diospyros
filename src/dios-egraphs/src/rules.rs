@@ -29,7 +29,7 @@ pub fn run(prog: &RecExpr<VecLang>, timeout: u64) -> (f64, RecExpr<VecLang>) {
     let runner = Runner::default()
         .with_egraph(init_eg)
         .with_expr(&prog)
-        .with_node_limit(1_000_000)
+        .with_node_limit(10_000_000)
         .with_time_limit(std::time::Duration::from_secs(timeout))
         .with_iter_limit(10_000)
         .run(&rules);
@@ -58,10 +58,14 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
         rw!("add-0"; "(+ ?a 0)" => "?a"),
         rw!("mul-0"; "(* ?a 0)" => "0"),
         rw!("mul-1"; "(* ?a 1)" => "?a"),
+        rw!("div-1"; "(/ ?a 1)" => "?a"),
 
-        rw!("add-0-inv"; "?a" => "(+ ?a 0)"),
-        rw!("mul-1-inv"; "?a" => "(* ?a 1)"),
+        rw!("add-0-inv"; "?a" => "(+ 0 ?a)"),
+        rw!("mul-1-inv"; "?a" => "(* 1 ?a)"),
+        rw!("div-1-inv"; "?a" => "(/ ?a 1)"),
 
+        rw!("neg-zero-inv"; "0" => "(neg 0)"),
+        rw!("sqrt-1-inv"; "1" => "(sqrt 1)"),
 
         // Sign and negate
         rw!("neg-sgn"; "(neg (sgn ?a))" => "(sgn (neg ?a))"),
@@ -81,26 +85,22 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
             => "(Vec4 ?a ?b ?c 0)"),
         rw!("partition-4"; "(List ?a ?b ?c ?d)"
             => "(Vec4 ?a ?b ?c ?d)"),
-        rw!("partition-5"; "(List ?a ?b ?c ?d ?e)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e 0 0 0))"),
-        rw!("partition-6"; "(List ?a ?b ?c ?d ?e ?f)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f 0 0))"),
-        rw!("partition-7"; "(List ?a ?b ?c ?d ?e ?f ?g)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g 0))"),
-        rw!("partition-8"; "(List ?a ?b ?c ?d ?e ?f ?g ?h)"
-            => "(Concat (Vec4 ?a ?b ?c ?d) (Vec4 ?e ?f ?g ?h))"),
-        rw!("partition-9"; "(List ?v0 ?v1 ?v2 ?v3 ?v4 ?v5 ?v6 ?v7 ?v8)"
-            => "(Concat (Vec4 ?v0 ?v1 ?v2 ?v3)
-                        (Concat (Vec4 ?v4 ?v5 ?v6 ?v7)
-                                (Vec4 ?v8 0 0 0)))"),
 
         // Custom searchers for vector ops
         rw!("vec-neg"; "(Vec4 (neg ?a0) (neg ?a1) (neg ?a2) (neg ?a3))"
             => "(VecNeg (Vec4 ?a0 ?a1 ?a2 ?a3))"),
         rw!("vec-sqrt"; "(Vec4 (sqrt ?a0) (sqrt ?a1) (sqrt ?a2) (sqrt ?a3))"
             => "(VecSqrt (Vec4 ?a0 ?a1 ?a2 ?a3))"),
-        // rw!("vec-sgn"; "(Vec4 (sgn ?a0) (sgn ?a1) (sgn ?a2) (sgn ?a3))"
-        //     => "(VecSgn (Vec4 ?a0 ?a1 ?a2 ?a3))"),
+        rw!("vec-sgn"; "(Vec4 (sgn ?a0) (sgn ?a1) (sgn ?a2) (sgn ?a3))"
+            => "(VecSgn (Vec4 ?a0 ?a1 ?a2 ?a3))"),
+
+        rw!("vec-div"; "(Vec4 (/ ?a0 ?b0)
+                              (/ ?a1 ?b1)
+                              (/ ?a2 ?b2)
+                              (/ ?a3 ?b3))"
+
+            => "(VecDiv (Vec4 ?a0 ?a1 ?a2 ?a3)
+                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
 
         // rw!("vec-mul-sgn"; "(Vec4 (* ?b0 (sgn ?a0))
@@ -116,11 +116,6 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
 
         rw!("vec-mul"; { build_binop_searcher("*") }
             => "(VecMul (Vec4 ?a0 ?a1 ?a2 ?a3)
-                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
-
-        // TODO: zero replacement won't work here!
-        rw!("vec-div"; { build_binop_searcher("/") }
-            => "(VecDiv (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
         rw!("vec-mac"; { build_mac_searcher() }
