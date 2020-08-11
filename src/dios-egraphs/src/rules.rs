@@ -22,8 +22,8 @@ fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst)
 }
 
 /// Run the rewrite rules over the input program and return the best (cost, program)
-pub fn run(prog: &RecExpr<VecLang>, timeout: u64) -> (f64, RecExpr<VecLang>) {
-    let rules = rules();
+pub fn run(prog: &RecExpr<VecLang>, timeout: u64, no_ac: bool) -> (f64, RecExpr<VecLang>) {
+    let rules = rules(no_ac);
     let mut init_eg : EGraph = EGraph::new(());
     init_eg.add(VecLang::Num(0));
     let runner = Runner::default()
@@ -48,16 +48,11 @@ pub fn run(prog: &RecExpr<VecLang>, timeout: u64) -> (f64, RecExpr<VecLang>) {
     extractor.find_best(root)
 }
 
-pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
-    let rules: Vec<Rewrite<VecLang, ()>> = vec![
-        // Basic associativity/commutativity/identities
-        // rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
-        // rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
-        // rw!("assoc-add"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
-        // rw!("assoc-mul"; "(* (* ?a ?b) ?c)" => "(* ?a (* ?b ?c))"),
-        rw!("add-0"; "(+ ?a 0)" => "?a"),
-        rw!("mul-0"; "(* ?a 0)" => "0"),
-        rw!("mul-1"; "(* ?a 1)" => "?a"),
+pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
+    let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
+        rw!("add-0"; "(+ 0 ?a)" => "?a"),
+        rw!("mul-0"; "(* 0 ?a)" => "0"),
+        rw!("mul-1"; "(* 1 ?a)" => "?a"),
         rw!("div-1"; "(/ ?a 1)" => "?a"),
 
         rw!("add-0-inv"; "?a" => "(+ 0 ?a)"),
@@ -102,14 +97,6 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
             => "(VecDiv (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3))"),
 
-
-        // rw!("vec-mul-sgn"; "(Vec4 (* ?b0 (sgn ?a0))
-        //                           (* ?b1 (sgn ?a1))
-        //                           (* ?b2 (sgn ?a2))
-        //                           (* ?b3 (sgn ?a3)))"
-        //     => "(VecMulSgn (Vec4 ?a0 ?a1 ?a2 ?a3)
-        //                    (Vec4 ?b0 ?b1 ?b2 ?b3))"),
-
         rw!("vec-add"; { build_binop_searcher("+") }
             => "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3))"),
@@ -123,5 +110,15 @@ pub fn rules() -> Vec<Rewrite<VecLang, ()>> {
                         (Vec4 ?b0 ?b1 ?b2 ?b3)
                         (Vec4 ?c0 ?c1 ?c2 ?c3))"),
     ];
+
+    if !no_ac {
+        rules.extend(vec![
+            //  Basic associativity/commutativity/identities
+            rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+            rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
+            rw!("assoc-add"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
+            rw!("assoc-mul"; "(* (* ?a ?b) ?c)" => "(* ?a (* ?b ?c))"),
+        ]);
+    }
     rules
 }

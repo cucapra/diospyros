@@ -5,6 +5,9 @@ pub mod searchutils;
 pub mod macsearcher;
 pub mod binopsearcher;
 
+extern crate clap;
+use clap::{Arg, App};
+
 // Overall thoughts: start with spec, not the reference implementation
 // Mutation is hard: how do we model vector registers?
 //   What if the language produces essentially an entire register file?
@@ -23,10 +26,23 @@ pub mod binopsearcher;
 // What are the principals behind creating these rules?
 
 fn main() {
+
+  let matches = App::new("Diospyros Rewriter")
+                    .arg(Arg::with_name("INPUT")
+                      .help("Sets the input file")
+                      .required(true)
+                      .index(1))
+                    .arg(Arg::with_name("no-ac")
+                      .long("no-ac")
+                      .help("Disable associativity and commutativity rules"))
+                    .get_matches();
+
+
+
   use std::{env, fs};
 
   // Get a path string to parse a program.
-  let path = std::env::args().nth(1).expect("no input path provided.");
+  let path = matches.value_of("INPUT").unwrap();
   let timeout = env::var("TIMEOUT")
       .ok()
       .and_then(|t| t.parse::<u64>().ok())
@@ -37,12 +53,14 @@ fn main() {
 
   let prog = prog_str.parse().unwrap();
   eprintln!("Running egg with timeout {:?}s", timeout);
-  let (cost, best) = rules::run(&prog, timeout);
+  let (cost, best) = rules::run(&prog, timeout, matches.is_present("no-ac"));
 
   println!("{}", best.pretty(40));
   eprintln!("\nCost: {}", cost);
 }
 
+
+// TODO: update the other tests to run without long partitioning rules
 #[cfg(test)]
 mod tests {
 
@@ -56,7 +74,7 @@ mod tests {
   fn run_egpraph_with_start(prog : &str, exp_best : &str, exp_best_cost : f64) {
 
     let start = prog.parse().unwrap();
-    let (best_cost, best) = run(&start);
+    let (best_cost, best) = run(&start, 60, false);
 
     println!(
       "original:\n{}\nbest:\n{}\nbest cost {}",
@@ -84,9 +102,11 @@ mod tests {
 
   #[test]
   fn vector_pairwise_mac() {
-    let start = "(List
+    let start = "(Vec4
                    (+ (* a b) (+ (* c d) (* e f)))
-                   (+ (* aa bb) (+ (* cc dd) (* ee ff))))";
+                   (+ (* aa bb) (+ (* cc dd) (* ee ff)))
+                   0
+                   0)";
     let exp_best = "(VecMAC
                       (VecMAC
                         (VecMul (Vec4 c aa 0 0) (Vec4 d bb 0 0))

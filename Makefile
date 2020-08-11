@@ -8,6 +8,8 @@ RACKET_SRC := src/*.rkt src/examples/*.rkt src/backend/*.rkt
 
 CARGO_FLAGS := --release
 
+EGG_FLAGS := --no-ac
+
 test: build
 
 test-all: test build
@@ -45,7 +47,7 @@ ifdef SPLIT
 	done
 	./src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $*-out/opt/spec* > $@
 else
-	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $< > $@
+	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml -- $< $(EGG_FLAGS)  > $@
 endif
 
 # Backend code gen
