@@ -9,12 +9,12 @@
 #include <xtensa/xt_profiling.h>
 
 /*
-Git revision: bc43b90
+Git revision: 939e0e4
 
 Warning: dirty git status:
  qr-decomp-out/kernel.c  | 1621 +++++++++++++++++++++++++++++++++++------------
- src/examples/q-prod.rkt |   32 +-
- 2 files changed, 1248 insertions(+), 405 deletions(-)
+ src/examples/q-prod.rkt |    2 +-
+ 2 files changed, 1233 insertions(+), 390 deletions(-)
 
 */
 int __attribute__((section(".dram0.data"))) Z[4] = {0, 0, 0, 0};
@@ -35,6 +35,12 @@ int __attribute__((section(".dram0.data"))) v_30[4] = {2, 0, 1, 2};
 int __attribute__((section(".dram0.data"))) v_30_0[4] = {2, 0, 1, 2};
 int __attribute__((section(".dram0.data"))) v_32[4] = {1, 2, 0, 2};
 int __attribute__((section(".dram0.data"))) v_32_0[4] = {1, 2, 0, 2};
+int __attribute__((section(".dram0.data"))) v_4_1[4] = {0, 1, 2, 4};
+int __attribute__((section(".dram0.data"))) v_4_2[4] = {0, 1, 2, 4};
+int __attribute__((section(".dram0.data"))) v_47[4] = {5, 6, 4, 0};
+int __attribute__((section(".dram0.data"))) v_47_0[4] = {1, 2, 0, 4};
+int __attribute__((section(".dram0.data"))) v_65[4] = {6, 4, 5, 0};
+int __attribute__((section(".dram0.data"))) v_65_0[4] = {2, 0, 1, 4};
 void kernel(float * aq, float * at, float * bq, float * bt, float * rq, float * rt) {
 float * __restrict aq_mut = aq;
   valign align_aq;
@@ -54,8 +60,12 @@ float * __restrict aq_mut = aq;
   valign align_rt;
   xb_vecMxf32 aq_0_4;
   PDX_LAV_MXF32_XP(aq_0_4, align_aq, (xb_vecMxf32 *) aq_mut, 16);
+  xb_vecMxf32 at_0_4;
+  PDX_LAV_MXF32_XP(at_0_4, align_at, (xb_vecMxf32 *) at_mut, 16);
   xb_vecMxf32 bq_0_4;
   PDX_LAV_MXF32_XP(bq_0_4, align_bq, (xb_vecMxf32 *) bq_mut, 16);
+  xb_vecMxf32 bt_0_4;
+  PDX_LAV_MXF32_XP(bt_0_4, align_bt, (xb_vecMxf32 *) bt_mut, 16);
   float v_1 = aq[3];
   float v_2 = 1;
   float v_3_tmp[4] = {v_1, v_1, v_1, v_2};
@@ -99,6 +109,44 @@ float * __restrict aq_mut = aq;
   xb_vecMxf32 v_36 = PDX_ADD_MXF32(v_29, v_35);
   xb_vecMxf32 v_37 = PDX_ADD_MXF32(v_24, v_36);
   xb_vecMxf32 v_38 = PDX_ADD_MXF32(v_19, v_37);
+  xb_vecMxf32 v_40;
+  v_40 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(*((xb_vecMxf32 *) v_0), PDX_MOV_MX32_FROM_MXF32(at_0_4), *((xb_vecMx32 *) v_4_1)));
+  xb_vecMxf32 v_42;
+  v_42 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(*((xb_vecMxf32 *) v_0), PDX_MOV_MX32_FROM_MXF32(bt_0_4), *((xb_vecMx32 *) v_4_2)));
+  float v_43_tmp[4] = {v_8, v_9, v_7, v_2};
+  xb_vecMxf32 v_43 = *((xb_vecMxf32 *) v_43_tmp);
+  float v_44 = 2;
+  float v_45_tmp[4] = {v_44, v_44, v_44, v_2};
+  xb_vecMxf32 v_45 = *((xb_vecMxf32 *) v_45_tmp);
+  xb_vecMxf32 v_48;
+  v_48 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(*((xb_vecMxf32 *) v_0), PDX_MOV_MX32_FROM_MXF32(bt_0_4), *((xb_vecMx32 *) v_47_0)));
+  xb_vecMxf32 v_49 = PDX_MUL_MXF32(v_10, v_48);
+  xb_vecMxf32 v_53 = PDX_MUL_MXF32(v_43, v_42);
+  xb_vecMxf32 v_54 = PDX_NEG_MXF32(v_53);
+  xb_vecMxf32 v_55 = PDX_ADD_MXF32(v_49, v_54);
+  xb_vecMxf32 v_56 = PDX_MUL_MXF32(v_45, v_55);
+  xb_vecMxf32 v_57 = PDX_MUL_MXF32(v_43, v_56);
+  float v_58_tmp[4] = {v_9, v_7, v_8, v_2};
+  xb_vecMxf32 v_58 = *((xb_vecMxf32 *) v_58_tmp);
+  xb_vecMxf32 v_63 = PDX_MUL_MXF32(v_58, v_42);
+  xb_vecMxf32 v_66;
+  v_66 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(*((xb_vecMxf32 *) v_0), PDX_MOV_MX32_FROM_MXF32(bt_0_4), *((xb_vecMx32 *) v_65_0)));
+  xb_vecMxf32 v_67 = PDX_MUL_MXF32(v_10, v_66);
+  xb_vecMxf32 v_68 = PDX_NEG_MXF32(v_67);
+  xb_vecMxf32 v_69 = PDX_ADD_MXF32(v_63, v_68);
+  xb_vecMxf32 v_70 = PDX_MUL_MXF32(v_45, v_69);
+  xb_vecMxf32 v_71 = PDX_MUL_MXF32(v_58, v_70);
+  xb_vecMxf32 v_72 = PDX_NEG_MXF32(v_71);
+  xb_vecMxf32 v_73 = PDX_ADD_MXF32(v_57, v_72);
+  xb_vecMxf32 v_79 = PDX_MUL_MXF32(v_43, v_66);
+  xb_vecMxf32 v_83 = PDX_MUL_MXF32(v_58, v_48);
+  xb_vecMxf32 v_84 = PDX_NEG_MXF32(v_83);
+  xb_vecMxf32 v_85 = PDX_ADD_MXF32(v_79, v_84);
+  xb_vecMxf32 v_86 = PDX_MUL_MXF32(v_45, v_85);
+  xb_vecMxf32 v_87 = v_73;
+  PDX_MULA_MXF32(v_87, v_3, v_86);
+  xb_vecMxf32 v_88 = PDX_ADD_MXF32(v_42, v_87);
+  xb_vecMxf32 v_89 = PDX_ADD_MXF32(v_40, v_88);
   PDX_SAV_MXF32_XP(v_38, align_rq, (xb_vecMxf32 *) rq, 16);
-  PDX_SAV_MXF32_XP(v_38, align_rt, (xb_vecMxf32 *) rt, 16);
+  PDX_SAV_MXF32_XP(v_89, align_rt, (xb_vecMxf32 *) rt, 16);
 }
