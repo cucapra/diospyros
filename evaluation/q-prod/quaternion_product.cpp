@@ -9,7 +9,7 @@
   Verifies against Eigen cross product implementation
 */
 
-Eigen::Vector3f crossProduct(Eigen::Vector3f lhs,
+__attribute__((always_inline)) Eigen::Vector3f crossProduct(Eigen::Vector3f lhs,
                                      Eigen::Vector3f rhs) {
 
   Eigen::Vector3f result(
@@ -22,7 +22,7 @@ Eigen::Vector3f crossProduct(Eigen::Vector3f lhs,
 /*
   Computes the point product
 */
-Eigen::Vector3f pointProduct(Eigen::Vector4f &q,
+__attribute__((always_inline)) Eigen::Vector3f pointProduct(Eigen::Vector4f &q,
                                      Eigen::Vector3f &p) {
   Eigen::Vector3f qvec(q(0), q(1), q(2));
 

@@ -23,12 +23,6 @@ void kernel(float * a_q, float * a_t, float * b_q, float * b_t, /* inputs */
             float * r_q, float * r_t);                          /* outputs */
 
 
-// Eigen function
-SE3T quaternionProduct(SE3T &a, SE3T &b);
-// // Nature functions.
-// extern "C" {
-// }
-
 void eigen_kernel(float * a_q, float * a_t, float * b_q, float * b_t, /* inputs */
                   float * r_q, float * r_t) {
   Eigen::Map<Eigen::Vector4f> aq_(a_q, 4, 1);
@@ -50,7 +44,9 @@ void eigen_kernel(float * a_q, float * a_t, float * b_q, float * b_t, /* inputs 
 int main(int argc, char **argv) {
 
   FILE *file = fopen(OUTFILE, "w");
-  if (file == NULL) file = stdout;;
+  if (file == NULL) file = stdout;
+
+  fprintf(file, "kernel,cycles\n");
 
   init_rand(10);
 
@@ -86,13 +82,16 @@ int main(int argc, char **argv) {
   memcpy (r_q, c_.quaternion.data(), sizeof(float) * 4 );
   memcpy (r_t, c_.translation.data(), sizeof(float) * 3 );
 
-  // start_cycle_timing;
-  // eigen_kernel(a_q, a_t, b_q, b_t, r_q, r_t);
-  // stop_cycle_timing;
+  // Only time the kernel call, not the datatype conversions
+  start_cycle_timing;
+  eigen_kernel(a_q, a_t, b_q, b_t, r_q, r_t);
+  stop_cycle_timing;
   time = get_time();
+
   print_matrix(r_q, 4, 1);
   print_matrix(r_t, 4, 1);
   printf("Eigen : %d cycles\n", time);
+  fprintf(file, "%s,%d\n","Eigen",time);
 
   zero_matrix(r_q, 4, 1);
   zero_matrix(r_t, 4, 1);
@@ -105,6 +104,7 @@ int main(int argc, char **argv) {
   print_matrix(r_q, 4, 1);
   print_matrix(r_t, 4, 1);
   printf("Diospyros : %d cycles\n", time);
+  fprintf(file, "%s,%d\n","Diospyros",time);
 
   return 0;
 }

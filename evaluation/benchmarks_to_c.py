@@ -15,20 +15,20 @@ from py_utils import *
 
 parameters = {
     conv2d : [
-        # {
-        #     "input-rows": 2,
-        #     "input-cols": 2,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 3,
-        #     "input-cols": 3,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "reg-size": 4
-        # },
+        {
+            "input-rows": 2,
+            "input-cols": 2,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
         # {
         #     "input-rows": 4,
         #     "input-cols": 4,
@@ -64,13 +64,13 @@ parameters = {
         #     "filter-cols": 2,
         #     "reg-size": 4
         # },
-        {
-            "input-rows": 3,
-            "input-cols": 3,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
+        # {
+        #     "input-rows": 3,
+        #     "input-cols": 3,
+        #     "filter-rows": 3,
+        #     "filter-cols": 3,
+        #     "reg-size": 4
+        # },
         # {
         #     "input-rows": 4,
         #     "input-cols": 4,
@@ -78,13 +78,13 @@ parameters = {
         #     "filter-cols": 3,
         #     "reg-size": 4
         # },
-        {
-            "input-rows": 5,
-            "input-cols": 5,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
+        # {
+        #     "input-rows": 5,
+        #     "input-cols": 5,
+        #     "filter-rows": 3,
+        #     "filter-cols": 3,
+        #     "reg-size": 4
+        # },
         # {
         #     "input-rows": 6,
         #     "input-cols": 6,
@@ -199,20 +199,24 @@ parameters = {
     #     #     "reg-size": 4
     #     # }
     # ]
-    qrdecomp : [
-        {
-            "N": 3,
-            "reg-size": 4
-        },
-        {
-            "N": 4,
-            "reg-size": 4
-        }
-    ],
     qprod : [
         {
             "reg-size": 4
         },
+    ],
+    qrdecomp : [
+        {
+            "N": 2,
+            "reg-size": 4
+        },
+        # {
+        #     "N": 3,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "N": 4,
+        #     "reg-size": 4
+        # }
     ],
 }
 
@@ -233,8 +237,15 @@ def params_to_name(benchmark, params):
         return '{}_{}r'.format(params["N"],
                                params["reg-size"])
 
-    print("Warning: haven't defined nice filename for: ", benchmark)
-    return str(params)
+    if benchmark == qrdecomp:
+        return '{}_{}r'.format(params["N"],
+                               params["reg-size"])
+
+    if benchmark == qprod:
+        return '{}r'.format(params["reg-size"])
+
+    print("Error: haven't defined nice filename for: ", benchmark)
+    exit(1)
 
 def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     # Call example-gen, AKA synthesis. This is long running, so include an
@@ -253,6 +264,14 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     timer = Timer(timeout, kill, [gen])
     try:
         print("Running synthesis for {}, timeout: {}".format(benchmark, timeout))
+        sp.call([
+            "rm",
+            "-rf",
+            "{}-out/".format(benchmark)])
+        sp.call([
+            "mkdir",
+            "{}-out/".format(benchmark)])
+
         sp.call([
             "cp",
             params_f,
@@ -278,6 +297,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
                      #include <xtensa/tie/xt_pdxn.h>
                      #include <xtensa/tie/xt_timer.h>
                      #include <xtensa/xt_profiling.h>
+                     #include "../../../../src/scalars.h"
 
                      """
 
@@ -333,7 +353,7 @@ def dimmensions_for_benchmark(benchmark, params):
                 "N=" + str(params["N"]),
             ]
     if benchmark == qprod:
-        return []
+        return None
     print("Error: haven't dimensions  for: ", benchmark)
     exit(1)
 
@@ -359,14 +379,16 @@ def run_benchmark(dir, benchmark, build, force):
             print("Running, outputting to file {}".format(csv_file))
 
             harness = os.path.join(harness_dir, benchmark)
-            if build:
-                sp.call(["make", "-C", harness, "clean"])
+            sp.call(["make", "-C", harness, "clean"])
 
             set_dimms = dimmensions_for_benchmark(benchmark, params)
             print(set_dimms)
             set_kernel = "KERNEL_SRC=" + os.path.abspath(file)
             set_output = "OUTFILE=" + os.path.abspath(csv_file)
-            sp.call(["make", "-C", harness, "run", set_kernel, set_output] + set_dimms)
+            make_run = ["make", "-C", harness, "run", set_kernel, set_output]
+            if set_dimms:
+                make_run += set_dimms
+            sp.call(make_run)
 
 def main():
     # Argument parsing

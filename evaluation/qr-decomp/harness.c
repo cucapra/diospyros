@@ -69,7 +69,7 @@ int nature_qr(const float *A, float *Q, float *R) {
     nat_b[i*N + i] = 1;
   }
 
-  // Apply Housholder rotations to obtain Q'.
+  // Apply Householder rotations to obtain Q'.
   matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
 
   // Transpose that to get Q.
@@ -80,14 +80,11 @@ int nature_qr(const float *A, float *Q, float *R) {
 int main(int argc, char **argv) {
 
   FILE *file = fopen(OUTFILE, "w");
-  if (file == NULL) file = stdout;;
+  if (file == NULL) file = stdout;
+
+  fprintf(file, "kernel,N,cycles\n");
 
   init_rand(10);
-
-  // float a_init[N * N] = {12, -51, 4, 6, 167, -68, -4, 24, -41};
-  // for (int i = 0; i < (N * N); i++) {
-  //   a[i] = a_init[i];
-  // }
 
   create_random_mat(a, N, N);
   zero_matrix(q, N, N);
@@ -97,38 +94,30 @@ int main(int argc, char **argv) {
 
   print_matrix(a, N, N);
 
-  printf("Starting Nature spec run\n");
+  int err;
+  int time = 0;;
 
-  // Use Nature as spec for now
-  int err = nature_qr(a, q_spec, r_spec);
-  if (err) {
-    return err;
+  if (N % 4 == 0) {
+    printf("Starting Nature spec run\n");
+    // Use Nature as spec for now
+    err = nature_qr(a, q_spec, r_spec);
+    if (err) {
+      return err;
+    }
+    // Nature
+    start_cycle_timing;
+    err = nature_qr(a, q, r);
+    stop_cycle_timing;
+    if (err) {
+      return err;
+    }
+    time = get_time();
+    print_matrix(q, N, N);
+    zero_matrix(q, N, N);
+    zero_matrix(r, N, N);
+    printf("Nature : %d cycles\n", time);
+    fprintf(file, "%s,%d,%d\n","Nature",N,time);
   }
-
-  // printf("After Nature spec run\n");
-  int time = 0;
-
-  // Nature.
-
-  // XXX Just printing and exiting early as a test for now.
-  // printf("Q:");
-  // print_matrix(q, N, N);
-  // printf("R:");
-  // print_matrix(r, N, N);
-  // return 0;
-
-  // Nature
-  start_cycle_timing;
-  err = nature_qr(a, q, r);
-  if (err) {
-    return err;
-  }
-  stop_cycle_timing;
-  time = get_time();
-  print_matrix(q, N, N);
-  zero_matrix(q, N, N);
-  zero_matrix(r, N, N);
-  printf("Nature : %d cycles\n", time);
 
   // Diospyros
   start_cycle_timing;
@@ -136,9 +125,13 @@ int main(int argc, char **argv) {
   stop_cycle_timing;
   time = get_time();
   print_matrix(q, N, N);
+  print_matrix(r, N, N);
   printf("Diospyros : %d cycles\n", time);
-  output_check_abs(q, q_spec, N, N);
-
+  if (N % 4 == 0) {
+    output_check_abs(q, q_spec, N, N);
+    output_check_abs(r, r_spec, N, N);
+  }
+  fprintf(file, "%s,%d,%d\n","Diospyros",N,time);
 
   return 0;
 }
