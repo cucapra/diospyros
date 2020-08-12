@@ -13,32 +13,32 @@
 ;; - the prelude instructions (list)
 ;; - outputs that the postlude should write to
 (define (q-prod:only-spec config)
-  (define a-q (make-symbolic-matrix 4 1 'a-q))
-  (define a-t (make-symbolic-matrix 3 1 'a-t))
-  (define b-q (make-symbolic-matrix 4 1 'b-q))
-  (define b-t (make-symbolic-matrix 3 1 'b-t))
+  (define aq (make-symbolic-matrix 4 1 'aq))
+  (define at (make-symbolic-matrix 3 1 'at))
+  (define bq (make-symbolic-matrix 4 1 'bq))
+  (define bt (make-symbolic-matrix 3 1 'bt))
 
 
   (define prelude
     (list
-      (vec-extern-decl 'a-q (* 4 1) input-tag)
-      (vec-extern-decl 'a-t (* 3 1) input-tag)
-      (vec-extern-decl 'b-q (* 4 1) input-tag)
-      (vec-extern-decl 'b-t (* 3 1) input-tag)
-      (vec-extern-decl 'b-t (* 3 1) input-tag)
-      (vec-extern-decl 'r-q (* 4 1) output-tag)
-      (vec-extern-decl 'r-t (* 4 1) output-tag)
+      (vec-extern-decl 'aq (* 4 1) input-tag)
+      (vec-extern-decl 'at (* 3 1) input-tag)
+      (vec-extern-decl 'bq (* 4 1) input-tag)
+      (vec-extern-decl 'bt (* 3 1) input-tag)
+      (vec-extern-decl 'bt (* 3 1) input-tag)
+      (vec-extern-decl 'rq (* 4 1) output-tag)
+      (vec-extern-decl 'rt (* 4 1) output-tag)
       (vec-const 'Z (make-bv-list-zeros 1) float-type)))
 
-  (define-values (r-q r-t) (quaternion-product a-q a-t b-q b-t))
+  (define-values (rq rt) (quaternion-product aq at bq bt))
 
-  (define spec-r-q (align-to-reg-size (matrix-elements r-q)))
-  (define spec-r-t (align-to-reg-size (matrix-elements r-q)))
+  (define spec-r-q (align-to-reg-size (matrix-elements rq)))
+  (define spec-r-t (align-to-reg-size (matrix-elements rq)))
 
   (values (append spec-r-q spec-r-t)
           (prog prelude)
-          (list (list 'r-q (length spec-r-t))
-                (list 'r-t (length spec-r-t)))))
+          (list (list 'rq (length spec-r-t))
+                (list 'rt (length spec-r-t)))))
 
 (define q-prod:keys
   (list 'reg-size))
