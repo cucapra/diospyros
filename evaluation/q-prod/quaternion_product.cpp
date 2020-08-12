@@ -1,6 +1,6 @@
 #include <Eigen/Core>
 
-#include <quaternion_product.h>
+#include "quaternion_product.h"
 
 /*
   Assume quaternion data format is (x, y, z, w) and translational format is (x,
@@ -9,10 +9,10 @@
   Verifies against Eigen cross product implementation
 */
 
-Eigen::Vector<float, 3> crossProduct(Eigen::Vector<float, 3> lhs,
-                                     Eigen::Vector<float, 3> rhs) {
+Eigen::Vector3f crossProduct(Eigen::Vector3f lhs,
+                                     Eigen::Vector3f rhs) {
 
-  Eigen::Vector<float, 3> result(
+  Eigen::Vector3f result(
       lhs.coeff(1) * rhs.coeff(2) - lhs.coeff(2) * rhs.coeff(1),
       lhs.coeff(2) * rhs.coeff(0) - lhs.coeff(0) * rhs.coeff(2),
       lhs.coeff(0) * rhs.coeff(1) - lhs.coeff(1) * rhs.coeff(0));
@@ -22,17 +22,17 @@ Eigen::Vector<float, 3> crossProduct(Eigen::Vector<float, 3> lhs,
 /*
   Computes the point product
 */
-Eigen::Vector<float, 3> pointProduct(Eigen::Vector<float, 4> &q,
-                                     Eigen::Vector<float, 3> &p) {
-  Eigen::Vector<float, 3> qvec(q(0), q(1), q(2));
+Eigen::Vector3f pointProduct(Eigen::Vector4f &q,
+                                     Eigen::Vector3f &p) {
+  Eigen::Vector3f qvec(q(0), q(1), q(2));
 
-  Eigen::Vector<float, 3> uv = crossProduct(qvec, p); // qvec.cross(p);
+  Eigen::Vector3f uv = crossProduct(qvec, p); // qvec.cross(p);
   for (int i = 0; i < 3; i++) {
     uv(i) = uv(i) * 2;
   }
-  Eigen::Vector<float, 3> qxuv = crossProduct(qvec, uv); // qvec.cross(uv);
+  Eigen::Vector3f qxuv = crossProduct(qvec, uv); // qvec.cross(uv);
 
-  Eigen::Vector<float, 3> result;
+  Eigen::Vector3f result;
   result = p + (q(3) * uv) + qxuv;
 
   return result;
@@ -44,11 +44,11 @@ Eigen::Vector<float, 3> pointProduct(Eigen::Vector<float, 4> &q,
   Verified against the SE3 product in Sophus
 */
 SE3T quaternionProduct(SE3T &a, SE3T &b) {
-  Eigen::Vector<float, 3> resultTranslation;
-  Eigen::Vector<float, 4> resultQuaternion;
+  Eigen::Vector3f resultTranslation;
+  Eigen::Vector4f resultQuaternion;
 
-  Eigen::Vector<float, 4> aq = a.quaternion;
-  Eigen::Vector<float, 4> bq = b.quaternion;
+  Eigen::Vector4f aq = a.quaternion;
+  Eigen::Vector4f bq = b.quaternion;
 
   // Hamilton product
   resultQuaternion(3) =
@@ -60,7 +60,7 @@ SE3T quaternionProduct(SE3T &a, SE3T &b) {
   resultQuaternion(2) =
       aq(3) * bq(2) + aq(2) * bq(3) + aq(0) * bq(1) - aq(1) * bq(0);
 
-  Eigen::Vector<float, 3> r = pointProduct(a.quaternion, b.translation);
+  Eigen::Vector3f r = pointProduct(a.quaternion, b.translation);
 
   resultTranslation = a.translation + r;
 

@@ -1,16 +1,15 @@
 #pragma once
 
-#include <Eigen>
+#include <Eigen/Core>
+#include <Eigen/Dense>
 
 typedef struct {
-  Eigen::Vector<float, 4> quaternion;
-  Eigen::Vector<float, 3> translation;
+  Eigen::Vector4f quaternion;
+  Eigen::Vector3f translation;
 } SE3T;
 
-Eigen::Vector<float, 3> crossProduct(Eigen::Vector<float, 3> lhs,
-                                     Eigen::Vector<float, 3> rhs);
+Eigen::Vector3f crossProduct(Eigen::Vector3f lhs, Eigen::Vector3f rhs);
 
-Eigen::Vector<float, 3> pointProduct(Eigen::Vector<float, 4> &q,
-                                     Eigen::Vector<float, 3> &p);
+Eigen::Vector3f pointProduct(Eigen::Vector4f &q, Eigen::Vector3f &p);
 
 SE3T quaternionProduct(SE3T &a, SE3T &b);

@@ -6,7 +6,7 @@ XCXX := xt-xc++
 XRUN := xt-run
 XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals
 # for verbose: -LNO:SIMD_V
-XCXX_FLAGS += -std=c++11 -O3 -LNO:SIMD -keep–c
+XCXX_FLAGS += -std=c++11 -O3 -LNO:SIMD -w
 XSIM_FLAGS := --summary --mem_model
 
 NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
