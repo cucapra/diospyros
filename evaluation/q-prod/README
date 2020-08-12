@@ -1,0 +1,4 @@
+# Quaternion Point Product Implementation
+
+Tested against Sophus se3.hpp quanterion product call.
+Cross product tested against Eigen.
