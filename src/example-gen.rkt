@@ -9,7 +9,8 @@
          "./examples/2d-conv.rkt"
          "./examples/matrix-multiply.rkt"
          "./examples/discrete-fourier-transform.rkt"
-         "./examples/qr-decomp.rkt")
+         "./examples/qr-decomp.rkt"
+         "./examples/q-prod.rkt")
 
 
 (error-print-width 999999999999999999999999999)
@@ -20,7 +21,8 @@
   (list "mat-mul"
         "2d-conv"
         "dft"
-        "qr-decomp"))
+        "qr-decomp"
+        "q-prod"))
 
 (define (create-base-directory out-dir)
   (define base
@@ -77,6 +79,9 @@
       [("qr-decomp") (values (lambda (_) 0)
                              qr-decomp:only-spec
                              qr-decomp:keys)]
+      [("q-prod") (values (lambda (_) 0)
+                             q-prod:only-spec
+                             q-prod:keys)]
       [else (error 'run-bench
                    "Unknown benchmark ~a"
                    name)]))

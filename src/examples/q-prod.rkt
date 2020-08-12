@@ -5,6 +5,44 @@
          "../utils.rkt"
          "matrix-multiply.rkt")
 
+(provide q-prod:only-spec
+         q-prod:keys)
+
+;; Runs the spec with symbolic inputs and returns:
+;; - the resulting formula.
+;; - the prelude instructions (list)
+;; - outputs that the postlude should write to
+(define (q-prod:only-spec config)
+  (define a-q (make-symbolic-matrix 4 1 'a-q))
+  (define a-t (make-symbolic-matrix 3 1 'a-t))
+  (define b-q (make-symbolic-matrix 4 1 'b-q))
+  (define b-t (make-symbolic-matrix 3 1 'b-t))
+
+
+  (define prelude
+    (list
+      (vec-extern-decl 'a-q (* 4 1) input-tag)
+      (vec-extern-decl 'a-t (* 3 1) input-tag)
+      (vec-extern-decl 'b-q (* 4 1) input-tag)
+      (vec-extern-decl 'b-t (* 3 1) input-tag)
+      (vec-extern-decl 'b-t (* 3 1) input-tag)
+      (vec-extern-decl 'r-q (* 4 1) output-tag)
+      (vec-extern-decl 'r-t (* 4 1) output-tag)
+      (vec-const 'Z (make-bv-list-zeros 1) float-type)))
+
+  (define-values (r-q r-t) (quaternion-product a-q a-t b-q b-t))
+
+  (define spec-r-q (align-to-reg-size (matrix-elements r-q)))
+  (define spec-r-t (align-to-reg-size (matrix-elements r-q)))
+
+  (values (append spec-r-q spec-r-t)
+          (prog prelude)
+          (list (list 'r-q (length spec-r-t))
+                (list 'r-t (length spec-r-t)))))
+
+(define q-prod:keys
+  (list 'reg-size))
+
 (define (cross-product lhs rhs)
   (assert (= (matrix-rows lhs) (matrix-rows rhs) 3))
   (assert (= (matrix-cols lhs) (matrix-cols rhs) 1))
@@ -83,7 +121,7 @@
 
 (module+ test
   (require rackunit)
-  
+
   (define lhs (matrix 3 1 (value-bv-list 1 2 3)))
   (define rhs (matrix 3 1 (value-bv-list -1 4 6)))
   (define prod (cross-product lhs rhs))
