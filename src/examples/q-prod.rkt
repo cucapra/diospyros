@@ -33,7 +33,7 @@
   (define-values (rq rt) (quaternion-product aq at bq bt))
 
   (define spec-r-q (align-to-reg-size (matrix-elements rq)))
-  (define spec-r-t (align-to-reg-size (matrix-elements rq)))
+  (define spec-r-t (align-to-reg-size (matrix-elements rt)))
 
   (values (append spec-r-q spec-r-t)
           (prog prelude)
