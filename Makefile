@@ -41,7 +41,7 @@ ifdef SPLIT
 	./src/dios-egraphs/vec-dsl-split.py -n $(SPLIT) -p $*-out/specs/spec <$<
 	for file in $$(ls $*-out/specs/); do \
 		cargo run $(CARGO_FLAGS) \
-			--manifest-path src/dios-egraphs/Cargo.toml \
+			--manifest-path src/dios-egraphs/Cargo.toml -- --no-ac \
 			$*-out/specs/"$$file" \
 			> $*-out/opt/"$$file"; \
 	done

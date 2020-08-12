@@ -64,13 +64,13 @@ parameters = {
         #     "filter-cols": 2,
         #     "reg-size": 4
         # },
-        # {
-        #     "input-rows": 3,
-        #     "input-cols": 3,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
+        {
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
         # {
         #     "input-rows": 4,
         #     "input-cols": 4,
@@ -78,13 +78,13 @@ parameters = {
         #     "filter-cols": 3,
         #     "reg-size": 4
         # },
-        # {
-        #     "input-rows": 5,
-        #     "input-cols": 5,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
+        {
+            "input-rows": 5,
+            "input-cols": 5,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
         # {
         #     "input-rows": 6,
         #     "input-cols": 6,
@@ -113,13 +113,13 @@ parameters = {
         #     "filter-cols": 3,
         #     "reg-size": 4
         # },
-        {
-            "input-rows": 16,
-            "input-cols": 16,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
+        # {
+        #     "input-rows": 16,
+        #     "input-cols": 16,
+        #     "filter-rows": 3,
+        #     "filter-cols": 3,
+        #     "reg-size": 4
+        # },
         # {
         #     "input-rows": 128,
         #     "input-cols": 128,
@@ -136,70 +136,21 @@ parameters = {
         #     "B-cols": 2,
         #     "reg-size": 4
         # },
-        # {
-        #     "A-rows": 2,
-        #     "A-cols": 3,
-        #     "B-rows": 3,
-        #     "B-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 3,
-        #     "A-cols": 3,
-        #     "B-rows": 3,
-        #     "B-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 4,
-        #     "A-cols": 4,
-        #     "B-rows": 4,
-        #     "B-cols": 4,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 5,
-        #     "A-cols": 5,
-        #     "B-rows": 5,
-        #     "B-cols": 5,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 6,
-        #     "A-cols": 6,
-        #     "B-rows": 6,
-        #     "B-cols": 6,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 7,
-        #     "A-cols": 7,
-        #     "B-rows": 7,
-        #     "B-cols": 7,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 8,
-        #     "A-cols": 8,
-        #     "B-rows": 8,
-        #     "B-cols": 8,
-        #     "reg-size": 4
-        # },
         {
-            "A-rows": 16,
-            "A-cols": 16,
-            "B-rows": 16,
-            "B-cols": 16,
+            "A-rows": 2,
+            "A-cols": 3,
+            "B-rows": 3,
+            "B-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 3,
+            "A-cols": 3,
+            "B-rows": 3,
+            "B-cols": 3,
             "reg-size": 4
         },
         # {
-        #     "A-rows": 3,
-        #     "A-cols": 3,
-        #     "B-rows": 3,
-        #     "B-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
         #     "A-rows": 4,
         #     "A-cols": 4,
         #     "B-rows": 4,
@@ -232,6 +183,13 @@ parameters = {
         #     "A-cols": 8,
         #     "B-rows": 8,
         #     "B-cols": 8,
+        #     "reg-size": 4
+        # },
+        # {
+        #     "A-rows": 16,
+        #     "A-cols": 16,
+        #     "B-rows": 16,
+        #     "B-cols": 16,
         #     "reg-size": 4
         # },
     ],
@@ -241,6 +199,21 @@ parameters = {
     #     #     "reg-size": 4
     #     # }
     # ]
+    qrdecomp : [
+        {
+            "N": 3,
+            "reg-size": 4
+        },
+        {
+            "N": 4,
+            "reg-size": 4
+        }
+    ],
+    qprod : [
+        {
+            "reg-size": 4
+        },
+    ],
 }
 
 def params_to_name(benchmark, params):
@@ -336,52 +309,6 @@ def synthesize_benchmark(dir, benchmark, timeout):
 
         call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
 
-# def compile_benchmark(dir, benchmark, force):
-#     b_dir = os.path.join(dir, benchmark)
-#     built = 0
-#     for params_config in listdir(b_dir):
-#         if not os.path.isdir(params_config):
-#             continue
-#         for file in listdir(params_config):
-#             pre, ext = os.path.splitext(file)
-#             if ext != ".rkt":
-#                 continue
-
-#             c_file = pre + ".c"
-#             if not force and os.path.exists(c_file):
-#                 print("Skipping already-build C file: {}".format(c_file))
-#                 continue
-
-#             print("Compiling to file {}".format(file))
-#             sp.call(["./dios", "-o", c_file, file])
-#             built += 1
-
-#             # As a stopgap, add imports
-#             imports = """#include <float.h>
-#                          #include <math.h>
-#                          #include <stdint.h>
-#                          #include <stdio.h>
-#                          #include <stdlib.h>
-#                          #include <xtensa/sim.h>
-#                          #include <xtensa/tie/xt_pdxn.h>
-#                          #include <xtensa/tie/xt_timer.h>
-#                          #include <xtensa/xt_profiling.h>
-
-#                          """
-
-#             if benchmark == dft:
-#                 imports += """#define PI 3.1415926535897932384626433832795
-#                               xb_vecMxf32 cos_MXF32(xb_vecMxf32 v);
-#                               xb_vecMxf32 sin_MXF32(xb_vecMxf32 v);"""
-
-#             with open(c_file, 'r+') as f:
-#                 content = f.read()
-#                 f.seek(0, 0)
-#                 f.write(imports + '\n' + content)
-
-#     if built < 1:
-#         print("Warning: no Racket files found to build, nothing done")
-
 def dimmensions_for_benchmark(benchmark, params):
     if benchmark == conv2d:
         return [
@@ -401,6 +328,14 @@ def dimmensions_for_benchmark(benchmark, params):
         return [
                 "N=" + str(params["N"]),
             ]
+    if benchmark == qrdecomp:
+        return [
+                "N=" + str(params["N"]),
+            ]
+    if benchmark == qprod:
+        return []
+    print("Error: haven't dimensions  for: ", benchmark)
+    exit(1)
 
 def run_benchmark(dir, benchmark, build, force):
     b_dir = os.path.join(dir, benchmark)
