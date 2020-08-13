@@ -4,6 +4,7 @@ Chart data from CSVs
 import argparse
 import json
 import os
+import math
 import decimal
 import subprocess as sp
 import csv
@@ -42,19 +43,30 @@ def get_y_limit(benchmark):
     if benchmark == matmul:
         return 800
 
+    if benchmark == qrdecomp:
+        return 70000
+
+    if benchmark == qprod:
+        return 2000
+
     print("Error: need y limit for benchmark", benchmark)
 
 def get_size_formatted(benchmark, row):
     if benchmark == conv2d:
-        return "{}×{} Input, {}×{} Filter".format(row["I_ROWS"],
-                                                  row["I_COLS"],
-                                                  row["F_ROWS"],
-                                                  row["F_COLS"])
+        return "{}×{}, {}×{}\n2DConv".format(row["I_ROWS"],
+                                            row["I_COLS"],
+                                            row["F_ROWS"],
+                                            row["F_COLS"])
     if benchmark == matmul:
-        return "{}×{} by {}×{}".format(row["A_ROWS"],
+        return "{}×{}, {}×{}\nMatMul".format(row["A_ROWS"],
                                        row["A_COLS"],
                                        row["B_ROWS"],
                                        row["B_COLS"])
+    if benchmark == qrdecomp:
+        return "{}×{}\nQRDecomp".format(row["N"], row["N"])
+
+    if benchmark == qprod:
+        return "4, 3, 4, 3\nQProd"
 
     print("Error: need size formatting for benchmark", benchmark)
 
@@ -69,30 +81,39 @@ def get_kernel_name_formatted(kernel):
         return "Naive (fixed size)"
     return kernel
 
-def chart(benchmark, graph_data, figsize):
+def chart(graph_data, figsize):
     # This sets the gray background, among other things
     sns.set(font_scale=1.07)
 
+    graph_data.to_csv('combined.csv', index = False, header=True)
+
     # Sort based on the kernel first, then on the order specified
-    graph_data = graph_data.sort_values(['Kernel']).reset_index(drop=True).sort_values(["Order"], ascending=True).reset_index(drop=True)
+    graph_data = graph_data.sort_values(['Kernel', 'Benchmark', 'Order'])
+
+    print(graph_data)
 
     plt.rcParams['figure.figsize'] = figsize
-    colors = get_color_palette(benchmark)
+    colors = get_color_palette(matmul)
     ax = sns.barplot(x="Size", y="Cycles (simulation)", hue="Kernel", palette=colors, data=graph_data)
     locs, labels = plt.xticks()
 
+    ax.legend(loc=1)
+
     # Annotate each bar with its value
     for p in ax.patches:
+        if math.isnan(p.get_height()) or p.get_height() > 100:
+            continue
         ax.annotate("%d" % p.get_height(), (p.get_x() + p.get_width() / 2., p.get_height()),
              ha='center', va='center', fontsize=11, color='black', xytext=(0, 6),
              textcoords='offset points')
 
-    ax.set_ylim(0, get_y_limit(benchmark))
+    ax.set_ylim(0, 1800)
     ax.set_xlabel('')
-    plt.savefig(benchmark + ".pdf", bbox_inches='tight')
+    plt.savefig("all" + ".pdf", bbox_inches='tight')
     plt.close()
 
-def write_summary_statistics(benchmark, benchmark_data, file):
+def write_summary_statistics(benchmark_data):
+    file = "summary.csv"
     benchmark_data.sort_values(["Order"])
     # Indexed by size:
     naive_cycles = {}
@@ -160,16 +181,18 @@ def write_summary_statistics(benchmark, benchmark_data, file):
         })
 
 
-def format_and_chart_data(full_file, summary_file):
+def format_and_chart_data(files):
     chart_data = defaultdict(list)
-    with open(full_file,  newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            chart_data[row["benchmark"]].append(row)
+    benchmark_data = pd.DataFrame(columns=['Benchmark', 'Kernel', 'Size', 'Cycles (simulation)'])
+
+    for file, summary in files:
+        with open(file,  newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                chart_data[row["benchmark"]].append(row)
 
     # Iterate for each benchmark
     for benchmark, rows in chart_data.items():
-        benchmark_data = pd.DataFrame(columns=['Kernel', 'Size', 'Cycles (simulation)'])
 
         # Gather data by kernel size first
         data_per_size = defaultdict(list)
@@ -177,38 +200,27 @@ def format_and_chart_data(full_file, summary_file):
             size = get_size_formatted(benchmark, row)
             data_per_size[size].append(row)
 
+
         # For each size, go through the baselines first, then find the first
         # (lowest cost from the cost model) and fastest (lowest actual cycles)
         # from Diospyros
         for size, data in sorted(data_per_size.items(), reverse=True):
-            for i, kernel in enumerate(get_baseline_names(benchmark)):
+            baseline_names = set()
+            for x in data:
+                baseline_names.add(x["kernel"])
+
+            for i, kernel in enumerate(baseline_names):
                 kernel_row = next(x for x in data if x["kernel"] == kernel)
                 benchmark_data = benchmark_data.append({
+                    'Benchmark': benchmark,
                     'Kernel': get_kernel_name_formatted(kernel),
                     'Size': size,
                     'Cycles (simulation)': int(kernel_row["cycles"]),
                     'Order' : i if i < 3 else 5},
                     ignore_index=True)
 
-            dios_data = [x for x in data if x["kernel"] == "Diospyros"]
-            highest_cost = max(dios_data, key=lambda r: int(r["cycles"]))
-            benchmark_data = benchmark_data.append({
-                'Kernel': "Diospyros",
-                'Size': size,
-                'Cycles (simulation)': int(highest_cost["cycles"]),
-                'Order' : 3},
-                ignore_index=True)
-
-            # fastest = min(dios_data, key=lambda r: int(r["cycles"]))
-            # benchmark_data = benchmark_data.append({
-            #     'Kernel': "Diospyros (fastest)",
-            #     'Size': size,
-            #     'Cycles (simulation)': int(fastest["cycles"]),
-            #     'Order' : 4},
-            #     ignore_index=True)
-
-        chart(benchmark, benchmark_data, figsize=(8,3))
-        write_summary_statistics(benchmark, benchmark_data, summary_file)
+    chart(benchmark_data, figsize=(12,3))
+    write_summary_statistics(benchmark_data)
 
 def read_csvs(dir, benchmarks, out):
     rows = 0
@@ -257,8 +269,7 @@ def main():
     input_dir = os.path.join(results_dir, args.directory)
 
     files = read_csvs(input_dir, benchmarks, args.output)
-    for file, summary in files:
-        format_and_chart_data(file, summary)
+    format_and_chart_data(files)
 
 if __name__ == main():
     main()

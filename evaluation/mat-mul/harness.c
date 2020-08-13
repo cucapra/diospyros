@@ -71,6 +71,7 @@ int main(int argc, char **argv) {
 
   // Run naive once to warm cache
   naive_matrix_multiply(a, b, c_spec,  A_ROWS, A_COLS, B_COLS);
+  zero_matrix(c, A_ROWS, B_COLS);
 
   int time = 0;
 
