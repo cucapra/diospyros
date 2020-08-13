@@ -207,6 +207,8 @@ def format_and_chart_data(files):
         for size, data in sorted(data_per_size.items(), reverse=True):
             baseline_names = set()
             for x in data:
+                if x["kernel"] == "Diospyros":
+                    x["kernel"] = "Bronzite"
                 baseline_names.add(x["kernel"])
 
             for i, kernel in enumerate(baseline_names):
@@ -220,7 +222,7 @@ def format_and_chart_data(files):
                     ignore_index=True)
 
     chart(benchmark_data, figsize=(12,3))
-    write_summary_statistics(benchmark_data)
+    # write_summary_statistics(benchmark_data)
 
 def read_csvs(dir, benchmarks, out):
     rows = 0
