@@ -27,10 +27,15 @@
   (define spec-Q (align-to-reg-size (matrix-elements Q)))
   (define spec-R (align-to-reg-size (matrix-elements R)))
 
-  (values (append spec-Q spec-R)
+  (values (append spec-R)
           (prog prelude)
-          (list (list 'Q (length spec-Q))
+          (list
                 (list 'R (length spec-R)))))
+
+  ; (values (append spec-Q spec-R)
+  ;         (prog prelude)
+  ;         (list (list 'Q (length spec-Q))
+  ;               (list 'R (length spec-R)))))
 
 (define qr-decomp:keys
   (list 'N 'reg-size))
