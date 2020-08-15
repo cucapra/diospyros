@@ -19,12 +19,15 @@ float b_t[3] __attribute__((section(".dram0.data")));
 float r_q[4] __attribute__((section(".dram0.data")));
 float r_t[4] __attribute__((section(".dram0.data")));
 
+float r_q_spec[4] __attribute__((section(".dram0.data")));
+float r_t_spec[4] __attribute__((section(".dram0.data")));
+
 // Diospyros kernel
 void kernel(float * a_q, float * a_t, float * b_q, float * b_t, /* inputs */
             float * r_q, float * r_t);                          /* outputs */
 
 
-__attribute__((always_inline)) naive_cross_product(float *lhs, float *rhs, float *result) {
+__attribute__((always_inline)) void naive_cross_product(float *lhs, float *rhs, float *result) {
   result[0] = lhs[1] * rhs[2] - lhs[2] * rhs[1];
   result[0] = lhs[2] * rhs[0] - lhs[0] * rhs[2];
   result[0] = lhs[0] * rhs[1] - lhs[1] * rhs[0];
@@ -33,7 +36,7 @@ __attribute__((always_inline)) naive_cross_product(float *lhs, float *rhs, float
 /*
   Computes the point product
 */
-__attribute__((always_inline)) naive_point_product(float *q, float *p, float *result) {
+__attribute__((always_inline)) void naive_point_product(float *q, float *p, float *result) {
   float qvec[3] = {q[0], q[1], q[2]};
 
   // Eigen::Vector3f uv = crossProduct(qvec, p); // qvec.cross(p);
@@ -49,11 +52,10 @@ __attribute__((always_inline)) naive_point_product(float *q, float *p, float *re
 void naive_quaternion_product(float * a_q, float * a_t,
                               float * b_q, float * b_t,
                               float * r_q, float * r_t) {
-
-  r_q[0] = a_q[0]*b_q[0] - a_q[1]*b_q[1] - a_q[2]*b_q[2] - a_q[3]*b_q[3];
-  r_q[1] = a_q[0]*b_q[1] + a_q[1]*b_q[0] + a_q[2]*b_q[3] - a_q[3]*b_q[2];
-  r_q[2] = a_q[0]*b_q[2] - a_q[1]*b_q[3] + a_q[2]*b_q[0] + a_q[3]*b_q[1];
-  r_q[3] = a_q[0]*b_q[3] + a_q[1]*b_q[2] - a_q[2]*b_q[1] + a_q[3]*b_q[0];
+  r_q[3] = a_q[3]*b_q[3] - a_q[0]*b_q[0] - a_q[1]*b_q[1] - a_q[2]*b_q[2];
+  r_q[0] = a_q[3]*b_q[0] + a_q[0]*b_q[3] + a_q[1]*b_q[2] - a_q[2]*b_q[1];
+  r_q[1] = a_q[3]*b_q[1] + a_q[1]*b_q[3] + a_q[2]*b_q[0] - a_q[0]*b_q[2];
+  r_q[2] = a_q[3]*b_q[2] + a_q[2]*b_q[3] + a_q[0]*b_q[1] - a_q[1]*b_q[0];
 }
 
 int main(int argc, char **argv) {
@@ -72,13 +74,32 @@ int main(int argc, char **argv) {
 
   zero_matrix(r_q, 4, 1);
   zero_matrix(r_t, 4, 1);
+  zero_matrix(r_q_spec, 4, 1);
+  zero_matrix(r_t_spec, 4, 1);
 
   print_matrix(a_q, 4, 1);
   print_matrix(a_t, 3, 1);
   print_matrix(b_q, 4, 1);
   print_matrix(b_t, 3, 1);
 
+  // Spec
+  naive_quaternion_product(a_q, a_t, b_q, b_t, r_q_spec, r_t_spec);
+
   int time = 0;
+
+  // Naive
+  start_cycle_timing;
+  naive_quaternion_product(a_q, a_t, b_q, b_t, r_q, r_t);
+  stop_cycle_timing;
+  time = get_time();
+  print_matrix(r_q, 4, 1);
+  print_matrix(r_t, 4, 1);
+  output_check(r_q, r_q_spec, 4, 1);
+  output_check(r_t, r_t_spec, 4, 1);
+  zero_matrix(r_q, 4, 1);
+  zero_matrix(r_t, 4, 1);
+  printf("Naive : %d cycles\n", time);
+  fprintf(file, "%s,%d\n","Naive",time);
 
   // Eigen
   Eigen::Map<Eigen::Vector4f> aq_(a_q, 4, 1);
@@ -101,6 +122,10 @@ int main(int argc, char **argv) {
 
   print_matrix(r_q, 4, 1);
   print_matrix(r_t, 4, 1);
+  output_check(r_q, r_q_spec, 4, 1);
+  // output_check(r_t, r_t_spec, 4, 1);
+  zero_matrix(r_q, 4, 1);
+  zero_matrix(r_t, 4, 1);
   printf("Eigen : %d cycles\n", time);
   fprintf(file, "%s,%d\n","Eigen",time);
 
@@ -114,6 +139,10 @@ int main(int argc, char **argv) {
   time = get_time();
   print_matrix(r_q, 4, 1);
   print_matrix(r_t, 4, 1);
+  output_check(r_q, r_q_spec, 4, 1);
+  // output_check(r_t, r_t_spec, 4, 1);
+  zero_matrix(r_q, 4, 1);
+  zero_matrix(r_t, 4, 1);
   printf("Diospyros : %d cycles\n", time);
   fprintf(file, "%s,%d\n","Diospyros",time);
 
