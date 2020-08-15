@@ -18,28 +18,43 @@ float b_q[4] __attribute__((section(".dram0.data")));
 float b_t[3] __attribute__((section(".dram0.data")));
 float r_q[4] __attribute__((section(".dram0.data")));
 float r_t[4] __attribute__((section(".dram0.data")));
+
 // Diospyros kernel
 void kernel(float * a_q, float * a_t, float * b_q, float * b_t, /* inputs */
             float * r_q, float * r_t);                          /* outputs */
 
 
-void eigen_kernel(float * a_q, float * a_t, float * b_q, float * b_t, /* inputs */
-                  float * r_q, float * r_t) {
-  Eigen::Map<Eigen::Vector4f> aq_(a_q, 4, 1);
-  Eigen::Map<Eigen::Vector3f> at_(a_t, 3, 1);
-  SE3T a_ = {aq_, at_};
-
-
-  Eigen::Map<Eigen::Vector4f> bq_(b_q, 4, 1);
-  Eigen::Map<Eigen::Vector3f> bt_(b_t, 3, 1);
-  SE3T b_ = {bq_, bt_};
-
-  SE3T c_ = quaternionProduct(a_, b_);
-
-  memcpy (r_q, c_.quaternion.data(), sizeof(float) * 4 );
-  memcpy (r_t, c_.translation.data(), sizeof(float) * 3 );
+__attribute__((always_inline)) naive_cross_product(float *lhs, float *rhs, float *result) {
+  result[0] = lhs[1] * rhs[2] - lhs[2] * rhs[1];
+  result[0] = lhs[2] * rhs[0] - lhs[0] * rhs[2];
+  result[0] = lhs[0] * rhs[1] - lhs[1] * rhs[0];
 }
 
+/*
+  Computes the point product
+*/
+__attribute__((always_inline)) naive_point_product(float *q, float *p, float *result) {
+  float qvec[3] = {q[0], q[1], q[2]};
+
+  // Eigen::Vector3f uv = crossProduct(qvec, p); // qvec.cross(p);
+  // for (int i = 0; i < 3; i++) {
+  //   uv(i) = uv(i) * 2;
+  // }
+  // Eigen::Vector3f qxuv = crossProduct(qvec, uv); // qvec.cross(uv);
+
+  // Eigen::Vector3f result;
+  // result = p + (q(3) * uv) + qxuv;
+}
+
+void naive_quaternion_product(float * a_q, float * a_t,
+                              float * b_q, float * b_t,
+                              float * r_q, float * r_t) {
+
+  r_q[0] = a_q[0]*b_q[0] - a_q[1]*b_q[1] - a_q[2]*b_q[2] - a_q[3]*b_q[3];
+  r_q[1] = a_q[0]*b_q[1] + a_q[1]*b_q[0] + a_q[2]*b_q[3] - a_q[3]*b_q[2];
+  r_q[2] = a_q[0]*b_q[2] - a_q[1]*b_q[3] + a_q[2]*b_q[0] + a_q[3]*b_q[1];
+  r_q[3] = a_q[0]*b_q[3] + a_q[1]*b_q[2] - a_q[2]*b_q[1] + a_q[3]*b_q[0];
+}
 
 int main(int argc, char **argv) {
 
@@ -75,18 +90,14 @@ int main(int argc, char **argv) {
   Eigen::Map<Eigen::Vector3f> bt_(b_t, 3, 1);
   SE3T b_ = {bq_, bt_};
 
+  // Only time the kernel call, not the datatype conversions
   start_cycle_timing;
   SE3T c_ = quaternionProduct(a_, b_);
   stop_cycle_timing;
-
-  memcpy (r_q, c_.quaternion.data(), sizeof(float) * 4 );
-  memcpy (r_t, c_.translation.data(), sizeof(float) * 3 );
-
-  // Only time the kernel call, not the datatype conversions
-  start_cycle_timing;
-  eigen_kernel(a_q, a_t, b_q, b_t, r_q, r_t);
-  stop_cycle_timing;
   time = get_time();
+
+  memcpy(r_q, c_.quaternion.data(), sizeof(float) * 4);
+  memcpy(r_t, c_.translation.data(), sizeof(float) * 3);
 
   print_matrix(r_q, 4, 1);
   print_matrix(r_t, 4, 1);

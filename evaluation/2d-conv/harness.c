@@ -80,7 +80,7 @@ void naive_convolution_hard_size(float *in, float *f, float *o) {
 int main(int argc, char **argv) {
 
   FILE *file = fopen(OUTFILE, "w");
-  if (file == NULL) return -1;
+  if (file == NULL) file = stdout;
   fprintf(file, "kernel,I_ROWS,I_COLS,F_ROWS,F_COLS,cycles\n");
 
   init_rand(10);

@@ -57,7 +57,7 @@ void kernel(float* input_A, float* input_B, float* input_C);
 int main(int argc, char **argv) {
 
   FILE *file = fopen(OUTFILE, "w");
-  if (file == NULL) return -1;
+  if (file == NULL) file = stdout;
   fprintf(file, "kernel,A_ROWS,A_COLS,B_ROWS,B_COLS,cycles\n");
 
   init_rand(10);

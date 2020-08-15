@@ -107,7 +107,7 @@ def chart(graph_data, figsize):
              ha='center', va='center', fontsize=11, color='black', xytext=(0, 6),
              textcoords='offset points')
 
-    ax.set_ylim(0, 1800)
+    ax.set_ylim(0, 10000)
     ax.set_xlabel('')
     plt.savefig("all" + ".pdf", bbox_inches='tight')
     plt.close()
