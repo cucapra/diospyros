@@ -112,8 +112,8 @@ int main(int argc, char **argv) {
   output_check(r_t, r_t_spec, 3, 1);
   zero_matrix(r_q, 4, 1);
   zero_matrix(r_t, 3, 1);
-  printf("Naive : %d cycles\n", time);
-  fprintf(file, "%s,%d\n","Naive",time);
+  printf("Naive hard size : %d cycles\n", time);
+  fprintf(file, "%s,%d\n","Naive hard size",time);
 
   // Eigen
   Eigen::Map<Eigen::Vector4f> aq_(a_q, 4, 1);
