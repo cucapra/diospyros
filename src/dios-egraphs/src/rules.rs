@@ -59,13 +59,6 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
         rw!("mul-1-inv"; "?a" => "(* 1 ?a)"),
         rw!("div-1-inv"; "?a" => "(/ ?a 1)"),
 
-        rw!("neg-zero-inv"; "0" => "(neg 0)"),
-        rw!("sqrt-1-inv"; "1" => "(sqrt 1)"),
-
-        // Sign and negate
-        rw!("neg-sgn"; "(neg (sgn ?a))" => "(sgn (neg ?a))"),
-
-
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         rw!("litvec"; "(Vec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
             => "(LitVec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
@@ -109,7 +102,24 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
             => "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
                         (Vec4 ?b0 ?b1 ?b2 ?b3)
                         (Vec4 ?c0 ?c1 ?c2 ?c3))"),
+
+        rw!("vec-mac-add-mul";
+            "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
+               (VecMul (Vec4 ?b0 ?b1 ?b2 ?b3)
+                       (Vec4 ?c0 ?c1 ?c2 ?c3)))"
+            => "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
+                        (Vec4 ?b0 ?b1 ?b2 ?b3)
+                        (Vec4 ?c0 ?c1 ?c2 ?c3))"),
     ];
+
+    // Bidirectional rules
+    rules.extend(vec![
+        // Sign and negate
+        rw!("neg-neg"; "(neg (neg ?a))" <=> "?a"),
+        rw!("neg-sgn"; "(neg (sgn ?a))" <=> "(sgn (neg ?a))"),
+        rw!("neg-zero-inv"; "0" <=> "(neg 0)"),
+        rw!("sqrt-1-inv"; "1" <=> "(sqrt 1)"),
+    ].concat());
 
     if !no_ac {
         rules.extend(vec![
