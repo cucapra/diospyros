@@ -80,7 +80,6 @@ int nature_qr(const float *A, float *Q, float *R) {
 
 float sgn(float v);
 
-
 // Naive implementation
 void naive_transpose(float *a, int n) {
   for (int i = 0; i < n; i++) {
@@ -154,7 +153,6 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
       }
     }
 
-    print_matrix(q_min, m, m);
     float *q_t = (float *)calloc(sizeof(float), n * n);
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < n; j++) {
@@ -199,14 +197,6 @@ void naive_fixed_transpose(float *a) {
   }
 }
 
-float naive_fixed_norm(float *x, int m) {
-  float sum = 0;
-  for (int i = 0; i < m; i++) {
-    sum += pow(x[i], 2);
-  }
-  return sqrt(sum);
-}
-
 void naive_fixed_matrix_multiply(float *a, float *b, float *c) {
  for (int y = 0; y < N; y++) {
    for (int x = 0; x < N; x++) {
@@ -241,14 +231,14 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
       e[i] = I[row*N + k];
     }
 
-    float alpha = -sgn(x[0]) * naive_fixed_norm(x, m);
+    float alpha = -sgn(x[0]) * naive_norm(x, m);
 
     float *u = (float *)calloc(sizeof(float), m);
     float *v = (float *)calloc(sizeof(float), m);
     for (int i = 0; i < m; i++) {
       u[i] = x[i] + alpha * e[i];
     }
-    float norm_u = naive_fixed_norm(u, m);
+    float norm_u = naive_norm(u, m);
     for (int i = 0; i < m; i++) {
       v[i] = u[i]/norm_u;
     }
@@ -261,7 +251,6 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
       }
     }
 
-    print_matrix(q_min, m, m);
     float *q_t = (float *)calloc(sizeof(float), N * N);
     for (int i = 0; i < N; i++) {
       for (int j = 0; j < N; j++) {
