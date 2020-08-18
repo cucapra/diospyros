@@ -81,8 +81,11 @@ int nature_qr(const float *A, float *Q, float *R) {
 float sgn(float v);
 
 float naive_norm(float *x, int m) {
+  print_matrix(x, m, 1);
   int sum = 0;
   for (int i = 0; i < m; i++) {
+    printf("x[i] %f\n", x[i]);
+    printf("x[i]^2  %f\n", pow(x[i], 2));
     sum += pow(x[i], 2);
   }
   return sqrt(sum);
@@ -121,10 +124,21 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
       e[i] = I[row*n + k];
     }
 
+    printf("x\n");
+    print_matrix(x, m, 1);
+
+    printf("e\n");
+    print_matrix(e, m, 1);
+
+
     float alpha = -sgn(x[0]) * naive_norm(x, m);
+
+    printf("norm(x) %f\n", naive_norm(x, m));
+    printf("alpha %f\n", alpha);
 
     float *u = (float *)calloc(sizeof(float), m);
     float *v = (float *)calloc(sizeof(float), m);
+
 
     for (int i = 0; i < m; i++) {
       u[i] = x[i] + alpha * e[i];
@@ -133,6 +147,9 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
     for (int i = 0; i < m; i++) {
       v[i] = u[i]/norm_u;
     }
+
+    printf("v\n");
+    print_matrix(v, m, 1);
 
     float *q_min = (float *)calloc(sizeof(float), m * m);
     for (int i = 0; i < m; i++) {
@@ -225,10 +242,8 @@ int main(int argc, char **argv) {
   print_matrix(q, N, N);
   print_matrix(r, N, N);
   printf("Naive : %d cycles\n", time);
-  if (N % 4 == 0) {
-    output_check_abs(q, q_spec, N, N);
-    output_check_abs(r, r_spec, N, N);
-  }
+  // output_check_abs(q, q_spec, N, N);
+  // output_check_abs(r, r_spec, N, N);
   fprintf(file, "%s,%d,%d\n","Naive",N,time);
 
   // Diospyros
