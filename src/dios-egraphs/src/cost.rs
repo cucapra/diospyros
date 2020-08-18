@@ -19,7 +19,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
         const LITERAL: f64 = 0.001;
         const STRUCTURE: f64 = 0.1;
         const VEC_OP: f64 = 1.;
-        const OP: f64 = 100.;
+        const OP: f64 = 1.;
         const BIG: f64 = 100.0;
         let op_cost = match enode {
             // You get literals for extremely cheap
