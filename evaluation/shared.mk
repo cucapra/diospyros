@@ -5,6 +5,7 @@ XCC := xt-xcc
 XCXX := xt-xc++
 XRUN := xt-run
 XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals
+# for verbose: -LNO:SIMD_V
 XCXX_FLAGS += -std=c++11 -O3 -LNO:SIMD -w
 XSIM_FLAGS := --summary --mem_model
 
