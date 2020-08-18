@@ -16,8 +16,43 @@ from py_utils import *
 parameters = {
     conv2d : [
         {
-            "input-rows": 2,
-            "input-cols": 2,
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 4,
+            "input-cols": 4,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 3,
+            "input-cols": 5,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 8,
+            "input-cols": 8,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 10,
+            "input-cols": 10,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 16,
+            "input-cols": 16,
             "filter-rows": 2,
             "filter-cols": 2,
             "reg-size": 4
@@ -25,117 +60,47 @@ parameters = {
         {
             "input-rows": 3,
             "input-cols": 3,
-            "filter-rows": 2,
-            "filter-cols": 2,
+            "filter-rows": 3,
+            "filter-cols": 3,
             "reg-size": 4
         },
-        # {
-        #     "input-rows": 4,
-        #     "input-cols": 4,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 5,
-        #     "input-cols": 5,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 6,
-        #     "input-cols": 6,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 7,
-        #     "input-cols": 7,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 8,
-        #     "input-cols": 8,
-        #     "filter-rows": 2,
-        #     "filter-cols": 2,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 3,
-        #     "input-cols": 3,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 4,
-        #     "input-cols": 4,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 5,
-        #     "input-cols": 5,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 6,
-        #     "input-cols": 6,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 7,
-        #     "input-cols": 7,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 8,
-        #     "input-cols": 8,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 9,
-        #     "input-cols": 9,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 16,
-        #     "input-cols": 16,
-        #     "filter-rows": 3,
-        #     "filter-cols": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "input-rows": 128,
-        #     "input-cols": 128,
-        #     "filter-rows": 8,
-        #     "filter-cols": 8,
-        #     "reg-size": 4
-        # },
+        {
+            "input-rows": 4,
+            "input-cols": 4,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 8,
+            "input-cols": 8,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 10,
+            "input-cols": 10,
+            "filter-rows": 4,
+            "filter-cols": 4,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 16,
+            "input-cols": 16,
+            "filter-rows": 4,
+            "filter-cols": 4,
+            "reg-size": 4
+        },
     ],
     matmul : [
-        # {
-        #     "A-rows": 2,
-        #     "A-cols": 2,
-        #     "B-rows": 2,
-        #     "B-cols": 2,
-        #     "reg-size": 4
-        # },
+        {
+            "A-rows": 2,
+            "A-cols": 2,
+            "B-rows": 2,
+            "B-cols": 2,
+            "reg-size": 4
+        },
         {
             "A-rows": 2,
             "A-cols": 3,
@@ -150,48 +115,34 @@ parameters = {
             "B-cols": 3,
             "reg-size": 4
         },
-        # {
-        #     "A-rows": 4,
-        #     "A-cols": 4,
-        #     "B-rows": 4,
-        #     "B-cols": 4,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 5,
-        #     "A-cols": 5,
-        #     "B-rows": 5,
-        #     "B-cols": 5,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 6,
-        #     "A-cols": 6,
-        #     "B-rows": 6,
-        #     "B-cols": 6,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 7,
-        #     "A-cols": 7,
-        #     "B-rows": 7,
-        #     "B-cols": 7,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 8,
-        #     "A-cols": 8,
-        #     "B-rows": 8,
-        #     "B-cols": 8,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "A-rows": 16,
-        #     "A-cols": 16,
-        #     "B-rows": 16,
-        #     "B-cols": 16,
-        #     "reg-size": 4
-        # },
+        {
+            "A-rows": 4,
+            "A-cols": 4,
+            "B-rows": 4,
+            "B-cols": 4,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 8,
+            "A-cols": 8,
+            "B-rows": 8,
+            "B-cols": 8,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 10,
+            "A-cols": 10,
+            "B-rows": 10,
+            "B-cols": 10,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 16,
+            "A-cols": 16,
+            "B-rows": 16,
+            "B-cols": 16,
+            "reg-size": 4
+        },
     ],
     # dft : [
     #     # {
@@ -209,14 +160,14 @@ parameters = {
             "N": 2,
             "reg-size": 4
         },
-        # {
-        #     "N": 3,
-        #     "reg-size": 4
-        # },
-        # {
-        #     "N": 4,
-        #     "reg-size": 4
-        # }
+        {
+            "N": 3,
+            "reg-size": 4
+        },
+        {
+            "N": 4,
+            "reg-size": 4
+        }
     ],
 }
 
@@ -255,7 +206,8 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
         "make",
         "-B",
         "{}-egg".format(benchmark),
-        "SPLIT=100"])
+        # "SPLIT=100"
+        ])
 
     def kill(process):
         print("Hit timeout, killing synthesis subprocess")
@@ -288,6 +240,11 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             "{}-out/kernel.c".format(benchmark),
             "{}/egg-kernel.c".format(p_dir)])
 
+        sp.call([
+            "mv",
+            "{}-out/res.rkt".format(benchmark),
+            "{}/res.rkt".format(p_dir)])
+
         imports = """#include <float.h>
                      #include <math.h>
                      #include <stdint.h>
@@ -300,11 +257,6 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
                      #include "../../../../src/scalars.h"
 
                      """
-
-        if benchmark == dft:
-            imports += """#define PI 3.1415926535897932384626433832795
-                          xb_vecMxf32 cos_MXF32(xb_vecMxf32 v);
-                          xb_vecMxf32 sin_MXF32(xb_vecMxf32 v);"""
 
         with open("{}/egg-kernel.c".format(p_dir), 'r+') as f:
             content = f.read()

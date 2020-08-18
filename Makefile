@@ -10,6 +10,8 @@ CARGO_FLAGS := --release
 
 EGG_FLAGS := --no-ac
 
+PY := pypy3
+
 test: build
 
 test-all: test build
@@ -32,20 +34,20 @@ clean:
 
 # Pre-process spec for egg
 %-out/spec-egg.rkt: %-out src/dios-egraphs/vec-dsl-conversion.py
-	cat $*-out/spec.rkt | python3 src/dios-egraphs/vec-dsl-conversion.py -p > $@
+	cat $*-out/spec.rkt | $(PY) src/dios-egraphs/vec-dsl-conversion.py -p > $@
 
 # Run egg rewriter
 %-out/res.rkt: %-out/spec-egg.rkt
 ifdef SPLIT
 	mkdir -p $*-out/specs $*-out/opt
-	./src/dios-egraphs/vec-dsl-split.py -n $(SPLIT) -p $*-out/specs/spec <$<
+	$(PY) src/dios-egraphs/vec-dsl-split.py -n $(SPLIT) -p $*-out/specs/spec <$<
 	for file in $$(ls $*-out/specs/); do \
 		cargo run $(CARGO_FLAGS) \
 			--manifest-path src/dios-egraphs/Cargo.toml -- --no-ac \
 			$*-out/specs/"$$file" \
 			> $*-out/opt/"$$file"; \
 	done
-	./src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $*-out/opt/spec* > $@
+	$(PY) src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $*-out/opt/spec* > $@
 else
 	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml -- $< $(EGG_FLAGS)  > $@
 endif
