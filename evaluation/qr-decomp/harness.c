@@ -80,12 +80,21 @@ int nature_qr(const float *A, float *Q, float *R) {
 
 float sgn(float v);
 
+
+// Naive implementation
+void naive_transpose(float *a, int n) {
+  for (int i = 0; i < n; i++) {
+    for (int j = i+1; j < n; j++) {
+      float tmp = a[i*n + j];
+      a[i*n + j] =  a[j*n + i];
+      a[j*n + i] = tmp;
+    }
+  }
+}
+
 float naive_norm(float *x, int m) {
-  print_matrix(x, m, 1);
-  int sum = 0;
+  float sum = 0;
   for (int i = 0; i < m; i++) {
-    printf("x[i] %f\n", x[i]);
-    printf("x[i]^2  %f\n", pow(x[i], 2));
     sum += pow(x[i], 2);
   }
   return sqrt(sum);
@@ -116,6 +125,7 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
   // Householder
   for (int k = 0; k < n - 1; k++) {
     int m = n - k;
+
     float *x = (float *)calloc(sizeof(float), m);
     float *e = (float *)calloc(sizeof(float), m);
     for (int i = 0; i < m; i++) {
@@ -124,22 +134,10 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
       e[i] = I[row*n + k];
     }
 
-    printf("x\n");
-    print_matrix(x, m, 1);
-
-    printf("e\n");
-    print_matrix(e, m, 1);
-
-
     float alpha = -sgn(x[0]) * naive_norm(x, m);
-
-    printf("norm(x) %f\n", naive_norm(x, m));
-    printf("alpha %f\n", alpha);
 
     float *u = (float *)calloc(sizeof(float), m);
     float *v = (float *)calloc(sizeof(float), m);
-
-
     for (int i = 0; i < m; i++) {
       u[i] = x[i] + alpha * e[i];
     }
@@ -148,16 +146,15 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
       v[i] = u[i]/norm_u;
     }
 
-    printf("v\n");
-    print_matrix(v, m, 1);
-
     float *q_min = (float *)calloc(sizeof(float), m * m);
     for (int i = 0; i < m; i++) {
       for (int j = 0; j < m; j++) {
         float q_min_i = ((i == j) ? 1.0 : 0.0) - 2 * v[i] * v[j];
-        q_min[i*n + j] = q_min_i;
+        q_min[i*m + j] = q_min_i;
       }
     }
+
+    print_matrix(q_min, m, m);
     float *q_t = (float *)calloc(sizeof(float), n * n);
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < n; j++) {
@@ -165,7 +162,7 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
         if ((i < k) || (j < k)) {
           q_t_i = (i == j) ? 1.0 : 0.0;
         } else {
-          q_t_i =  q_min[(i - k)*n + (k - k)];
+          q_t_i =  q_min[(i - k)*m + (j - k)];
         }
         q_t[i*n + j] = q_t_i;
       }
@@ -188,8 +185,116 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
     free(q_min);
     free(q_t);
   }
-
+  naive_transpose(Q, n);
 }
+
+// Naive with fixed size
+void naive_fixed_transpose(float *a) {
+  for (int i = 0; i < N; i++) {
+    for (int j = i+1; j < N; j++) {
+      float tmp = a[i*N + j];
+      a[i*N + j] =  a[j*N + i];
+      a[j*N + i] = tmp;
+    }
+  }
+}
+
+float naive_fixed_norm(float *x, int m) {
+  float sum = 0;
+  for (int i = 0; i < m; i++) {
+    sum += pow(x[i], 2);
+  }
+  return sqrt(sum);
+}
+
+void naive_fixed_matrix_multiply(float *a, float *b, float *c) {
+ for (int y = 0; y < N; y++) {
+   for (int x = 0; x < N; x++) {
+     c[N * y + x] = 0;
+     for (int k = 0; k < N; k++) {
+       c[N * y + x] += a[N * y + k] * b[N * k + x];
+     }
+   }
+ }
+}
+
+void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
+  memcpy(R, A, sizeof(float) * N * N);
+
+  // Build identity matrix of size N * N
+  float *I = (float *)calloc(sizeof(float), N * N);
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+      I[i*N + j] = (i == j);
+    }
+  }
+
+  // Householder
+  for (int k = 0; k < N - 1; k++) {
+    int m = N - k;
+
+    float *x = (float *)calloc(sizeof(float), m);
+    float *e = (float *)calloc(sizeof(float), m);
+    for (int i = 0; i < m; i++) {
+      int row = k + i;
+      x[i] = R[row*N + k];
+      e[i] = I[row*N + k];
+    }
+
+    float alpha = -sgn(x[0]) * naive_fixed_norm(x, m);
+
+    float *u = (float *)calloc(sizeof(float), m);
+    float *v = (float *)calloc(sizeof(float), m);
+    for (int i = 0; i < m; i++) {
+      u[i] = x[i] + alpha * e[i];
+    }
+    float norm_u = naive_fixed_norm(u, m);
+    for (int i = 0; i < m; i++) {
+      v[i] = u[i]/norm_u;
+    }
+
+    float *q_min = (float *)calloc(sizeof(float), m * m);
+    for (int i = 0; i < m; i++) {
+      for (int j = 0; j < m; j++) {
+        float q_min_i = ((i == j) ? 1.0 : 0.0) - 2 * v[i] * v[j];
+        q_min[i*m + j] = q_min_i;
+      }
+    }
+
+    print_matrix(q_min, m, m);
+    float *q_t = (float *)calloc(sizeof(float), N * N);
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++) {
+        float q_t_i;
+        if ((i < k) || (j < k)) {
+          q_t_i = (i == j) ? 1.0 : 0.0;
+        } else {
+          q_t_i =  q_min[(i - k)*m + (j - k)];
+        }
+        q_t[i*N + j] = q_t_i;
+      }
+    }
+
+    if (k == 0) {
+      memcpy(Q, q_t, sizeof(float) * N * N);     // Q = q_t
+      naive_fixed_matrix_multiply(q_t, A, R); // R = q_t * A
+    } else {
+      float *res = (float *)calloc(sizeof(float), N * N);
+      naive_fixed_matrix_multiply(q_t, Q, res); // R = q_t * A
+      memcpy(Q, res, sizeof(float) * N * N);
+      naive_fixed_matrix_multiply(q_t, R, res); // R = q_t * A
+      memcpy(R, res, sizeof(float) * N * N);
+    }
+    free(x);
+    free(e);
+    free(u);
+    free(v);
+    free(q_min);
+    free(q_t);
+  }
+  naive_fixed_transpose(Q);
+}
+
 
 int main(int argc, char **argv) {
 
@@ -209,15 +314,40 @@ int main(int argc, char **argv) {
   print_matrix(a, N, N);
 
   int err;
-  int time = 0;;
+  int time = 0;
+
+  printf("Starting spec run\n");
+  naive_qr_decomp(a, q_spec, r_spec, N);
+
+  // Naive
+  start_cycle_timing;
+  naive_qr_decomp(a, q, r, N);
+  stop_cycle_timing;
+  time = get_time();
+  print_matrix(q, N, N);
+  print_matrix(r, N, N);
+  output_check_abs(q, q_spec, N, N);
+  output_check_abs(r, r_spec, N, N);
+  zero_matrix(q, N, N);
+  zero_matrix(r, N, N);
+  printf("Naive : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d\n","Naive",N,time);
+
+  // Naive Fixed
+  start_cycle_timing;
+  naive_fixed_qr_decomp(a, q, r);
+  stop_cycle_timing;
+  time = get_time();
+  print_matrix(q, N, N);
+  print_matrix(r, N, N);
+  output_check_abs(q, q_spec, N, N);
+  output_check_abs(r, r_spec, N, N);
+  zero_matrix(q, N, N);
+  zero_matrix(r, N, N);
+  printf("Naive hard size : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d\n","Naive hard size",N,time);
 
   if (N % 4 == 0) {
-    printf("Starting Nature spec run\n");
-    // Use Nature as spec for now
-    err = nature_qr(a, q_spec, r_spec);
-    if (err) {
-      return err;
-    }
     // Nature
     start_cycle_timing;
     err = nature_qr(a, q, r);
@@ -234,18 +364,6 @@ int main(int argc, char **argv) {
     fprintf(file, "%s,%d,%d\n","Nature",N,time);
   }
 
-  // Naive
-  start_cycle_timing;
-  naive_qr_decomp(a, q, r, N);
-  stop_cycle_timing;
-  time = get_time();
-  print_matrix(q, N, N);
-  print_matrix(r, N, N);
-  printf("Naive : %d cycles\n", time);
-  // output_check_abs(q, q_spec, N, N);
-  // output_check_abs(r, r_spec, N, N);
-  fprintf(file, "%s,%d,%d\n","Naive",N,time);
-
   // Diospyros
   start_cycle_timing;
   kernel(a, q, r);
@@ -254,10 +372,8 @@ int main(int argc, char **argv) {
   print_matrix(q, N, N);
   print_matrix(r, N, N);
   printf("Diospyros : %d cycles\n", time);
-  if (N % 4 == 0) {
-    output_check_abs(q, q_spec, N, N);
-    output_check_abs(r, r_spec, N, N);
-  }
+  output_check_abs(q, q_spec, N, N);
+  output_check_abs(r, r_spec, N, N);
   fprintf(file, "%s,%d,%d\n","Diospyros",N,time);
 
   return 0;
