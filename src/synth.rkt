@@ -26,6 +26,88 @@
             (hash-ref env2 key))))
     "\n"))
 
+(define-namespace-anchor a)
+
+(define (verify-spec-prog spec-str
+                          prog
+                          #:fn-map [fn-map (make-hash)])
+
+  (define-values (prog-ins prog-outs)
+    (get-inputs-and-outputs prog))
+
+  ; Transform a list of vec-extern-decl to a set with (id size).
+  (define (to-size-set lst)
+    (define (get-id-size decl)
+      (cons (vec-extern-decl-id decl)
+            (vec-extern-decl-size decl)))
+    (list->set (map get-id-size lst)))
+
+  ; Generate symbolic inputs for prog
+  (define init-env
+    (append
+      (~> prog-ins
+          to-size-set
+          set->list
+          (map (lambda (decl)
+                 (let ([val (make-symbolic-bv-list-values (cdr decl) (car decl))])
+                  (cons (car decl)
+                       val)
+                  ))
+               _))
+      (~> prog-outs
+          to-size-set
+          set->list
+          (map (lambda (decl)
+                 (cons (car decl)
+                       (make-bv-list-zeros (cdr decl))))
+               _))))
+
+  (define (interp-and-env prog init-env)
+    (define-values (env _)
+      (interp prog
+              init-env
+              #:fn-map fn-map))
+    env)
+
+
+  (define prog-env (interp-and-env prog init-env))
+
+  (define I$0 0)
+
+  (define ns (namespace-anchor->namespace a))
+  (namespace-set-variable-value! 'I$0 0 ns)
+
+  (pretty-print spec-str)
+  (eval spec-str ns)
+  (pretty-print (hash-ref prog-env 'O))
+
+  ; Outputs from sketch are allowed to be bigger than the spec. Only consider
+  ; elements upto the size in the spec for each output.
+  (define assertions
+    (andmap (lambda (decl)
+              (let ([id (car decl)]
+                    [size (cdr decl)])
+                ; (equal? (take (hash-ref prog-env id) size)
+                ;         (take (hash-ref sketch-env id) size))))
+                #t))
+            (set->list (to-size-set prog-outs))))
+
+  (define model
+    (verify
+      ; Since get-outs extracts outputs in the same order for both, we can
+      ; just check for list equality.
+      (assert assertions)))
+
+  (if (not (unsat? model))
+    (pretty-display (~a "Verification unsuccessful."))
+    (pretty-display (~a "Verification successful.")))
+                      ; (show-diff
+                      ;   (interp-and-env spec (evaluate init-env model))
+                      ;   (interp-and-env sketch (evaluate init-env model))
+                      ;   (map vec-extern-decl-id spec-outs)))))
+
+  model)
+
 ; Verify input-output behavior of programs.
 (define (verify-prog spec
                      sketch

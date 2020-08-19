@@ -38,14 +38,14 @@
     (make-symbolic-matrix I-rows I-cols 'I)
     (make-symbolic-matrix F-rows F-cols 'F)))
 
-  (define spec (align-to-reg-size (matrix-elements (matrix-conv-spec I F))))
+  (define spec (align-to-reg-size (matrix-elements (2d-conv-spec I F))))
 
-  (values (matrix-elements (matrix-conv-spec I F))
+  (values (matrix-elements (2d-conv-spec I F))
           (prog (prelude I-rows I-cols F-rows F-cols))
           (list (list 'O (length spec)))))
 
 ; Given an NxN input matrix, returns a smaller convolved matrix.
-(define (matrix-conv-spec input filter)
+(define (2d-conv-spec input filter)
   (match-define (matrix i-rows i-cols _) input)
   (match-define (matrix f-rows f-cols _) filter)
 
@@ -101,7 +101,7 @@
                          0  5  11 11
                          6  23 29 23
                          12 32 37 24))
-        (check-equal? (matrix-conv-spec (matrix 3 3 input)
+        (check-equal? (2d-conv-spec (matrix 3 3 input)
                                         (matrix 2 2 filter))
                       (matrix 4 4 gold)))
 
@@ -121,7 +121,7 @@
                          8  30 36 42 32
                          16 54 60 66 48
                          24 62 67 72 45))
-        (check-equal? (matrix-conv-spec (matrix 4 4 input)
+        (check-equal? (2d-conv-spec (matrix 4 4 input)
                                         (matrix 2 2 filter))
                       (matrix 5 5 gold))))))
 
@@ -256,7 +256,7 @@
 
   ; Function for spec evaluation
   (define (spec-func args)
-    (matrix-elements (apply matrix-conv-spec args)))
+    (matrix-elements (apply 2d-conv-spec args)))
 
   ; Show the shape of the spec
   (pretty-print (spec-func (list I F)))

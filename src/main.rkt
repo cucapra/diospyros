@@ -4,6 +4,8 @@
          "ast.rkt"
          "c-ast.rkt"
          "configuration.rkt"
+         "uninterp-fns.rkt"
+         "utils.rkt"
          "backend/tensilica-g3.rkt"
          "backend/backend-utils.rkt"
          "egg-to-dios-dsl.rkt"
@@ -20,6 +22,7 @@
 (module+ main
   (define out-file (make-parameter #f))
   (define egg (make-parameter #f))
+  (define validation (make-parameter #f))
   (define intermediate (make-parameter #f))
 
   (define input-path
@@ -31,6 +34,8 @@
                            (out-file out)]
       [("-e" "--egg") "Input is an egg kernel (input should be a directory)"
                       (egg #t)]
+      [("-v" "--validation") "Translation validation on the input. Only valid with --egg."
+                      (validation #t)]
       [("--no-compile") "Output intermediate vector-lang program"
                         (intermediate #t)]
       [("--suppress-git") "Don't write git info out"
@@ -38,11 +43,21 @@
       #:args (path)
       path))
 
+  (when (and (not egg) validation)
+    (error "Translation validation flag not valid when not in egg mode"))
+
+  (pretty-display (format "Reading input program from ~a" input-path))
+
+  ; (define-values (I F)
+  ; (values
+  ; (make-symbolic-matrix 5 5 'I)
+  ; (make-symbolic-matrix 3 3 'F)))
+
+  ; (pretty-print I$0)
+
   ; To eval the input, use the current namespace
   (define-namespace-anchor a)
   (define ns (namespace-anchor->namespace a))
-
-  (print (format "Reading input program from ~a" input-path))
 
   (define input-program
     (if egg
@@ -58,12 +73,41 @@
         (define input-string (read (open-input-file input-path)))
         (eval input-string ns))))
 
-  (print "Optimizing intermediate program")
+  (pretty-display "Optimizing intermediate program")
+
+  ; Translation validation hook
+  (when validation
+    (check-transform-with-fn-map uninterp-fn-map))
+
+  ; (define (spec-for-benchmark benchmark)
+  ;   (case name
+  ;     [("2d-conv") conv2d:only-spec]
+  ;     [("mat-mul") (values matrix-mul:run-experiment
+  ;                          matrix-mul:only-spec
+  ;                          matrix-mul:keys)]
+  ;     [("dft")     (values dft:run-experiment
+  ;                          dft:only-spec
+  ;                          dft:keys)]
+  ;     [("qr-decomp") (values (lambda (_) 0)
+  ;                            qr-decomp:only-spec
+  ;                            qr-decomp:keys)]
+  ;     [("q-prod") (values (lambda (_) 0)
+  ;                            q-prod:only-spec
+  ;                            q-prod:keys)]
+  ;     [else (error 'run-bench
+  ;                  "Unknown benchmark ~a"
+                   ; name)]))
+
+  (define compile-prog
+    (if validation
+      (lambda (x) (compile x
+                          #:spec (read-file-from-path input-path egg-spec)))
+      compile))
 
   ; Compute the intermediate program.
   (define i-prog
     (~> input-program
-        compile))
+        compile-prog))
 
   (cond
     [(intermediate) (display (pretty-format i-prog))]
@@ -78,7 +122,7 @@
             #:exists 'replace)
           (display prog)))
 
-       (print "Compiling to Tensilica backend")
+       (pretty-display "Compiling to Tensilica backend")
 
       (~> i-prog
           tensilica-g3-compile

@@ -148,8 +148,7 @@
          (env-set! id (list (box elem))))]
 
       [(vec-lit id elems _)
-        (env-set! id (map first (map env-ref elems)))
-        (pretty-print (env-ref id))]
+        (env-set! id (map first (map env-ref elems)))]
 
       [(scalar-binop id op l r)
        (let ([l-val (unbox (first (env-ref l)))]
