@@ -37,7 +37,6 @@ def get_color_palette():
                 colorblind[2],   # green        - Bronzite
                 colorblind[4],   # light purple - Nature
                 colorblind[5],   # gold         - Eigen
-                base_palette[0], # red          - Expert
                 ]
 
     # if benchmark == matmul:
@@ -66,17 +65,17 @@ def get_size_formatted(benchmark, row):
     sizes.
     """
     if benchmark == conv2d:
-        return "{}×{}, {}×{}\n2DConv".format(row["I_ROWS"],
+        return "{}×{}\n{}×{}\n2DConv".format(row["I_ROWS"],
                                             row["I_COLS"],
                                             row["F_ROWS"],
                                             row["F_COLS"])
     if benchmark == matmul:
-        return "{}×{}, {}×{}\nMatMul".format(row["A_ROWS"],
+        return "{}×{}\n{}×{}\nMatMul".format(row["A_ROWS"],
                                        row["A_COLS"],
                                        row["B_ROWS"],
                                        row["B_COLS"])
     if benchmark == qrdecomp:
-        return "{}×{}\nQRDecomp".format(row["N"], row["N"])
+        return "{}×{}\nQRDecomp".format(row["SIZE"], row["SIZE"])
 
     if benchmark == qprod:
         return "4, 3, 4, 3\nQProd"
@@ -100,11 +99,10 @@ all_kernels = [
     'Bronzite',
     'Nature',
     'Eigen',
-    'Expert'
 ]
 
 def chart(graph_data):
-    figsize=(12,3)
+    figsize=(20,3)
     # Normalize data against key
     norm_key = 'Naive (fixed size)'
     # Location of the color of the norm value
@@ -198,6 +196,10 @@ def write_summary_statistics(benchmark_data):
         writer.writeheader()
 
         for _, r in benchmark_data.iterrows():
+            # Skip charting expert
+            if "Expert" in r["Kernel"]:
+                continue
+
             size = r["Size"]
             cycles = r["Cycles (simulation)"]
 
@@ -262,6 +264,9 @@ def format_data(files):
                 baseline_names.add(x["kernel"])
 
             for i, kernel in enumerate(baseline_names):
+                # Skip expert for now
+                if x["kernel"] == "Expert":
+                    continue
                 kernel_row = next(x for x in data if x["kernel"] == kernel)
                 benchmark_data = benchmark_data.append({
                     'Benchmark': benchmark,
