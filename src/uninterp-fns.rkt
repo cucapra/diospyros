@@ -19,3 +19,4 @@
 (hash-set! uninterp-fn-map 'vec-mac vector-mac)
 (hash-set! uninterp-fn-map 'vec-mul vector-multiply)
 (hash-set! uninterp-fn-map 'vec-add vector-add)
+(hash-set! uninterp-fn-map 'vec-neg vector-negate)
