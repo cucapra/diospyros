@@ -92,7 +92,7 @@ def chart(graph_data, figsize):
         'Bronzite',
         'Expert'
     ]
-    norm_key = 'Naive'
+    norm_key = 'Naive (fixed size)'
 
     # print(graph_data)
 
@@ -123,6 +123,10 @@ def chart(graph_data, figsize):
         palette=colors,
         data=graph_data_with_norm)
     locs, labels = plt.xticks()
+
+    # Add a line at 1 to show speed up baseline
+    ax.axhline(y=1, linewidth=1, color='r')
+    ax.set_yscale('log')
 
     ax.legend(loc=1)
 
