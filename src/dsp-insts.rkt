@@ -88,8 +88,8 @@
 
 ;; VECTOR-NEGATE
 (define (vector-negate v)
-  (for ([e v])
-    (set-box! e (bvneg (unbox e)))))
+  (for/list ([e v])
+    (box (bvneg (unbox e)))))
 
 ;; VECTOR-COSINE
 (define (vector-cos v)
