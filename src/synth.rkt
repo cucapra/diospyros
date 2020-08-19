@@ -79,7 +79,16 @@
     env)
 
   ; Eval spec after namespace mucking
-  (define spec (eval spec-str ns))
+  (define spec-evaled (eval spec-str ns))
+
+  ; Bitvector constructors need to be called
+  ; TODO: does this need to be recursive?
+  (define spec
+    (map (lambda (e)
+      (match (unbox e)
+        [`(bv ,v ,s) (box (bv v s))]
+        [_ e]))
+    spec-evaled))
 
   (define prog-env (interp-and-env prog init-env))
   (define (get-and-align out)
@@ -89,13 +98,15 @@
 
   (define model
     (verify
-      (assert (equal? spec flatten-prog-outputs))))
+      (assert (equal? spec
+                      flatten-prog-outputs))))
 
   (if (not (unsat? model))
     (pretty-display (format "Verification unsuccessful. Spec:\n ~a \nProg:\n ~a"
                         spec
                         flatten-prog-outputs))
-    (pretty-display "Verification successful!"))
+    (pretty-display (format "Verification successful! ~a elements equal"
+                            (length spec))))
   model)
 
 ; Verify input-output behavior of programs.

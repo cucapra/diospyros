@@ -54,4 +54,4 @@ endif
 
 # Backend code gen
 %-egg: %-out/res.rkt
-	./dios -e -o $*-out/kernel.c $*-out
+	./dios $(BACKEND_FLAGS) -e -o $*-out/kernel.c $*-out
