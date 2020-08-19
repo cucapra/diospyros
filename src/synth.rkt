@@ -82,13 +82,15 @@
   (define spec-evaled (eval spec-str ns))
 
   ; Bitvector constructors need to be called
-  ; TODO: does this need to be recursive?
+  ; TODO: make this recursive
+  (define (rec-unquote e)
+    (match e
+      [`(bv ,v ,s) (bv v s)]
+      ; [(list vs ...) (pretty-print (format "matched ~a" vs)) (map rec-unquote vs)]
+      [_ e]))
+
   (define spec
-    (map (lambda (e)
-      (match (unbox e)
-        [`(bv ,v ,s) (box (bv v s))]
-        [_ e]))
-    spec-evaled))
+    (map box (map rec-unquote (map unbox spec-evaled))))
 
   (define prog-env (interp-and-env prog init-env))
   (define (get-and-align out)
