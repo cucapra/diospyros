@@ -2,18 +2,15 @@
 Chart data from CSVs
 """
 import argparse
-import json
 import os
 import math
 import decimal
-import subprocess as sp
 import csv
 from collections import defaultdict
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-import numpy as np
 
 from py_utils import *
 
@@ -52,6 +49,10 @@ def get_y_limit(benchmark):
     print("Error: need y limit for benchmark", benchmark)
 
 def get_size_formatted(benchmark, row):
+    """
+    Returns a pretty formatted name for the benchmark using the input array
+    sizes.
+    """
     if benchmark == conv2d:
         return "{}×{}, {}×{}\n2DConv".format(row["I_ROWS"],
                                             row["I_COLS"],
@@ -82,32 +83,64 @@ def get_kernel_name_formatted(kernel):
     return kernel
 
 def chart(graph_data, figsize):
+    # Normalize data against key
+    all_keys = [
+        'Naive',
+        'Naive (fixed size)',
+        'Nature',
+        'Eigen',
+        'Bronzite',
+        'Expert'
+    ]
+    norm_key = 'Naive (fixed size)'
+    # HACK: Location of the color of the norm value after the table is
+    # sorted.
+    norm_color_loc = 4
+
+    # print(graph_data)
+
+    # Select the rows from the dataframe that will be used to normalize
+    norm_table = graph_data[graph_data['Kernel'] == norm_key][['Benchmark', 'Size', 'Cycles (simulation)']]
+    graph_data_with_norm = graph_data.merge(
+        norm_table,
+        how='left',
+        on=['Benchmark', 'Size'],
+        suffixes=['', '-naive']
+    )
+    graph_data_with_norm['cycles-norm'] = graph_data_with_norm['Cycles (simulation)-naive'] / graph_data_with_norm['Cycles (simulation)']
+
     # This sets the gray background, among other things
     sns.set(font_scale=1.07)
 
-    graph_data.to_csv('combined.csv', index = False, header=True)
-
     # Sort based on the kernel first, then on the order specified
-    graph_data = graph_data.sort_values(['Kernel', 'Benchmark', 'Order'])
-
-    print(graph_data)
+    graph_data_with_norm = graph_data_with_norm.sort_values(
+        ['Kernel', 'Benchmark', 'Order'])
 
     plt.rcParams['figure.figsize'] = figsize
     colors = get_color_palette(matmul)
-    ax = sns.barplot(x="Size", y="Cycles (simulation)", hue="Kernel", palette=colors, data=graph_data)
+    ax = sns.barplot(
+        x="Size",
+        y="cycles-norm",
+        hue="Kernel",
+        palette=colors,
+        data=graph_data_with_norm)
     locs, labels = plt.xticks()
+
+    # Add a line at 1 to show speed up baseline
+    ax.axhline(y=1, linewidth=1, color=colors[norm_color_loc])
+    ax.set_yscale('log')
 
     ax.legend(loc=1)
 
     # Annotate each bar with its value
-    for p in ax.patches:
-        if math.isnan(p.get_height()) or p.get_height() > 100:
-            continue
-        ax.annotate("%d" % p.get_height(), (p.get_x() + p.get_width() / 2., p.get_height()),
-             ha='center', va='center', fontsize=11, color='black', xytext=(0, 6),
-             textcoords='offset points')
+    # for p in ax.patches:
+        # if math.isnan(p.get_height()) or p.get_height() > 100:
+            # continue
+        # ax.annotate("%d" % p.get_height(), (p.get_x() + p.get_width() / 2., p.get_height()),
+             # ha='center', va='center', fontsize=11, color='black', xytext=(0, 6),
+             # textcoords='offset points')
 
-    ax.set_ylim(0, 10000)
+    # ax.set_ylim(0, 10000)
     ax.set_xlabel('')
     plt.savefig("all" + ".pdf", bbox_inches='tight')
     plt.close()
@@ -181,9 +214,10 @@ def write_summary_statistics(benchmark_data):
         })
 
 
-def format_and_chart_data(files):
+def format_data(files):
     chart_data = defaultdict(list)
-    benchmark_data = pd.DataFrame(columns=['Benchmark', 'Kernel', 'Size', 'Cycles (simulation)'])
+    benchmark_data = pd.DataFrame(
+        columns=['Benchmark', 'Kernel', 'Size', 'Cycles (simulation)'])
 
     for file, summary in files:
         with open(file,  newline='') as csvfile:
@@ -221,7 +255,7 @@ def format_and_chart_data(files):
                     'Order' : i if i < 3 else 5},
                     ignore_index=True)
 
-    chart(benchmark_data, figsize=(12,3))
+    return benchmark_data
     # write_summary_statistics(benchmark_data)
 
 def read_csvs(dir, benchmarks, out):
@@ -271,7 +305,8 @@ def main():
     input_dir = os.path.join(results_dir, args.directory)
 
     files = read_csvs(input_dir, benchmarks, args.output)
-    format_and_chart_data(files)
+    df = format_data(files)
+    chart(df, figsize=(12,3))
 
 if __name__ == main():
     main()
