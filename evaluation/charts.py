@@ -93,6 +93,9 @@ def chart(graph_data, figsize):
         'Expert'
     ]
     norm_key = 'Naive (fixed size)'
+    # HACK: Location of the color of the norm value after the table is
+    # sorted.
+    norm_color_loc = 4
 
     # print(graph_data)
 
@@ -109,10 +112,9 @@ def chart(graph_data, figsize):
     # This sets the gray background, among other things
     sns.set(font_scale=1.07)
 
-    graph_data.to_csv('combined.csv', index = False, header=True)
-
     # Sort based on the kernel first, then on the order specified
-    graph_data = graph_data.sort_values(['Kernel', 'Benchmark', 'Order'])
+    graph_data_with_norm = graph_data_with_norm.sort_values(
+        ['Kernel', 'Benchmark', 'Order'])
 
     plt.rcParams['figure.figsize'] = figsize
     colors = get_color_palette(matmul)
@@ -125,7 +127,7 @@ def chart(graph_data, figsize):
     locs, labels = plt.xticks()
 
     # Add a line at 1 to show speed up baseline
-    ax.axhline(y=1, linewidth=1, color='r')
+    ax.axhline(y=1, linewidth=1, color=colors[norm_color_loc])
     ax.set_yscale('log')
 
     ax.legend(loc=1)
