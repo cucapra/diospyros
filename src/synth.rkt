@@ -26,6 +26,78 @@
             (hash-ref env2 key))))
     "\n"))
 
+; For namespace hacking
+(define-namespace-anchor a)
+(define ns (namespace-anchor->namespace a))
+
+(define (symbol-append s1 s2)
+  (string->symbol
+    (string-append (symbol->string s1) "$" (number->string s2))))
+
+(define (verify-spec-prog spec-str
+                          prog
+                          #:fn-map [fn-map (make-hash)])
+
+  (define-values (prog-ins prog-outs)
+    (get-inputs-and-outputs prog))
+
+  ; Transform a list of vec-extern-decl to a set with (id size).
+  (define (to-sizes lst)
+    (define (get-id-size decl)
+      (cons (vec-extern-decl-id decl)
+            (vec-extern-decl-size decl)))
+     (map get-id-size lst))
+
+  ; Generate symbolic inputs for prog
+  (define init-env
+    (append
+      (~> prog-ins
+          to-sizes
+          (map (lambda (decl)
+                 ; Namespace hacking for binding symbolic constants in the
+                 ; spec as well
+                 (let* ([name (car decl)]
+                        [size (cdr decl)]
+                        [val (make-symbolic-bv-list-values size name)])
+                  (parameterize ([current-namespace ns])
+                    (for ([i (range size)])
+                      (eval `(define ,(symbol-append name i) ,(bv-list-get val (bv-index i))))))
+                  (cons name val)))
+               _))
+      (~> prog-outs
+          to-sizes
+          (map (lambda (decl)
+                 (cons (car decl)
+                       (make-bv-list-zeros (cdr decl))))
+               _))))
+
+  (define (interp-and-env prog init-env)
+    (define-values (env _)
+      (interp prog
+              init-env
+              #:fn-map fn-map))
+    env)
+
+  ; Eval spec after namespace mucking
+  (define spec (eval spec-str ns))
+
+  (define prog-env (interp-and-env prog init-env))
+  (define (get-and-align out)
+    (align-to-reg-size (hash-ref prog-env (car out))))
+  (define flatten-prog-outputs
+    (flatten (map get-and-align (to-sizes prog-outs))))
+
+  (define model
+    (verify
+      (assert (equal? spec flatten-prog-outputs))))
+
+  (if (not (unsat? model))
+    (pretty-display (format "Verification unsuccessful. Spec:\n ~a \nProg:\n ~a"
+                        spec
+                        flatten-prog-outputs))
+    (pretty-display "Verification successful!"))
+  model)
+
 ; Verify input-output behavior of programs.
 (define (verify-prog spec
                      sketch
