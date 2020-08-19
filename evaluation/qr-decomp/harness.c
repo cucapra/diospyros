@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
+
 #include <xtensa/sim.h>
 #include <xtensa/tie/xt_pdxn.h>
 #include <xtensa/tie/xt_timer.h>
@@ -12,17 +15,17 @@
 
 #include "../../../diospyros-private/src/utils.h"
 
-float a[N * N] __attribute__((section(".dram0.data")));
-float q[N * N] __attribute__((section(".dram0.data")));
-float r[N * N] __attribute__((section(".dram0.data")));
-float q_spec[N * N] __attribute__((section(".dram0.data")));
-float r_spec[N * N] __attribute__((section(".dram0.data")));
+float a[SIZE * SIZE] __attribute__((section(".dram0.data")));
+float q[SIZE * SIZE] __attribute__((section(".dram0.data")));
+float r[SIZE * SIZE] __attribute__((section(".dram0.data")));
+float q_spec[SIZE * SIZE] __attribute__((section(".dram0.data")));
+float r_spec[SIZE * SIZE] __attribute__((section(".dram0.data")));
 
 // For Nature.
-float scratch[N] __attribute__((section(".dram0.data")));
-float nat_v[(2*N-N+1)*(N/2+N)] __attribute__((section(".dram0.data")));
-float nat_d[N] __attribute__((section(".dram0.data")));
-float nat_b[N*N] __attribute__((section(".dram0.data")));
+float scratch[SIZE] __attribute__((section(".dram0.data")));
+float nat_v[(2*SIZE-SIZE+1)*(SIZE/2+SIZE)] __attribute__((section(".dram0.data")));
+float nat_d[SIZE] __attribute__((section(".dram0.data")));
+float nat_b[SIZE*SIZE] __attribute__((section(".dram0.data")));
 
 // Diospyros kernel
 void kernel(float * A, float * Q, float * R);
@@ -44,37 +47,37 @@ extern "C" {
  */
 int nature_qr(const float *A, float *Q, float *R) {
   // Check that our scratch array is big enough for both steps.
-  size_t scratchSize = matinvqrf_getScratchSize(N, N);
+  size_t scratchSize = matinvqrf_getScratchSize(SIZE, SIZE);
   if (sizeof(scratch) < scratchSize) {
     printf("scratch is too small for matinvqrf!\n");
     return 1;
   }
-  scratchSize = matinvqrrotf_getScratchSize(N, N, N);
+  scratchSize = matinvqrrotf_getScratchSize(SIZE, SIZE, SIZE);
   if (sizeof(scratch) < scratchSize) {
     printf("scratch is too small for matinvqrrotf!\n");
     return 1;
   }
 
   // Copy A into R (because it's overwritten in the first step).
-  for (int i = 0; i < N * N; ++i) {
+  for (int i = 0; i < SIZE * SIZE; ++i) {
     R[i] = A[i];
   }
 
   // Start with main QR decomposition call.
   // The `R` used here is an in/out parameter: A in input, R on output.
-  matinvqrf(scratch, R, nat_v, nat_d, N, N);
+  matinvqrf(scratch, R, nat_v, nat_d, SIZE, SIZE);
 
   // We need an extra identity matrix for the second step.
-  zero_matrix(nat_b, N, N);
-  for (int i = 0; i < N; ++i) {
-    nat_b[i*N + i] = 1;
+  zero_matrix(nat_b, SIZE, SIZE);
+  for (int i = 0; i < SIZE; ++i) {
+    nat_b[i*SIZE + i] = 1;
   }
 
   // Apply Householder rotations to obtain Q'.
-  matinvqrrotf(scratch, nat_b, nat_v, N, N, N);
+  matinvqrrotf(scratch, nat_b, nat_v, SIZE, SIZE, SIZE);
 
   // Transpose that to get Q.
-  transpmf(nat_b, N, N, Q);
+  transpmf(nat_b, SIZE, SIZE, Q);
   return 0;
 }
 
@@ -188,47 +191,47 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
 
 // Naive with fixed size
 void naive_fixed_transpose(float *a) {
-  for (int i = 0; i < N; i++) {
-    for (int j = i+1; j < N; j++) {
-      float tmp = a[i*N + j];
-      a[i*N + j] =  a[j*N + i];
-      a[j*N + i] = tmp;
+  for (int i = 0; i < SIZE; i++) {
+    for (int j = i+1; j < SIZE; j++) {
+      float tmp = a[i*SIZE + j];
+      a[i*SIZE + j] =  a[j*SIZE + i];
+      a[j*SIZE + i] = tmp;
     }
   }
 }
 
 void naive_fixed_matrix_multiply(float *a, float *b, float *c) {
- for (int y = 0; y < N; y++) {
-   for (int x = 0; x < N; x++) {
-     c[N * y + x] = 0;
-     for (int k = 0; k < N; k++) {
-       c[N * y + x] += a[N * y + k] * b[N * k + x];
+ for (int y = 0; y < SIZE; y++) {
+   for (int x = 0; x < SIZE; x++) {
+     c[SIZE * y + x] = 0;
+     for (int k = 0; k < SIZE; k++) {
+       c[SIZE * y + x] += a[SIZE * y + k] * b[SIZE * k + x];
      }
    }
  }
 }
 
 void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
-  memcpy(R, A, sizeof(float) * N * N);
+  memcpy(R, A, sizeof(float) * SIZE * SIZE);
 
-  // Build identity matrix of size N * N
-  float *I = (float *)calloc(sizeof(float), N * N);
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < N; j++) {
-      I[i*N + j] = (i == j);
+  // Build identity matrix of size SIZE * SIZE
+  float *I = (float *)calloc(sizeof(float), SIZE * SIZE);
+  for (int i = 0; i < SIZE; i++) {
+    for (int j = 0; j < SIZE; j++) {
+      I[i*SIZE + j] = (i == j);
     }
   }
 
   // Householder
-  for (int k = 0; k < N - 1; k++) {
-    int m = N - k;
+  for (int k = 0; k < SIZE - 1; k++) {
+    int m = SIZE - k;
 
     float *x = (float *)calloc(sizeof(float), m);
     float *e = (float *)calloc(sizeof(float), m);
     for (int i = 0; i < m; i++) {
       int row = k + i;
-      x[i] = R[row*N + k];
-      e[i] = I[row*N + k];
+      x[i] = R[row*SIZE + k];
+      e[i] = I[row*SIZE + k];
     }
 
     float alpha = -sgn(x[0]) * naive_norm(x, m);
@@ -251,28 +254,28 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
       }
     }
 
-    float *q_t = (float *)calloc(sizeof(float), N * N);
-    for (int i = 0; i < N; i++) {
-      for (int j = 0; j < N; j++) {
+    float *q_t = (float *)calloc(sizeof(float), SIZE * SIZE);
+    for (int i = 0; i < SIZE; i++) {
+      for (int j = 0; j < SIZE; j++) {
         float q_t_i;
         if ((i < k) || (j < k)) {
           q_t_i = (i == j) ? 1.0 : 0.0;
         } else {
           q_t_i =  q_min[(i - k)*m + (j - k)];
         }
-        q_t[i*N + j] = q_t_i;
+        q_t[i*SIZE + j] = q_t_i;
       }
     }
 
     if (k == 0) {
-      memcpy(Q, q_t, sizeof(float) * N * N);     // Q = q_t
+      memcpy(Q, q_t, sizeof(float) * SIZE * SIZE);     // Q = q_t
       naive_fixed_matrix_multiply(q_t, A, R); // R = q_t * A
     } else {
-      float *res = (float *)calloc(sizeof(float), N * N);
+      float *res = (float *)calloc(sizeof(float), SIZE * SIZE);
       naive_fixed_matrix_multiply(q_t, Q, res); // R = q_t * A
-      memcpy(Q, res, sizeof(float) * N * N);
+      memcpy(Q, res, sizeof(float) * SIZE * SIZE);
       naive_fixed_matrix_multiply(q_t, R, res); // R = q_t * A
-      memcpy(R, res, sizeof(float) * N * N);
+      memcpy(R, res, sizeof(float) * SIZE * SIZE);
     }
     free(x);
     free(e);
@@ -290,54 +293,54 @@ int main(int argc, char **argv) {
   FILE *file = fopen(OUTFILE, "w");
   if (file == NULL) file = stdout;
 
-  fprintf(file, "kernel,N,cycles\n");
+  fprintf(file, "kernel,SIZE,cycles\n");
 
   init_rand(10);
 
-  create_random_mat(a, N, N);
-  zero_matrix(q, N, N);
-  zero_matrix(r, N, N);
-  zero_matrix(q_spec, N, N);
-  zero_matrix(r_spec, N, N);
+  create_random_mat(a, SIZE, SIZE);
+  zero_matrix(q, SIZE, SIZE);
+  zero_matrix(r, SIZE, SIZE);
+  zero_matrix(q_spec, SIZE, SIZE);
+  zero_matrix(r_spec, SIZE, SIZE);
 
-  print_matrix(a, N, N);
+  print_matrix(a, SIZE, SIZE);
 
   int err;
   int time = 0;
 
   printf("Starting spec run\n");
-  naive_qr_decomp(a, q_spec, r_spec, N);
+  naive_qr_decomp(a, q_spec, r_spec, SIZE);
 
   // Naive
   start_cycle_timing;
-  naive_qr_decomp(a, q, r, N);
+  naive_qr_decomp(a, q, r, SIZE);
   stop_cycle_timing;
   time = get_time();
-  print_matrix(q, N, N);
-  print_matrix(r, N, N);
-  output_check_abs(q, q_spec, N, N);
-  output_check_abs(r, r_spec, N, N);
-  zero_matrix(q, N, N);
-  zero_matrix(r, N, N);
+  print_matrix(q, SIZE, SIZE);
+  print_matrix(r, SIZE, SIZE);
+  output_check_abs(q, q_spec, SIZE, SIZE);
+  output_check_abs(r, r_spec, SIZE, SIZE);
+  zero_matrix(q, SIZE, SIZE);
+  zero_matrix(r, SIZE, SIZE);
   printf("Naive : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d\n","Naive",N,time);
+  fprintf(file, "%s,%d,%d\n","Naive",SIZE,time);
 
   // Naive Fixed
   start_cycle_timing;
   naive_fixed_qr_decomp(a, q, r);
   stop_cycle_timing;
   time = get_time();
-  print_matrix(q, N, N);
-  print_matrix(r, N, N);
-  output_check_abs(q, q_spec, N, N);
-  output_check_abs(r, r_spec, N, N);
-  zero_matrix(q, N, N);
-  zero_matrix(r, N, N);
+  print_matrix(q, SIZE, SIZE);
+  print_matrix(r, SIZE, SIZE);
+  output_check_abs(q, q_spec, SIZE, SIZE);
+  output_check_abs(r, r_spec, SIZE, SIZE);
+  zero_matrix(q, SIZE, SIZE);
+  zero_matrix(r, SIZE, SIZE);
   printf("Naive hard size : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d\n","Naive hard size",N,time);
+  fprintf(file, "%s,%d,%d\n","Naive hard size",SIZE,time);
 
-  if (N % 4 == 0) {
-    // Nature
+  // Nature only works if the size is a multiple of 4
+  if (SIZE % 4 == 0) {
     start_cycle_timing;
     err = nature_qr(a, q, r);
     stop_cycle_timing;
@@ -345,25 +348,50 @@ int main(int argc, char **argv) {
       return err;
     }
     time = get_time();
-    print_matrix(q, N, N);
-    print_matrix(r, N, N);
-    zero_matrix(q, N, N);
-    zero_matrix(r, N, N);
+    print_matrix(q, SIZE, SIZE);
+    print_matrix(r, SIZE, SIZE);
+    output_check_abs(q, q_spec, SIZE, SIZE);
+    output_check_abs(r, r_spec, SIZE, SIZE);
+    zero_matrix(q, SIZE, SIZE);
+    zero_matrix(r, SIZE, SIZE);
     printf("Nature : %d cycles\n", time);
-    fprintf(file, "%s,%d,%d\n","Nature",N,time);
+    fprintf(file, "%s,%d,%d\n","Nature",SIZE,time);
   }
+
+  // Eigen
+  // Don't count data transformation toward timing
+  Eigen::Map<Eigen::Matrix<float, SIZE, SIZE, Eigen::RowMajor>> matrix(a, SIZE, SIZE);
+
+  start_cycle_timing;
+  Eigen::HouseholderQR<Eigen::Matrix<float, SIZE, SIZE>> qr(matrix.rows(), matrix.cols());
+  qr.compute(matrix);
+  Eigen::Matrix<float, SIZE, SIZE> eigen_q = qr.householderQ().transpose();
+  Eigen::Matrix<float, SIZE, SIZE> eigen_r = qr.matrixQR().triangularView<Eigen::Upper>().transpose();
+  stop_cycle_timing;
+  time = get_time();
+
+  memcpy(q, eigen_q.data(), sizeof(float) * SIZE * SIZE);
+  memcpy(r, eigen_r.data(), sizeof(float) * SIZE * SIZE);
+  print_matrix(q, SIZE, SIZE);
+  print_matrix(r, SIZE, SIZE);
+  output_check_abs(q, q_spec, SIZE, SIZE);
+  output_check_abs(r, r_spec, SIZE, SIZE);
+  zero_matrix(q, SIZE, SIZE);
+  zero_matrix(r, SIZE, SIZE);
+  printf("Eigen : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d\n","Eigen",SIZE,time);
 
   // Diospyros
   start_cycle_timing;
   kernel(a, q, r);
   stop_cycle_timing;
   time = get_time();
-  print_matrix(q, N, N);
-  print_matrix(r, N, N);
+  print_matrix(q, SIZE, SIZE);
+  print_matrix(r, SIZE, SIZE);
   printf("Diospyros : %d cycles\n", time);
-  output_check_abs(q, q_spec, N, N);
-  output_check_abs(r, r_spec, N, N);
-  fprintf(file, "%s,%d,%d\n","Diospyros",N,time);
+  output_check_abs(q, q_spec, SIZE, SIZE);
+  output_check_abs(r, r_spec, SIZE, SIZE);
+  fprintf(file, "%s,%d,%d\n","Diospyros",SIZE,time);
 
   return 0;
 }
