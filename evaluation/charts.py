@@ -11,6 +11,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import numpy
+from matplotlib.ticker import FuncFormatter
 
 from py_utils import *
 
@@ -20,17 +22,27 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
-def get_color_palette(benchmark):
+def get_color_palette():
     # Use a diverging color palette for the two versions of the naive baseline
     # and the Diospyros kernels, then another color for Nature. Reverse the
     # diverging palette for that the faster naive baseline is darker.
     base_palette = sns.color_palette("RdBu", 6)
     nature_color = sns.color_palette("RdYlBu", 3)[1]
-    palette = [base_palette[1], base_palette[0], nature_color] + base_palette[4:]
 
-    if benchmark == matmul:
-        # For matmul, use purple for the expert
-        palette.append(sns.color_palette("colorblind", 5)[4])
+    colorblind = sns.color_palette("colorblind", 6)
+
+    palette = [
+                base_palette[4], # light blue   - Naive
+                base_palette[5], # dark blue    - Naive (fixed size)
+                colorblind[2],   # green        - Bronzite
+                colorblind[4],   # light purple - Nature
+                colorblind[5],   # gold         - Eigen
+                base_palette[0], # red          - Expert
+                ]
+
+    # if benchmark == matmul:
+    #     # For matmul, use purple for the expert
+    #     palette.append(sns.color_palette("colorblind", 5)[4])
 
     return palette
 
@@ -82,22 +94,21 @@ def get_kernel_name_formatted(kernel):
         return "Naive (fixed size)"
     return kernel
 
-def chart(graph_data, figsize):
-    # Normalize data against key
-    all_keys = [
-        'Naive',
-        'Naive (fixed size)',
-        'Nature',
-        'Eigen',
-        'Bronzite',
-        'Expert'
-    ]
-    norm_key = 'Naive (fixed size)'
-    # HACK: Location of the color of the norm value after the table is
-    # sorted.
-    norm_color_loc = 4
+all_kernels = [
+    'Naive',
+    'Naive (fixed size)',
+    'Bronzite',
+    'Nature',
+    'Eigen',
+    'Expert'
+]
 
-    # print(graph_data)
+def chart(graph_data):
+    figsize=(12,3)
+    # Normalize data against key
+    norm_key = 'Naive (fixed size)'
+    # Location of the color of the norm value
+    norm_color_loc = all_kernels.index(norm_key)
 
     # Select the rows from the dataframe that will be used to normalize
     norm_table = graph_data[graph_data['Kernel'] == norm_key][['Benchmark', 'Size', 'Cycles (simulation)']]
@@ -110,14 +121,14 @@ def chart(graph_data, figsize):
     graph_data_with_norm['cycles-norm'] = graph_data_with_norm['Cycles (simulation)-naive'] / graph_data_with_norm['Cycles (simulation)']
 
     # This sets the gray background, among other things
-    sns.set(font_scale=1.07)
+    sns.set(font_scale=1.04)
 
     # Sort based on the kernel first, then on the order specified
     graph_data_with_norm = graph_data_with_norm.sort_values(
-        ['Kernel', 'Benchmark', 'Order'])
+            ['Order', 'Kernel', 'Benchmark'])
 
     plt.rcParams['figure.figsize'] = figsize
-    colors = get_color_palette(matmul)
+    colors = get_color_palette()
     ax = sns.barplot(
         x="Size",
         y="cycles-norm",
@@ -126,11 +137,17 @@ def chart(graph_data, figsize):
         data=graph_data_with_norm)
     locs, labels = plt.xticks()
 
+    ax.set(ylabel="Speedup over Naive (fixed-size)")
+
     # Add a line at 1 to show speed up baseline
     ax.axhline(y=1, linewidth=1, color=colors[norm_color_loc])
     ax.set_yscale('log')
 
-    ax.legend(loc=1)
+    formatterY = FuncFormatter(lambda y, pos: '{0:g}'.format(y))
+    ax.yaxis.set_major_formatter(formatterY)
+    plt.yticks([1.e-01, 0.5, 1, 2, 3, 5, 8, 13, 21])
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
 
     # Annotate each bar with its value
     # for p in ax.patches:
@@ -140,7 +157,6 @@ def chart(graph_data, figsize):
              # ha='center', va='center', fontsize=11, color='black', xytext=(0, 6),
              # textcoords='offset points')
 
-    # ax.set_ylim(0, 10000)
     ax.set_xlabel('')
     plt.savefig("all" + ".pdf", bbox_inches='tight')
     plt.close()
@@ -252,7 +268,7 @@ def format_data(files):
                     'Kernel': get_kernel_name_formatted(kernel),
                     'Size': size,
                     'Cycles (simulation)': int(kernel_row["cycles"]),
-                    'Order' : i if i < 3 else 5},
+                    'Order' : all_kernels.index(get_kernel_name_formatted(kernel))},
                     ignore_index=True)
 
     return benchmark_data
@@ -306,7 +322,7 @@ def main():
 
     files = read_csvs(input_dir, benchmarks, args.output)
     df = format_data(files)
-    chart(df, figsize=(12,3))
+    chart(df)
 
 if __name__ == main():
     main()
