@@ -26,7 +26,13 @@
             (hash-ref env2 key))))
     "\n"))
 
+; For namespace hacking
 (define-namespace-anchor a)
+(define ns (namespace-anchor->namespace a))
+
+(define (symbol-append s1 s2)
+  (string->symbol
+    (string-append (symbol->string s1) "$" (number->string s2))))
 
 (define (verify-spec-prog spec-str
                           prog
@@ -36,27 +42,30 @@
     (get-inputs-and-outputs prog))
 
   ; Transform a list of vec-extern-decl to a set with (id size).
-  (define (to-size-set lst)
+  (define (to-sizes lst)
     (define (get-id-size decl)
       (cons (vec-extern-decl-id decl)
             (vec-extern-decl-size decl)))
-    (list->set (map get-id-size lst)))
+     (map get-id-size lst))
 
   ; Generate symbolic inputs for prog
   (define init-env
     (append
       (~> prog-ins
-          to-size-set
-          set->list
+          to-sizes
           (map (lambda (decl)
-                 (let ([val (make-symbolic-bv-list-values (cdr decl) (car decl))])
-                  (cons (car decl)
-                       val)
-                  ))
+                 ; Namespace hacking for binding symbolic constants in the
+                 ; spec as well
+                 (let* ([name (car decl)]
+                        [size (cdr decl)]
+                        [val (make-symbolic-bv-list-values size name)])
+                  (parameterize ([current-namespace ns])
+                    (for ([i (range size)])
+                      (eval `(define ,(symbol-append name i) ,(bv-list-get val (bv-index i))))))
+                  (cons name val)))
                _))
       (~> prog-outs
-          to-size-set
-          set->list
+          to-sizes
           (map (lambda (decl)
                  (cons (car decl)
                        (make-bv-list-zeros (cdr decl))))
@@ -69,43 +78,24 @@
               #:fn-map fn-map))
     env)
 
+  ; Eval spec after namespace mucking
+  (define spec (eval spec-str ns))
 
   (define prog-env (interp-and-env prog init-env))
-
-  (define I$0 0)
-
-  (define ns (namespace-anchor->namespace a))
-  (namespace-set-variable-value! 'I$0 0 ns)
-
-  (pretty-print spec-str)
-  (eval spec-str ns)
-  (pretty-print (hash-ref prog-env 'O))
-
-  ; Outputs from sketch are allowed to be bigger than the spec. Only consider
-  ; elements upto the size in the spec for each output.
-  (define assertions
-    (andmap (lambda (decl)
-              (let ([id (car decl)]
-                    [size (cdr decl)])
-                ; (equal? (take (hash-ref prog-env id) size)
-                ;         (take (hash-ref sketch-env id) size))))
-                #t))
-            (set->list (to-size-set prog-outs))))
+  (define (get-and-align out)
+    (align-to-reg-size (hash-ref prog-env (car out))))
+  (define flatten-prog-outputs
+    (flatten (map get-and-align (to-sizes prog-outs))))
 
   (define model
     (verify
-      ; Since get-outs extracts outputs in the same order for both, we can
-      ; just check for list equality.
-      (assert assertions)))
+      (assert (equal? spec flatten-prog-outputs))))
 
   (if (not (unsat? model))
-    (pretty-display (~a "Verification unsuccessful."))
-    (pretty-display (~a "Verification successful.")))
-                      ; (show-diff
-                      ;   (interp-and-env spec (evaluate init-env model))
-                      ;   (interp-and-env sketch (evaluate init-env model))
-                      ;   (map vec-extern-decl-id spec-outs)))))
-
+    (pretty-display (format "Verification unsuccessful. Spec:\n ~a \nProg:\n ~a"
+                        spec
+                        flatten-prog-outputs))
+    (pretty-display "Verification successful!"))
   model)
 
 ; Verify input-output behavior of programs.
