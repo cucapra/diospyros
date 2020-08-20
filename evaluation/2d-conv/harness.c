@@ -9,11 +9,6 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include "/usr/local/include/eigen-3/unsupported/Eigen/CXX11/src/Tensor/TensorConvolution.h"
-// #include "/usr/local/include/eigen-3/unsupported/Eigen/CXX11/Tensor"
-
 #include "../../../diospyros-private/src/utils.h"
 
 #define O_ROWS (I_ROWS + F_ROWS - 1)
