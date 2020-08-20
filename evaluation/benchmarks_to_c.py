@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import subprocess as sp
+import time
 
 from py_utils import *
 
@@ -195,6 +196,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     # Call example-gen, AKA synthesis. This is long running, so include an
     # for a timeout (which will usually still write early found solutions)
     # TODO clean this up
+    start_time = time.time()
     gen = sp.Popen([
         "make",
         "-B",
@@ -226,9 +228,10 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             params_f,])
         timer.start()
         gen.communicate()
-        if gen.returncode:
-            print("Error: build failed, aborting")
-            return
+        end_time = time.time()
+
+        elapsed_time = end_time - start_time
+        print("Synthesis finished in {:.1f} seconds".format(elapsed_time))
 
         # TODO clean this up
         sp.call([
