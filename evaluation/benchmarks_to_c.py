@@ -307,7 +307,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
 
         print("Synthesis finished in {:.1f} seconds using {:.1f} MB".format(
             elapsed_time,
-            memthread.maxmem / 10**9,
+            memthread.maxmem / 10**6,
         ))
         return {
             'time': elapsed_time,
