@@ -184,9 +184,7 @@ class MemChecker(Thread):
         while not self._stop:
             try:
                 proc = psutil.Process(self.pid)
-            except psutil.NoSuchProcess:
-                pass
-            else:
+
                 # Get memory information for this process (which is probably
                 # make) and all its subprocesses (which include the actual
                 # synthesis engine).
@@ -198,6 +196,9 @@ class MemChecker(Thread):
                 # RAM. It is given in bytes.
                 total_rss = sum(m.rss for m in meminfo)
                 self.maxmem = max(self.maxmem, total_rss)
+
+            except psutil.NoSuchProcess:
+                pass
 
             time.sleep(self.delay)
 
