@@ -13,6 +13,7 @@ import seaborn as sns
 import pandas as pd
 import numpy
 from matplotlib.ticker import FuncFormatter
+import json
 
 from py_utils import *
 
@@ -294,7 +295,22 @@ def read_csvs(dir, benchmarks, out):
             for params_config in listdir(b_dir):
                 if not os.path.isdir(params_config):
                     continue
+
+                # Load synthesis statistics.
+                stats_file = os.path.join(params_config, 'stats.json')
+                if os.path.exists(stats_file):
+                    with open(stats_file) as f:
+                        stats_data = json.load(f)
+                else:
+                    # Tolerate missing statistics (because we added them
+                    # recently).
+                    stats_data = {
+                        'time': 0,
+                        'memory': 0,
+                    }
+
                 for file in listdir(params_config):
+                    # Load performance data.
                     pre, ext = os.path.splitext(file)
                     if ext != ".csv":
                         continue
@@ -303,12 +319,14 @@ def read_csvs(dir, benchmarks, out):
                         reader = csv.DictReader(csvfile)
                         if not writer:
                             fields = reader.fieldnames
-                            fields = ["benchmark"] + fields
+                            fields = ["benchmark"] + fields \
+                                + ["time", "memory"]
                             writer = csv.DictWriter(outfile, fieldnames=fields)
                             writer.writeheader()
 
                         for row in reader:
                             row["benchmark"] = benchmark
+                            row.update(stats_data)
                             writer.writerow(row)
                             rows += 1
     print("Combined {} individual runs into one CSV: {}".format(rows, out))
