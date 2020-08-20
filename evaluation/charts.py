@@ -241,7 +241,8 @@ def write_summary_statistics(benchmark_data):
 def format_data(files):
     chart_data = defaultdict(list)
     benchmark_data = pd.DataFrame(
-        columns=['Benchmark', 'Kernel', 'Size', 'Cycles (simulation)'])
+        columns=['Benchmark', 'Kernel', 'Size', 'Cycles (simulation)',
+                 'Time', 'Memory'])
 
     for file, summary in files:
         with open(file,  newline='') as csvfile:
@@ -276,7 +277,9 @@ def format_data(files):
                     'Kernel': get_kernel_name_formatted(kernel),
                     'Size': size,
                     'Cycles (simulation)': int(kernel_row["cycles"]),
-                    'Order' : all_kernels.index(get_kernel_name_formatted(kernel))},
+                    'Order' : all_kernels.index(get_kernel_name_formatted(kernel)),
+                    'Time': kernel_row['time'],
+                    'Memory': kernel_row['memory']},
                     ignore_index=True)
 
     return benchmark_data
