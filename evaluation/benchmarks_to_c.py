@@ -261,6 +261,9 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             content = f.read()
             f.seek(0, 0)
             f.write(imports + '\n' + content)
+
+        return elapsed_time
+
     finally:
         timer.cancel()
 
@@ -272,13 +275,21 @@ def synthesize_benchmark(dir, benchmark, timeout, parameters):
     params_list = parameters[benchmark]
 
     for params in params_list:
-        p_dir = os.path.join(b_dir, params_to_name(benchmark, params))
+        name = params_to_name(benchmark, params)
+        p_dir = os.path.join(b_dir, name)
         make_dir(p_dir)
         params_f = os.path.join(p_dir, "params.json")
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
 
-        call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
+        syntime = call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
+
+        # Write synthesis statistics to a little JSON file here.
+        stats_csv = os.path.join(p_dir, "stats.json")
+        with open(stats_csv, 'w') as f:
+            json.dump({
+                'time': syntime,
+            }, f, indent=4, sort_keys=True)
 
 def dimmensions_for_benchmark(benchmark, params):
     if benchmark == conv2d:
@@ -394,8 +405,7 @@ def main():
 
     if not args.skipsynth:
         for b in benchmarks:
-            synthesize_benchmark(cur_results_dir, b, args.timeout,
-                                 params)
+            synthesize_benchmark(cur_results_dir, b, args.timeout, params)
     # if not args.skipc:
     #     for b in benchmarks:
     #         compile_benchmark(cur_results_dir, b, args.force)
