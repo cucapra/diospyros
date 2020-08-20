@@ -9,6 +9,7 @@
          "engine.rkt"
          "interp.rkt"
          "compile-passes.rkt"
+         "uninterp-fns.rkt"
          "utils.rkt")
 
 (provide (all-defined-out))
@@ -48,6 +49,11 @@
             (vec-extern-decl-size decl)))
      (map get-id-size lst))
 
+  ; Constrain inputs
+  (define (assume-input-range i)
+    (assert (and (bvslt i (bv-value 100))
+                 (bvsgt i (bv-value -100)))))
+
   ; Generate symbolic inputs for prog
   (define init-env
     (append
@@ -61,6 +67,7 @@
                         [val (make-symbolic-bv-list-values size name)])
                   (parameterize ([current-namespace ns])
                     (for ([i (range size)])
+                      (assume-input-range (bv-list-get val (bv-index i)))
                       (eval `(define ,(symbol-append name i) ,(bv-list-get val (bv-index i))))))
                   (cons name val)))
                _))
@@ -71,6 +78,10 @@
                        (make-bv-list-zeros (cdr decl))))
                _))))
 
+  ; Add rosette uninterp function app to namespace
+  (parameterize ([current-namespace ns])
+      (eval `(define ,`app , (lambda vs (apply (first vs) (rest vs))))))
+
   (define (interp-and-env prog init-env)
     (define-values (env _)
       (interp prog
@@ -79,24 +90,13 @@
     env)
 
   ; Eval spec after namespace mucking
-  (define spec-evaled (eval spec-str ns))
-
-  ; Bitvector constructors need to be called
-  ; TODO: make this recursive
-  (define (rec-unquote e)
-    (match e
-      [`(bv ,v ,s) (bv v s)]
-      ; [(list vs ...) (pretty-print (format "matched ~a" vs)) (map rec-unquote vs)]
-      [_ e]))
-
-  (define spec
-    (map box (map rec-unquote (map unbox spec-evaled))))
+  (define spec (eval spec-str ns))
 
   (define prog-env (interp-and-env prog init-env))
   (define (get-and-align out)
     (align-to-reg-size (hash-ref prog-env (car out))))
   (define flatten-prog-outputs
-    (flatten (map get-and-align (to-sizes prog-outs))))
+    (flatten (map get-and-align (to-sizes (reverse prog-outs)))))
 
   (define model
     (verify
