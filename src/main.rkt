@@ -12,6 +12,9 @@
          threading
          racket/cmdline)
 
+(error-print-width 999999999999999999999999999)
+(pretty-print-depth #f)
+
 (define (read-file-from-path path file)
   (define dir-path
     (if (absolute-path? path)
