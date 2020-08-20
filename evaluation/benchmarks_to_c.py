@@ -5,12 +5,13 @@ step can be skipped if needed (the last one will only work on a server with
 Xtensa tools installed.)
 """
 from datetime import datetime
-from threading import Timer
+from threading import Timer, Thread
 import argparse
 import json
 import os
 import subprocess as sp
 import time
+import psutil
 
 from py_utils import *
 
@@ -165,6 +166,35 @@ PARAMETERS = {
     ],
 }
 
+
+class MemChecker(Thread):
+    """A thread that continuously checks the memory usage of a process
+    in the background to report the maximum measurement.
+    """
+    def __init__(self, pid, delay=0.1):
+        """Check the process `pid` every `delay` seconds.
+        """
+        super(MemChecker, self).__init__()
+        self.pid = pid
+        self.maxmem = 0
+        self.delay = delay
+        self._stop = False
+
+    def run(self):
+        while not self._stop:
+            try:
+                proc = psutil.Process(self.pid)
+            except psutil.NoSuchProcess:
+                pass
+            else:
+                print('HI', proc.memory_info())
+
+            time.sleep(self.delay)
+
+    def stop(self):
+        self._stop = True
+
+
 def params_to_name(benchmark, params):
     if benchmark == conv2d:
         return '{}x{}_{}x{}_{}r'.format(params["input-rows"],
@@ -203,6 +233,10 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
         "{}-egg".format(benchmark),
         # "SPLIT=100"
         ])
+
+    # Start a thread to measure the memory usage.
+    memthread = MemChecker(gen.pid)
+    memthread.start()
 
     def kill(process):
         print("Hit timeout, killing synthesis subprocess")
@@ -266,6 +300,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
 
     finally:
         timer.cancel()
+        memthread.stop()
 
 def synthesize_benchmark(dir, benchmark, timeout, parameters):
     b_dir = os.path.join(dir, benchmark)
