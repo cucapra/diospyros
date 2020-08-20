@@ -226,6 +226,9 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             params_f,])
         timer.start()
         gen.communicate()
+        if gen.returncode:
+            print("Error: build failed, aborting")
+            return
 
         # TODO clean this up
         sp.call([
