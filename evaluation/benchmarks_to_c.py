@@ -152,10 +152,6 @@ PARAMETERS = {
     ],
     qrdecomp : [
         {
-            "N": 2,
-            "reg-size": 4
-        },
-        {
             "N": 3,
             "reg-size": 4
         },
@@ -236,6 +232,21 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     # Call example-gen, AKA synthesis. This is long running, so include an
     # for a timeout (which will usually still write early found solutions)
     # TODO clean this up
+    sp.call([
+        "rm",
+        "-rf",
+        "{}-out/".format(benchmark)])
+    sp.call([
+        "mkdir",
+        "{}-out/".format(benchmark)])
+    sp.call([
+        "cp",
+        params_f,
+        "{}-params".format(benchmark)])
+    sp.call([
+        "cat",
+        params_f,])
+
     start_time = time.time()
     gen = sp.Popen([
         "make",
@@ -255,21 +266,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     timer = Timer(timeout, kill, [gen])
     try:
         print("Running synthesis for {}, timeout: {}".format(benchmark, timeout))
-        sp.call([
-            "rm",
-            "-rf",
-            "{}-out/".format(benchmark)])
-        sp.call([
-            "mkdir",
-            "{}-out/".format(benchmark)])
 
-        sp.call([
-            "cp",
-            params_f,
-            "{}-params".format(benchmark)])
-        sp.call([
-            "cat",
-            params_f,])
         timer.start()
         gen.communicate()
         end_time = time.time()
