@@ -191,7 +191,8 @@ class MemChecker(Thread):
                 # make) and all its subprocesses (which include the actual
                 # synthesis engine).
                 meminfo = [proc.memory_info()] \
-                    + [child.memory_info() for child in proc.children()]
+                    + [child.memory_info()
+                       for child in proc.children(recursive=True)]
 
                 # Resident Set Size is the amount of data actually in
                 # RAM. It is given in bytes.
