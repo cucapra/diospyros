@@ -171,7 +171,7 @@ class MemChecker(Thread):
     """A thread that continuously checks the memory usage of a process
     in the background to report the maximum measurement.
     """
-    def __init__(self, pid, delay=0.1):
+    def __init__(self, pid, delay=0.2):
         """Check the process `pid` every `delay` seconds.
         """
         super(MemChecker, self).__init__()
@@ -187,7 +187,16 @@ class MemChecker(Thread):
             except psutil.NoSuchProcess:
                 pass
             else:
-                print('HI', proc.memory_info())
+                # Get memory information for this process (which is probably
+                # make) and all its subprocesses (which include the actual
+                # synthesis engine).
+                meminfo = [proc.memory_info()] \
+                    + [child.memory_info() for child in proc.children()]
+
+                # Resident Set Size is the amount of data actually in
+                # RAM. It is given in bytes.
+                total_rss = sum(m.rss for m in meminfo)
+                self.maxmem = max(self.maxmem, total_rss)
 
             time.sleep(self.delay)
 
@@ -296,7 +305,10 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             f.seek(0, 0)
             f.write(imports + '\n' + content)
 
-        return elapsed_time
+        return {
+            'time': elapsed_time,
+            'memory': memthread.maxmem,
+        }
 
     finally:
         timer.cancel()
@@ -317,14 +329,12 @@ def synthesize_benchmark(dir, benchmark, timeout, parameters):
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
 
-        syntime = call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
+        stats = call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
 
         # Write synthesis statistics to a little JSON file here.
         stats_csv = os.path.join(p_dir, "stats.json")
         with open(stats_csv, 'w') as f:
-            json.dump({
-                'time': syntime,
-            }, f, indent=4, sort_keys=True)
+            json.dump(stats, f, indent=4, sort_keys=True)
 
 def dimmensions_for_benchmark(benchmark, params):
     if benchmark == conv2d:
