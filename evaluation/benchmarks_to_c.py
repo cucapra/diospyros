@@ -23,24 +23,10 @@ parameters = {
             "reg-size": 4
         },
         {
-            "input-rows": 4,
-            "input-cols": 4,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "reg-size": 4
-        },
-        {
             "input-rows": 3,
             "input-cols": 5,
             "filter-rows": 3,
             "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 8,
-            "input-cols": 8,
-            "filter-rows": 2,
-            "filter-cols": 2,
             "reg-size": 4
         },
         {
@@ -74,6 +60,20 @@ parameters = {
         {
             "input-rows": 8,
             "input-cols": 8,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 10,
+            "input-cols": 10,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 16,
+            "input-cols": 16,
             "filter-rows": 3,
             "filter-cols": 3,
             "reg-size": 4
@@ -134,13 +134,6 @@ parameters = {
             "A-cols": 10,
             "B-rows": 10,
             "B-cols": 10,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 16,
-            "A-cols": 16,
-            "B-rows": 16,
-            "B-cols": 16,
             "reg-size": 4
         },
     ],
@@ -302,7 +295,7 @@ def dimmensions_for_benchmark(benchmark, params):
             ]
     if benchmark == qrdecomp:
         return [
-                "N=" + str(params["N"]),
+                "SIZE=" + str(params["N"]),
             ]
     if benchmark == qprod:
         return None
