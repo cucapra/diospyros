@@ -361,12 +361,14 @@ int main(int argc, char **argv) {
   // Eigen
   // Don't count data transformation toward timing
   Eigen::Map<Eigen::Matrix<float, SIZE, SIZE, Eigen::RowMajor>> matrix(a, SIZE, SIZE);
+  Eigen::Matrix<float, SIZE, SIZE> eigen_q;
+  Eigen::Matrix<float, SIZE, SIZE> eigen_r;
 
   start_cycle_timing;
   Eigen::HouseholderQR<Eigen::Matrix<float, SIZE, SIZE>> qr(matrix.rows(), matrix.cols());
   qr.compute(matrix);
-  Eigen::Matrix<float, SIZE, SIZE> eigen_q = qr.householderQ().transpose();
-  Eigen::Matrix<float, SIZE, SIZE> eigen_r = qr.matrixQR().triangularView<Eigen::Upper>().transpose();
+  eigen_q = qr.householderQ().transpose();
+  eigen_r = qr.matrixQR().triangularView<Eigen::Upper>().transpose();
   stop_cycle_timing;
   time = get_time();
 

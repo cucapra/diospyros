@@ -6,6 +6,8 @@ EXPERT_OBJ := matrix_multiply_expert.o
 EGG_SRC := ../../../diospyros-private/src/egg_kernel.c
 EGG_OBJ := egg_kernel.o
 
+XCXX_FLAGS += -I /usr/local/include/eigen-3
+
 NATURE_OBJS := matmmltf_pdx4.o
 
 A_ROWS := 2

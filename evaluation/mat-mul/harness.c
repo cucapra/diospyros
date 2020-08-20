@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
+
 #include <xtensa/sim.h>
 #include <xtensa/tie/xt_pdxn.h>
 #include <xtensa/tie/xt_timer.h>
@@ -118,6 +121,23 @@ int main(int argc, char **argv) {
   zero_matrix(c, A_ROWS, B_COLS);
   printf("Diospyros : %d cycles\n", time);
   fprintf(file, "%s,%d,%d,%d,%d,%d\n","Diospyros",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
+
+  // Eigen
+  // Don't count data transformation toward timing
+  Eigen::Map<Eigen::Matrix<float, A_ROWS, A_COLS, Eigen::RowMajor>> e_a(a, A_ROWS, A_COLS);
+  Eigen::Map<Eigen::Matrix<float, B_ROWS, B_COLS, Eigen::RowMajor>> e_b(b, B_ROWS, B_COLS);
+  Eigen::Matrix<float, A_ROWS, B_COLS, Eigen::RowMajor> e_c;
+  start_cycle_timing;
+  e_c = e_a*e_b;
+  stop_cycle_timing;
+  time = get_time();
+
+  memcpy(c, e_c.data(), sizeof(float) * A_ROWS * B_COLS);
+  print_matrix(c, A_ROWS, B_COLS);
+  output_check(c, c_spec, A_ROWS, B_COLS);
+  zero_matrix(c, A_ROWS, B_COLS);
+  printf("Eigen : %d cycles\n", time);
+  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Eigen",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
 
   // Expert
   if ((A_ROWS == 2) &&
