@@ -2,6 +2,7 @@
 (require "../ast.rkt"
          "../configuration.rkt"
          "../utils.rkt"
+         "../uninterp-fns.rkt"
          "matrix-multiply.rkt")
 
 (provide qr-decomp:only-spec
@@ -46,10 +47,6 @@
 (define (eq-as-value? i j)
   (if (equal? i j) (bv-value 1) (bv-value 0)))
 
-(define-symbolic bv-sqrt (~> (bitvector (value-fin))
-                          (bitvector (value-fin))))
-(define-symbolic bv-sgn (~> (bitvector (value-fin))
-                          (bitvector (value-fin))))
 (define (sqrt-mock x)
   (bv-value (round (sqrt (bitvector->integer x)))))
 

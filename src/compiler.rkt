@@ -27,9 +27,8 @@
   (define trunc-prog (shuffle-truncation alloc-prog env))
   trunc-prog)
 
-
 ;; Compile a vector program into an executable C++ program
-(define (compile p)
+(define (compile p #:spec [spec #f])
 
   ; Add optimization passes like const elimination.
   (define ssa-prog (ssa p))
@@ -38,10 +37,11 @@
   (define trunc-prog (allocate-and-truncate lvn-prog))
 
   (when (check-transform-with-fn-map)
+    (pretty-display "Running translation validation")
     (assert
       (equal?
         (unsat)
-        (verify-prog (to-bvs-prog p)
-                     (to-bvs-prog trunc-prog)
-                     #:fn-map (check-transform-with-fn-map)))))
+        (verify-spec-prog spec
+                          (to-bvs-prog trunc-prog)
+                          #:fn-map (check-transform-with-fn-map)))))
   trunc-prog)
