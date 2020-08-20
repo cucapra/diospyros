@@ -132,7 +132,6 @@ int main(int argc, char **argv) {
 
   memcpy(r_q, c_.quaternion.data(), sizeof(float) * 4);
   memcpy(r_t, c_.translation.data(), sizeof(float) * 3);
-
   print_matrix(r_q, 4, 1);
   print_matrix(r_t, 3, 1);
   output_check(r_q, r_q_spec, 4, 1);
@@ -141,9 +140,6 @@ int main(int argc, char **argv) {
   zero_matrix(r_t, 3, 1);
   printf("Eigen : %d cycles\n", time);
   fprintf(file, "%s,%d\n","Eigen",time);
-
-  zero_matrix(r_q, 4, 1);
-  zero_matrix(r_t, 4, 1);
 
   // Diospyros
   start_cycle_timing;

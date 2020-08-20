@@ -76,7 +76,7 @@ def get_size_formatted(benchmark, row):
                                        row["B_ROWS"],
                                        row["B_COLS"])
     if benchmark == qrdecomp:
-        return "{}×{}\nQRDecomp".format(row["SIZE"], row["SIZE"])
+        return "{}×{}\nQR\nDecomp".format(row["SIZE"], row["SIZE"])
 
     if benchmark == qprod:
         return "4, 3, 4, 3\nQProd"
@@ -100,10 +100,15 @@ all_kernels = [
     'Bronzite',
     'Nature',
     'Eigen',
+    'Expert',
 ]
 
 def chart(graph_data):
-    figsize=(20,3)
+
+    # Don't show expert in the chart, since there is only 1
+    graph_data = graph_data[graph_data.Kernel != "Expert"]
+
+    figsize=(15,3)
     # Normalize data against key
     norm_key = 'Naive (fixed size)'
     # Location of the color of the norm value
@@ -145,6 +150,10 @@ def chart(graph_data):
     formatterY = FuncFormatter(lambda y, pos: '{0:g}'.format(y))
     ax.yaxis.set_major_formatter(formatterY)
     plt.yticks([1.e-01, 0.5, 1, 2, 3, 5, 8, 13, 21])
+
+    for t in ax.legend().texts:
+        if t == "Naive (fixed size)":
+            t.set_text("Naive\n(fixed size)")
 
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
 
@@ -197,10 +206,6 @@ def write_summary_statistics(benchmark_data):
         writer.writeheader()
 
         for _, r in benchmark_data.iterrows():
-            # Skip charting expert
-            if "Expert" in r["Kernel"]:
-                continue
-
             size = r["Size"]
             cycles = r["Cycles (simulation)"]
 
@@ -265,9 +270,6 @@ def format_data(files):
                 baseline_names.add(x["kernel"])
 
             for i, kernel in enumerate(baseline_names):
-                # Skip expert for now
-                if x["kernel"] == "Expert":
-                    continue
                 kernel_row = next(x for x in data if x["kernel"] == kernel)
                 benchmark_data = benchmark_data.append({
                     'Benchmark': benchmark,
@@ -345,6 +347,10 @@ def main():
 
     files = read_csvs(input_dir, benchmarks, args.output)
     df = format_data(files)
+
+    # Write data out
+    df.to_csv('combined.csv', index=False)
+
     chart(df)
 
 if __name__ == main():
