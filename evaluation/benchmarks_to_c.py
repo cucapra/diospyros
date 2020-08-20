@@ -275,7 +275,6 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
         end_time = time.time()
 
         elapsed_time = end_time - start_time
-        print("Synthesis finished in {:.1f} seconds".format(elapsed_time))
 
         # TODO clean this up
         sp.call([
@@ -306,6 +305,10 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             f.seek(0, 0)
             f.write(imports + '\n' + content)
 
+        print("Synthesis finished in {:.1f} seconds using {:.1f} MB".format(
+            elapsed_time,
+            memthread.maxmem / 10**9,
+        ))
         return {
             'time': elapsed_time,
             'memory': memthread.maxmem,
