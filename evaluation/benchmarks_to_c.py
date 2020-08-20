@@ -13,7 +13,7 @@ import subprocess as sp
 
 from py_utils import *
 
-parameters = {
+PARAMETERS = {
     conv2d : [
         {
             "input-rows": 3,
@@ -261,7 +261,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     finally:
         timer.cancel()
 
-def synthesize_benchmark(dir, benchmark, timeout):
+def synthesize_benchmark(dir, benchmark, timeout, parameters):
     b_dir = os.path.join(dir, benchmark)
     make_dir(b_dir)
 
@@ -355,6 +355,8 @@ def main():
         help="Skip building to C and just run synthesis")
     parser.add_argument('--skiprun', action='store_true',
         help="Skip running generated C code")
+    parser.add_argument('--test', action='store_true',
+        help="Run just one benchmark as a test")
     args = parser.parse_args()
 
     if args.skipsynth and args.skipc and args.skiprun:
@@ -380,9 +382,17 @@ def main():
         make_dir(cur_results_dir)
         print("Writing results to: {}".format(cur_results_dir))
 
+    # Pare it down to just one benchmark for a test run.
+    if args.test:
+        params = {k: list(v) if k == '2d-conv' else []
+                  for k, v in PARAMETERS.items()}
+    else:
+        params = PARAMETERS
+
     if not args.skipsynth:
         for b in benchmarks:
-            synthesize_benchmark(cur_results_dir, b, args.timeout)
+            synthesize_benchmark(cur_results_dir, b, args.timeout,
+                                 params)
     # if not args.skipc:
     #     for b in benchmarks:
     #         compile_benchmark(cur_results_dir, b, args.force)
