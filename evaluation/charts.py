@@ -179,11 +179,10 @@ def chart(graph_data):
     ax.yaxis.set_major_formatter(formatterY)
     plt.yticks([1.e-01, 0.5, 1, 2, 3, 5, 8, 13, 21])
 
-    for t in ax.legend().texts:
-        if t == "Naive (fixed size)":
+    legend = ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
+    for t in legend.texts:
+        if t.get_text() == "Naive (fixed size)":
             t.set_text("Naive\n(fixed size)")
-
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
 
     # Annotate each bar with its value
     # for p in ax.patches:
@@ -271,10 +270,6 @@ def chart_small(graph_data):
     formatterX = FuncFormatter(lambda x, pos: '{0:g}'.format(x))
     ax.xaxis.set_major_formatter(formatterX)
     plt.xticks([1.e-01, 0.5, 1, 5, 10, 15, 20, 25])
-
-    for t in ax.legend().texts:
-        if t == "Naive (fixed size)":
-            t.set_text("Naive\n(fixed size)")
 
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=3)
 
