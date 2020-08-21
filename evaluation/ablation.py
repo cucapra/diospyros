@@ -9,6 +9,12 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
+colorblind = sns.color_palette("colorblind", 6)
+palette = [
+    colorblind[2],   # green        - Bronzite
+    colorblind[4],   # light purple - Nature
+]
+
 
 def plot(df):
     """
@@ -20,6 +26,10 @@ def plot(df):
     # Cleanup the kernel names
     df['name'] = df['name'].map(
         lambda x: x if x == 'nature' else x.split('-')[1])
+    # Color palette hackery
+    pal = df['name'].map(
+        lambda x: colorblind[4] if x == 'nature' else colorblind[2])
+
     print(df)
     df = df.sort_values(['timeout'])
 
@@ -29,7 +39,7 @@ def plot(df):
     ax = sns.barplot(
         y='name',
         x='cycles',
-        color=(0.2, 0.4, 0.6, 0.6),
+        palette = pal,
         data = df,
     )
     locs, labels = plt.xticks()
