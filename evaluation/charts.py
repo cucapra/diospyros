@@ -83,6 +83,32 @@ def get_size_formatted(benchmark, row):
 
     print("Error: need size formatting for benchmark", benchmark)
 
+# Handle new size formatting, which inserts newlines for chart spacing
+def split_size(size_str):
+    def is_size(s):
+        return "×" in s or "," in s
+    str_rows = size_str.split("\n")
+    size = ", ".join([s for s in str_rows if is_size(s)])
+    name = "".join([s for s in str_rows if not is_size(s)])
+    return size, name
+
+# Turn a size string into a single int for comparison within a benchmark
+def size_as_int(size_str):
+    def array_to_size(a):
+        if "×" in a:
+            return numpy.prod([int(v) for v in a.split("×")])
+        return int(a)
+
+    s, _ = split_size(size_str)
+    sizes = [array_to_size(a) for a in s.split(",")]
+
+    # Power of 10 hack to combine multiple sizes into one int
+    combined_size = 0
+    for i, size in enumerate(reversed(sizes)):
+        combined_size += size * pow(10, i * 2)
+    return combined_size
+
+
 def get_baseline_names(benchmark):
     baselines = ["Naive", "Naive hard size", "Nature"]
     # if benchmark == matmul:
@@ -127,9 +153,11 @@ def chart(graph_data):
     # This sets the gray background, among other things
     sns.set(font_scale=1.04)
 
+    graph_data_with_norm['size_sort'] = graph_data_with_norm.Size.map(size_as_int)
+
     # Sort based on the kernel first, then on the order specified
     graph_data_with_norm = graph_data_with_norm.sort_values(
-            ['Order', 'Kernel', 'Benchmark'])
+            ['Benchmark', 'Order', 'size_sort'])
 
     plt.rcParams['figure.figsize'] = figsize
     colors = get_color_palette()
@@ -173,7 +201,7 @@ def chart_small(graph_data):
     small_benchmarks = [
         ("4×4\n4×4\nMatMul", "MatMul\n4×4 4×4"),
         ("4×4\n3×3\n2DConv", "2DConv\n4×4 3×3"),
-        ("4×4\nQR\nDecomp", "QR Decomp\n4×4"),
+        ("4×4\nQR\nDecomp", "QRDecomp\n4×4"),
         ("4, 3, 4, 3\nQProd", "QProd\n4, 3, 4, 3"),
     ]
 
