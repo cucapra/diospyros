@@ -169,6 +169,91 @@ def chart(graph_data):
     plt.savefig("all" + ".pdf", bbox_inches='tight')
     plt.close()
 
+def chart_small(graph_data):
+    small_benchmarks = [
+        ("4×4\n4×4\nMatMul", "MatMul\n4×4 4×4"),
+        ("4×4\n3×3\n2DConv", "2DConv\n4×4 3×3"),
+        ("4×4\nQR\nDecomp", "QR Decomp\n4×4"),
+        ("4, 3, 4, 3\nQProd", "QProd\n4, 3, 4, 3"),
+    ]
+
+    # yolo
+    pd.set_option("mode.chained_assignment", None)
+
+    # Combine Nature and Eigen into a single "Library" type
+    graph_data = graph_data[((graph_data.Kernel != 'Nature') & (graph_data.Kernel != 'Eigen')) | \
+                            ((graph_data.Benchmark == 'q-prod') & (graph_data.Kernel == 'Eigen')) | \
+                            ((graph_data.Benchmark != 'q-prod') & (graph_data.Kernel == 'Nature'))]
+    graph_data.loc[graph_data.Kernel == 'Nature', 'Kernel'] = 'Library'
+    graph_data.loc[graph_data.Kernel == 'Eigen', 'Kernel'] = 'Library'
+
+    # Only show a few kernels
+    graph_data = graph_data[graph_data.Kernel.isin(["Naive (fixed size)", "Library", "Bronzite"])]
+
+    # and only a few benchmarks
+    graph_data = graph_data[graph_data.Size.isin(list(map(lambda b: b[0], small_benchmarks)))]
+
+    # reorder
+    graph_data.loc[graph_data.Kernel == 'Library', 'Order'] = 2
+    graph_data.loc[graph_data.Kernel == 'Bronzite', 'Order'] = 3
+
+    # rename
+    for old, new in small_benchmarks:
+        graph_data.loc[graph_data.Size == old, 'Size'] = new
+    graph_data.loc[graph_data.Kernel == 'Naive (fixed size)', 'Kernel'] = 'Loop nest'
+
+    figsize=(6,2.6)
+    # Normalize data against key
+    norm_key = 'Loop nest'
+    # Location of the color of the norm value
+    norm_color_loc = all_kernels.index('Naive (fixed size)')
+
+    # Select the rows from the dataframe that will be used to normalize
+    norm_table = graph_data[graph_data['Kernel'] == norm_key][['Benchmark', 'Size', 'Cycles (simulation)']]
+    graph_data_with_norm = graph_data.merge(
+        norm_table,
+        how='left',
+        on=['Benchmark', 'Size'],
+        suffixes=['', '-naive']
+    )
+    graph_data_with_norm['cycles-norm'] = graph_data_with_norm['Cycles (simulation)-naive'] / graph_data_with_norm['Cycles (simulation)']
+
+    # This sets the gray background, among other things
+    sns.set(font_scale=1.04)
+
+    # Sort based on the kernel first, then on the order specified
+    graph_data_with_norm = graph_data_with_norm.sort_values(
+            ['Order', 'Kernel', 'Benchmark'])
+
+    plt.rcParams['figure.figsize'] = figsize
+    colors = get_color_palette()
+    ax = sns.barplot(
+        y="Size",
+        x="cycles-norm",
+        hue="Kernel",
+        palette=colors,
+        data=graph_data_with_norm)
+
+    ax.set(xlabel="Speedup over naive (fixed-size) loop nest")
+
+    # Add a line at 1 to show speed up baseline
+    ax.axvline(x=1, linewidth=1, color=colors[norm_color_loc])
+    ax.set_xscale('log')
+
+    formatterX = FuncFormatter(lambda x, pos: '{0:g}'.format(x))
+    ax.xaxis.set_major_formatter(formatterX)
+    plt.xticks([1.e-01, 0.5, 1, 5, 10, 15, 20, 25])
+
+    for t in ax.legend().texts:
+        if t == "Naive (fixed size)":
+            t.set_text("Naive\n(fixed size)")
+
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=3)
+
+    ax.set_ylabel('')
+    plt.savefig("small" + ".pdf", bbox_inches='tight')
+    plt.close()
+
 def write_summary_statistics(benchmark_data):
     file = "summary.csv"
     benchmark_data.sort_values(["Order"])
@@ -355,6 +440,7 @@ def main():
     df.to_csv('combined.csv', index=False)
 
     chart(df)
+    chart_small(df)
 
 if __name__ == main():
     main()
