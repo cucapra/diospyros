@@ -1,6 +1,7 @@
 name,cycles
-nature, 1322
-kernel-10,1211
-kernel-30,1042
-kernel-60,1141
-kernel-120,1014
+nature, 1240
+kernel-10,1564
+kernel-30,1449
+kernel-60,1449
+kernel-120,1340
+kernel-180,1147
