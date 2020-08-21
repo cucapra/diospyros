@@ -201,7 +201,7 @@ def chart_small(graph_data):
     small_benchmarks = [
         ("4×4\n4×4\nMatMul", "MatMul\n4×4 4×4"),
         ("4×4\n3×3\n2DConv", "2DConv\n4×4 3×3"),
-        ("4×4\nQR\nDecomp", "QRDecomp\n4×4"),
+        ("3×3\nQR\nDecomp", "QRDecomp\n3×3"),
         ("4, 3, 4, 3\nQProd", "QProd\n4, 3, 4, 3"),
     ]
 
@@ -210,8 +210,8 @@ def chart_small(graph_data):
 
     # Combine Nature and Eigen into a single "Library" type
     graph_data = graph_data[((graph_data.Kernel != 'Nature') & (graph_data.Kernel != 'Eigen')) | \
-                            ((graph_data.Benchmark == 'q-prod') & (graph_data.Kernel == 'Eigen')) | \
-                            ((graph_data.Benchmark != 'q-prod') & (graph_data.Kernel == 'Nature'))]
+                            (((graph_data.Benchmark == 'q-prod') | (graph_data.Benchmark == 'qr-decomp')) & (graph_data.Kernel == 'Eigen')) | \
+                            (((graph_data.Benchmark != 'q-prod') & (graph_data.Benchmark != 'qr-decomp')) & (graph_data.Kernel == 'Nature'))]
     graph_data.loc[graph_data.Kernel == 'Nature', 'Kernel'] = 'Library'
     graph_data.loc[graph_data.Kernel == 'Eigen', 'Kernel'] = 'Library'
 
