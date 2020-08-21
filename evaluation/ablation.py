@@ -14,7 +14,14 @@ def plot(df):
     """
     Generates an ablation plot using the given data frame.
     """
-    df = df.sort_values(['cycles'], ascending=False)
+    # Nature has a 0 timeout because we want it to be at the top.
+    df['timeout'] = df['name'].map(
+        lambda x: 0 if x == 'nature' else int(x.split('-')[1]))
+    # Cleanup the kernel names
+    df['name'] = df['name'].map(
+        lambda x: x if x == 'nature' else x.split('-')[1])
+    print(df)
+    df = df.sort_values(['timeout'])
 
     # Set SNS formatting
     sns.set(font_scale=1.07)
@@ -22,12 +29,13 @@ def plot(df):
     ax = sns.barplot(
         y='name',
         x='cycles',
+        color=(0.2, 0.4, 0.6, 0.6),
         data = df,
     )
     locs, labels = plt.xticks()
 
     ax.legend(loc=1)
-    ax.set_ylabel('')
+    ax.set_ylabel('Timeout (seconds)')
     ax.set_xlabel('Simulation cycles')
     plt.savefig('ablation.pdf', bbox_inches='tight')
 
