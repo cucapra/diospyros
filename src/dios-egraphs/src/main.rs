@@ -4,6 +4,7 @@ pub mod cost;
 pub mod searchutils;
 pub mod macsearcher;
 pub mod binopsearcher;
+pub mod config;
 
 extern crate clap;
 use clap::{Arg, App};

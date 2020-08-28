@@ -11,3 +11,8 @@ egg =  "0.6.0"
 assert_approx_eq = "1.1.0"
 itertools = "0.9.0"
 clap = "2.33.2"
+
+[features]
+# For setting the vector width, default is 4
+vec_width_2 = []
+vec_width_8 = []
