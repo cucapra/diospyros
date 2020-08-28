@@ -177,7 +177,7 @@ def chart(graph_data):
 
     formatterY = FuncFormatter(lambda y, pos: '{0:g}'.format(y))
     ax.yaxis.set_major_formatter(formatterY)
-    plt.yticks([1.e-01, 0.5, 1, 2, 3, 5, 8, 13, 21])
+    plt.yticks([0.25, 0.5, 1, 2, 4, 8, 16, 32])
 
     legend = ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
     for t in legend.texts:
