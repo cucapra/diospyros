@@ -38,8 +38,6 @@ fn main() {
                       .help("Disable associativity and commutativity rules"))
                     .get_matches();
 
-
-
   use std::{env, fs};
 
   // Get a path string to parse a program.
@@ -96,25 +94,25 @@ mod tests {
   #[test]
   fn simple_vector_add() {
     let start = "(List (+ a b) (+ c d))";
-    let exp_best = "(VecAdd (Vec4 a c 0 0) (Vec4 b d 0 0))";
+    let exp_best = "(VecAdd (Vec a c 0 0) (Vec b d 0 0))";
     let exp_best_cost = 1.208;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 
   #[test]
   fn vector_pairwise_mac() {
-    let start = "(Vec4
+    let start = "(Vec
                    (+ (* a b) (+ (* c d) (* e f)))
                    (+ (* aa bb) (+ (* cc dd) (* ee ff)))
                    0
                    0)";
     let exp_best = "(VecMAC
                       (VecMAC
-                        (VecMul (Vec4 c aa 0 0) (Vec4 d bb 0 0))
-                        (Vec4 e ee 0 0)
-                        (Vec4 f ff 0 0))
-                      (Vec4 a cc 0 0)
-                      (Vec4 b dd 0 0))";
+                        (VecMul (Vec c aa 0 0) (Vec d bb 0 0))
+                        (Vec e ee 0 0)
+                        (Vec f ff 0 0))
+                      (Vec a cc 0 0)
+                      (Vec b dd 0 0))";
     let exp_best_cost = 3.624;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -126,37 +124,37 @@ mod tests {
                    (+ (* aa bb) (* cc dd) (* ee ff)))";
     let exp_best = "(VecMAC
                       (VecMAC
-                        (VecMul (Vec4 e ee 0 0) (Vec4 f ff 0 0))
-                        (Vec4 c cc 0 0)
-                        (Vec4 d dd 0 0))
-                      (Vec4 a aa 0 0)
-                      (Vec4 b bb 0 0))";
+                        (VecMul (Vec e ee 0 0) (Vec f ff 0 0))
+                        (Vec c cc 0 0)
+                        (Vec d dd 0 0))
+                      (Vec a aa 0 0)
+                      (Vec b bb 0 0))";
     let exp_best_cost = 3.624;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 
   #[test]
   fn vector_mac() {
-    let start = "(Vec4 (+ ?a0 (* ?b0 ?c0))
+    let start = "(Vec (+ ?a0 (* ?b0 ?c0))
                        (+ ?a1 (* ?b1 ?c1))
                        (+ ?a2 (* ?b2 ?c2))
                        (+ ?a3 (* ?b3 ?c3)))";
-    let exp_best = "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
-                            (Vec4 ?b0 ?b1 ?b2 ?b3)
-                            (Vec4 ?c0 ?c1 ?c2 ?c3))";
+    let exp_best = "(VecMAC (Vec ?a0 ?a1 ?a2 ?a3)
+                            (Vec ?b0 ?b1 ?b2 ?b3)
+                            (Vec ?c0 ?c1 ?c2 ?c3))";
     let exp_best_cost = 1.312;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 
   #[test]
   fn vector_mac_just_mul_or_zero() {
-    let start = "(Vec4 (+ ?a0 (* ?b0 ?c0))
+    let start = "(Vec (+ ?a0 (* ?b0 ?c0))
                        (* ?b1 ?c1)
                        0
                        (+ ?a3 (* ?b3 ?c3)))";
-    let exp_best = "(VecMAC (Vec4 ?a0 0 0 ?a3)
-                            (Vec4 ?b0 ?b1 0 ?b3)
-                            (Vec4 ?c0 ?c1 0 ?c3))";
+    let exp_best = "(VecMAC (Vec ?a0 0 0 ?a3)
+                            (Vec ?b0 ?b1 0 ?b3)
+                            (Vec ?c0 ?c1 0 ?c3))";
     let exp_best_cost = 1.312;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -170,10 +168,10 @@ mod tests {
                    (+ (* v2 v5) (* v3 v7)))";
     let exp_best = "(VecMAC
                       (VecMul
-                        (Vec4 v1 v1 v6 v7)
-                        (Vec4 v6 v7 v3 v3))
-                      (Vec4 v4 v5 v2 v2)
-                      (Vec4 v0 v0 v4 v5))";
+                        (Vec v1 v1 v6 v7)
+                        (Vec v6 v7 v3 v3))
+                      (Vec v4 v5 v2 v2)
+                      (Vec v0 v0 v4 v5))";
     let exp_best_cost = 2.416;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -181,7 +179,7 @@ mod tests {
   // Currently fails, need to prioritize same memories in vector
   #[test]
   fn vector_matrix_multiply_2x2_2x2_explicit_get() {
-    // TODO: with explicit searcher this can't find solution with 4 LitVec4s
+    // TODO: with explicit searcher this can't find solution with 4 LitVecs
     let start = "(List
                     (+ (* (Get a 0) (Get b 0)) (* (Get a 1) (Get b 2)))
                     (+ (* (Get a 0) (Get b 1)) (* (Get a 1) (Get b 3)))
@@ -189,10 +187,10 @@ mod tests {
                     (+ (* (Get a 2) (Get b 1)) (* (Get a 3) (Get b 3))))";
     let exp_best = "(VecMAC
                       (VecMul
-                        (LitVec4 (Get a 0) (Get a 0) (Get a 2) (Get a 2))
-                        (LitVec4 (Get b 0) (Get b 1) (Get b 0) (Get b 1)))
-                      (LitVec4 (Get a 1) (Get a 1) (Get a 3) (Get a 3))
-                      (LitVec4 (Get b 2) (Get b 3) (Get b 2) (Get b 3)))";
+                        (LitVec (Get a 0) (Get a 0) (Get a 2) (Get a 2))
+                        (LitVec (Get b 0) (Get b 1) (Get b 0) (Get b 1)))
+                      (LitVec (Get a 1) (Get a 1) (Get a 3) (Get a 3))
+                      (LitVec (Get b 2) (Get b 3) (Get b 2) (Get b 3)))";
     let exp_best_cost = 2.052;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -210,21 +208,21 @@ mod tests {
                       (VecMAC
                         (VecMAC
                           (VecMul
-                            (Vec4 v2 v2 v2 v12)
-                            (Vec4 v12 v13 v14 v5))
-                          (Vec4 v1 v1 v1 v9)
-                          (Vec4 v9 v10 v11 v4))
-                        (Vec4 v0 v0 v0 v6)
-                        (Vec4 v6 v7 v8 v3))
+                            (Vec v2 v2 v2 v12)
+                            (Vec v12 v13 v14 v5))
+                          (Vec v1 v1 v1 v9)
+                          (Vec v9 v10 v11 v4))
+                        (Vec v0 v0 v0 v6)
+                        (Vec v6 v7 v8 v3))
                       (VecMAC
                         (VecMAC
                           (VecMul
-                            (Vec4 v13 v14 0 0)
-                            (Vec4 v5 v5 0 0))
-                          (Vec4 v10 v11 0 0)
-                          (Vec4 v4 v4 0 0))
-                        (Vec4 v7 v8 0 0)
-                        (Vec4 v3 v3 0 0)))";
+                            (Vec v13 v14 0 0)
+                            (Vec v5 v5 0 0))
+                          (Vec v10 v11 0 0)
+                          (Vec v4 v4 0 0))
+                        (Vec v7 v8 0 0)
+                        (Vec v3 v3 0 0)))";
     let exp_best_cost = 7.348;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -260,32 +258,32 @@ mod tests {
                       (VecMAC
                         (VecMAC
                           (VecMul
-                            (LitVec4
+                            (LitVec
                               (Get A 2)
                               (Get A 2)
                               (Get A 2)
                               (Get A 5))
-                            (LitVec4
+                            (LitVec
                               (Get B 6)
                               (Get B 7)
                               (Get B 8)
                               (Get B 6)))
-                          (LitVec4
+                          (LitVec
                             (Get A 1)
                             (Get A 1)
                             (Get A 1)
                             (Get A 4))
-                          (LitVec4
+                          (LitVec
                             (Get B 3)
                             (Get B 4)
                             (Get B 5)
                             (Get B 3)))
-                        (LitVec4
+                        (LitVec
                           (Get A 0)
                           (Get A 0)
                           (Get A 0)
                           (Get A 3))
-                        (LitVec4
+                        (LitVec
                           (Get B 0)
                           (Get B 1)
                           (Get B 2)
@@ -293,12 +291,12 @@ mod tests {
                       (VecMAC
                         (VecMAC
                           (VecMul
-                            (LitVec4 (Get B 7) (Get B 8) 0 0)
-                            (LitVec4 (Get A 5) (Get A 5) 0 0))
-                          (LitVec4 (Get B 4) (Get B 5) 0 0)
-                          (LitVec4 (Get A 4) (Get A 4) 0 0))
-                        (LitVec4 (Get B 1) (Get B 2) 0 0)
-                        (LitVec4 (Get A 3) (Get A 3) 0 0)))";
+                            (LitVec (Get B 7) (Get B 8) 0 0)
+                            (LitVec (Get A 5) (Get A 5) 0 0))
+                          (LitVec (Get B 4) (Get B 5) 0 0)
+                          (LitVec (Get A 4) (Get A 4) 0 0))
+                        (LitVec (Get B 1) (Get B 2) 0 0)
+                        (LitVec (Get A 3) (Get A 3) 0 0)))";
     let exp_best_cost = 6.232;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -318,22 +316,22 @@ mod tests {
     let exp_best = "(Concat
                       (VecMAC
                         (VecMul
-                          (Vec4 v0 v0 v5 v0)
-                          (Vec4 v4 v5 v1 v6))
-                        (Vec4 0 v4 0 v4)
-                        (Vec4 0 v1 0 v2))
+                          (Vec v0 v0 v5 v0)
+                          (Vec v4 v5 v1 v6))
+                        (Vec 0 v4 0 v4)
+                        (Vec 0 v1 0 v2))
                       (Concat
                         (VecMAC
                           (VecMAC
                             (VecMAC
-                              (VecMul (Vec4 v3 0 0 0) (Vec4 v4 0 0 0))
-                              (Vec4 v5 0 0 0)
-                              (Vec4 v2 0 0 0))
-                            (Vec4 v1 v5 0 v6)
-                            (Vec4 v6 v3 0 v3))
-                          (Vec4 v0 v1 v6 v2)
-                          (Vec4 v7 v7 v2 v7))
-                        (VecMul (Vec4 v7 0 0 0) (Vec4 v3 0 0 0))))";
+                              (VecMul (Vec v3 0 0 0) (Vec v4 0 0 0))
+                              (Vec v5 0 0 0)
+                              (Vec v2 0 0 0))
+                            (Vec v1 v5 0 v6)
+                            (Vec v6 v3 0 v3))
+                          (Vec v0 v1 v6 v2)
+                          (Vec v7 v7 v2 v7))
+                        (VecMul (Vec v7 0 0 0) (Vec v3 0 0 0))))";
     let exp_best_cost = 8.656;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
@@ -341,13 +339,13 @@ mod tests {
   #[test]
   fn vector_2d_conv_3x3_3x3() {
     let start = "(Concat
-          (Vec4
+          (Vec
             (* v0 v9)
             (+ (* v0 v10) (* v1 v9))
             (+ (* v0 v11) (* v1 v10) (* v2 v9))
             (+ (* v1 v11) (* v2 v10)))
           (Concat
-            (Vec4
+            (Vec
               (* v2 v11)
               (+ (* v0 v12) (* v3 v9))
               (+ (* v0 v13) (* v1 v12) (* v3 v10) (* v4 v9))
@@ -358,7 +356,7 @@ mod tests {
                  (* v4 v10)
                  (* v5 v9)))
             (Concat
-              (Vec4
+              (Vec
                 (+ (* v1 v14)
                    (* v2 v13)
                    (* v4 v11)
@@ -372,7 +370,7 @@ mod tests {
                    (* v6 v10)
                    (* v7 v9)))
               (Concat
-                (Vec4
+                (Vec
                   (+ (* v0 v17)
                      (* v1 v16)
                      (* v2 v15)
@@ -391,7 +389,7 @@ mod tests {
                   (+ (* v2 v17) (* v5 v14) (* v8 v11))
                   (+ (* v3 v15) (* v6 v12)))
                 (Concat
-                  (Vec4
+                  (Vec
                     (+ (* v3 v16) (* v4 v15) (* v6 v13) (* v7 v12))
                     (+ (* v3 v17)
                        (* v4 v16)
@@ -402,7 +400,7 @@ mod tests {
                     (+ (* v4 v17) (* v5 v16) (* v7 v14) (* v8 v13))
                     (+ (* v5 v17) (* v8 v14)))
                   (Concat
-                    (Vec4
+                    (Vec
                       (* v6 v15)
                       (+ (* v6 v16) (* v7 v15))
                       (+ (* v6 v17) (* v7 v16) (* v8 v15))
@@ -413,16 +411,16 @@ mod tests {
                       (VecMAC
                         (VecMAC
                           (VecMul
-                            (Vec4 0 0 v10 0)
-                            (Vec4 0 0 v1 0))
-                          (Vec4 0 v0 v9 v1)
-                          (Vec4 0 v10 v2 v11))
-                        (Vec4 v0 v9 v0 v10)
-                        (Vec4 v9 v1 v11 v2))
+                            (Vec 0 0 v10 0)
+                            (Vec 0 0 v1 0))
+                          (Vec 0 v0 v9 v1)
+                          (Vec 0 v10 v2 v11))
+                        (Vec v0 v9 v0 v10)
+                        (Vec v9 v1 v11 v2))
                       (Concat
                         (VecMAC
                           (VecMAC
-                            (Vec4
+                            (Vec
                               0
                               0
                               (+ (* v10 v3) (* v9 v4))
@@ -431,30 +429,30 @@ mod tests {
                                 (* v11 v3)
                                 (* v10 v4)
                                 (* v9 v5)))
-                            (Vec4 0 v0 v1 v1)
-                            (Vec4 0 v12 v12 v13))
-                          (Vec4 v11 v9 v0 v0)
-                          (Vec4 v2 v3 v13 v14))
+                            (Vec 0 v0 v1 v1)
+                            (Vec 0 v12 v12 v13))
+                          (Vec v11 v9 v0 v0)
+                          (Vec v2 v3 v13 v14))
                         (Concat
                           (VecMAC
                             (VecMAC
                               (VecMAC
-                                (Vec4
+                                (Vec
                                   (* v11 v4)
                                   0
                                   0
                                   (+ (* v12 v4) (* v10 v6) (* v9 v7)))
-                                (Vec4 v10 0 v12 v3)
-                                (Vec4 v5 0 v3 v13))
-                              (Vec4 v2 v11 v9 v0)
-                              (Vec4 v13 v5 v6 v16))
-                            (Vec4 v1 v2 v0 v1)
-                            (Vec4 v14 v14 v15 v15))
+                                (Vec v10 0 v12 v3)
+                                (Vec v5 0 v3 v13))
+                              (Vec v2 v11 v9 v0)
+                              (Vec v13 v5 v6 v16))
+                            (Vec v1 v2 v0 v1)
+                            (Vec v14 v14 v15 v15))
                           (Concat
                             (VecMAC
                               (VecMAC
                                 (VecMAC
-                                  (Vec4
+                                  (Vec
                                     (+
                                       (* v3 v14)
                                       (* v13 v4)
@@ -465,42 +463,42 @@ mod tests {
                                     (+ (* v13 v5) (* v11 v7) (* v10 v8))
                                     0
                                     0)
-                                  (Vec4 v2 v4 v11 0)
-                                  (Vec4 v15 v14 v8 0))
-                                (Vec4 v1 v2 v2 v12)
-                                (Vec4 v16 v16 v17 v6))
-                              (Vec4 v0 v1 v14 v3)
-                              (Vec4 v17 v17 v5 v15))
+                                  (Vec v2 v4 v11 0)
+                                  (Vec v15 v14 v8 0))
+                                (Vec v1 v2 v2 v12)
+                                (Vec v16 v16 v17 v6))
+                              (Vec v0 v1 v14 v3)
+                              (Vec v17 v17 v5 v15))
                             (Concat
                               (VecMAC
                                 (VecMAC
                                   (VecAdd
                                     (VecMAC
                                       (VecMul
-                                        (Vec4 0 v13 0 0)
-                                        (Vec4 0 v7 0 0))
-                                      (Vec4 v13 v8 v14 0)
-                                      (Vec4 v6 v12 v7 0))
+                                        (Vec 0 v13 0 0)
+                                        (Vec 0 v7 0 0))
+                                      (Vec v13 v8 v14 0)
+                                      (Vec v6 v12 v7 0))
                                     (VecMAC
                                       (VecMul
-                                        (Vec4 0 v5 0 0)
-                                        (Vec4 0 v15 0 0))
-                                      (Vec4 v12 v14 v13 0)
-                                      (Vec4 v7 v6 v8 0)))
-                                  (Vec4 v15 v16 v17 v8)
-                                  (Vec4 v4 v4 v4 v14))
-                                (Vec4 v3 v3 v5 v5)
-                                (Vec4 v16 v17 v16 v17))
+                                        (Vec 0 v5 0 0)
+                                        (Vec 0 v15 0 0))
+                                      (Vec v12 v14 v13 0)
+                                      (Vec v7 v6 v8 0)))
+                                  (Vec v15 v16 v17 v8)
+                                  (Vec v4 v4 v4 v14))
+                                (Vec v3 v3 v5 v5)
+                                (Vec v16 v17 v16 v17))
                               (Concat
                                 (VecMAC
                                   (VecMAC
                                     (VecMul
-                                      (Vec4 0 0 v16 0)
-                                      (Vec4 0 0 v7 0))
-                                    (Vec4 0 v6 v15 v7)
-                                    (Vec4 0 v16 v8 v17))
-                                  (Vec4 v15 v15 v6 v16)
-                                  (Vec4 v6 v7 v17 v8))
+                                      (Vec 0 0 v16 0)
+                                      (Vec 0 0 v7 0))
+                                    (Vec 0 v6 v15 v7)
+                                    (Vec 0 v16 v8 v17))
+                                  (Vec v15 v15 v6 v16)
+                                  (Vec v6 v7 v17 v8))
                                 (List (* v17 v8))))))))";
     let exp_best_cost = 350.906;
     run_egpraph_with_start(start, exp_best, exp_best_cost);

@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacSearcher {
     pub full_mac_pattern: Pattern<VecLang>,
-    pub vec4_pattern: Pattern<VecLang>,
+    pub vec_pattern: Pattern<VecLang>,
     pub add_mul_pattern1: Pattern<VecLang>,
     pub add_mul_pattern2: Pattern<VecLang>,
     pub mul_pattern: Pattern<VecLang>,
@@ -18,14 +18,14 @@ pub struct MacSearcher {
 }
 
 pub fn build_mac_searcher() -> MacSearcher {
-    let full_mac_pattern = "(Vec4 (+ ?a0 (* ?b0 ?c0))
+    let full_mac_pattern = "(Vec (+ ?a0 (* ?b0 ?c0))
                                   (+ ?a1 (* ?b1 ?c1))
                                   (+ ?a2 (* ?b2 ?c2))
                                   (+ ?a3 (* ?b3 ?c3)))"
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let vec4_pattern = "(Vec4 ?w ?x ?y ?z)"
+    let vec_pattern = "(Vec ?w ?x ?y ?z)"
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
@@ -47,7 +47,7 @@ pub fn build_mac_searcher() -> MacSearcher {
 
     MacSearcher {
         full_mac_pattern,
-        vec4_pattern,
+        vec_pattern,
         add_mul_pattern1,
         add_mul_pattern2,
         mul_pattern,
@@ -58,17 +58,17 @@ pub fn build_mac_searcher() -> MacSearcher {
 impl MacSearcher {
 }
 
-// We want each lane (?w, ?x, ?y, ?z) in (Vec4 ?w ?x ?y ?z) to match either:
+// We want each lane (?w, ?x, ?y, ?z) in (Vec ?w ?x ?y ?z) to match either:
 //     (+ ?a (* ?b ?c))
 //     (* ?b ?c)           here, map ?a -> 0
 //     0                   here, map ?a -> 0, ?b -> 0, ?c -> 0
 impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
     fn search_eclass(&self, egraph: &EGraph<VecLang, A>, eclass: Id) -> Option<SearchMatches> {
-        let vec4_matches = self.vec4_pattern.search_eclass(egraph, eclass);
-        let vec4_mac_compatible = match vec4_matches {
+        let vec_matches = self.vec_pattern.search_eclass(egraph, eclass);
+        let vec_mac_compatible = match vec_matches {
             None => None,
             Some(matches) => {
-                // Now we know the eclass is a Vec4. The question is: does it
+                // Now we know the eclass is a Vec. The question is: does it
                 // match a pattern compatible with a MAC?
                 let mut new_substs : Vec<Subst> = Vec::new();
                 let zero_id = egraph.lookup(VecLang::Num(0)).unwrap();
@@ -78,16 +78,16 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                     let mut all_matches_found = true;
                     let mut new_substs_options : Vec<Vec<Vec<(Var, Id)>>> = Vec::new();
 
-                    // For each variable w, x, y, z in (Vec4 ?w ?x ?y ?z).
+                    // For each variable w, x, y, z in (Vec ?w ?x ?y ?z).
                     // We use the index i to disambiguate lanes, so we can have,
                     // for example, ?a0 through ?a3
-                    for (i, vec4_var) in self.vec4_pattern.vars().iter().enumerate() {
+                    for (i, vec_var) in self.vec_pattern.vars().iter().enumerate() {
 
                         // TODO: abstract this out to be prettier
                         let mut new_var_substs : Vec<Vec<(Var, Id)>> = Vec::new();
 
                         // Check if that variable matches add/mul
-                        let child_eclass = substs.get(*vec4_var).unwrap();
+                        let child_eclass = substs.get(*vec_var).unwrap();
                         if let Some(add_mul_match) = self.add_mul_pattern1.search_eclass(egraph, *child_eclass) {
                             for s in add_mul_match.substs.iter() {
                                 let mut subs : Vec<(Var, Id)> = Vec::new();
@@ -130,7 +130,7 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                             ];
                             new_var_substs.push(subs);
 
-                        // This lane isn't compatible, so the whole Vec4 can't
+                        // This lane isn't compatible, so the whole Vec can't
                         // be a MAC
                         } else {
                             all_matches_found = false;
@@ -155,7 +155,7 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                 }
             }
         };
-        vec4_mac_compatible
+        vec_mac_compatible
     }
 
     fn vars(&self) -> Vec<Var> {

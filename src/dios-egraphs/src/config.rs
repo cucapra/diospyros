@@ -1,3 +1,4 @@
+// Compile-time vector width, default to 4
 pub const fn vector_width() -> usize {
     #[cfg(feature="vec_width_2")]
     { 2 }

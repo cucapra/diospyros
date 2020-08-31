@@ -1,5 +1,14 @@
 use egg::{*};
 
+pub fn ids_with_prefix(pre : String, count: usize) -> Vec<String> {
+    let mut ids : Vec<String> = Vec::with_capacity(count);
+    for i in 0..count {
+        ids.push(format!("{}{}", pre, i))
+    }
+    println!("{:?}", ids);
+    ids
+}
+
 // Combinatorial combination of match children
 pub fn all_matches_to_substs(all_matches : &[Vec<Vec<(Var, Id)>>]) -> Vec<Subst> {
     match all_matches.first() {

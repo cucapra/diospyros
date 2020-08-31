@@ -43,7 +43,7 @@
   (define idxs (map get-idx gets))
 
   ; TODO: handle multiple memories if the vector is not a
-  ; LitVec4
+  ; LitVec
   (define mems-used
     (append
       (if has-zero `(Z) `())
@@ -197,7 +197,7 @@
 
 (define partial
   "(VecMAC
-     (Vec4
+     (Vec
       0
       (* (Get I 0) (Get F 2))
       (+
@@ -210,8 +210,8 @@
        (+
         (* (Get F 1) (Get I 5))
         (* (Get F 0) (Get I 6)))))
-     (LitVec4 0 0 0 0)
-     (LitVec4 0 0 0 0))")
+     (LitVec 0 0 0 0)
+     (LitVec 0 0 0 0))")
 
 (module+ test
   (require rackunit
@@ -224,22 +224,22 @@
         (define egg-s-exp
           "(VecMAC
              (VecMul
-               (LitVec4
+               (LitVec
                  (Get A 0)
                  (Get A 0)
                  (Get A 2)
                  (Get A 2))
-               (LitVec4
+               (LitVec
                  (Get B 0)
                  (Get B 1)
                  (Get B 0)
                  (Get B 1)))
-             (LitVec4
+             (LitVec
                (Get A 1)
                (Get A 1)
                (Get A 3)
                (Get A 3))
-             (LitVec4
+             (LitVec
                (Get B 2)
                (Get B 3)
                (Get B 2)
@@ -323,32 +323,32 @@
              (VecMAC
                (VecMAC
                  (VecMul
-                   (LitVec4
+                   (LitVec
                      (Get A 2)
                      (Get A 2)
                      (Get A 2)
                      (Get A 5))
-                   (LitVec4
+                   (LitVec
                      (Get B 6)
                      (Get B 7)
                      (Get B 8)
                      (Get B 6)))
-                 (LitVec4
+                 (LitVec
                    (Get A 1)
                    (Get A 1)
                    (Get A 1)
                    (Get A 4))
-                 (LitVec4
+                 (LitVec
                    (Get B 3)
                    (Get B 4)
                    (Get B 5)
                    (Get B 3)))
-               (LitVec4
+               (LitVec
                  (Get A 0)
                  (Get A 0)
                  (Get A 0)
                  (Get A 3))
-               (LitVec4
+               (LitVec
                  (Get B 0)
                  (Get B 1)
                  (Get B 2)
@@ -356,12 +356,12 @@
              (VecMAC
                (VecMAC
                  (VecMul
-                   (Vec4 (Get B 7) (Get B 8) 0 0)
-                   (Vec4 (Get A 5) (Get A 5) 0 0))
-                 (Vec4 (Get B 4) (Get B 5) 0 0)
-                 (Vec4 (Get A 4) (Get A 4) 0 0))
-               (Vec4 (Get B 1) (Get B 2) 0 0)
-               (Vec4 (Get A 3) (Get A 3) 0 0)))")
+                   (Vec (Get B 7) (Get B 8) 0 0)
+                   (Vec (Get A 5) (Get A 5) 0 0))
+                 (Vec (Get B 4) (Get B 5) 0 0)
+                 (Vec (Get A 4) (Get A 4) 0 0))
+               (Vec (Get B 1) (Get B 2) 0 0)
+               (Vec (Get A 3) (Get A 3) 0 0)))")
 
         (define prog-smt
           (prog
@@ -451,42 +451,42 @@
           "(Concat
             (VecMAC
               (VecMul
-                (LitVec4
+                (LitVec
                   (Get I 0)
                   (Get I 0)
                   (Get I 1)
                   (Get I 0))
-                (LitVec4
+                (LitVec
                   (Get F 0)
                   (Get F 1)
                   (Get F 1)
                   (Get F 2)))
-              (LitVec4 0 (Get F 0) 0 (Get F 0))
-              (LitVec4 0 (Get I 1) 0 (Get I 2)))
+              (LitVec 0 (Get F 0) 0 (Get F 0))
+              (LitVec 0 (Get I 1) 0 (Get I 2)))
             (Concat
               (VecMAC
                 (VecMAC
                   (VecMAC
                     (VecMul
-                      (LitVec4 (Get I 3) 0 0 0)
-                      (LitVec4 (Get F 0) 0 0 0))
-                    (LitVec4 (Get F 1) (Get F 1) 0 0)
-                    (LitVec4 (Get I 2) (Get I 3) 0 0))
-                  (LitVec4 (Get I 1) 0 0 (Get I 3))
-                  (LitVec4 (Get F 2) 0 0 (Get F 2)))
-                (LitVec4
+                      (LitVec (Get I 3) 0 0 0)
+                      (LitVec (Get F 0) 0 0 0))
+                    (LitVec (Get F 1) (Get F 1) 0 0)
+                    (LitVec (Get I 2) (Get I 3) 0 0))
+                  (LitVec (Get I 1) 0 0 (Get I 3))
+                  (LitVec (Get F 2) 0 0 (Get F 2)))
+                (LitVec
                   (Get I 0)
                   (Get I 1)
                   (Get I 2)
                   (Get I 2))
-                (LitVec4
+                (LitVec
                   (Get F 3)
                   (Get F 3)
                   (Get F 2)
                   (Get F 3)))
               (VecMul
-                (LitVec4 (Get F 3) 0 0 0)
-                (LitVec4 (Get I 3) 0 0 0))))")
+                (LitVec (Get F 3) 0 0 0)
+                (LitVec (Get I 3) 0 0 0))))")
 
         (define prog-smt
           (prog

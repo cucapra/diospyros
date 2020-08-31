@@ -60,56 +60,56 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
         rw!("div-1-inv"; "?a" => "(/ ?a 1)"),
 
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
-        rw!("litvec"; "(Vec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
-            => "(LitVec4 (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
+        rw!("litvec"; "(Vec (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
+            => "(LitVec (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
             if is_all_same_memory(&["?a", "?b", "?c", "?d"])),
 
         // Partition lists - hardcoded
         rw!("partition-1"; "(List ?a)"
-            => "(Vec4 ?a 0 0 0)"),
+            => "(Vec ?a 0 0 0)"),
         rw!("partition-2"; "(List ?a ?b)"
-            => "(Vec4 ?a ?b 0 0)"),
+            => "(Vec ?a ?b 0 0)"),
         rw!("partition-3"; "(List ?a ?b ?c)"
-            => "(Vec4 ?a ?b ?c 0)"),
+            => "(Vec ?a ?b ?c 0)"),
         rw!("partition-4"; "(List ?a ?b ?c ?d)"
-            => "(Vec4 ?a ?b ?c ?d)"),
+            => "(Vec ?a ?b ?c ?d)"),
 
         // Custom searchers for vector ops
-        rw!("vec-neg"; "(Vec4 (neg ?a0) (neg ?a1) (neg ?a2) (neg ?a3))"
-            => "(VecNeg (Vec4 ?a0 ?a1 ?a2 ?a3))"),
-        rw!("vec-sqrt"; "(Vec4 (sqrt ?a0) (sqrt ?a1) (sqrt ?a2) (sqrt ?a3))"
-            => "(VecSqrt (Vec4 ?a0 ?a1 ?a2 ?a3))"),
-        rw!("vec-sgn"; "(Vec4 (sgn ?a0) (sgn ?a1) (sgn ?a2) (sgn ?a3))"
-            => "(VecSgn (Vec4 ?a0 ?a1 ?a2 ?a3))"),
+        rw!("vec-neg"; "(Vec (neg ?a0) (neg ?a1) (neg ?a2) (neg ?a3))"
+            => "(VecNeg (Vec ?a0 ?a1 ?a2 ?a3))"),
+        rw!("vec-sqrt"; "(Vec (sqrt ?a0) (sqrt ?a1) (sqrt ?a2) (sqrt ?a3))"
+            => "(VecSqrt (Vec ?a0 ?a1 ?a2 ?a3))"),
+        rw!("vec-sgn"; "(Vec (sgn ?a0) (sgn ?a1) (sgn ?a2) (sgn ?a3))"
+            => "(VecSgn (Vec ?a0 ?a1 ?a2 ?a3))"),
 
-        rw!("vec-div"; "(Vec4 (/ ?a0 ?b0)
+        rw!("vec-div"; "(Vec (/ ?a0 ?b0)
                               (/ ?a1 ?b1)
                               (/ ?a2 ?b2)
                               (/ ?a3 ?b3))"
 
-            => "(VecDiv (Vec4 ?a0 ?a1 ?a2 ?a3)
-                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
+            => "(VecDiv (Vec ?a0 ?a1 ?a2 ?a3)
+                        (Vec ?b0 ?b1 ?b2 ?b3))"),
 
         rw!("vec-add"; { build_binop_searcher("+") }
-            => "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
-                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
+            => "(VecAdd (Vec ?a0 ?a1 ?a2 ?a3)
+                        (Vec ?b0 ?b1 ?b2 ?b3))"),
 
         rw!("vec-mul"; { build_binop_searcher("*") }
-            => "(VecMul (Vec4 ?a0 ?a1 ?a2 ?a3)
-                        (Vec4 ?b0 ?b1 ?b2 ?b3))"),
+            => "(VecMul (Vec ?a0 ?a1 ?a2 ?a3)
+                        (Vec ?b0 ?b1 ?b2 ?b3))"),
 
         rw!("vec-mac"; { build_mac_searcher() }
-            => "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
-                        (Vec4 ?b0 ?b1 ?b2 ?b3)
-                        (Vec4 ?c0 ?c1 ?c2 ?c3))"),
+            => "(VecMAC (Vec ?a0 ?a1 ?a2 ?a3)
+                        (Vec ?b0 ?b1 ?b2 ?b3)
+                        (Vec ?c0 ?c1 ?c2 ?c3))"),
 
         rw!("vec-mac-add-mul";
-            "(VecAdd (Vec4 ?a0 ?a1 ?a2 ?a3)
-               (VecMul (Vec4 ?b0 ?b1 ?b2 ?b3)
-                       (Vec4 ?c0 ?c1 ?c2 ?c3)))"
-            => "(VecMAC (Vec4 ?a0 ?a1 ?a2 ?a3)
-                        (Vec4 ?b0 ?b1 ?b2 ?b3)
-                        (Vec4 ?c0 ?c1 ?c2 ?c3))"),
+            "(VecAdd (Vec ?a0 ?a1 ?a2 ?a3)
+               (VecMul (Vec ?b0 ?b1 ?b2 ?b3)
+                       (Vec ?c0 ?c1 ?c2 ?c3)))"
+            => "(VecMAC (Vec ?a0 ?a1 ?a2 ?a3)
+                        (Vec ?b0 ?b1 ?b2 ?b3)
+                        (Vec ?c0 ?c1 ?c2 ?c3))"),
     ];
 
     // Bidirectional rules

@@ -1,9 +1,5 @@
 use egg::{*};
 
-use crate::{
-    config::*
-};
-
 define_language! {
     pub enum VecLang {
         Num(i32),
@@ -24,10 +20,10 @@ define_language! {
         "List" = List(Box<[Id]>),
 
         // Vectors have width elements
-        "Vec4" = Vec4([Id; vector_width()]),
+        "Vec" = Vec(Box<[Id]>),
 
         // Vector with all literals
-        "LitVec4" = LitVec4([Id; vector_width()]),
+        "LitVec" = LitVec(Box<[Id]>),
 
         "Get" = Get([Id; 2]),
 

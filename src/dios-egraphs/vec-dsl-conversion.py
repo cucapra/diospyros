@@ -67,8 +67,8 @@ def preprocess_egg_to_vecs(expr):
             return ["List"] + es
         if len(es) == 4:
              # print("vec")
-            return ["Vec4"] + es
-        return ["Concat", ["Vec4"] + es[0:4], elements_to_vec(es[4:])]
+            return ["Vec"] + es
+        return ["Concat", ["Vec"] + es[0:4], elements_to_vec(es[4:])]
 
     return elements_to_vec(expr[1:])
 
@@ -88,7 +88,7 @@ def main():
     parser.add_argument('-e', '--erase', action='store_true',
         help="Erase exact expression indices")
     parser.add_argument('-p', '--preprocess', action='store_true',
-        help="Preprocess long lists to Vec4s")
+        help="Preprocess long lists to Vecs")
     args = parser.parse_args()
 
     rosette_to_egg(args.erase, args.preprocess)

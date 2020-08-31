@@ -32,13 +32,13 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::Concat(..) => STRUCTURE,
 
             // Vectors are cheap if they have literal values
-            VecLang::Vec4(vals) => {
+            VecLang::Vec(vals) => {
                 // For now, workaround to determine if children are num, symbol,
                 // or get
                 let non_literals = vals.iter().any(|&x| costs(x) > 3.*LITERAL);
                 if non_literals {BIG} else {STRUCTURE}
             },
-            VecLang::LitVec4(..) => LITERAL,
+            VecLang::LitVec(..) => LITERAL,
 
             // But scalar and vector ops cost something
             VecLang::Add(vals) => OP * (vals.iter().count() as f64 - 1.),

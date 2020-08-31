@@ -50,7 +50,7 @@
       (egg-vec-op `vec-sqrt (list (s-exp-to-ast v)))]
     [`(VecSgn ,v)
       (egg-vec-op `vec-sgn (list (s-exp-to-ast v)))]
-    [(or `(Vec4 ,v1 ,v2 ,v3 ,v4) `(LitVec4 ,v1 ,v2 ,v3 ,v4))
+    [(or `(Vec ,v1 ,v2 ,v3 ,v4) `(LitVec ,v1 ,v2 ,v3 ,v4))
       (apply egg-vec-4 (map s-exp-to-ast (list v1 v2 v3 v4)))]
     [`(List , vs ...)
       (egg-list (map s-exp-to-ast vs))]
