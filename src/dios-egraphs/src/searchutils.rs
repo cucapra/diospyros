@@ -1,16 +1,33 @@
 use egg::{*};
 
-pub fn ids_with_prefix(pre : String, count: usize) -> Vec<String> {
+use crate::{
+    config::*
+};
+
+pub fn vec_with_op(op: &String, pre: &String) -> String {
+    let joined = ids_with_prefix(pre, vector_width()).join(" ");
+    format!("({} {})", op, joined)
+}
+
+pub fn vec_fold_op(op: &String, pre_left: &String, pre_right: &String) -> String {
+    let mut ops : Vec<String> = Vec::with_capacity(vector_width());
+    for i in 0..vector_width() {
+        ops.push(format!("({} ?{}{} ?{}{})", op, pre_left, i, pre_right, i))
+    }
+    let joined = ops.join(" ");
+    format!("(Vec {})", joined)
+}
+
+pub fn ids_with_prefix(pre: &String, count: usize) -> Vec<String> {
     let mut ids : Vec<String> = Vec::with_capacity(count);
     for i in 0..count {
-        ids.push(format!("{}{}", pre, i))
+        ids.push(format!("?{}{}", pre, i))
     }
-    println!("{:?}", ids);
     ids
 }
 
 // Combinatorial combination of match children
-pub fn all_matches_to_substs(all_matches : &[Vec<Vec<(Var, Id)>>]) -> Vec<Subst> {
+pub fn all_matches_to_substs(all_matches: &[Vec<Vec<(Var, Id)>>]) -> Vec<Subst> {
     match all_matches.first() {
         None => vec![Subst::with_capacity(12)],
         Some(var_substs) => {

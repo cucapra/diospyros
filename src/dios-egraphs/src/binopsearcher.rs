@@ -8,27 +8,27 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct BiOpSearcher {
+pub struct BinOpSearcher {
+    pub left_var: String,
+    pub right_var: String,
     pub full_pattern: Pattern<VecLang>,
     pub vec_pattern: Pattern<VecLang>,
     pub op_pattern: Pattern<VecLang>,
     pub zero_pattern: Pattern<VecLang>,
 }
 
-pub fn build_binop_searcher(op_str : &str) -> BiOpSearcher {
-    let full_pattern = format!("(Vec ({} ?a0 ?b0)
-                                      ({} ?a1 ?b1)
-                                      ({} ?a2 ?b2)
-                                      ({} ?a3 ?b3))",
-                                      op_str, op_str, op_str, op_str)
+pub fn build_binop_searcher(op_str : &str) -> BinOpSearcher {
+    let left_var = "a".to_string();
+    let right_var = "b".to_string();
+    let full_pattern = vec_fold_op(&op_str.to_string(), &left_var, &right_var)
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let vec_pattern = "(Vec ?w ?x ?y ?z)"
+    let vec_pattern = vec_with_op(&"Vec".to_string(), &"x".to_string())
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let op_pattern = format!("({} ?a ?b)", op_str)
+    let op_pattern = format!("({} ?{} ?{})", op_str, left_var, right_var)
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
@@ -36,7 +36,9 @@ pub fn build_binop_searcher(op_str : &str) -> BiOpSearcher {
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    BiOpSearcher {
+    BinOpSearcher {
+        left_var,
+        right_var,
         full_pattern,
         vec_pattern,
         op_pattern,
@@ -44,13 +46,13 @@ pub fn build_binop_searcher(op_str : &str) -> BiOpSearcher {
     }
 }
 
-impl BiOpSearcher {
+impl BinOpSearcher {
 }
 
-// We want each lane (?w, ?x, ?y, ?z) in (Vec ?w ?x ?y ?z) to match either:
+// We want each lane (?x0, ?x1, ?x2, ?x3) to match either:
 //     (<binop> ?a ?b)
 //     0               here, map ?a -> 0, ?b -> 0
-impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BiOpSearcher {
+impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BinOpSearcher {
     fn search_eclass(&self, egraph: &EGraph<VecLang, A>, eclass: Id) -> Option<SearchMatches> {
         let vec_matches = self.vec_pattern.search_eclass(egraph, eclass);
         let vec_binop_compatible = match vec_matches {
