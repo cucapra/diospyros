@@ -1,4 +1,4 @@
-use egg::{*};
+use egg::{rewrite as rw, *};
 
 use std::str::FromStr;
 
@@ -17,7 +17,7 @@ pub struct BinOpSearcher {
     pub zero_pattern: Pattern<VecLang>,
 }
 
-pub fn build_binop_searcher(op_str : &str) -> BinOpSearcher {
+pub fn build_binop_searcher(op_str : &str, vec_str : &str) -> Rewrite<VecLang, ()>{
     let left_var = "a".to_string();
     let right_var = "b".to_string();
     let full_pattern = vec_fold_op(&op_str.to_string(), &left_var, &right_var)
@@ -36,14 +36,21 @@ pub fn build_binop_searcher(op_str : &str) -> BinOpSearcher {
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    BinOpSearcher {
+    let applier: Pattern<VecLang> = format!("({} {} {})",
+        vec_str,
+        vec_with_op(&"Vec".to_string(), &left_var),
+        vec_with_op(&"Vec".to_string(), &right_var)).parse().unwrap();
+
+    let searcher = BinOpSearcher {
         left_var,
         right_var,
         full_pattern,
         vec_pattern,
         op_pattern,
         zero_pattern,
-    }
+    };
+
+    rw!(format!("{}_binop", op_str); { searcher } => { applier })
 }
 
 impl BinOpSearcher {
@@ -68,7 +75,7 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BinOpSearcher {
                     let mut all_matches_found = true;
                     let mut new_substs_options : Vec<Vec<Vec<(Var, Id)>>> = Vec::new();
 
-                    // For each variable w, x, y, z in (Vec ?w ?x ?y ?z).
+                    // For each variable in (?x0, ?x1, ?x2, ?x3)
                     // We use the index i to disambiguate lanes, so we can have,
                     // for example, ?a0 through ?a3
                     for (i, vec_var) in self.vec_pattern.vars().iter().enumerate() {
@@ -90,8 +97,8 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BinOpSearcher {
                         } else if let Some(_) = self.zero_pattern.search_eclass(egraph, *child_eclass) {
                             // ?a and ?b  map to zero
                             let subs : Vec<(Var, Id)> = vec![
-                                (Var::from_str(&format!("?a{}", i)).unwrap(), zero_id),
-                                (Var::from_str(&format!("?b{}", i)).unwrap(), zero_id),
+                                (Var::from_str(&format!("?{}{}", self.left_var, i)).unwrap(), zero_id),
+                                (Var::from_str(&format!("?{}{}", self.right_var, i)).unwrap(), zero_id),
                             ];
                             new_var_substs.push(subs);
 

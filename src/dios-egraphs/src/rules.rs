@@ -90,13 +90,8 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
             => "(VecDiv (Vec ?a0 ?a1 ?a2 ?a3)
                         (Vec ?b0 ?b1 ?b2 ?b3))"),
 
-        rw!("vec-add"; { build_binop_searcher("+") }
-            => "(VecAdd (Vec ?a0 ?a1 ?a2 ?a3)
-                        (Vec ?b0 ?b1 ?b2 ?b3))"),
-
-        rw!("vec-mul"; { build_binop_searcher("*") }
-            => "(VecMul (Vec ?a0 ?a1 ?a2 ?a3)
-                        (Vec ?b0 ?b1 ?b2 ?b3))"),
+        build_binop_searcher("+", "VecAdd"),
+        build_binop_searcher("*", "VecMul"),
 
         rw!("vec-mac"; { build_mac_searcher() }
             => "(VecMAC (Vec ?a0 ?a1 ?a2 ?a3)

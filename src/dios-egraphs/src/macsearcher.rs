@@ -4,11 +4,15 @@ use std::str::FromStr;
 
 use crate::{
     veclang::{VecLang},
-    searchutils::*
+    searchutils::*,
+    config::*
 };
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacSearcher {
+    pub acc_var: String,
+    pub left_var: String,
+    pub right_var: String,
     pub full_mac_pattern: Pattern<VecLang>,
     pub vec_pattern: Pattern<VecLang>,
     pub add_mul_pattern1: Pattern<VecLang>,
@@ -18,26 +22,34 @@ pub struct MacSearcher {
 }
 
 pub fn build_mac_searcher() -> MacSearcher {
-    let full_mac_pattern = "(Vec (+ ?a0 (* ?b0 ?c0))
-                                  (+ ?a1 (* ?b1 ?c1))
-                                  (+ ?a2 (* ?b2 ?c2))
-                                  (+ ?a3 (* ?b3 ?c3)))"
+    let acc_var = "a".to_string();
+    let left_var = "b".to_string();
+    let right_var = "c".to_string();
+
+    let mut lanes : Vec<String> = Vec::with_capacity(vector_width());
+    for i in 0..vector_width() {
+        lanes.push(format!("(+ ?{}{} (* ?{}{} ?{}{}))",
+            acc_var, i, left_var, i, right_var, i))
+    }
+    let full_mac_pattern = format!("(Vec {})", lanes.join(" "))
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let vec_pattern = "(Vec ?w ?x ?y ?z)"
+    let vec_pattern = vec_with_op(&"Vec".to_string(), &"x".to_string())
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let add_mul_pattern1 = "(+ ?a (* ?b ?c))"
+    let add_mul_pattern1 = format!("(+ ?{} (* ?{} ?{}))",
+            acc_var, left_var, right_var)
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let add_mul_pattern2 = "(+ (* ?b ?c) ?a)"
+    let add_mul_pattern2 = format!("(+ (* ?{} ?{}) ?{})",
+            left_var, right_var, acc_var)
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let mul_pattern = "(* ?b ?c)"
+    let mul_pattern =  format!("(* ?{} ?{})", left_var, right_var)
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
@@ -46,6 +58,9 @@ pub fn build_mac_searcher() -> MacSearcher {
         .unwrap();
 
     MacSearcher {
+        acc_var,
+        left_var,
+        right_var,
         full_mac_pattern,
         vec_pattern,
         add_mul_pattern1,
@@ -78,7 +93,7 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                     let mut all_matches_found = true;
                     let mut new_substs_options : Vec<Vec<Vec<(Var, Id)>>> = Vec::new();
 
-                    // For each variable w, x, y, z in (Vec ?w ?x ?y ?z).
+                    // For each variable (?x0, ?x1, ?x2, ?x3)
                     // We use the index i to disambiguate lanes, so we can have,
                     // for example, ?a0 through ?a3
                     for (i, vec_var) in self.vec_pattern.vars().iter().enumerate() {
@@ -116,7 +131,7 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                                     subs.push((new_v, *s.get(*mul_var).unwrap()));
                                 }
                                 // ?a needs to map to a zero!
-                                let var_a = Var::from_str(&format!("?a{}", i)).unwrap();
+                                let var_a = Var::from_str(&format!("?{}{}", self.acc_var, i)).unwrap();
                                 subs.push((var_a, zero_id));
                                 new_var_substs.push(subs);
                             }
@@ -124,9 +139,9 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                         } else if let Some(_) = self.zero_pattern.search_eclass(egraph, *child_eclass) {
                             // ?a, ?b, and ?c all map to zero
                             let subs : Vec<(Var, Id)> = vec![
-                                (Var::from_str(&format!("?a{}", i)).unwrap(), zero_id),
-                                (Var::from_str(&format!("?b{}", i)).unwrap(), zero_id),
-                                (Var::from_str(&format!("?c{}", i)).unwrap(), zero_id),
+                                (Var::from_str(&format!("?{}{}", self.acc_var, i)).unwrap(), zero_id),
+                                (Var::from_str(&format!("?{}{}", self.left_var, i)).unwrap(), zero_id),
+                                (Var::from_str(&format!("?{}{}", self.right_var, i)).unwrap(), zero_id),
                             ];
                             new_var_substs.push(subs);
 
