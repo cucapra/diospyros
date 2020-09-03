@@ -6,11 +6,13 @@ use crate::{
     veclang::{EGraph, VecLang},
     cost::VecCostFn,
     macsearcher::build_mac_rule,
-    binopsearcher::build_binop_rule
+    binopsearcher::build_binop_or_zero_rule,
+    searchutils::*,
+    config::*
 };
 
 // Check if all the variables, in this case memories, are equivalent
-fn is_all_same_memory(vars: &[&'static str]) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+fn is_all_same_memory_or_zero(vars: &Vec<String>) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let vars: Vec<Var> = vars.iter().map(|v| v.parse().unwrap()).collect();
     let zero = VecLang::Num(0);
     move |egraph, _, subst| {
@@ -48,6 +50,55 @@ pub fn run(prog: &RecExpr<VecLang>, timeout: u64, no_ac: bool) -> (f64, RecExpr<
     extractor.find_best(root)
 }
 
+pub fn build_binop_rule(op_str : &str, vec_str : &str) -> Rewrite<VecLang, ()> {
+    let searcher: Pattern<VecLang> = vec_fold_op(&op_str.to_string(), &"a".to_string(), &"b".to_string())
+        .parse()
+        .unwrap();
+
+    let applier: Pattern<VecLang> = format!("({} {} {})",
+        vec_str,
+        vec_with_var(&"a".to_string()),
+        vec_with_var(&"b".to_string()))
+        .parse()
+        .unwrap();
+
+    rw!(format!("{}_binop", op_str); { searcher } => { applier })
+}
+
+pub fn build_unop_rule(op_str : &str, vec_str : &str) -> Rewrite<VecLang, ()> {
+    let searcher: Pattern<VecLang> = vec_map_op(&op_str.to_string(), &"a".to_string())
+        .parse()
+        .unwrap();
+    let applier: Pattern<VecLang> = format!("({} {})",
+        vec_str,
+        vec_with_var(&"a".to_string()))
+        .parse()
+        .unwrap();
+
+    rw!(format!("{}_unop", op_str); { searcher } => { applier })
+}
+
+pub fn build_litvec_rule() -> Rewrite<VecLang, ()> {
+    let mem_vars = ids_with_prefix(&"a".to_string(), vector_width());
+    let mut gets : Vec<String> = Vec::with_capacity(vector_width());
+    for i in 0..vector_width() {
+        gets.push(format!("(Get {} ?{}{})", mem_vars[i], "i", i))
+    }
+    let all_gets = gets.join(" ");
+
+    println!("{:?}", all_gets);
+    let searcher: Pattern<VecLang> = format!("(Vec {})", all_gets)
+        .parse()
+        .unwrap();
+
+    let applier: Pattern<VecLang> = format!("(LitVec {})", all_gets)
+        .parse()
+        .unwrap();
+
+    rw!("litvec"; { searcher } => { applier }
+        if is_all_same_memory_or_zero(&mem_vars))
+}
+
 pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
     let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
         rw!("add-0"; "(+ 0 ?a)" => "?a"),
@@ -60,32 +111,24 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
         rw!("div-1-inv"; "?a" => "(/ ?a 1)"),
 
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
-        rw!("litvec"; "(Vec (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
-            => "(LitVec (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
-            if is_all_same_memory(&["?a", "?b", "?c", "?d"])),
 
         rw!("vec-mac-add-mul";
             "(VecAdd ?v0 (VecMul ?v1 ?v2))"
             => "(VecMAC ?v0 ?v1 ?v2)"),
 
+        // Literal vectors, that use the same memory or no memory in every lane,
+        // are cheaper
+        build_litvec_rule(),
+
         // Custom searchers for vector ops
-        rw!("vec-neg"; "(Vec (neg ?a0) (neg ?a1) (neg ?a2) (neg ?a3))"
-            => "(VecNeg (Vec ?a0 ?a1 ?a2 ?a3))"),
-        rw!("vec-sqrt"; "(Vec (sqrt ?a0) (sqrt ?a1) (sqrt ?a2) (sqrt ?a3))"
-            => "(VecSqrt (Vec ?a0 ?a1 ?a2 ?a3))"),
-        rw!("vec-sgn"; "(Vec (sgn ?a0) (sgn ?a1) (sgn ?a2) (sgn ?a3))"
-            => "(VecSgn (Vec ?a0 ?a1 ?a2 ?a3))"),
+        build_unop_rule("neg", "VecNeg"),
+        build_unop_rule("sqrt", "VecSqrt"),
+        build_unop_rule("sgn", "VecSgn"),
 
-        rw!("vec-div"; "(Vec (/ ?a0 ?b0)
-                              (/ ?a1 ?b1)
-                              (/ ?a2 ?b2)
-                              (/ ?a3 ?b3))"
+        build_binop_rule("/", "VecDiv"),
 
-            => "(VecDiv (Vec ?a0 ?a1 ?a2 ?a3)
-                        (Vec ?b0 ?b1 ?b2 ?b3))"),
-
-        build_binop_rule("+", "VecAdd"),
-        build_binop_rule("*", "VecMul"),
+        build_binop_or_zero_rule("+", "VecAdd"),
+        build_binop_or_zero_rule("*", "VecMul"),
 
         build_mac_rule(),
     ];

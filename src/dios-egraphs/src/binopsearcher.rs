@@ -17,7 +17,7 @@ pub struct BinOpSearcher {
     pub zero_pattern: Pattern<VecLang>,
 }
 
-pub fn build_binop_rule(op_str : &str, vec_str : &str) -> Rewrite<VecLang, ()> {
+pub fn build_binop_or_zero_rule(op_str : &str, vec_str : &str) -> Rewrite<VecLang, ()> {
     let left_var = "a".to_string();
     let right_var = "b".to_string();
     let full_pattern = vec_fold_op(&op_str.to_string(), &left_var, &right_var)
@@ -50,7 +50,7 @@ pub fn build_binop_rule(op_str : &str, vec_str : &str) -> Rewrite<VecLang, ()> {
         zero_pattern,
     };
 
-    rw!(format!("{}_binop", op_str); { searcher } => { applier })
+    rw!(format!("{}_binop_or_zero", op_str); { searcher } => { applier })
 }
 
 impl BinOpSearcher {

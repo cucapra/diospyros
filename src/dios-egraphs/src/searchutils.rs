@@ -22,6 +22,15 @@ pub fn vec_fold_op(op: &String, pre_left: &String, pre_right: &String) -> String
     format!("(Vec {})", joined)
 }
 
+pub fn vec_map_op(op: &String, pre: &String) -> String {
+    let mut ops : Vec<String> = Vec::with_capacity(vector_width());
+    for i in 0..vector_width() {
+        ops.push(format!("({} ?{}{})", op, pre, i))
+    }
+    let joined = ops.join(" ");
+    format!("(Vec {})", joined)
+}
+
 pub fn ids_with_prefix(pre: &String, count: usize) -> Vec<String> {
     let mut ids : Vec<String> = Vec::with_capacity(count);
     for i in 0..count {
