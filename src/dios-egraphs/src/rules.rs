@@ -5,8 +5,8 @@ use itertools::Itertools;
 use crate::{
     veclang::{EGraph, VecLang},
     cost::VecCostFn,
-    macsearcher::build_mac_searcher,
-    binopsearcher::build_binop_searcher
+    macsearcher::build_mac_rule,
+    binopsearcher::build_binop_rule
 };
 
 // Check if all the variables, in this case memories, are equivalent
@@ -64,15 +64,9 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
             => "(LitVec (Get ?a ?i) (Get ?b ?j) (Get ?c ?k) (Get ?d ?l))"
             if is_all_same_memory(&["?a", "?b", "?c", "?d"])),
 
-        // Partition lists - hardcoded
-        rw!("partition-1"; "(List ?a)"
-            => "(Vec ?a 0 0 0)"),
-        rw!("partition-2"; "(List ?a ?b)"
-            => "(Vec ?a ?b 0 0)"),
-        rw!("partition-3"; "(List ?a ?b ?c)"
-            => "(Vec ?a ?b ?c 0)"),
-        rw!("partition-4"; "(List ?a ?b ?c ?d)"
-            => "(Vec ?a ?b ?c ?d)"),
+        rw!("vec-mac-add-mul";
+            "(VecAdd ?v0 (VecMul ?v1 ?v2))"
+            => "(VecMAC ?v0 ?v1 ?v2)"),
 
         // Custom searchers for vector ops
         rw!("vec-neg"; "(Vec (neg ?a0) (neg ?a1) (neg ?a2) (neg ?a3))"
@@ -90,21 +84,10 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
             => "(VecDiv (Vec ?a0 ?a1 ?a2 ?a3)
                         (Vec ?b0 ?b1 ?b2 ?b3))"),
 
-        build_binop_searcher("+", "VecAdd"),
-        build_binop_searcher("*", "VecMul"),
+        build_binop_rule("+", "VecAdd"),
+        build_binop_rule("*", "VecMul"),
 
-        rw!("vec-mac"; { build_mac_searcher() }
-            => "(VecMAC (Vec ?a0 ?a1 ?a2 ?a3)
-                        (Vec ?b0 ?b1 ?b2 ?b3)
-                        (Vec ?c0 ?c1 ?c2 ?c3))"),
-
-        rw!("vec-mac-add-mul";
-            "(VecAdd (Vec ?a0 ?a1 ?a2 ?a3)
-               (VecMul (Vec ?b0 ?b1 ?b2 ?b3)
-                       (Vec ?c0 ?c1 ?c2 ?c3)))"
-            => "(VecMAC (Vec ?a0 ?a1 ?a2 ?a3)
-                        (Vec ?b0 ?b1 ?b2 ?b3)
-                        (Vec ?c0 ?c1 ?c2 ?c3))"),
+        build_mac_rule(),
     ];
 
     // Bidirectional rules

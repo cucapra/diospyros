@@ -9,6 +9,10 @@ pub fn vec_with_op(op: &String, pre: &String) -> String {
     format!("({} {})", op, joined)
 }
 
+pub fn vec_with_var(pre: &String) -> String {
+    vec_with_op(&"Vec".to_string(), pre)
+}
+
 pub fn vec_fold_op(op: &String, pre_left: &String, pre_right: &String) -> String {
     let mut ops : Vec<String> = Vec::with_capacity(vector_width());
     for i in 0..vector_width() {

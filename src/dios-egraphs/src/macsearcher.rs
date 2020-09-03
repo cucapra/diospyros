@@ -1,4 +1,4 @@
-use egg::{*};
+use egg::{rewrite as rw, *};
 
 use std::str::FromStr;
 
@@ -21,7 +21,7 @@ pub struct MacSearcher {
     pub zero_pattern: Pattern<VecLang>,
 }
 
-pub fn build_mac_searcher() -> MacSearcher {
+pub fn build_mac_rule() -> Rewrite<VecLang, ()> {
     let acc_var = "a".to_string();
     let left_var = "b".to_string();
     let right_var = "c".to_string();
@@ -35,7 +35,7 @@ pub fn build_mac_searcher() -> MacSearcher {
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let vec_pattern = vec_with_op(&"Vec".to_string(), &"x".to_string())
+    let vec_pattern = vec_with_var(&"x".to_string())
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
@@ -57,7 +57,12 @@ pub fn build_mac_searcher() -> MacSearcher {
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    MacSearcher {
+    let applier: Pattern<VecLang> = format!("(VecMAC {} {} {})",
+        vec_with_var(&acc_var),
+        vec_with_var(&left_var),
+        vec_with_var(&right_var)).parse().unwrap();
+
+    let searcher = MacSearcher {
         acc_var,
         left_var,
         right_var,
@@ -67,7 +72,9 @@ pub fn build_mac_searcher() -> MacSearcher {
         add_mul_pattern2,
         mul_pattern,
         zero_pattern,
-    }
+    };
+
+    rw!("vec-mac"; { searcher } => { applier })
 }
 
 impl MacSearcher {
