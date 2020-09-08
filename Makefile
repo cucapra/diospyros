@@ -1,6 +1,9 @@
 .PHONY: test build test-all
 .PRECIOUS: %-out/res.rkt %-out/spec-egg.rkt
 
+# Default vector width of 4
+VEC_WIDTH := 4
+
 # By default, run two jobs
 MAKEFLAGS += --jobs=2
 
@@ -9,6 +12,13 @@ RACKET_SRC := src/*.rkt src/examples/*.rkt src/backend/*.rkt
 CARGO_FLAGS := --release
 
 EGG_FLAGS := --no-ac
+ifeq ($(VEC_WIDTH),2)
+	EGG_BUILD_FLAGS := --features vec_width_2
+else ifeq ($(VEC_WIDTH),8)
+	EGG_BUILD_FLAGS := --features vec_width_8
+else ifneq ($(VEC_WIDTH),4)
+	$(error Bad vector width, currently 2, 4, or 8 supported)
+endif
 
 PY := pypy3
 
@@ -30,7 +40,7 @@ clean:
 
 # Build spec
 %-out: %-params
-	./dios-example-gen --only-spec -b $* -p  $< -o $@
+	./dios-example-gen --only-spec -w $(VEC_WIDTH) -b $* -p  $< -o $@
 
 # Pre-process spec for egg
 %-out/spec-egg.rkt: %-out src/dios-egraphs/vec-dsl-conversion.py
@@ -49,9 +59,9 @@ ifdef SPLIT
 	done
 	$(PY) src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $*-out/opt/spec* > $@
 else
-	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml -- $< $(EGG_FLAGS)  > $@
+	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $(EGG_BUILD_FLAGS) -- $< $(EGG_FLAGS)  > $@
 endif
 
 # Backend code gen
 %-egg: %-out/res.rkt
-	./dios $(BACKEND_FLAGS) -e -o $*-out/kernel.c $*-out
+	./dios $(BACKEND_FLAGS) -w $(VEC_WIDTH) -e -o $*-out/kernel.c $*-out

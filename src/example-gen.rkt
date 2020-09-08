@@ -112,6 +112,7 @@
 (define param-file (make-parameter #f))
 (define output-dir (make-parameter #f))
 (define only-spec (make-parameter #f))
+(define vec-width (make-parameter 4))
 
 (define bench-help
   (~a "Benchmark to run. Possibilities: "
@@ -132,7 +133,10 @@
                       (only-spec #t)]
     [("-o" "--output-dir") out-dir
                            "Directory to save solutions in."
-                           (output-dir out-dir)])
+                           (output-dir out-dir)]
+    [("-w" "--vec-width") width
+                          "Vector width (default is 4)"
+                          (vec-width (string->number width))])
 
   (when (not (bench-name))
     (error 'main
@@ -146,5 +150,5 @@
   (when (not (or (output-dir) (only-spec)))
     (error 'main
            "Missing output directory for saving solutions in."))
-
-  (run-bench (bench-name) (param-file) (output-dir) (only-spec)))
+  (parameterize [(current-reg-size (vec-width))]
+    (run-bench (bench-name) (param-file) (output-dir) (only-spec))))

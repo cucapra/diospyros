@@ -27,6 +27,7 @@
   (define egg (make-parameter #f))
   (define validation (make-parameter #f))
   (define intermediate (make-parameter #f))
+  (define vec-width (make-parameter 4))
 
   (define input-path
     (command-line
@@ -43,65 +44,70 @@
                         (intermediate #t)]
       [("--suppress-git") "Don't write git info out"
                         (suppress-git-info #t)]
+      [("-w" "--vec-width") width
+                            "Vector width (default is 4)"
+                            (vec-width (string->number width))]
       #:args (path)
       path))
 
-  (when (and (not (egg)) (validation))
-    (error "Translation validation flag not valid when not in egg mode"))
-
-  (pretty-display (format "Reading input program from ~a" input-path))
-
-  ; To eval the input, use the current namespace
   (define-namespace-anchor a)
-  (define ns (namespace-anchor->namespace a))
 
-  (define input-program
-    (if egg
-      (begin
-        (egg-to-dios-dsl (read-file-from-path input-path egg-res)
-                         (eval
-                           (read-file-from-path input-path egg-prelude)
-                           ns)
-                         (eval
-                           (read-file-from-path input-path egg-outputs)
-                           ns)))
-      (begin
-        (define input-string (read (open-input-file input-path)))
-        (eval input-string ns))))
+  (parameterize [(current-reg-size (vec-width))]
+    (when (and (not (egg)) (validation))
+      (error "Translation validation flag not valid when not in egg mode"))
 
-  (pretty-display "Optimizing intermediate program")
+    (pretty-display (format "Reading input program from ~a" input-path))
 
-  ; Translation validation hook
-  (when (validation)
-    (check-transform-with-fn-map uninterp-fn-map))
+    ; To eval the input, use the current namespace
+    (define ns (namespace-anchor->namespace a))
 
-  (define compile-prog
-    (if (validation)
-      (lambda (x) (compile x
-                          #:spec (read-file-from-path input-path egg-spec)))
-      compile))
+    (define input-program
+      (if egg
+        (begin
+          (egg-to-dios-dsl (read-file-from-path input-path egg-res)
+                           (eval
+                             (read-file-from-path input-path egg-prelude)
+                             ns)
+                           (eval
+                             (read-file-from-path input-path egg-outputs)
+                             ns)))
+        (begin
+          (define input-string (read (open-input-file input-path)))
+          (eval input-string ns))))
 
-  ; Compute the intermediate program.
-  (define i-prog
-    (~> input-program
-        compile-prog))
+    (pretty-display "Optimizing intermediate program")
 
-  (cond
-    [(intermediate) (display (pretty-format i-prog))]
-    [else
-      (define (write-out prog)
-        (if (out-file)
-          (call-with-output-file
-            (if (absolute-path? (out-file))
-              (out-file)
-              (build-path (current-directory) (out-file)))
-            (lambda (out) (display prog out))
-            #:exists 'replace)
-          (display prog)))
+    ; Translation validation hook
+    (when (validation)
+      (check-transform-with-fn-map uninterp-fn-map))
 
-       (pretty-display "Compiling to Tensilica backend")
+    (define compile-prog
+      (if (validation)
+        (lambda (x) (compile x
+                            #:spec (read-file-from-path input-path egg-spec)))
+        compile))
 
-      (~> i-prog
-          tensilica-g3-compile
-          to-string
-          write-out)]))
+    ; Compute the intermediate program.
+    (define i-prog
+      (~> input-program
+          compile-prog))
+
+    (cond
+      [(intermediate) (display (pretty-format i-prog))]
+      [else
+        (define (write-out prog)
+          (if (out-file)
+            (call-with-output-file
+              (if (absolute-path? (out-file))
+                (out-file)
+                (build-path (current-directory) (out-file)))
+              (lambda (out) (display prog out))
+              #:exists 'replace)
+            (display prog)))
+
+         (pretty-display "Compiling to Tensilica backend")
+
+        (~> i-prog
+            tensilica-g3-compile
+            to-string
+            write-out)])))
