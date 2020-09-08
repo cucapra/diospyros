@@ -93,7 +93,7 @@ mod tests {
 
   #[test]
   fn simple_vector_add() {
-    let start = "(List (+ a b) (+ c d))";
+    let start = "(Vec (+ a b) (+ c d) 0 0)";
     let exp_best = "(VecAdd (Vec a c 0 0) (Vec b d 0 0))";
     let exp_best_cost = 1.208;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
@@ -119,9 +119,11 @@ mod tests {
 
   #[test]
   fn vector_variadic_add_mac() {
-    let start = "(List
+    let start = "(Vec
                    (+ (* a b) (* c d) (* e f))
-                   (+ (* aa bb) (* cc dd) (* ee ff)))";
+                   (+ (* aa bb) (* cc dd) (* ee ff))
+                   0
+                   0)";
     let exp_best = "(VecMAC
                       (VecMAC
                         (VecMul (Vec e ee 0 0) (Vec f ff 0 0))
@@ -161,7 +163,7 @@ mod tests {
 
   #[test]
   fn vector_matrix_multiply_2x2_2x2() {
-    let start = "(List
+    let start = "(Vec
                    (+ (* v0 v4) (* v1 v6))
                    (+ (* v0 v5) (* v1 v7))
                    (+ (* v2 v4) (* v3 v6))
@@ -180,7 +182,7 @@ mod tests {
   #[test]
   fn vector_matrix_multiply_2x2_2x2_explicit_get() {
     // TODO: with explicit searcher this can't find solution with 4 LitVecs
-    let start = "(List
+    let start = "(Vec
                     (+ (* (Get a 0) (Get b 0)) (* (Get a 1) (Get b 2)))
                     (+ (* (Get a 0) (Get b 1)) (* (Get a 1) (Get b 3)))
                     (+ (* (Get a 2) (Get b 0)) (* (Get a 3) (Get b 2)))
@@ -195,146 +197,146 @@ mod tests {
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 
-  #[test]
-  fn vector_matrix_multiply_2x3_3x3() {
-    let start = "(List
-                  (+ (* v0 v6) (* v1 v9)  (* v2 v12))
-                  (+ (* v0 v7) (* v1 v10) (* v2 v13))
-                  (+ (* v0 v8) (* v1 v11) (* v2 v14))
-                  (+ (* v3 v6) (* v4 v9)  (* v5 v12))
-                  (+ (* v3 v7) (* v4 v10) (* v5 v13))
-                  (+ (* v3 v8) (* v4 v11) (* v5 v14)))";
-    let exp_best = "(Concat
-                      (VecMAC
-                        (VecMAC
-                          (VecMul
-                            (Vec v2 v2 v2 v12)
-                            (Vec v12 v13 v14 v5))
-                          (Vec v1 v1 v1 v9)
-                          (Vec v9 v10 v11 v4))
-                        (Vec v0 v0 v0 v6)
-                        (Vec v6 v7 v8 v3))
-                      (VecMAC
-                        (VecMAC
-                          (VecMul
-                            (Vec v13 v14 0 0)
-                            (Vec v5 v5 0 0))
-                          (Vec v10 v11 0 0)
-                          (Vec v4 v4 0 0))
-                        (Vec v7 v8 0 0)
-                        (Vec v3 v3 0 0)))";
-    let exp_best_cost = 7.348;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+  // #[test]
+  // fn vector_matrix_multiply_2x3_3x3() {
+  //   let start = "(List
+  //                 (+ (* v0 v6) (* v1 v9)  (* v2 v12))
+  //                 (+ (* v0 v7) (* v1 v10) (* v2 v13))
+  //                 (+ (* v0 v8) (* v1 v11) (* v2 v14))
+  //                 (+ (* v3 v6) (* v4 v9)  (* v5 v12))
+  //                 (+ (* v3 v7) (* v4 v10) (* v5 v13))
+  //                 (+ (* v3 v8) (* v4 v11) (* v5 v14)))";
+  //   let exp_best = "(Concat
+  //                     (VecMAC
+  //                       (VecMAC
+  //                         (VecMul
+  //                           (Vec v2 v2 v2 v12)
+  //                           (Vec v12 v13 v14 v5))
+  //                         (Vec v1 v1 v1 v9)
+  //                         (Vec v9 v10 v11 v4))
+  //                       (Vec v0 v0 v0 v6)
+  //                       (Vec v6 v7 v8 v3))
+  //                     (VecMAC
+  //                       (VecMAC
+  //                         (VecMul
+  //                           (Vec v13 v14 0 0)
+  //                           (Vec v5 v5 0 0))
+  //                         (Vec v10 v11 0 0)
+  //                         (Vec v4 v4 0 0))
+  //                       (Vec v7 v8 0 0)
+  //                       (Vec v3 v3 0 0)))";
+  //   let exp_best_cost = 7.348;
+  //   run_egpraph_with_start(start, exp_best, exp_best_cost);
+  // }
 
-  #[test]
-  fn vector_matrix_multiply_2x3_3x3_explicit_get() {
-    let start = "(List
-                  (+
-                    (* (Get A 0) (Get B 0))
-                    (* (Get A 1) (Get B 3))
-                    (* (Get A 2) (Get B 6)))
-                  (+
-                    (* (Get A 0) (Get B 1))
-                    (* (Get A 1) (Get B 4))
-                    (* (Get A 2) (Get B 7)))
-                  (+
-                    (* (Get A 0) (Get B 2))
-                    (* (Get A 1) (Get B 5))
-                    (* (Get A 2) (Get B 8)))
-                  (+
-                    (* (Get A 3) (Get B 0))
-                    (* (Get A 4) (Get B 3))
-                    (* (Get A 5) (Get B 6)))
-                  (+
-                    (* (Get A 3) (Get B 1))
-                    (* (Get A 4) (Get B 4))
-                    (* (Get A 5) (Get B 7)))
-                  (+
-                    (* (Get A 3) (Get B 2))
-                    (* (Get A 4) (Get B 5))
-                    (* (Get A 5) (Get B 8))))";
-    let exp_best = "(Concat
-                      (VecMAC
-                        (VecMAC
-                          (VecMul
-                            (LitVec
-                              (Get A 2)
-                              (Get A 2)
-                              (Get A 2)
-                              (Get A 5))
-                            (LitVec
-                              (Get B 6)
-                              (Get B 7)
-                              (Get B 8)
-                              (Get B 6)))
-                          (LitVec
-                            (Get A 1)
-                            (Get A 1)
-                            (Get A 1)
-                            (Get A 4))
-                          (LitVec
-                            (Get B 3)
-                            (Get B 4)
-                            (Get B 5)
-                            (Get B 3)))
-                        (LitVec
-                          (Get A 0)
-                          (Get A 0)
-                          (Get A 0)
-                          (Get A 3))
-                        (LitVec
-                          (Get B 0)
-                          (Get B 1)
-                          (Get B 2)
-                          (Get B 0)))
-                      (VecMAC
-                        (VecMAC
-                          (VecMul
-                            (LitVec (Get B 7) (Get B 8) 0 0)
-                            (LitVec (Get A 5) (Get A 5) 0 0))
-                          (LitVec (Get B 4) (Get B 5) 0 0)
-                          (LitVec (Get A 4) (Get A 4) 0 0))
-                        (LitVec (Get B 1) (Get B 2) 0 0)
-                        (LitVec (Get A 3) (Get A 3) 0 0)))";
-    let exp_best_cost = 6.232;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+  // #[test]
+  // fn vector_matrix_multiply_2x3_3x3_explicit_get() {
+  //   let start = "(List
+  //                 (+
+  //                   (* (Get A 0) (Get B 0))
+  //                   (* (Get A 1) (Get B 3))
+  //                   (* (Get A 2) (Get B 6)))
+  //                 (+
+  //                   (* (Get A 0) (Get B 1))
+  //                   (* (Get A 1) (Get B 4))
+  //                   (* (Get A 2) (Get B 7)))
+  //                 (+
+  //                   (* (Get A 0) (Get B 2))
+  //                   (* (Get A 1) (Get B 5))
+  //                   (* (Get A 2) (Get B 8)))
+  //                 (+
+  //                   (* (Get A 3) (Get B 0))
+  //                   (* (Get A 4) (Get B 3))
+  //                   (* (Get A 5) (Get B 6)))
+  //                 (+
+  //                   (* (Get A 3) (Get B 1))
+  //                   (* (Get A 4) (Get B 4))
+  //                   (* (Get A 5) (Get B 7)))
+  //                 (+
+  //                   (* (Get A 3) (Get B 2))
+  //                   (* (Get A 4) (Get B 5))
+  //                   (* (Get A 5) (Get B 8))))";
+  //   let exp_best = "(Concat
+  //                     (VecMAC
+  //                       (VecMAC
+  //                         (VecMul
+  //                           (LitVec
+  //                             (Get A 2)
+  //                             (Get A 2)
+  //                             (Get A 2)
+  //                             (Get A 5))
+  //                           (LitVec
+  //                             (Get B 6)
+  //                             (Get B 7)
+  //                             (Get B 8)
+  //                             (Get B 6)))
+  //                         (LitVec
+  //                           (Get A 1)
+  //                           (Get A 1)
+  //                           (Get A 1)
+  //                           (Get A 4))
+  //                         (LitVec
+  //                           (Get B 3)
+  //                           (Get B 4)
+  //                           (Get B 5)
+  //                           (Get B 3)))
+  //                       (LitVec
+  //                         (Get A 0)
+  //                         (Get A 0)
+  //                         (Get A 0)
+  //                         (Get A 3))
+  //                       (LitVec
+  //                         (Get B 0)
+  //                         (Get B 1)
+  //                         (Get B 2)
+  //                         (Get B 0)))
+  //                     (VecMAC
+  //                       (VecMAC
+  //                         (VecMul
+  //                           (LitVec (Get B 7) (Get B 8) 0 0)
+  //                           (LitVec (Get A 5) (Get A 5) 0 0))
+  //                         (LitVec (Get B 4) (Get B 5) 0 0)
+  //                         (LitVec (Get A 4) (Get A 4) 0 0))
+  //                       (LitVec (Get B 1) (Get B 2) 0 0)
+  //                       (LitVec (Get A 3) (Get A 3) 0 0)))";
+  //   let exp_best_cost = 6.232;
+  //   run_egpraph_with_start(start, exp_best, exp_best_cost);
+  // }
 
-  #[test]
-  fn vector_2d_conv_2x2_2x2() {
-    let start = "(List
-                   (* v0 v4)
-                   (+ (* v0 v5) (* v1 v4))
-                   (* v1 v5)
-                   (+ (* v0 v6) (* v2 v4))
-                   (+ (* v0 v7) (* v1 v6) (* v2 v5) (* v3 v4))
-                   (+ (* v1 v7) (* v3 v5))
-                   (* v2 v6)
-                   (+ (* v2 v7) (* v3 v6))
-                   (* v3 v7))";
-    let exp_best = "(Concat
-                      (VecMAC
-                        (VecMul
-                          (Vec v0 v0 v5 v0)
-                          (Vec v4 v5 v1 v6))
-                        (Vec 0 v4 0 v4)
-                        (Vec 0 v1 0 v2))
-                      (Concat
-                        (VecMAC
-                          (VecMAC
-                            (VecMAC
-                              (VecMul (Vec v3 0 0 0) (Vec v4 0 0 0))
-                              (Vec v5 0 0 0)
-                              (Vec v2 0 0 0))
-                            (Vec v1 v5 0 v6)
-                            (Vec v6 v3 0 v3))
-                          (Vec v0 v1 v6 v2)
-                          (Vec v7 v7 v2 v7))
-                        (VecMul (Vec v7 0 0 0) (Vec v3 0 0 0))))";
-    let exp_best_cost = 8.656;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+  // #[test]
+  // fn vector_2d_conv_2x2_2x2() {
+  //   let start = "(List
+  //                  (* v0 v4)
+  //                  (+ (* v0 v5) (* v1 v4))
+  //                  (* v1 v5)
+  //                  (+ (* v0 v6) (* v2 v4))
+  //                  (+ (* v0 v7) (* v1 v6) (* v2 v5) (* v3 v4))
+  //                  (+ (* v1 v7) (* v3 v5))
+  //                  (* v2 v6)
+  //                  (+ (* v2 v7) (* v3 v6))
+  //                  (* v3 v7))";
+  //   let exp_best = "(Concat
+  //                     (VecMAC
+  //                       (VecMul
+  //                         (Vec v0 v0 v5 v0)
+  //                         (Vec v4 v5 v1 v6))
+  //                       (Vec 0 v4 0 v4)
+  //                       (Vec 0 v1 0 v2))
+  //                     (Concat
+  //                       (VecMAC
+  //                         (VecMAC
+  //                           (VecMAC
+  //                             (VecMul (Vec v3 0 0 0) (Vec v4 0 0 0))
+  //                             (Vec v5 0 0 0)
+  //                             (Vec v2 0 0 0))
+  //                           (Vec v1 v5 0 v6)
+  //                           (Vec v6 v3 0 v3))
+  //                         (Vec v0 v1 v6 v2)
+  //                         (Vec v7 v7 v2 v7))
+  //                       (VecMul (Vec v7 0 0 0) (Vec v3 0 0 0))))";
+  //   let exp_best_cost = 8.656;
+  //   run_egpraph_with_start(start, exp_best, exp_best_cost);
+  // }
 
   #[test]
   fn vector_2d_conv_3x3_3x3() {

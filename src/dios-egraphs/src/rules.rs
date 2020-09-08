@@ -86,7 +86,6 @@ pub fn build_litvec_rule() -> Rewrite<VecLang, ()> {
     }
     let all_gets = gets.join(" ");
 
-    println!("{:?}", all_gets);
     let searcher: Pattern<VecLang> = format!("(Vec {})", all_gets)
         .parse()
         .unwrap();
