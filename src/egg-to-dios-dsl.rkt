@@ -14,6 +14,7 @@
   (define-values (out-names body) (egg-to-dios-prog egg-ast))
 
   (define out-name-list (box (flatten out-names)))
+  (pretty-print out-name-list)
   (define postlude
     (flatten
       (for/list ([o outputs])
@@ -109,24 +110,25 @@
                (flatten
                  (list v-prog
                        op-out)))]
-      [(egg-vec-4 v1 v2 v3 v4)
-        (let ([vs (list v1 v2 v3 v4)])
-          (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
-          (if (andmap get-or-zero? vs)
-            (egg-get-list-to-shuffle vs
-                                     (new-name `shufs)
-                                     (new-name `shuf-out))
-            (begin
-              (let-values ([(n1 p1) (egg-to-dios v1)]
-                           [(n2 p2) (egg-to-dios v2)]
-                           [(n3 p3) (egg-to-dios v3)]
-                           [(n4 p4) (egg-to-dios v4)])
-                (define name (new-name 'lit))
-                (define vlit
-                  (vec-lit name (list n1 n2 n3 n4) float-type))
-                (values name
-                        (flatten
-                          (list p1 p2 p3 p4 vlit)))))))]
+      [(egg-vec vs)
+        (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
+        (if (andmap get-or-zero? vs)
+          (egg-get-list-to-shuffle vs
+                                   (new-name `shufs)
+                                   (new-name `shuf-out))
+          (begin
+            (define (egg-to-tuple v)
+              (define-values (n p) (egg-to-dios v))
+              (list n p))
+            (define vs-egg (map egg-to-tuple vs))
+            (define names (map first vs-egg))
+            (define progs (map second vs-egg))
+            (define name (new-name 'lit))
+            (define vlit
+              (vec-lit name names float-type))
+            (values name
+                    (flatten
+                      (list progs vlit)))))]
       [(egg-list vs)
         (define-values (zero-n zero-p) (egg-to-dios 0))
         (define (egg-to-tuple v)
@@ -249,22 +251,24 @@
                       (list
                         (egg-vec-op 'vec-mul
                                     (list
-                                      (egg-vec-4 (egg-get `A 0)
+                                      (egg-vec (list
+                                                 (egg-get `A 0)
                                                  (egg-get `A 0)
                                                  (egg-get `A 2)
-                                                 (egg-get `A 2))
-                                      (egg-vec-4 (egg-get `B 0)
+                                                 (egg-get `A 2)))
+                                      (egg-vec (list
+                                                 (egg-get `B 0)
                                                  (egg-get `B 1)
                                                  (egg-get `B 0)
-                                                 (egg-get `B 1))))
-                        (egg-vec-4 (egg-get `A 1)
-                                   (egg-get `A 1)
-                                   (egg-get `A 3)
-                                   (egg-get `A 3))
-                        (egg-vec-4 (egg-get `B 2)
-                                   (egg-get `B 3)
-                                   (egg-get `B 2)
-                                   (egg-get `B 3)))))
+                                                 (egg-get `B 1)))))
+                        (egg-vec (list (egg-get `A 1)
+                                       (egg-get `A 1)
+                                       (egg-get `A 3)
+                                       (egg-get `A 3)))
+                        (egg-vec (list (egg-get `B 2)
+                                       (egg-get `B 3)
+                                       (egg-get `B 2)
+                                       (egg-get `B 3))))))
         (define prog-smt
           (prog
            (list

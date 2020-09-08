@@ -44,7 +44,7 @@ clean:
 
 # Pre-process spec for egg
 %-out/spec-egg.rkt: %-out src/dios-egraphs/vec-dsl-conversion.py
-	cat $*-out/spec.rkt | $(PY) src/dios-egraphs/vec-dsl-conversion.py -p > $@
+	cat $*-out/spec.rkt | $(PY) src/dios-egraphs/vec-dsl-conversion.py -w $(VEC_WIDTH) -p > $@
 
 # Run egg rewriter
 %-out/res.rkt: %-out/spec-egg.rkt

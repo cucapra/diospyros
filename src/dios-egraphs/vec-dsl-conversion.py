@@ -57,22 +57,22 @@ def to_egg(expr, erase):
     exit(0)
     return expr
 
-def preprocess_egg_to_vecs(expr):
+def preprocess_egg_to_vecs(expr, width):
     if expr[0] != "List":
         print("Cannot preprocess expression")
         return expr
 
     def elements_to_vec(es):
-        if len(es) < 4:
+        if len(es) < width:
             return ["List"] + es
-        if len(es) == 4:
+        if len(es) == width:
              # print("vec")
             return ["Vec"] + es
-        return ["Concat", ["Vec"] + es[0:4], elements_to_vec(es[4:])]
+        return ["Concat", ["Vec"] + es[0:width], elements_to_vec(es[width:])]
 
     return elements_to_vec(expr[1:])
 
-def rosette_to_egg(erase, preprocess):
+def rosette_to_egg(erase, preprocess, width):
     str_in = sys.stdin.read()
     str_in = str_in.replace("'#&", "")
 
@@ -80,7 +80,7 @@ def rosette_to_egg(erase, preprocess):
 
     new = to_egg(sexp, erase)
     if preprocess:
-        new = preprocess_egg_to_vecs(new)
+        new = preprocess_egg_to_vecs(new, width)
     print(sexpdata.dumps(new, str_as='symbol'))
 
 def main():
@@ -89,9 +89,11 @@ def main():
         help="Erase exact expression indices")
     parser.add_argument('-p', '--preprocess', action='store_true',
         help="Preprocess long lists to Vecs")
+    parser.add_argument('-w', '--vecwidth', type=int,
+        help="Vector width")
     args = parser.parse_args()
 
-    rosette_to_egg(args.erase, args.preprocess)
+    rosette_to_egg(args.erase, args.preprocess, args.vecwidth)
 
 if __name__ == main():
     main()

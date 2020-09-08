@@ -51,7 +51,7 @@ fn main() {
       .expect("Failed to read the input file.");
 
   let prog = prog_str.parse().unwrap();
-  eprintln!("Running egg with timeout {:?}s", timeout);
+  eprintln!("Running egg with timeout {:?}s, width: {:?}", timeout, config::vector_width());
   let (cost, best) = rules::run(&prog, timeout, matches.is_present("no-ac"));
 
   println!("{}", best.pretty(40));

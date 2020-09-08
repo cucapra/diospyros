@@ -19,7 +19,7 @@
 (struct egg-get (name idx) #:transparent)
 (struct egg-vec-op (op args) #:transparent)
 (struct egg-list (args) #:transparent)
-(struct egg-vec-4 (v0 v1 v2 v3) #:transparent)
+(struct egg-vec (vs) #:transparent)
 (struct egg-concat (hd tl) #:transparent)
 (struct egg-unnop (op v) #:transparent)
 (struct egg-binop (op lhs rhs) #:transparent)
@@ -50,8 +50,8 @@
       (egg-vec-op `vec-sqrt (list (s-exp-to-ast v)))]
     [`(VecSgn ,v)
       (egg-vec-op `vec-sgn (list (s-exp-to-ast v)))]
-    [(or `(Vec ,v1 ,v2 ,v3 ,v4) `(LitVec ,v1 ,v2 ,v3 ,v4))
-      (apply egg-vec-4 (map s-exp-to-ast (list v1 v2 v3 v4)))]
+    [(or `(Vec , vs ...) `(LitVec , vs ...))
+      (egg-vec (map s-exp-to-ast vs))]
     [`(List , vs ...)
       (egg-list (map s-exp-to-ast vs))]
     [`(Get ,a ,idx)
