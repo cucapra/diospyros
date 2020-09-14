@@ -7,7 +7,11 @@
   <h1>Hello, World!</h1>
 {% endif %}
 
+{% if result %}
+  <h2>Result {{ result }}</h2>
+{% endif %}
+
 <form action="/compile" method="POST">
-<input name="text">
-<input type="submit" value="Echo">
+<input name="program">
+<input type="submit" value="compile">
 </form>
