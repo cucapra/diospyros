@@ -4,6 +4,8 @@
 
 (define prog (parse-program (string->path "test.c")))
 
+;(define-values (stdout stderr) (gcc (lambda () prog)))
+
 (assert (eq? (length prog) 1))
 
 (define (translate stmt)
@@ -18,7 +20,7 @@
         [(expr:assign? stmt)
           (if (expr:array-ref? (expr:assign-left stmt))
           (quasiquote
-            (`bv-list-set!
+            (bv-list-set!
             (unquote (translate (expr:array-ref-expr (expr:assign-left stmt))))
             (unquote (translate (expr:array-ref-offset (expr:assign-left stmt))))
             (unquote (translate (expr:assign-right stmt)))))
@@ -41,7 +43,16 @@
           (list
             (translate (expr:postfix-op stmt))
             (translate (expr:postfix-expr stmt)))]
+        [(expr:prefix? stmt)
+          (list
+            (translate (expr:prefix-op stmt))
+            (translate (expr:prefix-expr stmt)))]
         [(expr:ref? stmt) (translate (expr:ref-id stmt))]
+        [(expr:array-ref? stmt)
+          (quasiquote
+            (bv-list-get
+              (unquote (translate (expr:array-ref-expr stmt)))
+              (unquote (translate(expr:array-ref-offset stmt)))))]
         [else (error "can't handle expr" stmt)])]
     [(decl? stmt)
       (cond
@@ -81,18 +92,37 @@
       (let ([init (stmt:for-init stmt)]
             [test (stmt:for-test stmt)]
             [update (stmt:for-update stmt)])
-        (append
-          (list 'c-for)
-          (list
-          (append
-            (if init
-                (list (translate init))
-                (list #f))
-            (list (translate test))
-            (if update
-              (list (translate update))
-              (list #f))))
-          (translate (stmt:for-body stmt))))]
+
+        (when (not init) (error "for loops must include intialization"))
+        (define-values (idx idx-init)
+          (cond
+            [(decl:vars? init)
+              (when (not (eq? 1 (length (decl:vars-declarators init))))
+                (error "for loops must have a single index variable"))
+              (define fi (first (decl:vars-declarators init)))
+              (values
+                (translate (decl:declarator-id fi))
+                (translate (init:expr-expr (decl:declarator-initializer fi))))]
+            [else (error "unexpected for loop initializer " init)]))
+        (pretty-print idx)
+        (pretty-print idx-init)
+
+        (when (not update) (error "for loops must include update"))
+        (define t-update (translate update))
+        (define update-skip
+          (cond
+            [(eq? t-update `(++ (unquote idx))) 1]
+            [else (error "can't handle update")]))
+
+        ; TODO: handle reverse iteration
+        (define-values (bound reverse)
+          (match (translate test)
+            [`(< i ,bound)
+              (values bound #f)]))
+        (pretty-print bound)
+
+        `(for ([(unquote idx) (inrange (unquote idx-init) (unquote bound) (unquote update-skip))])
+          (unquote (translate (stmt:for-body stmt)))))]
     [(stmt:return? stmt)
       (pretty-print "return, ignoring")]
     [else (error "can't handle statement" stmt)]))
@@ -109,7 +139,16 @@
                     decl:function-body)
 
       ; TODO: check return type is void?
-      (translate decl:function-body)]))
+      (quasiquote
+        (define
+          (unquote
+            (append
+              (list (translate (decl:declarator-id decl:function-declarator)))
+              (for/list ([arg (type:function-formals
+                                (decl:declarator-type decl:function-declarator))])
+                (translate (decl:declarator-id (decl:formal-declarator arg))))))
+
+          (unquote (translate decl:function-body))))]))
 
 (translate-fn-decl (first prog))
 
