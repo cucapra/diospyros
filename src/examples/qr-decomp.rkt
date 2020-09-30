@@ -98,12 +98,12 @@
     (define e (make-bv-list-zeros m))
     (for ([row (in-range k n)]
           [i (in-naturals 0)])
-     (bv-list-set! x (bv-index i) (matrix-ref R row k))
-     (bv-list-set! e (bv-index i) (matrix-ref I row k)))
+     (v-list-set! x (bv-index i) (matrix-ref R row k))
+     (v-list-set! e (bv-index i) (matrix-ref I row k)))
 
     ; alpha is a scalar
     (define alpha
-      (bvmul (bvsub (sgn-func (bv-list-get x (bv-index 0))))
+      (bvmul (bvsub (sgn-func (v-list-get x (bv-index 0))))
                     (vector-norm x)))
 
     ; u and v length based on x and e
@@ -112,17 +112,17 @@
 
     ; Calculate u
     (for ([i (in-range m)])
-      (define u-i (bvadd (bv-list-get x (bv-index i))
+      (define u-i (bvadd (v-list-get x (bv-index i))
                          (bvmul alpha
-                                (bv-list-get e (bv-index i)))))
-      (bv-list-set! u (bv-index i) u-i))
+                                (v-list-get e (bv-index i)))))
+      (v-list-set! u (bv-index i) u-i))
 
     ; Calculate v
     (define norm-u (vector-norm u))
     (for ([i (in-range m)])
-      (define v-i (bvsdiv (bv-list-get u (bv-index i))
+      (define v-i (bvsdiv (v-list-get u (bv-index i))
                           norm-u))
-      (bv-list-set! v (bv-index i) v-i))
+      (v-list-set! v (bv-index i) v-i))
 
     ; Create the Q minor matrix
     (define Q-min (matrix m m (make-bv-list-zeros (* m m))))
@@ -131,8 +131,8 @@
       (define q-min-i
         (bvsub (eq-as-value? i j)
                (bvmul (bv-value 2)
-                      (bv-list-get v (bv-index i))
-                      (bv-list-get v (bv-index j)))))
+                      (v-list-get v (bv-index i))
+                      (v-list-get v (bv-index j)))))
        (matrix-set! Q-min i j q-min-i))
 
     ; "Pad out" the Q minor matrix with elements from the identity

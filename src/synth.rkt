@@ -67,8 +67,8 @@
                         [val (make-symbolic-bv-list-values size name)])
                   (parameterize ([current-namespace ns])
                     (for ([i (range size)])
-                      (assume-input-range (bv-list-get val (bv-index i)))
-                      (eval `(define ,(symbol-append name i) ,(bv-list-get val (bv-index i))))))
+                      (assume-input-range (v-list-get val (bv-index i)))
+                      (eval `(define ,(symbol-append name i) ,(v-list-get val (bv-index i))))))
                   (cons name val)))
                _))
       (~> prog-outs

@@ -126,24 +126,24 @@
 (define (index-bv-list . xs)
   (bv-list bv-index xs))
 
-(define (bv-list-set! lst idx val)
+(define (v-list-set! lst idx val)
   (assert (list? lst) (~a "Expected a list, got " lst))
   (assert (bv? idx) (~a "Expected a bitvector, got " lst))
   (match lst
     [(cons box tail)
       (if (bveq idx (bv-index 0))
           (set-box! box val)
-          (bv-list-set! tail (bvsub idx (bv-index 1)) val))]
+          (v-list-set! tail (bvsub idx (bv-index 1)) val))]
     [_ (error "List idx not found" idx lst)]))
 
-(define (bv-list-get lst idx)
+(define (v-list-get lst idx)
   (assert (list? lst) (~a "Expected a list, got " lst))
   (assert (bv? idx) (~a "Expected a bitvector, got " lst))
   (match lst
     [(cons box tail)
       (if (bveq idx (bv-index 0))
           (unbox box)
-          (bv-list-get tail (bvsub idx (bv-index 1))))]
+          (v-list-get tail (bvsub idx (bv-index 1))))]
     [_ (error "List idx not found" idx lst)]))
 
 (define (concretize-bv-list lst)
@@ -251,13 +251,13 @@
   (match-define (matrix rows cols elements) mat)
   (assert (and (< row rows) (>= row 0)) (~a "MATRIX-REF: Invalid row " row))
   (assert (and (< col cols) (>= col 0)) (~a "MATRIX-REF: Invalid col " col))
-  (bv-list-get elements (bitvectorize-concrete (index-fin) (+ (* cols row) col))))
+  (v-list-get elements (bitvectorize-concrete (index-fin) (+ (* cols row) col))))
 
 (define (matrix-set! mat row col val)
   (match-define (matrix rows cols elements) mat)
   (assert (and (< row rows) (>= row 0)) (~a "MATRIX-SET!: Invalid row " row))
   (assert (and (< col cols) (>= col 0)) (~a "MATRIX-SET!: Invalid col " col))
-  (bv-list-set! elements (bitvectorize-concrete (index-fin) (+ (* cols row) col)) val))
+  (v-list-set! elements (bitvectorize-concrete (index-fin) (+ (* cols row) col)) val))
 
 ;;========================= REGISTER PROPERTIES =========================
 

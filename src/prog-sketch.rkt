@@ -107,7 +107,7 @@
     (for/list ([i (in-range number)])
       (define-values (shuffle-defs shuffle-names)
         (shuffle-thunk i))
-      (bv-list-set! def-shufs i shuffle-names)
+      (v-list-set! def-shufs i shuffle-names)
       (define compute
         (compute-thunk i (take-window (- i window-size) i)))
       (append (shuffle-defs compute))))

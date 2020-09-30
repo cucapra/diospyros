@@ -144,7 +144,7 @@
 
       [(array-get id arr-id idx)
        (let* ([arr (env-ref arr-id)]
-              [elem (bv-list-get arr idx)])
+              [elem (v-list-get arr idx)])
          (env-set! id (list (box elem))))]
 
       [(vec-lit id elems _)

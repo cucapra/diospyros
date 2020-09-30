@@ -30,8 +30,8 @@
 
   (for ([k (in-range N)])
     (define bv-k (bv-index k))
-    (bv-list-set! x-real bv-k (bv-value 0))
-    (bv-list-set! x-img bv-k (bv-value 0))
+    (v-list-set! x-real bv-k (bv-value 0))
+    (v-list-set! x-img bv-k (bv-value 0))
     (for ([n (in-range N)])
       ; Uninterpreted functions
       (define cosine (hash-ref fn-map `cos))
@@ -43,24 +43,24 @@
 
       ; Real part of x[k]: x-real[k] += x[n] * cos(2*pi*n*k/N)
       (define real-val (bvmul (cosine partial)
-                              (bv-list-get x (bv-index n))))
+                              (v-list-get x (bv-index n))))
 
-      (bv-list-set! x-real bv-k (bvadd (bv-list-get x-real bv-k)
+      (v-list-set! x-real bv-k (bvadd (v-list-get x-real bv-k)
                                        real-val))
 
       ; Imaginary part of x[k]: x-img[k] -= x[n] * sin(2*pi*n*k/N)
       (define img-val (bvmul (sine partial)
-                      (bv-list-get x (bv-index n))))
-      (bv-list-set! x-img bv-k (bvsub (bv-list-get x-img bv-k)
+                      (v-list-get x (bv-index n))))
+      (v-list-set! x-img bv-k (bvsub (v-list-get x-img bv-k)
                                       img-val)))
 
     ; Power at kth frequency bin
     (define val
-      (let* ([x-r (bv-list-get x-real bv-k)]
-             [x-i (bv-list-get x-img bv-k)])
+      (let* ([x-r (v-list-get x-real bv-k)]
+             [x-i (v-list-get x-img bv-k)])
         (bvadd (bvmul x-r x-r)
                (bvmul x-i x-i))))
-    (bv-list-set! P bv-k val))
+    (v-list-set! P bv-k val))
   ;(flatten (list x-real x-img P)))
   (flatten (list x-real x-img)))
 

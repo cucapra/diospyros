@@ -30,7 +30,7 @@
                    (bitvectorize-concrete (index-fin)
                                           (length all-inp)))
             (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" (unbox idx) all-inp))
-    (box (bv-list-get all-inp (unbox idx)))))
+    (box (v-list-get all-inp (unbox idx)))))
 
 ;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]
 (define (vector-shuffle-set! out-vec idxs vals)
@@ -42,7 +42,7 @@
           "VECTOR-SHUFFLE-SET: duplicate indices")
   (for ([idx idxs]
         [val vals])
-    (bv-list-set! out-vec (unbox idx) (unbox val)))
+    (v-list-set! out-vec (unbox idx) (unbox val)))
   out-vec)
 
 ;; VECTOR MULTIPLY
@@ -51,7 +51,7 @@
           "VECTOR-MULTIPLY: length of vectors not equal")
   (for/list ([e1 v1]
              [e2 v2])
-    (box (bvmul (unbox e1) (unbox e2)))))
+    (box (* (unbox e1) (unbox e2)))))
 
 ;; VECTOR ADD
 (define (vector-add v1 v2)
@@ -59,7 +59,7 @@
           "VECTOR-ADD: length of vectors not equal")
   (for/list ([e1 v1]
              [e2 v2])
-    (box (bvadd (unbox e1) (unbox e2)))))
+    (box (+ (unbox e1) (unbox e2)))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -70,7 +70,7 @@
   (for/list ([e-acc v-acc]
              [e1 v1]
              [e2 v2])
-    (box (bvadd (unbox e-acc) (bvmul (unbox e1) (unbox e2))))))
+    (box (+ (unbox e-acc) (* (unbox e1) (unbox e2))))))
 
 ; Define sine and cosine as an interpreted functions
 (define-symbolic cosine (~> (bitvector (value-fin))
@@ -84,7 +84,7 @@
           "VECTOR-S-DIVIDE: length of vectors not equal")
   (for/list ([e1 v1]
              [e2 v2])
-    (box (bvsdiv (unbox e1) (unbox e2)))))
+    (box (/ (unbox e1) (unbox e2)))))
 
 ;; VECTOR-NEGATE
 (define (vector-negate v)
