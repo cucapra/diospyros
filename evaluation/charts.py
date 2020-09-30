@@ -123,7 +123,7 @@ def get_kernel_name_formatted(kernel):
 all_kernels = [
     'Naive',
     'Naive (fixed size)',
-    'Bronzite',
+    'Diospyros',
     'Nature',
     'Eigen',
     'Expert',
@@ -134,7 +134,7 @@ def chart(graph_data):
     # Don't show expert in the chart, since there is only 1
     graph_data = graph_data[graph_data.Kernel != "Expert"]
 
-    figsize=(15,3)
+    figsize=(9,3)
     # Normalize data against key
     norm_key = 'Naive (fixed size)'
     # Location of the color of the norm value
@@ -168,6 +168,8 @@ def chart(graph_data):
         palette=colors,
         data=graph_data_with_norm)
     locs, labels = plt.xticks()
+
+    graph_data_with_norm.to_csv('charts.csv', index = False)
 
     ax.set(ylabel="Speedup over Naive (fixed-size)")
 
@@ -374,8 +376,8 @@ def format_data(files):
         for size, data in sorted(data_per_size.items(), reverse=True):
             baseline_names = set()
             for x in data:
-                if x["kernel"] == "Diospyros":
-                    x["kernel"] = "Bronzite"
+                # if x["kernel"] == "Diospyros":
+                #     x["kernel"] = "Bronzite"
                 baseline_names.add(x["kernel"])
 
             for i, kernel in enumerate(baseline_names):
