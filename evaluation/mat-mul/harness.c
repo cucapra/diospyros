@@ -33,16 +33,16 @@ void kernel(float* input_A, float* input_B, float* input_C);
 
 
 // Naive
- void naive_matrix_multiply(float *a, float *b, float *c, int row1, int col1, int col2) {
-   for (int y = 0; y < row1; y++) {
-     for (int x = 0; x < col2; x++) {
-       c[col2 * y + x] = 0;
-       for (int k = 0; k < col1; k++) {
-         c[col2 * y + x] += a[col1 * y + k] * b[col2 * k + x];
-       }
-     }
-   }
- }
+void naive_matrix_multiply(float *a, float *b, float *c, int row1, int col1, int col2) {
+  for (int y = 0; y < row1; y++) {
+    for (int x = 0; x < col2; x++) {
+      c[col2 * y + x] = 0;
+      for (int k = 0; k < col1; k++) {
+        c[col2 * y + x] += a[col1 * y + k] * b[col2 * k + x];
+      }
+    }
+  }
+}
 
  // Naive hard-coded size
  void naive_matrix_multiply_hard_size(float *a, float *b, float *c) {

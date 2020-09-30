@@ -2,7 +2,7 @@
 
 (require c)
 
-(define prog (parse-program (string->path "test.c")))
+(define prog (parse-program (string->path "mat-mul-c.c")))
 
 ;(define-values (stdout stderr) (gcc (lambda () prog)))
 
@@ -104,9 +104,6 @@
                 (translate (decl:declarator-id fi))
                 (translate (init:expr-expr (decl:declarator-initializer fi))))]
             [else (error "unexpected for loop initializer " init)]))
-        (pretty-print idx)
-        (pretty-print idx-init)
-
         (when (not update) (error "for loops must include update"))
         (define t-update (translate update))
         (define update-skip
@@ -117,9 +114,8 @@
         ; TODO: handle reverse iteration
         (define-values (bound reverse)
           (match (translate test)
-            [`(< i ,bound)
+            [`(< (unquote idx) ,bound)
               (values bound #f)]))
-        (pretty-print bound)
 
         `(for ([(unquote idx) (inrange (unquote idx-init) (unquote bound) (unquote update-skip))])
           (unquote (translate (stmt:for-body stmt)))))]
@@ -150,5 +146,5 @@
 
           (unquote (translate decl:function-body))))]))
 
-(translate-fn-decl (first prog))
+(pretty-print (translate-fn-decl (first prog)))
 
