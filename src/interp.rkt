@@ -19,13 +19,13 @@
 
 ; Read a vector of `size` starting at location `start` from `memory`
 (define (read-vec memory start size)
-  (bv-list-copy! memory start (+ start size)))
+  (v-list-copy! memory start (+ start size)))
 
 ; Write a vector to `memory` to the location `start` and return the updated
 ; memory.
 ; MUTATES the argument `memory`.
 (define (write-vec! memory start vec)
-  (bv-list-copy! memory start vec))
+  (v-list-copy! memory start vec))
 
 (define align align-to-reg-size)
 
@@ -40,7 +40,7 @@
 ; inputs.
 (define (interp program
                 init-env
-                #:cost-fn [cost-fn (thunk* (bv-cost 0))]
+                #:cost-fn [cost-fn (thunk* 0)]
                 #:fn-map [fn-map (make-hash)]
                 #:symbolic? [symbolic? #f])
   ; Setup the environment if it is an associative list. Need to make new boxes
@@ -64,7 +64,7 @@
     (hash-has-key? env key))
 
   ; Track the cost of the program
-  (define cur-cost (bv-cost 0))
+  (define cur-cost 0)
   (define (incr-cost! val)
     (set! cur-cost (bvadd cur-cost val)))
 
@@ -86,13 +86,13 @@
        (env-set! id val)]
 
       [(vec-decl id size)
-       (env-set! id (make-bv-list-zeros (current-reg-size)))]
+       (env-set! id (make-v-list-zeros (current-reg-size)))]
 
       [(vec-extern-decl id size _)
        ; The identifier is not already bound, create a symbolic vector of the
        ; correct size and add it to the environment.
        (if (and symbolic? (not (env-has? id)))
-         (env-set! id (align (make-symbolic-bv-list-values size)))
+         (env-set! id (align (make-symbolic-v-list size)))
          (begin
            (assert (env-has? id)
                    (~a "INTERP: missing extern vector: " id))
@@ -124,20 +124,20 @@
          (apply fn inps-val))]
 
       [(vec-load dest-id src-id start end)
-       (let ([dest (make-bv-list-zeros (current-reg-size))]
+       (let ([dest (make-v-list-zeros (current-reg-size))]
              [src (env-ref src-id)])
-         (bv-list-copy! dest (bv-index 0) src start end)
+         (v-list-copy! dest 0 src start end)
          (env-set! dest-id dest))]
 
       [(vec-store dest-id src-id start end)
        (let ([dest (env-ref dest-id)]
              [src (env-ref src-id)])
-         (bv-list-copy! dest start src (bv-index 0) (bvsub end start)))]
+         (v-list-copy! dest start src 0 (bvsub end start)))]
 
       [(vec-write dst-id src-id)
        (let ([dest (env-ref dst-id)]
              [src (env-ref src-id)])
-         (bv-list-copy! dest (bv-index 0) src))]
+         (v-list-copy! dest 0 src))]
 
       [(let-bind id expr _)
        (env-set! id (list (box expr)))]
@@ -174,7 +174,7 @@
       [(or (vec-shuffle _ idxs _)
            (vec-shuffle-set! _ idxs _))
        (reg-used (hash-ref env idxs) reg-of)]
-      [_ (bv-cost 0)])))
+      [_ 0])))
 
 ; Cost of program is the number of unique shuffle idxs used.
 ; Uses `shuf-name-eq?` on the name of the shuffle to separate them into
@@ -194,13 +194,13 @@
               [idxs-def (vector-ref idxs-def-class equiv-class)])
          (begin0
            (if (ormap (lambda (el) (equal? el conc-idxs)) idxs-def)
-               (bv-cost 0)
-               (bv-cost 1))
+               0
+               1)
            ; Add to equivalence class
            (vector-set! idxs-def-class
                         equiv-class
                         (cons conc-idxs idxs-def))))]
-      [_ (bv-cost 0)])))
+      [_ 0])))
 
 (module+ test
   (require rackunit
@@ -212,7 +212,7 @@
         "Write out constant vector"
         (define env (make-hash))
         (define gold
-          (value-bv-list 1 2 3 4))
+          (v-list 1 2 3 4))
         (define/prog p
           ('x = vec-const gold int-type))
         (interp p env)
@@ -221,10 +221,10 @@
       (test-case
         "create shuffled vector"
         (define env (make-hash))
-        (define gold (value-bv-list 3 1 2 0))
+        (define gold (v-list 3 1 2 0))
         (define/prog p
-          ('const = vec-const (value-bv-list 0 1 2 3) float-type)
-          ('idxs = vec-const (index-bv-list 3 1 2 0) int-type)
+          ('const = vec-const (v-list 0 1 2 3) float-type)
+          ('idxs = vec-const (v-list 3 1 2 0) int-type)
           ('shuf = vec-shuffle 'idxs (list 'const)))
         (interp p env)
         (check-equal? (hash-ref env 'shuf) gold))
@@ -232,8 +232,8 @@
       (test-case
        "check external declared vector defined"
        (define env (make-hash))
-       (hash-set! env `x (make-bv-list-zeros 2))
-       (define gold (value-bv-list 0 0 0 0))
+       (hash-set! env `x (make-v-list-zeros 2))
+       (define gold (v-list 0 0 0 0))
        (define p (prog (list (vec-extern-decl `x 2 input-tag))))
        (interp p env)
        (check-equal? (hash-ref env `x) gold))
@@ -254,11 +254,11 @@
       (test-case
         "make-register-cost calculates cost correctly"
         (define/prog p
-          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7) float-type)
-          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15) float-type)
-          ('i1 = vec-const (index-bv-list 1 4 7 5) int-type)
-          ('i2 = vec-const (index-bv-list 0 3 2 1) int-type)
-          ('i3 = vec-const (index-bv-list 0 1 8 9) int-type)
+          ('a = vec-const (v-list 0 1 2 3 4 5 6 7) float-type)
+          ('b = vec-const (v-list 8 9 10 11 12 13 14 15) float-type)
+          ('i1 = vec-const (v-list 1 4 7 5) int-type)
+          ('i2 = vec-const (v-list 0 3 2 1) int-type)
+          ('i3 = vec-const (v-list 0 1 8 9) int-type)
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i2 (list 'a))
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
@@ -266,23 +266,23 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-register-cost reg-of-idx)))
-        (check-equal? cost (bv-cost 5))
+        (check-equal? cost 5)
         ; cost depends on the current-reg-size
         (define-values (__ cost-2)
           (interp p
                   (make-hash)
                   #:cost-fn (make-register-cost reg-of-idx)))
         (parameterize ([current-reg-size 2])
-          (check-equal? cost-2 (bv-cost 5))))
+          (check-equal? cost-2 5)))
 
       (test-case
         "shuffle-unique-cost does not increase cost for repeated idxs"
         (define/prog p
-          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7) float-type)
-          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15) float-type)
-          ('i1 = vec-const (index-bv-list 1 2 3 0) int-type)
-          ('i2 = vec-const (index-bv-list 0 3 2 1) int-type)
-          ('i3 = vec-const (index-bv-list 0 1 8 9) int-type)
+          ('a = vec-const (v-list 0 1 2 3 4 5 6 7) float-type)
+          ('b = vec-const (v-list 8 9 10 11 12 13 14 15) float-type)
+          ('i1 = vec-const (v-list 1 2 3 0) int-type)
+          ('i2 = vec-const (v-list 0 3 2 1) int-type)
+          ('i3 = vec-const (v-list 0 1 8 9) int-type)
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
@@ -290,16 +290,16 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-shuffle-unique-cost)))
-        (check-equal? cost (bv-cost 2)))
+        (check-equal? cost 2))
 
       (test-case
         "shuffle-unique-cost calculates different cost for unique idxs"
         (define/prog p
-          ('a = vec-const (value-bv-list 0 1 2 3 4 5 6 7) float-type)
-          ('b = vec-const (value-bv-list 8 9 10 11 12 13 14 15) float-type)
-          ('i1 = vec-const (index-bv-list 1 2 3 0) int-type)
-          ('i2 = vec-const (index-bv-list 0 3 2 1) int-type)
-          ('i3 = vec-const (index-bv-list 0 1 8 9) int-type)
+          ('a = vec-const (v-list 0 1 2 3 4 5 6 7) float-type)
+          ('b = vec-const (v-list 8 9 10 11 12 13 14 15) float-type)
+          ('i1 = vec-const (v-list 1 2 3 0) int-type)
+          ('i2 = vec-const (v-list 0 3 2 1) int-type)
+          ('i3 = vec-const (v-list 0 1 8 9) int-type)
           ('s1 = vec-shuffle 'i1 (list 'a))
           ('s2 = vec-shuffle 'i2 (list 'a))    ; different from previous test
           ('s2 = vec-shuffle 'i3 (list 'a 'b)))
@@ -307,5 +307,5 @@
           (interp p
                   (make-hash)
                   #:cost-fn (make-shuffle-unique-cost)))
-        (check-equal? cost (bv-cost 3)))
+        (check-equal? cost 3))
       )))

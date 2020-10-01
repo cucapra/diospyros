@@ -42,6 +42,6 @@
       (equal?
         (unsat)
         (verify-spec-prog spec
-                          (to-bvs-prog trunc-prog)
+                          (to-v-list-prog trunc-prog)
                           #:fn-map (check-transform-with-fn-map)))))
   trunc-prog)

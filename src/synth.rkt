@@ -51,8 +51,8 @@
 
   ; Constrain inputs
   (define (assume-input-range i)
-    (assert (and (bvslt i (bv-value 100))
-                 (bvsgt i (bv-value -100)))))
+    (assert (and (< i 100)
+                 (> i -100))))
 
   ; Generate symbolic inputs for prog
   (define init-env
@@ -64,18 +64,18 @@
                  ; spec as well
                  (let* ([name (car decl)]
                         [size (cdr decl)]
-                        [val (make-symbolic-bv-list-values size name)])
+                        [val (make-symbolic-v-list size name)])
                   (parameterize ([current-namespace ns])
                     (for ([i (range size)])
-                      (assume-input-range (v-list-get val (bv-index i)))
-                      (eval `(define ,(symbol-append name i) ,(v-list-get val (bv-index i))))))
+                      (assume-input-range (v-list-get val i))
+                      (eval `(define ,(symbol-append name i) ,(v-list-get val i)))))
                   (cons name val)))
                _))
       (~> prog-outs
           to-sizes
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-bv-list-zeros (cdr decl))))
+                       (make-v-list-zeros (cdr decl))))
                _))))
 
   ; Add rosette uninterp function app to namespace
@@ -150,14 +150,14 @@
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-symbolic-bv-list-values (cdr decl))))
+                       (make-symbolic-v-list (cdr decl))))
                _))
       (~> spec-outs
           to-size-set
           set->list
           (map (lambda (decl)
                  (cons (car decl)
-                       (make-bv-list-zeros (cdr decl))))
+                       (make-v-list-zeros (cdr decl))))
                _))))
 
   (define (interp-and-env prog init-env)
@@ -294,7 +294,7 @@
         [(or (not (sat? model)) (bvsle new-cost min-cost))
          (pretty-print `(final-cost: ,(bitvector->integer cur-cost)))
          (values (void) new-cost)]
-        [else (loop (bvsub new-cost (bv-cost 1))
+        [else (loop (bvsub new-cost 1)
                     model
                     next)]))))
 
