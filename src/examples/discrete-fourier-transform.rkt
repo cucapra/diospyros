@@ -26,41 +26,34 @@
 (define (dft-spec N x fn-map)
   (match-define (list x-real x-img P)
     (for/list ([n (in-range 3)])
-      (make-bv-list-zeros N)))
+      (make-v-list-zeros N)))
 
   (for ([k (in-range N)])
-    (define bv-k (bv-index k))
-    (v-list-set! x-real bv-k (bv-value 0))
-    (v-list-set! x-img bv-k (bv-value 0))
+    (v-list-set! x-real k 0)
+    (v-list-set! x-img k 0)
     (for ([n (in-range N)])
       ; Uninterpreted functions
       (define cosine (hash-ref fn-map `cos))
       (define sine (hash-ref fn-map `sin))
       (define pi (hash-ref fn-map `pi))
 
-      (define partial (bvsdiv (bvmul pi (bv-value (* 2 n k)))
-                              (bv-value N)))
+      (define partial (/ (* pi (* 2 n k))
+                              N))
 
       ; Real part of x[k]: x-real[k] += x[n] * cos(2*pi*n*k/N)
-      (define real-val (bvmul (cosine partial)
-                              (v-list-get x (bv-index n))))
-
-      (v-list-set! x-real bv-k (bvadd (v-list-get x-real bv-k)
-                                       real-val))
+      (define real-val (* (cosine partial) (v-list-get x n)))
+      (v-list-set! x-real k (+ (v-list-get x-real k) real-val))
 
       ; Imaginary part of x[k]: x-img[k] -= x[n] * sin(2*pi*n*k/N)
-      (define img-val (bvmul (sine partial)
-                      (v-list-get x (bv-index n))))
-      (v-list-set! x-img bv-k (bvsub (v-list-get x-img bv-k)
-                                      img-val)))
+      (define img-val (* (sine partial) (v-list-get x n)))
+      (v-list-set! x-img k (- (v-list-get x-img k) img-val)))
 
     ; Power at kth frequency bin
     (define val
-      (let* ([x-r (v-list-get x-real bv-k)]
-             [x-i (v-list-get x-img bv-k)])
-        (bvadd (bvmul x-r x-r)
-               (bvmul x-i x-i))))
-    (v-list-set! P bv-k val))
+      (let* ([x-r (v-list-get x-real k)]
+             [x-i (v-list-get x-img k)])
+        (+ (* x-r x-r) (* x-i x-i))))
+    (v-list-set! P k val))
   ;(flatten (list x-real x-img P)))
   (flatten (list x-real x-img)))
 
@@ -73,17 +66,17 @@
      (vec-extern-decl 'x-real N output-tag)
      (vec-extern-decl 'x-img N output-tag)
      (vec-extern-decl 'P N output-tag)
-     (vec-const 'Z (make-bv-list-zeros 1) float-type)
-     (vec-const 'pi-vec (make-bv-list-bvs (current-reg-size) `pi) float-type)
-     (vec-const 'N-vec (make-bv-list (current-reg-size) N) float-type)
+     (vec-const 'Z (make-v-list-zeros 1) float-type)
+     (vec-const 'pi-vec (make-v-list (current-reg-size) `pi) float-type)
+     (vec-const 'N-vec (make-v-list (current-reg-size) N) float-type)
      (vec-decl 'reg-x-real (current-reg-size))
      (vec-decl 'reg-x-img (current-reg-size))))
 
   (define-values (x-real-ids x-real-loads x-real-stores)
-    (partition-bv-list 'x-real N))
+    (partition-v-list 'x-real N))
 
   (define-values (x-img-ids x-img-loads x-img-stores)
-    (partition-bv-list 'x-img N))
+    (partition-v-list 'x-img N))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -98,12 +91,11 @@
     ; Partial products are 2*pi*n*k/N. n and k <= N
     (define (choose-idx)
       (apply choose*
-        (for/list ([i (in-range (* N N))])
-          (bv-value i))))
+        (for/list ([i (in-range (* N N))]) i)))
 
     (define (choose-idx-vec)
       (for/list ([_ (in-range (current-reg-size))])
-        (box (bvmul (bv-value 2) (choose-idx)))))
+        (box (* 2 (choose-idx)))))
 
     ; Choose an output partition based on the iteration to both read and write
     (define out-idx (floor (/ iteration N)))
@@ -158,9 +150,9 @@
                            'vec-negate vector-negate
                            'pi pi-sym)
             (list (cons 'x x)
-                  (cons 'x-real (make-bv-list-zeros N))
-                  (cons 'x-img (make-bv-list-zeros N))
-                  (cons 'P (make-bv-list-zeros N)))))
+                  (cons 'x-real (make-v-list-zeros N))
+                  (cons 'x-img (make-v-list-zeros N))
+                  (cons 'P (make-v-list-zeros N)))))
 
   ; For now, append x-real, x-img, and P
   (list (flatten (list (take (hash-ref out-env 'x-real) N)
@@ -168,12 +160,6 @@
                      ; (take (hash-ref out-env 'P) N)))
                        ))
         cost))
-
-(define (trig-facts pi-sym)
-  (list
-    ; Pi facts
-    (bvslt pi-sym (bv-value 4))
-    (bvslt (bv-value 1) pi-sym)))
 
 ; Describe the configuration parameters for this benchmarks
 (define dft:keys
@@ -194,7 +180,7 @@
     ; Define input
     (match-define (list x)
       (for/list ([n (in-range 1)])
-        (make-symbolic-bv-list-values N)))
+        (make-symbolic-v-list N)))
 
     ; Calculate the number of iterations necessary
     (define iterations
@@ -245,8 +231,9 @@
                                    (let ([fn-map (first (filter hash? args))])
                                      (map (curry hash-ref fn-map)
                                           (list `cos `sin))))))
-                  #:min-cost (bv-cost 0)
-                  #:assume (trig-facts pi-sym)))
+                  #:min-cost 0
+                  ; #:assume (trig-facts pi-sym)
+                  ))
 
     ; Keep minimizing solution in the synthesis procedure and generating new
     ; solutions.
@@ -269,19 +256,17 @@
     (test-case
       "Spec correctness"
       (define N 2)
-      (define x (value-bv-list 0 1))
+      (define x (v-list 0 1))
       (define-symbolic* pi-sym (bitvector (value-fin)))
 
       (define gold-real
         (list
-          (box (cosine (bv-value 0)))
-          (box (cosine (bvsdiv (bvmul (bv-value 2) pi-sym)
-                               (bv-value N))))))
+          (box (cosine 0))
+          (box (cosine (/ (* 2 pi-sym) N)))))
       (define gold-img
         (list
-          (box (bvneg (sine (bv-value 0))))
-          (box (bvneg (sine (bvsdiv (bvmul (bv-value 2) pi-sym)
-                                    (bv-value N)))))))
+          (box (- (sine 0)))
+          (box (- (sine (/ (* 2 pi-sym) N))))))
 
       (define fn-map (hash `cos cosine `sin sine `pi pi-sym))
 
@@ -301,7 +286,7 @@
         ; Cosine facts
         ; (forall (list x)
         ;         (=>
-        ;           (bveq (bv-value 0)
+        ;           (bveq 0
         ;                 (bvsrem x
         ;                         (bv-value 8)))
         ;           (bveq (cosine (bvsdiv (bvmul (bv-value x) pi-sym)
@@ -309,7 +294,7 @@
         ;                 (bv-value 1)))))
         ; (forall (list x)
         ;         (=>
-        ;           (bveq (bv-value 0)
+        ;           (bveq 0
         ;                 (bvsrem (bvsub x (bv-value 4))
         ;                         (bv-value 8)))
         ;           (bveq (cosine (bvsdiv (bvmul (bv-value x) pi-sym)
@@ -317,26 +302,26 @@
         ;                 (bv-value -1)))))
         ; (forall (list x)
         ;         (=>
-        ;           (bveq (bv-value 0)
-        ;                 (bvsrem (bvsub x (bv-value 2))
+        ;           (bveq 0
+        ;                 (bvsrem (bvsub x 2)
         ;                         (bv-value 8)))
         ;           (bveq (cosine (bvsdiv (bvmul (bv-value x) pi-sym)
         ;                               (bv-value 4))
-        ;                 (bv-value 0)))))
+        ;                 0))))
         ; Sine facts
         ; (forall (list x) (bveq (sine (bvmul x pi-sym))
-        ;                        (bv-value 0)))
+        ;                        0))
         ; (forall (list x)
         ;         (=>
-        ;           (bveq (bv-value 0)
-        ;                 (bvsrem (bvsub x (bv-value 2))
+        ;           (bveq 0
+        ;                 (bvsrem (bvsub x 2)
         ;                         (bv-value 8)))
         ;           (bveq (sine (bvsdiv (bvmul (bv-value x) pi-sym)
         ;                               (bv-value 4))
         ;                 (bv-value 1)))))
         ; (forall (list x)
         ;         (=>
-        ;           (bveq (bv-value 0)
+        ;           (bveq 0
         ;                 (bvsrem (bvsub x (bv-value 6))
         ;                         (bv-value 8)))
         ;           (bveq (sine (bvsdiv (bvmul (bv-value x) pi-sym)

@@ -21,7 +21,7 @@
     (vec-extern-decl 'A (* A-rows A-cols) input-tag)
     (vec-extern-decl 'B (* B-rows B-cols) input-tag)
     (vec-extern-decl 'C (* A-rows B-cols) output-tag)
-    (vec-const 'Z (make-bv-list-zeros 1) float-type)))
+    (vec-const 'Z (make-v-list-zeros 1) float-type)))
 
 (define (postlude output-names)
   (for/list ([n output-names]
@@ -56,14 +56,14 @@
   (define C
     (matrix A-rows
             B-cols
-            (make-bv-list-zeros (* A-rows B-cols))))
+            (make-v-list-zeros (* A-rows B-cols))))
   (for* ([i A-rows]
          [j B-cols])
     (define sum
       (apply
-        bvadd
+        +
         (for/list ([k A-cols])
-          (bvmul (matrix-ref mat-A i k)
+          (* (matrix-ref mat-A i k)
              (matrix-ref mat-B k j)))))
     (matrix-set! C i j sum))
 
@@ -85,7 +85,7 @@
      (list (vec-decl 'reg-C (current-reg-size)))))
 
   (define-values (C-reg-ids C-reg-loads C-reg-stores)
-    (partition-bv-list 'C (* A-rows B-cols)))
+    (partition-v-list 'C (* A-rows B-cols)))
 
   ; Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -137,7 +137,7 @@
     (match-define (matrix _ B-cols B-elements) mat-B)
     (hash-set! env 'A A-elements)
     (hash-set! env 'B B-elements)
-    (hash-set! env 'C (make-bv-list-zeros C-size)))
+    (hash-set! env 'C (make-v-list-zeros C-size)))
 
   (define-values (_ cost)
     (interp sketch
@@ -147,22 +147,6 @@
             #:fn-map (hash 'vec-mac vector-mac)))
 
   (list (take (hash-ref env 'C) C-size) cost))
-
-; Get statistics on a proposed synthesis solution
-(define (get-statistics C-size sol reg-of)
-  (let*
-     ([regs-cost (last (run-matrix-mul-sketch
-                      sol
-                      C-size
-                      (make-register-cost reg-of)))]
-     [class-uniq-cost (last (run-matrix-mul-sketch
-                            sol
-                            C-size
-                            (make-shuffle-unique-cost prefix-equiv)))])
-    (pretty-print `(class-based-unique-idxs-cost: ,(bitvector->integer class-uniq-cost)))
-    (pretty-print `(registers-touched-cost: ,(bitvector->integer regs-cost)))
-    (pretty-print '-------------------------------------------------------)))
-
 
 ; Describe the configuration parameters for this benchmarks
 (define matrix-mul:keys
@@ -213,7 +197,7 @@
       (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
             [cost-2 (make-register-cost reg-of)])
         (lambda (inst env)
-          (bvadd (cost-1 inst env) (cost-2 inst env)))))
+          (+ (cost-1 inst env) (cost-2 inst env)))))
 
     ; Create function for sketch evaluation
     (define (sketch-func args)
@@ -234,7 +218,7 @@
                   (list A B)
                   #:get-inps (lambda (args) (flatten
                                               (map matrix-elements args)))
-                  #:min-cost (bv-cost 0)
+                  #:min-cost 0
                   #:assume assume))
 
     ; Keep minimizing solution in the synthesis procedure and generating new

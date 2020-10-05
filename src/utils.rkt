@@ -63,7 +63,7 @@
   (for/list ([_ (in-range size)])
     (box val)))
 
-(define (v-list to-bv xs)
+(define (v-list . xs)
   (map (lambda (x) (assert (real? x) (~a "Expected a real, got " x))) xs)
   (map box xs))
 
@@ -79,7 +79,7 @@
 
 (define (v-list-get lst idx)
   (assert (list? lst) (~a "Expected a list, got " lst))
-  (assert (bv? idx) (~a "Expected a bitvector, got " lst))
+  (assert (real? idx) (~a "Expected a real, got " idx))
   (match lst
     [(cons box tail)
       (if (eq? idx 0)

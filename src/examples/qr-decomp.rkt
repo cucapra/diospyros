@@ -21,7 +21,7 @@
       (vec-extern-decl 'A (* n n) input-tag)
       (vec-extern-decl 'Q (* n n) output-tag)
       (vec-extern-decl 'R (* n n) output-tag)
-      (vec-const 'Z (make-bv-list-zeros 1) float-type)))
+      (vec-const 'Z (make-v-list-zeros 1) float-type)))
 
   (define-values (Q R) (househoulder A))
 
@@ -38,23 +38,23 @@
 
 (define (matrix-transpose m)
   (match-define (matrix rows cols elems) m)
-  (define out (matrix cols rows (make-bv-list-zeros (* rows cols))))
+  (define out (matrix cols rows (make-v-list-zeros (* rows cols))))
   (for* ([i rows]
          [j cols])
     (matrix-set! out j i (matrix-ref m i j)))
   out)
 
 (define (eq-as-value? i j)
-  (if (equal? i j) (bv-value 1) (bv-value 0)))
+  (if (equal? i j) 1 0))
 
 (define (sqrt-mock x)
-  (bv-value (round (sqrt (bitvector->integer x)))))
+  (round (sqrt (bitvector->integer x))))
 
 (define (vector-norm v
-                     [sqrt-func bv-sqrt])
+                     [sqrt-func v-sqrt])
                     ; [sqrt-func sqrt-mock])
-  (define (bv-sqr x) (bvmul (unbox x) (unbox x)))
-  (sqrt-func (apply bvadd (map bv-sqr v))))
+  (define (v-sqr x) (* (unbox x) (unbox x)))
+  (sqrt-func (apply + (map v-sqr v))))
 
 (define (q-i q-min i j k)
   (if (or (< i k) (< j k))
@@ -62,7 +62,7 @@
     (matrix-ref q-min (- i k) (- j k))))
 
 (define (identity n)
-  (define I (matrix n n (make-bv-list-zeros (* n n))))
+  (define I (matrix n n (make-v-list-zeros (* n n))))
   (for* ([i (in-range n)]
          [j (in-range n)])
     (matrix-set! I i j (eq-as-value? i j)))
@@ -70,12 +70,12 @@
 
 (define (sgn-mock x)
   (cond
-    [(bvslt x (bv-value 0)) (bv-value -1)]
-    [(bvsgt x (bv-value 0)) (bv-value 1)]
-    [else (bv-value 0)]))
+    [(< x 0) -1]
+    [(> x 0) 1]
+    [else 0]))
 
 (define (househoulder A
-                     [sgn-func bv-sgn])
+                     [sgn-func v-sgn])
                      ; [sgn-func sgn-mock])
   (match-define (matrix A-rows A-cols A-elements) A)
   (assert (equal? A-rows A-cols))
@@ -85,7 +85,7 @@
   (define R (matrix n n (map box (map unbox A-elements))))
 
   ; Create Q as a zero matrix of the same size
-  (define Q (matrix n n (make-bv-list-zeros (* n n))))
+  (define Q (matrix n n (make-v-list-zeros (* n n))))
 
   ; Create identity of the same size
   (define I (identity n))
@@ -94,49 +94,47 @@
 
     ; Create the vectors x, e (length dependent on n minus index, call this m)
     (define m (- n k))
-    (define x (make-bv-list-zeros m))
-    (define e (make-bv-list-zeros m))
+    (define x (make-v-list-zeros m))
+    (define e (make-v-list-zeros m))
     (for ([row (in-range k n)]
           [i (in-naturals 0)])
-     (v-list-set! x (bv-index i) (matrix-ref R row k))
-     (v-list-set! e (bv-index i) (matrix-ref I row k)))
+     (v-list-set! x i (matrix-ref R row k))
+     (v-list-set! e i (matrix-ref I row k)))
 
     ; alpha is a scalar
     (define alpha
-      (bvmul (bvsub (sgn-func (v-list-get x (bv-index 0))))
-                    (vector-norm x)))
+      (* (- (sgn-func (v-list-get x 0)))
+         (vector-norm x)))
 
     ; u and v length based on x and e
-    (define u (make-bv-list-zeros m))
-    (define v (make-bv-list-zeros m))
+    (define u (make-v-list-zeros m))
+    (define v (make-v-list-zeros m))
 
     ; Calculate u
     (for ([i (in-range m)])
-      (define u-i (bvadd (v-list-get x (bv-index i))
-                         (bvmul alpha
-                                (v-list-get e (bv-index i)))))
-      (v-list-set! u (bv-index i) u-i))
+      (define u-i (+ (v-list-get x i)
+                     (* alpha (v-list-get e i))))
+      (v-list-set! u i u-i))
 
     ; Calculate v
     (define norm-u (vector-norm u))
     (for ([i (in-range m)])
-      (define v-i (bvsdiv (v-list-get u (bv-index i))
-                          norm-u))
-      (v-list-set! v (bv-index i) v-i))
+      (define v-i (/ (v-list-get u i) norm-u))
+      (v-list-set! v i v-i))
 
     ; Create the Q minor matrix
-    (define Q-min (matrix m m (make-bv-list-zeros (* m m))))
+    (define Q-min (matrix m m (make-v-list-zeros (* m m))))
     (for* ([i (in-range m)]
            [j (in-range m)])
       (define q-min-i
-        (bvsub (eq-as-value? i j)
-               (bvmul (bv-value 2)
-                      (v-list-get v (bv-index i))
-                      (v-list-get v (bv-index j)))))
+        (- (eq-as-value? i j)
+           (* 2
+              (v-list-get v i)
+              (v-list-get v j))))
        (matrix-set! Q-min i j q-min-i))
 
     ; "Pad out" the Q minor matrix with elements from the identity
-    (define Q-t (matrix n n (make-bv-list-zeros (* n n))))
+    (define Q-t (matrix n n (make-v-list-zeros (* n n))))
     (for* ([i (in-range n)]
            [j (in-range n)])
        (matrix-set! Q-t i j (q-i Q-min i j k)))
@@ -161,13 +159,13 @@
 ; [[12, -51, 4], [6, 167, -68], [-4, 24, -41]]
 ; (define in (matrix 3
 ;                    3
-;                    (value-bv-list 12 -51 4 6 167 -68 -4 24 -41)))
+;                    (v-list 12 -51 4 6 167 -68 -4 24 -41)))
 ; (pretty-print in)
 ; (pretty-print (matrix-transpose in))
 
 ; (define-values (Q R) (househoulder in))
-; (pretty-print (map bitvector->integer (map unbox (matrix-elements Q))))
-; (pretty-print (map bitvector->integer (map unbox (matrix-elements R))))
+; (pretty-print (map unbox (matrix-elements Q)))
+; (pretty-print (map unbox (matrix-elements R)))
 
 ; (pretty-print 'done)
 

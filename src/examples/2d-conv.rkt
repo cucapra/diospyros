@@ -22,7 +22,7 @@
     (vec-extern-decl 'I (* I-rows I-cols) input-tag)
     (vec-extern-decl 'F (* F-rows F-cols) input-tag)
     (vec-extern-decl 'O (* output-rows output-cols) output-tag)
-    (vec-const 'Z (make-bv-list-zeros 1) float-type)))
+    (vec-const 'Z (make-v-list-zeros 1) float-type)))
 
 ;; Runs the spec with symbolic inputs and returns:
 ;; - the resulting formula.
@@ -53,7 +53,7 @@
   (define (safe-access-input row col)
     (if (and (>= row 0) (>= col 0) (< row i-rows) (< col i-cols))
       (matrix-ref input row col)
-      (bv-value 0)))
+      0))
 
   ; Pad the output to include the edge computations
   (define output-rows (sub1 (+ i-rows f-rows)))
@@ -61,21 +61,21 @@
   (define output
     (matrix output-rows
             output-cols
-            (make-bv-list-zeros (* output-rows output-cols))))
+            (make-v-list-zeros (* output-rows output-cols))))
 
   (for* ([output-row (in-range output-rows)]
          [output-col (in-range output-cols)])
 
     (define conv-res
-        (apply bvadd
+        (apply +
                (for*/list ([i (in-range f-rows)]
                            [j (in-range f-cols)])
                  (let* ([filter-x (- f-rows 1 i)]
                         [filter-y (- f-cols 1 j)]
                         [input-x (- output-row filter-x)]
                         [input-y (- output-col filter-y)])
-                   (bvmul (safe-access-input input-x input-y)
-                          (matrix-ref filter filter-x filter-y))))))
+                   (* (safe-access-input input-x input-y)
+                      (matrix-ref filter filter-x filter-y))))))
     (matrix-set! output output-row output-col conv-res))
 
   output)
@@ -90,39 +90,39 @@
       (test-case
         "Implementation works"
         (define input
-          (value-bv-list 0 1 2
-                         3 4 5
-                         6 7 8))
+          (v-list 0 1 2
+                  3 4 5
+                  6 7 8))
         (define filter
-          (value-bv-list 0 1
-                         2 3))
+          (v-list 0 1
+                  2 3))
         (define gold
-          (value-bv-list 0  0  1  2
-                         0  5  11 11
-                         6  23 29 23
-                         12 32 37 24))
+          (v-list 0  0  1  2
+                  0  5  11 11
+                  6  23 29 23
+                  12 32 37 24))
         (check-equal? (2d-conv-spec (matrix 3 3 input)
-                                        (matrix 2 2 filter))
+                                    (matrix 2 2 filter))
                       (matrix 4 4 gold)))
 
       (test-case
         "4x4 by 2x2"
         (define input
-          (value-bv-list 0  1  2  3
-                         4  5  6  7
-                         8  9  10 11
-                         12 13 14 15))
+          (v-list 0  1  2  3
+                  4  5  6  7
+                  8  9  10 11
+                  12 13 14 15))
         (define filter
-          (value-bv-list 0 1
-                         2 3))
+          (v-list 0 1
+                  2 3))
         (define gold
-          (value-bv-list 0  0  1  2  3
-                         0  6  12 18 16
-                         8  30 36 42 32
-                         16 54 60 66 48
-                         24 62 67 72 45))
+          (v-list 0  0  1  2  3
+                  0  6  12 18 16
+                  8  30 36 42 32
+                  16 54 60 66 48
+                  24 62 67 72 45))
         (check-equal? (2d-conv-spec (matrix 4 4 input)
-                                        (matrix 2 2 filter))
+                                    (matrix 2 2 filter))
                       (matrix 5 5 gold))))))
 
 ; ==================== Sketch Generation =========================
@@ -143,7 +143,7 @@
       (list (vec-decl 'reg-O (current-reg-size)))))
 
   (define-values (out-reg-ids out-reg-loads out-reg-stores)
-    (partition-bv-list 'O output-size))
+    (partition-v-list 'O output-size))
 
   ;Compute description for the sketch
   (define (compute-gen iteration shufs)
@@ -195,7 +195,7 @@
             #:fn-map (hash 'vec-mac vector-mac)
             (list (cons 'I i-elements)
                   (cons 'F f-elements)
-                  (cons 'O (make-bv-list-zeros output-size)))))
+                  (cons 'O (make-v-list-zeros output-size)))))
 
   (list (take (hash-ref out-env 'O) output-size) cost))
 
@@ -245,7 +245,7 @@
     (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
           [cost-2 (make-register-cost reg-of)])
       (lambda (inst env)
-        (bvadd (cost-1 inst env) (cost-2 inst env)))))
+        (+ (cost-1 inst env) (cost-2 inst env)))))
 
   ; Create function for sketch evaluation
   (define (sketch-func args)
@@ -268,7 +268,7 @@
                 (list I F)
                 #:get-inps (lambda (args) (flatten
                                             (map matrix-elements args)))
-                #:min-cost (bv-cost 0)
+                #:min-cost 0
                 #:assume assume))
 
   ; Keep generating solutions.

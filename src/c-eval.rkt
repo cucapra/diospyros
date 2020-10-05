@@ -42,7 +42,7 @@
 
 ;(eval `(naive_matrix_multiply (list (bv-value 1)) (list (bv-value 1)) (list (bv-value 1)) 1 1 1 ) ns)
 
-(define c (value-bv-list 0))
-(naive_matrix_multiply (value-bv-list 2) (value-bv-list 3) c 1 1 1)
+(define c (v-list 0))
+(naive_matrix_multiply (v-list 2) (v-list 3) c 1 1 1)
 (pretty-print c)
 
