@@ -5,15 +5,19 @@
          "../interp.rkt"
          "../utils.rkt"
          "../prog-sketch.rkt"
-         "../synth.rkt"
+         "../verify.rkt"
          threading
          racket/trace
          racket/generator
          rosette/lib/angelic)
 
 (provide conv2d:keys
-         conv2d:only-spec
-         conv2d:run-experiment)
+         conv2d:only-spec)
+
+(define conv2d:keys
+  (list 'input-rows 'input-cols
+        'filter-rows 'filter-cols
+        'reg-size))
 
 (define (prelude I-rows I-cols F-rows F-cols)
   (define output-rows (sub1 (+ I-rows F-rows)))
@@ -124,157 +128,3 @@
         (check-equal? (2d-conv-spec (matrix 4 4 input)
                                     (matrix 2 2 filter))
                       (matrix 5 5 gold))))))
-
-; ==================== Sketch Generation =========================
-
-(define (conv-2d-sketch inp filt iterations)
-  (match-define (matrix i-rows i-cols I-elements) inp)
-  (match-define (matrix f-rows f-cols F-elements) filt)
-
-  ; Output should be padded: input-size + filter size - 1
-  (define output-rows (sub1 (+ i-rows f-rows)))
-  (define output-cols (sub1 (+ i-cols f-cols)))
-  (define output-size (* output-rows output-cols))
-
-  ;Program preamble to define the "zero" vector.
-  (define preamble
-    (append
-      (prelude i-rows i-cols f-rows f-cols)
-      (list (vec-decl 'reg-O (current-reg-size)))))
-
-  (define-values (out-reg-ids out-reg-loads out-reg-stores)
-    (partition-v-list 'O output-size))
-
-  ;Compute description for the sketch
-  (define (compute-gen iteration shufs)
-    ; Assumes that shuffle-gen generated two shuffle vectors
-    (match-define (list shuf-I shuf-F) shufs)
-
-    ; Shuffle the inputs with symbolic shuffle vectors
-    (define input-shuffles
-      (list
-       (vec-shuffle'reg-I shuf-I (list 'I 'Z))
-       (vec-shuffle 'reg-F shuf-F (list 'F 'Z))))
-
-    ; Use choose* to select an output register to both read and write
-    (define output-mac
-      (apply choose*
-        (map (lambda (out-reg)
-          (list
-            (vec-write 'reg-O out-reg)
-            (vec-app 'out 'vec-mac (list 'reg-O 'reg-I 'reg-F))
-            (vec-write out-reg 'out)))
-        out-reg-ids)))
-
-    (append input-shuffles output-mac))
-
-  ; Shuffle vectors for each iteration
-  (define shuffle-gen
-    (symbolic-shuffle-gen 2))
-
-  (prog
-   (append preamble
-           out-reg-loads
-           (sketch-compute-shuffle-interleave
-            shuffle-gen
-            compute-gen
-            iterations)
-           out-reg-stores)))
-
-(define (run-sketch sketch cost-fn I F)
-  (match-define (matrix i-rows i-cols i-elements) I)
-  (match-define (matrix f-rows f-cols f-elements) F)
-
-  ; Output should be padded: input-size + filter size - 1
-  (define output-size (* (sub1 (+ i-rows f-rows))
-                         (sub1 (+ i-cols f-cols))))
-
-  (define-values (out-env cost)
-    (interp sketch
-            #:cost-fn cost-fn
-            #:fn-map (hash 'vec-mac vector-mac)
-            (list (cons 'I i-elements)
-                  (cons 'F f-elements)
-                  (cons 'O (make-v-list-zeros output-size)))))
-
-  (list (take (hash-ref out-env 'O) output-size) cost))
-
-(define conv2d:keys
-  (list 'input-rows 'input-cols
-        'filter-rows 'filter-cols
-        'reg-size))
-
-(define (conv2d:run-experiment spec file-writer)
-  (define I-rows (hash-ref spec 'input-rows))
-  (define I-cols (hash-ref spec 'input-cols))
-  (define F-rows (hash-ref spec 'filter-rows))
-  (define F-cols (hash-ref spec 'filter-cols))
-  (define reg-size (hash-ref spec 'reg-size))
-  (define iterations (hash-ref spec 'iterations))
-  (define pre-reg-of (and (hash-has-key? spec 'pre-reg-of)
-                          (hash-ref spec 'pre-reg-of)))
-
-; Run the synthesis query
-(parameterize [(current-reg-size reg-size)]
-
-  (define reg-upper-bound
-    (max (exact-ceiling (/ (* I-rows I-cols) (current-reg-size)))
-         (exact-ceiling (/ (* F-rows F-cols) (current-reg-size)))
-         (current-reg-size)))
-
-  ; Define inputs
-  (define-values (I F)
-    (values
-    (make-symbolic-matrix I-rows I-cols)
-    (make-symbolic-matrix F-rows F-cols)))
-
-  ; Generate sketch prog
-  (define conv-2d (conv-2d-sketch I F iterations))
-
-  ; Determine whether to use the pre-computed register-of uninterpreted
-  ; function, or pass the implementation to the solver directly
-  ; assume is a list of booleans to be asserted, reg-of specifies which function
-  ; to use for that computation
-  (define-values (assume reg-of)
-    (if pre-reg-of
-        (build-register-of-map)
-        (values (list) reg-of-idx)))
-
-  ; Define cost function
-  (define (cost-fn)
-    (let ([cost-1 (make-shuffle-unique-cost prefix-equiv)]
-          [cost-2 (make-register-cost reg-of)])
-      (lambda (inst env)
-        (+ (cost-1 inst env) (cost-2 inst env)))))
-
-  ; Create function for sketch evaluation
-  (define (sketch-func args)
-    (apply (curry run-sketch
-                  conv-2d
-                  (cost-fn))
-           args))
-
-  ; Function for spec evaluation
-  (define (spec-func args)
-    (matrix-elements (apply 2d-conv-spec args)))
-
-  ; Show the shape of the spec
-  (pretty-print (spec-func (list I F)))
-
-  ; Get a generator back from the synthesis procedure.
-  (define model-generator
-    (synth-prog spec-func
-                sketch-func
-                (list I F)
-                #:get-inps (lambda (args) (flatten
-                                            (map matrix-elements args)))
-                #:min-cost 0
-                #:assume assume))
-
-  ; Keep generating solutions.
-  (for ([(model cost) (sol-producer model-generator)])
-    (if (sat? model)
-      (let ([prog (evaluate conv-2d model)])
-        (file-writer prog cost)
-        (pretty-print prog))
-      (pretty-print (~a "failed to find solution: " model))))))

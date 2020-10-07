@@ -67,21 +67,16 @@
 (define (run-bench name params out-dir print-spec)
   (define-values (run only-spec keys)
     (case name
-      [("2d-conv") (values conv2d:run-experiment
-                           conv2d:only-spec
+      [("2d-conv") (values conv2d:only-spec
                            conv2d:keys)]
-      [("mat-mul") (values matrix-mul:run-experiment
-                           matrix-mul:only-spec
+      [("mat-mul") (values matrix-mul:only-spec
                            matrix-mul:keys)]
-      [("dft")     (values dft:run-experiment
-                           dft:only-spec
+      [("dft")     (values dft:only-spec
                            dft:keys)]
-      [("qr-decomp") (values (lambda (_) 0)
-                             qr-decomp:only-spec
+      [("qr-decomp") (values qr-decomp:only-spec
                              qr-decomp:keys)]
-      [("q-prod") (values (lambda (_) 0)
-                             q-prod:only-spec
-                             q-prod:keys)]
+      [("q-prod") (values q-prod:only-spec
+                          q-prod:keys)]
       [else (error 'run-bench
                    "Unknown benchmark ~a"
                    name)]))

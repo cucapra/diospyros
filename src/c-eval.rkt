@@ -25,15 +25,15 @@
      ((y (in-range 0 row1_size 1)))
      (for
        ((x (in-range 0 col2_size 1)))
-       (v-list-set! c_out (bv-index (+ (* col2_size y) x)) (bv-value 0))
+       (v-list-set! c_out (+ (* col2_size y) x) 0)
         (for
          ((k (in-range 0 col1_size 1)))
          (v-list-set!
            c_out
-           (bv-index (+ (* col2_size y) x))
+           (+ (* col2_size y) x)
            (bvmul
-            (v-list-get a_in (bv-index (+ (* col1_size y) k)))
-            (v-list-get b_in (bv-index (+ (* col2_size k) x))))))))))
+            (v-list-get a_in (+ (* col1_size y) k))
+            (v-list-get b_in (+ (* col2_size k) x)))))))))
 
 
 (define-namespace-anchor anc)

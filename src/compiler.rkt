@@ -5,7 +5,7 @@
          "c-ast.rkt"
          "compile-passes.rkt"
          "dsp-insts.rkt"
-         "synth.rkt"
+         "verify.rkt"
          "interp.rkt"
          "prog-sketch.rkt"
          "register-allocation-pass.rkt"

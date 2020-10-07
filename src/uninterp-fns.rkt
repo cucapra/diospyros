@@ -9,7 +9,6 @@
 (define-symbolic v-sqrt (~> real? real?))
 (define-symbolic v-sgn (~> real? real?))
 
-
 (define (vector-sqrt v)
   (for/list ([e v])
     (box (v-sqrt (unbox e)))))

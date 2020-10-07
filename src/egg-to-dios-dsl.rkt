@@ -4,7 +4,7 @@
          "egg-ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
-         "synth.rkt")
+         "verify.rkt")
 
 
 (provide egg-to-dios-dsl)

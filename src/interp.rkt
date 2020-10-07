@@ -66,7 +66,7 @@
   ; Track the cost of the program
   (define cur-cost 0)
   (define (incr-cost! val)
-    (set! cur-cost (bvadd cur-cost val)))
+    (set! cur-cost (+ cur-cost val)))
 
   (for ([inst (prog-insts program)])
     ; Increase the cost based on the current env
@@ -132,7 +132,7 @@
       [(vec-store dest-id src-id start end)
        (let ([dest (env-ref dest-id)]
              [src (env-ref src-id)])
-         (v-list-copy! dest start src 0 (bvsub end start)))]
+         (v-list-copy! dest start src 0 (- end start)))]
 
       [(vec-write dst-id src-id)
        (let ([dest (env-ref dst-id)]

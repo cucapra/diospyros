@@ -204,7 +204,7 @@
 ; The 0-indexed register that this index resides in based on the current
 ; register size.
 (define (reg-of-idx idx)
-  (bvsdiv idx (current-reg-size)))
+  (floor (/ idx (current-reg-size))))
 
 ; Build an uninterpreted function to act as a table mapping indices to the
 ; register they fall within (quotient is expensive and the number of indices

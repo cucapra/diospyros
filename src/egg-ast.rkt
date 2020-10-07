@@ -3,7 +3,7 @@
 (require "ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
-         "synth.rkt")
+         "verify.rkt")
 
 (provide (all-defined-out))
 
