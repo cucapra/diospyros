@@ -1,6 +1,6 @@
-.PHONY: build get-dahlia deploy
+.PHONY: build get-diospyros deploy
 
-DAHLIA:=../dahlia/dahlia/js/target/scala-2.13/dahlia-fastopt.js
+DIOSPYOS:=../diospyros/diospyros/js/target/scala-2.13/diospyros-fastopt.js
 
 build: static/js/bundle.js
 	hugo
@@ -14,9 +14,9 @@ custom-js/bundle.js: custom-js/index.js custom-js/examples.js | custom-js/node_m
 static/js/bundle.js: custom-js/bundle.js
 	mv $< static/js/bundle.js
 
-get-dahlia:
-	# Assumes that the dahlia JavaScript file was generated.
-	cp $(DAHLIA) custom-js/
+get-diospyros:
+	# Assumes that the diospyros JavaScript file was generated.
+	cp $(DIOSPYOS) custom-js/
 
 deploy: build
-	rsync -azvhP public/ coursewww:/users/rn359/coursewww/capra.cs.cornell.edu/htdocs/dahlia
+	rsync -azvhP public/ coursewww:/users/rn359/coursewww/capra.cs.cornell.edu/htdocs/diospyros

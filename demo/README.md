@@ -11,6 +11,7 @@ The demo uses the finest selection of web frameworks. Please install them.
 1. Install [yarn][].
 2. Run the following to install the theme.:
 ```
+mkdir frontend/themes
 cd frontend/themes
 git clone https://github.com/halogenica/beautifulhugo.git beautifulhugo
 cd ../..

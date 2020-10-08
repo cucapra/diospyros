@@ -1,9 +1,9 @@
 {
-  "name": "dahlia-tech-demo",
+  "name": "diospyros-tech-demo",
   "version": "0.0.1",
-  "description": "Technology demo for the Dahlia HLS Compiler",
+  "description": "Technology demo for the Diospyros compiler for search-aided vectorization",
   "main": "index.js",
-  "repository": "https://github.com/cucapra/dahlia",
+  "repository": "https://github.com/cucapra/diospyros",
   "author": "Rachit Nigam",
   "license": "MIT",
   "dependencies": {

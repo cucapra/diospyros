@@ -1,6 +1,6 @@
 ## Diospyros Demo
 
-Demo webpage for the Dahlia Programming language.
+Demo webpage for the Diospyros compiler.
 
 ### Prerequisites
 
@@ -22,7 +22,7 @@ JavaScript (which contains all the examples).
    cd custom-js && find *.js | entr -c yarn build
    ```
 2. Run `hugo server -w` in the repository root. This will serve the webpage
-   to [localhost:1313/dahlia](localhost:1313/dahlia).
+   to [localhost:1313/diospyros](localhost:1313/diospyros).
 
 
 ### Adding new exampls
@@ -36,4 +36,4 @@ It's likely that the example was malformed or a the script failed.
 
 ### Credits
 
-Based on the [Dahlia demo website](https://github.com/cucapra/dahlia-demo).
+Based on the [Dahlia demo website](https://github.com/cucapra/diospyros-demo).

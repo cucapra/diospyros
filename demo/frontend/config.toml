@@ -1,4 +1,4 @@
-baseurl = "https://capra.cs.cornell.edu/dahlia/"
+baseurl = "https://capra.cs.cornell.edu/diospyros/"
 DefaultContentLanguage = "en"
 #DefaultContentLanguage = "ja"
 title = "Diospyros"
@@ -20,8 +20,8 @@ unsafe= true
 #  homeTitle = "Beautiful Hugo Theme" # Set a different text for the header on the home page
   subtitle = "Search-aided Vectorization"
   #mainSections = ["post","posts"]
-  #logo = "img/dahlia-logo.png" # Expecting square dimensions
-  favicon = "img/dahlia-logo.png"
+  #logo = "img/x.png" # Expecting square dimensions
+  favicon = "img/x.png"
   dateFormat = "January 2, 2006"
   useHLJS = false
   showRelatedPosts = true
