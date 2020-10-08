@@ -1,0 +1,62 @@
+{{ define "main" }}
+  <div role="main" class="container">
+    <div class="row">
+      <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1">
+        {{ with .Content }}
+          <div class="well">
+            {{.}}
+          </div>
+        {{ end }}
+
+      </div>
+    </div>
+
+    <div class="row">
+    </div>
+
+    <div class="row">
+    <div role="group" class="col-xs-offset-0 col-xs-12 col-md-offset-1 col-md-4" style="margin-top: 10px;">
+    <table id="table-examples" class="table">
+
+    <thead>
+     <tr>
+      <th colspan="2">
+      <button type="button" class="btn btn-success btn-block" disabled >
+        Examples
+      </button>
+      </th>
+    </tr>
+    </thead>
+
+    <tbody id='examples'>
+    </tbody>
+
+    </table>
+    </div>
+
+		<div id="editor" class="input col-xs-offset-0 col-xs-11 col-md-offset-0 col-md-5"></div>
+    </div>
+
+    <div class="row">
+    <div class="col-md-offset-2 col-md-2 col-xs-offset-3 col-xs-6 align-items-center">
+      <button type="button" class="btn btn-info btn-block" onclick="compile()">
+        Compile
+      </button>
+    </div>
+    </div>
+
+    <div class="row">
+    <div class="col-md-offset-1 col-md-4 col-xs-offset-0 col-xs-12" style="margin-top: 10px;">
+    <h3>Explanation</h3>
+    <h5 id="example-name"></h5>
+    <p id="explain">
+    </p>
+    </div>
+    <div id="result" class="output col-md-offset-0 col-md-5 col-xs-offset-1 col-xs-11"></div>
+    </div>
+
+
+    <!-- Scripts to load -->
+    <script src="{{ "js/bundle.js" | absURL }}"></script>
+
+{{ end }}
