@@ -1,4 +1,3 @@
-const { Dahlia } = require('./dahlia-fastopt.js');
 const { setupAll } = require('./examples.js');
 
 const ace = require('brace');
@@ -31,9 +30,22 @@ result.setOptions({
 
 
 // Id of the last marker set in the editor.
-let marker;
+//let marker;
 function compile() {
+  // Get the value in the editing snippet
   const prog = editor.getValue();
+  $.ajax({
+    url: "http://localhost:5000/api/",
+    type: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({"message": prog})
+  }).done(function(out) {
+    // Set the value in the output pane.
+    result.setValue(out)
+    result.clearSelection();
+  });
+
+/*
   // Returns a tuple with either the result or an error.
   let [res, [pos, err]] = Dahlia.compileString(prog);
 
@@ -49,7 +61,7 @@ function compile() {
     out = res;
   }
   result.setValue(out);
-  result.clearSelection();
+  result.clearSelection();*/
 }
 window.compile = compile;
 

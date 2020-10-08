@@ -1,7 +1,7 @@
 baseurl = "https://capra.cs.cornell.edu/dahlia/"
 DefaultContentLanguage = "en"
 #DefaultContentLanguage = "ja"
-title = "Dahlia"
+title = "Diospyros"
 theme = "beautifulhugo"
 metaDataFormat = "yaml"
 pygmentsStyle = "trac"
@@ -18,9 +18,9 @@ unsafe= true
 
 [Params]
 #  homeTitle = "Beautiful Hugo Theme" # Set a different text for the header on the home page
-  subtitle = "A Language for Predictable Accelerator Design"
+  subtitle = "Search-aided Vectorization"
   #mainSections = ["post","posts"]
-  logo = "img/dahlia-logo.png" # Expecting square dimensions
+  #logo = "img/dahlia-logo.png" # Expecting square dimensions
   favicon = "img/dahlia-logo.png"
   dateFormat = "January 2, 2006"
   useHLJS = false
@@ -50,23 +50,3 @@ unsafe= true
     name = "Demo"
     url = ""
     weight = 10
-
-[[menu.main]]
-    name = "About"
-    url = "page/about/"
-    weight = 20
-
-[[menu.main]]
-    name = "Research"
-    url = "page/research/"
-    weight = 25
-
-[[menu.main]]
-    name = "Code"
-    url = "https://github.com/cucapra/dahlia"
-    weight = 30
-
-[[menu.main]]
-    name = "Documentation"
-    url = "https://capra.cs.cornell.edu/fuse"
-    weight = 40

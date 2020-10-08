@@ -1,15 +1,27 @@
-from flask import Flask, render_template, request
+import subprocess
+from flask import Flask, request
+
 app = Flask(__name__)
 
 
-@app.route('/')
-def hello_world():
-    return render_template('index.html', name='Diospyros')
+def compile(reponse):
+    cmd = subprocess.run(['racket', '-V'], stdout=subprocess.PIPE)
+    return cmd.stdout
 
 
-@app.route('/compile', methods=['POST'])
-def compile():
-    return render_template(
-        'index.html',
-        name='Diospyros',
-        result=('Received: ' + request.form['program']))
+@app.route('/api/', methods=["POST"])
+def main_interface():
+    response = request.get_json()
+    return compile(response)
+
+
+@app.after_request
+def add_headers(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers',
+                         'Content-Type,Authorization')
+    return response
+
+
+if __name__ == '__main__':
+    app.run(debug=True)

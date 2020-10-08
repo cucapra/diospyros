@@ -1,1 +1,4 @@
 themes/beautifulhugo
+bundle.js
+node_modules
+public
