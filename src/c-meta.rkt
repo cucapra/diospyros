@@ -2,7 +2,7 @@
 
 (require c)
 
-(define prog (parse-program (string->path "mat-mul-c.c")))
+(define prog (parse-program (string->path "../demo/tmp.txt")))
 
 ;(define-values (stdout stderr) (gcc (lambda () prog)))
 

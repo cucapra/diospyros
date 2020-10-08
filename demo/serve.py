@@ -3,9 +3,11 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-
 def compile(reponse):
-    cmd = subprocess.run(['racket', '-V'], stdout=subprocess.PIPE)
+    program = reponse['message']
+    with open("tmp.txt", "w") as text_file:
+        text_file.write(program)
+    cmd = subprocess.run(['racket', '../src/c-meta.rkt'], stdout=subprocess.PIPE)
     return cmd.stdout
 
 
