@@ -64,8 +64,8 @@
         (lambda (out) (pretty-print spec out))
         #:exists 'replace))))
 
-(define (run-bench name params out-dir print-spec)
-  (define-values (run only-spec keys)
+(define (run-bench name params out-dir)
+  (define-values (only-spec keys)
     (case name
       [("2d-conv") (values conv2d:only-spec
                            conv2d:keys)]
@@ -94,19 +94,15 @@
     (call-with-input-file params
       (lambda (in) (validator (read-json in)))))
 
-  (if print-spec
-    (begin
       (define-values (spec prelude outputs) (only-spec config))
       (define out-writer (make-spec-out-dir-writer out-dir))
       (out-writer spec egg-spec)
       (out-writer (concretize-prog prelude) egg-prelude)
       (out-writer outputs egg-outputs))
-    (run config (make-out-dir-writer out-dir))))
 
 (define bench-name (make-parameter #f))
 (define param-file (make-parameter #f))
 (define output-dir (make-parameter #f))
-(define only-spec (make-parameter #f))
 (define vec-width (make-parameter 4))
 
 (define bench-help
@@ -123,9 +119,6 @@
     [("-p" "--param") params
                       "Location of the parameter file."
                       (param-file params)]
-    [("-s" "--only-spec")
-                      "Location of the parameter file."
-                      (only-spec #t)]
     [("-o" "--output-dir") out-dir
                            "Directory to save solutions in."
                            (output-dir out-dir)]
@@ -141,9 +134,5 @@
   (when (not (param-file))
     (error 'main
            "Missing parameter file."))
-
-  (when (not (or (output-dir) (only-spec)))
-    (error 'main
-           "Missing output directory for saving solutions in."))
   (parameterize [(current-reg-size (vec-width))]
-    (run-bench (bench-name) (param-file) (output-dir) (only-spec))))
+    (run-bench (bench-name) (param-file) (output-dir))))

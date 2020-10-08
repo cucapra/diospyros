@@ -6,20 +6,20 @@
 
 (provide (all-defined-out))
 
-(define-symbolic v-sqrt (~> real? real?))
-(define-symbolic v-sgn (~> real? real?))
+(define-symbolic sqrt (~> real? real?))
+(define-symbolic sgn (~> real? real?))
 
 (define (vector-sqrt v)
   (for/list ([e v])
-    (box (v-sqrt (unbox e)))))
+    (box (sqrt (unbox e)))))
 
 (define (vector-sgn v)
   (for/list ([e v])
-    (box (v-sgn (unbox e)))))
+    (box (sgn (unbox e)))))
 
 (define uninterp-fn-map (make-hash))
-(hash-set! uninterp-fn-map 'sqrt v-sqrt)
-(hash-set! uninterp-fn-map 'sgn v-sgn)
+(hash-set! uninterp-fn-map 'sqrt sqrt)
+(hash-set! uninterp-fn-map 'sgn sgn)
 
 ; Predefined fns
 (hash-set! uninterp-fn-map 'vec-mac vector-mac)

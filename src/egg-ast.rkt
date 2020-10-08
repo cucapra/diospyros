@@ -72,6 +72,8 @@
         (foldr (curry egg-binop '/) (last xs) (drop-right xs 1)))]
     [`(neg , v)
       (egg-unnop 'neg (s-exp-to-ast v))]
+    [`(- , v)
+      (egg-unnop 'neg (s-exp-to-ast v))]
     [`(sgn , v)
       (egg-unnop 'sgn (s-exp-to-ast v))]
     [`(sqrt , v)

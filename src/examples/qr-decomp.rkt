@@ -51,7 +51,7 @@
   (round (sqrt (bitvector->integer x))))
 
 (define (vector-norm v
-                     [sqrt-func v-sqrt])
+                     [sqrt-func sqrt])
                     ; [sqrt-func sqrt-mock])
   (define (v-sqr x) (* (unbox x) (unbox x)))
   (sqrt-func (apply + (map v-sqr v))))
@@ -75,7 +75,7 @@
     [else 0]))
 
 (define (househoulder A
-                     [sgn-func v-sgn])
+                     [sgn-func sgn])
                      ; [sgn-func sgn-mock])
   (match-define (matrix A-rows A-cols A-elements) A)
   (assert (equal? A-rows A-cols))
