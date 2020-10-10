@@ -51,6 +51,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::Sqrt(..) => OP,
 
             VecLang::VecAdd(..) => VEC_OP,
+            VecLang::VecMinus(..) => VEC_OP,
             VecLang::VecMul(..) => VEC_OP,
             VecLang::VecMAC(..) => VEC_OP,
             VecLang::VecDiv(..) => VEC_OP,

@@ -32,6 +32,7 @@ define_language! {
 
         // Vector operations that take 2 vectors of inputs
         "VecAdd" = VecAdd([Id; 2]),
+        "VecMinus" = VecMinus([Id; 2]),
         "VecMul" = VecMul([Id; 2]),
         "VecDiv" = VecDiv([Id; 2]),
         // "VecMulSgn" = VecMulSgn([Id; 2]),

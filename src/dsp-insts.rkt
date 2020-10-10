@@ -10,6 +10,7 @@
          vector-shuffle-set!
          vector-multiply
          vector-add
+         vector-minus
          vector-mac
          vector-s-divide
          vector-negate
@@ -58,6 +59,14 @@
   (for/list ([e1 v1]
              [e2 v2])
     (box (+ (unbox e1) (unbox e2)))))
+
+;; VECTOR MINUS
+(define (vector-minus v1 v2)
+  (assert (= (length v1) (length v2))
+          "VECTOR-MINUS: length of vectors not equal")
+  (for/list ([e1 v1]
+             [e2 v2])
+    (box (- (unbox e1) (unbox e2)))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
