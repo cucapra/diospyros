@@ -70,22 +70,12 @@
 (define (v-list-set! lst idx val)
   (assert (list? lst) (~a "Expected a list, got " lst))
   (assert (real? idx) (~a "Expected a real, got " idx))
-  (match lst
-    [(cons box tail)
-      (if (eq? idx 0)
-          (set-box! box val)
-          (v-list-set! tail (sub1 idx) val))]
-    [_ (error "List idx not found" idx lst)]))
+  (set-box! (list-ref lst idx) val))
 
 (define (v-list-get lst idx)
   (assert (list? lst) (~a "Expected a list, got " lst))
   (assert (real? idx) (~a "Expected a real, got " idx))
-  (match lst
-    [(cons box tail)
-      (if (eq? idx 0)
-          (unbox box)
-          (v-list-get tail (sub1 idx)))]
-    [_ (error "List idx not found" idx lst)]))
+  (unbox (list-ref lst idx)))
 
 ; TODO: replace?
 (define (concretize-v-list lst)

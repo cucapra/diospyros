@@ -2,7 +2,8 @@
 
 (require c)
 
-(define prog (parse-program (string->path "../demo/tmp.txt")))
+; (define prog (parse-program (string->path "../demo/tmp.txt")))
+(define prog (parse-program (string->path "demo/matrix-multiply.c")))
 
 ;(define-values (stdout stderr) (gcc (lambda () prog)))
 
@@ -57,15 +58,17 @@
     [(decl? stmt)
       (cond
         [(decl:vars? stmt)
-          (for/list ([decl (decl:vars-declarators stmt)])
-            (let* ([init (decl:declarator-initializer decl)]
-                   [type (decl:declarator-type decl)])
+          (define stmts
+            (for/list ([decl (decl:vars-declarators stmt)])
+              (let* ([init (decl:declarator-initializer decl)]
+                     [type (decl:declarator-type decl)])
 
-              ; Assumes this is a variable declaration
-              (quasiquote
-                (define
-                  (unquote (translate (decl:declarator-id decl)))
-                  (unquote (translate (init:expr-expr init)))))))]
+                ; Assumes this is a variable declaration
+                (quasiquote
+                  (define
+                    (unquote (translate (decl:declarator-id decl)))
+                    (unquote (translate (init:expr-expr init))))))))
+          `(begin (unquote stmts))]
         [else (error "can't handle declaration" stmt)])]
     [(id? stmt)
       (cond
@@ -75,8 +78,8 @@
     [(stmt:expr? stmt)
       (translate (stmt:expr-expr stmt))]
     [(stmt:block? stmt)
-      (for/list ([s (stmt:block-items stmt)])
-        (translate s))]
+      (append (list `begin) (for/list ([s (stmt:block-items stmt)])
+        (translate s)))]
     [(stmt:if? stmt)
       (if (not (stmt:if-alt stmt))
         (quasiquote
@@ -105,22 +108,25 @@
                 (translate (init:expr-expr (decl:declarator-initializer fi))))]
             [else (error "unexpected for loop initializer " init)]))
         (when (not update) (error "for loops must include update"))
-        (define t-update (translate update))
-        (define update-skip
-          (cond
-            [(eq? t-update `(++ (unquote idx))) 1]
-            [else (error "can't handle update")]))
 
         ; TODO: handle reverse iteration
+        (define t-update (translate update))
+        (define update-skip
+          (match t-update
+            [`(++ (unquote idx)) 1]
+            [`(+= (unquote idx) , n) n]
+            [else (error "can't handle for loop update" t-update)]))
+
         (define-values (bound reverse)
           (match (translate test)
-            [`(< (unquote idx) ,bound)
-              (values bound #f)]))
+            [`(< (unquote idx) ,bound) (values bound #f)]
+            [`(<= (unquote idx) ,bound) (values (- bound update-skip) #f)]
+            [else (error "can't handle for loop bound" t-update)]))
 
-        `(for ([(unquote idx) (inrange (unquote idx-init) (unquote bound) (unquote update-skip))])
+        `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
           (unquote (translate (stmt:for-body stmt)))))]
     [(stmt:return? stmt)
-      (pretty-print "return, ignoring")]
+      (error "can't handle return")]
     [else (error "can't handle statement" stmt)]))
 
 ; TODO: handle multiple functions
@@ -143,7 +149,6 @@
               (for/list ([arg (type:function-formals
                                 (decl:declarator-type decl:function-declarator))])
                 (translate (decl:declarator-id (decl:formal-declarator arg))))))
-
           (unquote (translate decl:function-body))))]))
 
 (pretty-print (translate-fn-decl (first prog)))
