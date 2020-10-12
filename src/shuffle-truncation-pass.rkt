@@ -6,7 +6,7 @@
          "utils.rkt"
          "prog-sketch.rkt"
          "register-allocation-pass.rkt"
-         "synth.rkt"
+         "verify.rkt"
          threading)
 
 (provide shuffle-truncation)

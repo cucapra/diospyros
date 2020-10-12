@@ -4,7 +4,7 @@
          "egg-ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
-         "synth.rkt")
+         "verify.rkt")
 
 
 (provide egg-to-dios-dsl)
@@ -316,8 +316,8 @@
         (assert
           (equal?
             (unsat)
-            (verify-prog (to-bvs-prog prog-smt)
-                         (to-bvs-prog full-egg-prog)
+            (verify-prog (to-v-list-prog prog-smt)
+                         (to-v-list-prog full-egg-prog)
                          #:fn-map (hash 'vec-mac vector-mac
                                         'vec-mul vector-multiply)))))
       (test-case
@@ -445,8 +445,8 @@
         (assert
           (equal?
             (unsat)
-            (verify-prog (to-bvs-prog prog-smt)
-                         (to-bvs-prog full-egg-prog)
+            (verify-prog (to-v-list-prog prog-smt)
+                         (to-v-list-prog full-egg-prog)
                          #:fn-map (hash 'vec-mac vector-mac
                                         'vec-mul vector-multiply)))))
       (test-case
@@ -583,7 +583,7 @@
         (assert
           (equal?
             (unsat)
-            (verify-prog (to-bvs-prog prog-smt)
-                         (to-bvs-prog full-egg-prog)
+            (verify-prog (to-v-list-prog prog-smt)
+                         (to-v-list-prog full-egg-prog)
                          #:fn-map (hash 'vec-mac vector-mac
                                         'vec-mul vector-multiply))))))))

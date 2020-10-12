@@ -43,7 +43,7 @@
     (define insts
       (map (lambda (shuf-name)
              (vec-const shuf-name
-                        (make-symbolic-bv-list-indices (current-reg-size))
+                        (make-symbolic-v-list (current-reg-size))
                         int-type))
            shuf-names))
     (values insts shuf-names)))
@@ -61,7 +61,7 @@
       string->number))
 
 ; Partition an declared vector based on the register size
-(define (partition-bv-list id size)
+(define (partition-v-list id size)
   (define len (* (current-reg-size)
                  (exact-ceiling (/ size (current-reg-size)))))
   (define vals
@@ -69,12 +69,10 @@
       (let* ([start i]
              [end (min size (+ i (current-reg-size)))]
              [new-id (string->symbol
-                       (format "~a_~a_~a" id start end))]
-             [start-bv (bv-index start)]
-             [end-bv (bv-index end)])
+                       (format "~a_~a_~a" id start end))])
         (list new-id
-          (vec-load new-id id start-bv end-bv)
-          (vec-store id new-id start-bv end-bv)))))
+          (vec-load new-id id start end)
+          (vec-store id new-id start end)))))
   (values (map first vals) (map second vals) (map third vals)))
 
 ; TODO(rachit): Define a sketch where the compute can use previously defined
@@ -107,7 +105,7 @@
     (for/list ([i (in-range number)])
       (define-values (shuffle-defs shuffle-names)
         (shuffle-thunk i))
-      (bv-list-set! def-shufs i shuffle-names)
+      (v-list-set! def-shufs i shuffle-names)
       (define compute
         (compute-thunk i (take-window (- i window-size) i)))
       (append (shuffle-defs compute))))

@@ -451,4 +451,4 @@
 
       (test-case
        "local value numbering"
-       (check-equal? (length (prog-insts (lvn example))) 44)))))
+       (check-equal? (length (prog-insts (lvn example))) 34)))))

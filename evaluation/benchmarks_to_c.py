@@ -15,6 +15,153 @@ import psutil
 
 from py_utils import *
 
+# PARAMETERS = {
+#     conv2d : [
+#         {
+#             "input-rows": 3,
+#             "input-cols": 3,
+#             "filter-rows": 2,
+#             "filter-cols": 2,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 3,
+#             "input-cols": 5,
+#             "filter-rows": 3,
+#             "filter-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 10,
+#             "input-cols": 10,
+#             "filter-rows": 2,
+#             "filter-cols": 2,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 16,
+#             "input-cols": 16,
+#             "filter-rows": 2,
+#             "filter-cols": 2,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 3,
+#             "input-cols": 3,
+#             "filter-rows": 3,
+#             "filter-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 4,
+#             "input-cols": 4,
+#             "filter-rows": 3,
+#             "filter-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 8,
+#             "input-cols": 8,
+#             "filter-rows": 3,
+#             "filter-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 10,
+#             "input-cols": 10,
+#             "filter-rows": 3,
+#             "filter-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 16,
+#             "input-cols": 16,
+#             "filter-rows": 3,
+#             "filter-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 10,
+#             "input-cols": 10,
+#             "filter-rows": 4,
+#             "filter-cols": 4,
+#             "reg-size": 4
+#         },
+#         {
+#             "input-rows": 16,
+#             "input-cols": 16,
+#             "filter-rows": 4,
+#             "filter-cols": 4,
+#             "reg-size": 4
+#         },
+#     ],
+#     matmul : [
+#         {
+#             "A-rows": 2,
+#             "A-cols": 2,
+#             "B-rows": 2,
+#             "B-cols": 2,
+#             "reg-size": 4
+#         },
+#         {
+#             "A-rows": 2,
+#             "A-cols": 3,
+#             "B-rows": 3,
+#             "B-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "A-rows": 3,
+#             "A-cols": 3,
+#             "B-rows": 3,
+#             "B-cols": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "A-rows": 4,
+#             "A-cols": 4,
+#             "B-rows": 4,
+#             "B-cols": 4,
+#             "reg-size": 4
+#         },
+#         {
+#             "A-rows": 8,
+#             "A-cols": 8,
+#             "B-rows": 8,
+#             "B-cols": 8,
+#             "reg-size": 4
+#         },
+#         {
+#             "A-rows": 10,
+#             "A-cols": 10,
+#             "B-rows": 10,
+#             "B-cols": 10,
+#             "reg-size": 4
+#         },
+#     ],
+#     # dft : [
+#     #     # {
+#     #     #     "N" : 8,
+#     #     #     "reg-size": 4
+#     #     # }
+#     # ]
+#     qprod : [
+#         {
+#             "reg-size": 4
+#         },
+#     ],
+#     qrdecomp : [
+#         {
+#             "N": 3,
+#             "reg-size": 4
+#         },
+#         {
+#             "N": 4,
+#             "reg-size": 4
+#         }
+#     ],
+# }
+
 PARAMETERS = {
     conv2d : [
         {
@@ -24,127 +171,22 @@ PARAMETERS = {
             "filter-cols": 2,
             "reg-size": 4
         },
-        {
-            "input-rows": 3,
-            "input-cols": 5,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 10,
-            "input-cols": 10,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 16,
-            "input-cols": 16,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 3,
-            "input-cols": 3,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 4,
-            "input-cols": 4,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 8,
-            "input-cols": 8,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 10,
-            "input-cols": 10,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 16,
-            "input-cols": 16,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 10,
-            "input-cols": 10,
-            "filter-rows": 4,
-            "filter-cols": 4,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 16,
-            "input-cols": 16,
-            "filter-rows": 4,
-            "filter-cols": 4,
-            "reg-size": 4
-        },
     ],
     matmul : [
         {
             "A-rows": 2,
-            "A-cols": 2,
-            "B-rows": 2,
-            "B-cols": 2,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 2,
             "A-cols": 3,
             "B-rows": 3,
             "B-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 3,
-            "A-cols": 3,
-            "B-rows": 3,
-            "B-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 4,
-            "A-cols": 4,
-            "B-rows": 4,
-            "B-cols": 4,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 8,
-            "A-cols": 8,
-            "B-rows": 8,
-            "B-cols": 8,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 10,
-            "A-cols": 10,
-            "B-rows": 10,
-            "B-cols": 10,
             "reg-size": 4
         },
     ],
-    # dft : [
-    #     # {
-    #     #     "N" : 8,
-    #     #     "reg-size": 4
-    #     # }
-    # ]
+    dft : [
+        {
+            "N" : 8,
+            "reg-size": 4
+        }
+    ],
     qprod : [
         {
             "reg-size": 4
@@ -152,15 +194,12 @@ PARAMETERS = {
     ],
     qrdecomp : [
         {
-            "N": 3,
+            "N": 2,
             "reg-size": 4
         },
-        {
-            "N": 4,
-            "reg-size": 4
-        }
     ],
 }
+
 
 
 class MemChecker(Thread):
@@ -406,7 +445,7 @@ def main():
         help="Build ./dios and ./dios-example-gen executables")
     parser.add_argument('-f', '--force', action='store_true',
         help="Force overwrite old results")
-    parser.add_argument('-t', '--timeout', type=int, default=100,
+    parser.add_argument('-t', '--timeout', type=int, default=3600,
         help="Timeout per call to ./dios-example-gen (seconds)")
     parser.add_argument('-o', '--output', type=str, default="",
         help="Non-default output directory")
@@ -453,9 +492,7 @@ def main():
     if not args.skipsynth:
         for b in benchmarks:
             synthesize_benchmark(cur_results_dir, b, args.timeout, params)
-    # if not args.skipc:
-    #     for b in benchmarks:
-    #         compile_benchmark(cur_results_dir, b, args.force)
+
     if not args.skiprun:
         for b in benchmarks:
             run_benchmark(cur_results_dir, b, args.build, args.force)

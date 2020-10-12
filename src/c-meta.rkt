@@ -20,7 +20,7 @@
         [(expr:assign? stmt)
           (if (expr:array-ref? (expr:assign-left stmt))
           (quasiquote
-            (bv-list-set!
+            (v-list-set!
             (unquote (translate (expr:array-ref-expr (expr:assign-left stmt))))
             (unquote (translate (expr:array-ref-offset (expr:assign-left stmt))))
             (unquote (translate (expr:assign-right stmt)))))
@@ -50,7 +50,7 @@
         [(expr:ref? stmt) (translate (expr:ref-id stmt))]
         [(expr:array-ref? stmt)
           (quasiquote
-            (bv-list-get
+            (v-list-get
               (unquote (translate (expr:array-ref-expr stmt)))
               (unquote (translate(expr:array-ref-offset stmt)))))]
         [else (error "can't handle expr" stmt)])]

@@ -28,7 +28,7 @@
       (vec-extern-decl 'bt (* 3 1) input-tag)
       (vec-extern-decl 'rq (* 4 1) output-tag)
       (vec-extern-decl 'rt (* 4 1) output-tag)
-      (vec-const 'Z (make-bv-list-zeros 1) float-type)))
+      (vec-const 'Z (make-v-list-zeros 1) float-type)))
 
   (define-values (rq rt) (quaternion-product aq at bq bt))
 
@@ -51,12 +51,12 @@
    3
    1
    (list
-    (box (bvsub (bvmul (matrix-ref lhs 1 0) (matrix-ref rhs 2 0))
-                (bvmul (matrix-ref lhs 2 0) (matrix-ref rhs 1 0))))
-    (box (bvsub (bvmul (matrix-ref lhs 2 0) (matrix-ref rhs 0 0))
-                (bvmul (matrix-ref lhs 0 0) (matrix-ref rhs 2 0))))
-    (box (bvsub (bvmul (matrix-ref lhs 0 0) (matrix-ref rhs 1 0))
-                (bvmul (matrix-ref lhs 1 0) (matrix-ref rhs 0 0)))))))
+    (box (- (* (matrix-ref lhs 1 0) (matrix-ref rhs 2 0))
+            (* (matrix-ref lhs 2 0) (matrix-ref rhs 1 0))))
+    (box (- (* (matrix-ref lhs 2 0) (matrix-ref rhs 0 0))
+            (* (matrix-ref lhs 0 0) (matrix-ref rhs 2 0))))
+    (box (- (* (matrix-ref lhs 0 0) (matrix-ref rhs 1 0))
+            (* (matrix-ref lhs 1 0) (matrix-ref rhs 0 0)))))))
 
 (define (point-product q p)
   (assert (= (matrix-rows q) 4))
@@ -67,14 +67,14 @@
 
   (define uv (cross-product qvec p))
   (for ([i 3])
-    (matrix-set! uv i 0 (bvmul (bv-value 2) (matrix-ref uv i 0))))
+    (matrix-set! uv i 0 (* 2 (matrix-ref uv i 0))))
 
   (define qxuv (cross-product qvec uv))
 
-  (define result (matrix 3 1 (make-bv-list-zeros 3)))
+  (define result (matrix 3 1 (make-v-list-zeros 3)))
   (for ([i 3])
-    (matrix-set! result i 0 (bvadd (matrix-ref p i 0)
-                                   (bvmul (matrix-ref q 3 0) (matrix-ref uv i 0))
+    (matrix-set! result i 0 (+ (matrix-ref p i 0)
+                                   (* (matrix-ref q 3 0) (matrix-ref uv i 0))
                                    (matrix-ref qxuv i 0))))
 
   result)
@@ -89,25 +89,25 @@
      4
      1
      (list
-      (box (bvsub
-            (bvadd (bvmul (matrix-ref a-q 3 0) (matrix-ref b-q 0 0))
-                   (bvmul (matrix-ref a-q 0 0) (matrix-ref b-q 3 0))
-                   (bvmul (matrix-ref a-q 1 0) (matrix-ref b-q 2 0)))
-            (bvmul (matrix-ref a-q 2 0) (matrix-ref b-q 1 0))))
-      (box (bvsub
-            (bvadd (bvmul (matrix-ref a-q 3 0) (matrix-ref b-q 1 0))
-                   (bvmul (matrix-ref a-q 1 0) (matrix-ref b-q 3 0))
-                   (bvmul (matrix-ref a-q 2 0) (matrix-ref b-q 0 0)))
-            (bvmul (matrix-ref a-q 0 0) (matrix-ref b-q 2 0))))
-      (box (bvsub
-            (bvadd (bvmul (matrix-ref a-q 3 0) (matrix-ref b-q 2 0))
-                   (bvmul (matrix-ref a-q 2 0) (matrix-ref b-q 3 0))
-                   (bvmul (matrix-ref a-q 0 0) (matrix-ref b-q 1 0)))
-            (bvmul (matrix-ref a-q 1 0) (matrix-ref b-q 0 0))))
-      (box (bvsub (bvmul (matrix-ref a-q 3 0) (matrix-ref b-q 3 0))
-                  (bvmul (matrix-ref a-q 0 0) (matrix-ref b-q 0 0))
-                  (bvmul (matrix-ref a-q 1 0) (matrix-ref b-q 1 0))
-                  (bvmul (matrix-ref a-q 2 0) (matrix-ref b-q 2 0)))))))
+      (box (-
+            (+ (* (matrix-ref a-q 3 0) (matrix-ref b-q 0 0))
+               (* (matrix-ref a-q 0 0) (matrix-ref b-q 3 0))
+               (* (matrix-ref a-q 1 0) (matrix-ref b-q 2 0)))
+            (* (matrix-ref a-q 2 0) (matrix-ref b-q 1 0))))
+      (box (-
+            (+ (* (matrix-ref a-q 3 0) (matrix-ref b-q 1 0))
+               (* (matrix-ref a-q 1 0) (matrix-ref b-q 3 0))
+               (* (matrix-ref a-q 2 0) (matrix-ref b-q 0 0)))
+            (* (matrix-ref a-q 0 0) (matrix-ref b-q 2 0))))
+      (box (-
+            (+ (* (matrix-ref a-q 3 0) (matrix-ref b-q 2 0))
+               (* (matrix-ref a-q 2 0) (matrix-ref b-q 3 0))
+               (* (matrix-ref a-q 0 0) (matrix-ref b-q 1 0)))
+            (* (matrix-ref a-q 1 0) (matrix-ref b-q 0 0))))
+      (box (- (* (matrix-ref a-q 3 0) (matrix-ref b-q 3 0))
+              (* (matrix-ref a-q 0 0) (matrix-ref b-q 0 0))
+              (* (matrix-ref a-q 1 0) (matrix-ref b-q 1 0))
+              (* (matrix-ref a-q 2 0) (matrix-ref b-q 2 0)))))))
 
   (define r (point-product a-q b-t))
   (define r-t
@@ -115,28 +115,28 @@
      3
      1
      (for/list ([i 3])
-       (box (bvadd (matrix-ref a-t i 0) (matrix-ref r i 0))))))
+       (box (+ (matrix-ref a-t i 0) (matrix-ref r i 0))))))
 
   (values r-q r-t))
 
 (module+ test
   (require rackunit)
 
-  (define lhs (matrix 3 1 (value-bv-list 1 2 3)))
-  (define rhs (matrix 3 1 (value-bv-list -1 4 6)))
+  (define lhs (matrix 3 1 (v-list 1 2 3)))
+  (define rhs (matrix 3 1 (v-list -1 4 6)))
   (define prod (cross-product lhs rhs))
   (check-equal? (matrix-elements prod)
-                (value-bv-list 0 -9 6))
+                (v-list 0 -9 6))
 
   ; pretend these are fixed point with a scaling factor 0.1
-  (define a-q (matrix 4 1 (value-bv-list 1 7 6 4)))
-  (define a-t (matrix 3 1 (value-bv-list -5 3 1)))
-  (define b-q (matrix 4 1 (value-bv-list 8 3 2 7)))
-  (define b-t (matrix 3 1 (value-bv-list 4 9 4)))
+  (define a-q (matrix 4 1 (v-list 1 7 6 4)))
+  (define a-t (matrix 3 1 (v-list -5 3 1)))
+  (define b-q (matrix 4 1 (v-list 8 3 2 7)))
+  (define b-t (matrix 3 1 (v-list 4 9 4)))
 
   ; product is fixed point with scaling factor 0.01
   (define-values (r-q r-t) (quaternion-product a-q a-t b-q b-t))
   (check-equal? (matrix-elements r-q)
-                (value-bv-list 35 107 -3 -13))
+                (v-list 35 107 -3 -13))
   ; what about r-t?
   )

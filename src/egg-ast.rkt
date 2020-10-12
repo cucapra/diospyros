@@ -3,7 +3,7 @@
 (require "ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
-         "synth.rkt")
+         "verify.rkt")
 
 (provide (all-defined-out))
 
@@ -71,6 +71,8 @@
       (let ([xs (map s-exp-to-ast vs)])
         (foldr (curry egg-binop '/) (last xs) (drop-right xs 1)))]
     [`(neg , v)
+      (egg-unnop 'neg (s-exp-to-ast v))]
+    [`(- , v)
       (egg-unnop 'neg (s-exp-to-ast v))]
     [`(sgn , v)
       (egg-unnop 'sgn (s-exp-to-ast v))]

@@ -128,6 +128,7 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
 
         build_binop_or_zero_rule("+", "VecAdd"),
         build_binop_or_zero_rule("*", "VecMul"),
+        build_binop_or_zero_rule("-", "VecMinus"),
 
         build_mac_rule(),
     ];
@@ -138,6 +139,8 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
         rw!("neg-neg"; "(neg (neg ?a))" <=> "?a"),
         rw!("neg-sgn"; "(neg (sgn ?a))" <=> "(sgn (neg ?a))"),
         rw!("neg-zero-inv"; "0" <=> "(neg 0)"),
+        rw!("neg-minus"; "(neg ?a)" <=> "(- ?a)"),
+        rw!("neg-minus-zero"; "(neg ?a)" <=> "(- 0 ?a)"),
         rw!("sqrt-1-inv"; "1" <=> "(sqrt 1)"),
     ].concat());
 

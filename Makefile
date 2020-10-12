@@ -40,7 +40,7 @@ clean:
 
 # Build spec
 %-out: %-params
-	./dios-example-gen --only-spec -w $(VEC_WIDTH) -b $* -p  $< -o $@
+	./dios-example-gen -w $(VEC_WIDTH) -b $* -p  $< -o $@
 
 # Pre-process spec for egg
 %-out/spec-egg.rkt: %-out src/dios-egraphs/vec-dsl-conversion.py

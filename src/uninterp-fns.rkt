@@ -6,23 +6,20 @@
 
 (provide (all-defined-out))
 
-(define-symbolic bv-sqrt (~> (bitvector (value-fin))
-                          (bitvector (value-fin))))
-(define-symbolic bv-sgn (~> (bitvector (value-fin))
-                          (bitvector (value-fin))))
-
+(define-symbolic sqrt (~> real? real?))
+(define-symbolic sgn (~> real? real?))
 
 (define (vector-sqrt v)
   (for/list ([e v])
-    (box (bv-sqrt (unbox e)))))
+    (box (sqrt (unbox e)))))
 
 (define (vector-sgn v)
   (for/list ([e v])
-    (box (bv-sgn (unbox e)))))
+    (box (sgn (unbox e)))))
 
 (define uninterp-fn-map (make-hash))
-(hash-set! uninterp-fn-map 'sqrt bv-sqrt)
-(hash-set! uninterp-fn-map 'sgn bv-sgn)
+(hash-set! uninterp-fn-map 'sqrt sqrt)
+(hash-set! uninterp-fn-map 'sgn sgn)
 
 ; Predefined fns
 (hash-set! uninterp-fn-map 'vec-mac vector-mac)
@@ -33,5 +30,5 @@
 (hash-set! uninterp-fn-map 'vec-sqrt vector-sqrt)
 (hash-set! uninterp-fn-map 'vec-sgn vector-sgn)
 (hash-set! uninterp-fn-map 'neg bvsub)
-(hash-set! uninterp-fn-map '* bvmul)
-(hash-set! uninterp-fn-map '+ bvadd)
+(hash-set! uninterp-fn-map '* *)
+(hash-set! uninterp-fn-map '+ +)

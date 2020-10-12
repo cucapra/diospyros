@@ -10,6 +10,7 @@
          vector-shuffle-set!
          vector-multiply
          vector-add
+         vector-minus
          vector-mac
          vector-s-divide
          vector-negate
@@ -26,11 +27,9 @@
   (assert (list? inps) "Expected list")
   (define all-inp (apply append inps))
   (for/list ([idx idxs])
-    (assert (bvslt (unbox idx)
-                   (bitvectorize-concrete (index-fin)
-                                          (length all-inp)))
+    (assert (< (unbox idx) (length all-inp))
             (format "VECTOR-SHUFFLE: idx ~a larger than elements in input vector ~a" (unbox idx) all-inp))
-    (box (bv-list-get all-inp (unbox idx)))))
+    (box (v-list-get all-inp (unbox idx)))))
 
 ;; VECTOR-SHUFFLE-SET!: store vals[i] into out-vec[idxs[i]]
 (define (vector-shuffle-set! out-vec idxs vals)
@@ -42,7 +41,7 @@
           "VECTOR-SHUFFLE-SET: duplicate indices")
   (for ([idx idxs]
         [val vals])
-    (bv-list-set! out-vec (unbox idx) (unbox val)))
+    (v-list-set! out-vec (unbox idx) (unbox val)))
   out-vec)
 
 ;; VECTOR MULTIPLY
@@ -51,7 +50,7 @@
           "VECTOR-MULTIPLY: length of vectors not equal")
   (for/list ([e1 v1]
              [e2 v2])
-    (box (bvmul (unbox e1) (unbox e2)))))
+    (box (* (unbox e1) (unbox e2)))))
 
 ;; VECTOR ADD
 (define (vector-add v1 v2)
@@ -59,7 +58,15 @@
           "VECTOR-ADD: length of vectors not equal")
   (for/list ([e1 v1]
              [e2 v2])
-    (box (bvadd (unbox e1) (unbox e2)))))
+    (box (+ (unbox e1) (unbox e2)))))
+
+;; VECTOR MINUS
+(define (vector-minus v1 v2)
+  (assert (= (length v1) (length v2))
+          "VECTOR-MINUS: length of vectors not equal")
+  (for/list ([e1 v1]
+             [e2 v2])
+    (box (- (unbox e1) (unbox e2)))))
 
 ;; VECTOR-MAC
 (define (vector-mac v-acc v1 v2)
@@ -70,13 +77,11 @@
   (for/list ([e-acc v-acc]
              [e1 v1]
              [e2 v2])
-    (box (bvadd (unbox e-acc) (bvmul (unbox e1) (unbox e2))))))
+    (box (+ (unbox e-acc) (* (unbox e1) (unbox e2))))))
 
 ; Define sine and cosine as an interpreted functions
-(define-symbolic cosine (~> (bitvector (value-fin))
-                            (bitvector (value-fin))))
-(define-symbolic sine (~> (bitvector (value-fin))
-                          (bitvector (value-fin))))
+(define-symbolic cosine (~> real? real?))
+(define-symbolic sine (~> real? real?))
 
 ;; VECTOR SIGNED DIVIDE
 (define (vector-s-divide v1 v2)
@@ -84,12 +89,12 @@
           "VECTOR-S-DIVIDE: length of vectors not equal")
   (for/list ([e1 v1]
              [e2 v2])
-    (box (bvsdiv (unbox e1) (unbox e2)))))
+    (box (/ (unbox e1) (unbox e2)))))
 
 ;; VECTOR-NEGATE
 (define (vector-negate v)
   (for/list ([e v])
-    (box (bvneg (unbox e)))))
+    (box (- (unbox e)))))
 
 ;; VECTOR-COSINE
 (define (vector-cos v)
@@ -106,18 +111,18 @@
     "DSP instructions tests"
     (test-case
       "VECTOR-SHUFFLE: basic example, one register"
-      (let ([inp (value-bv-list 0 1 2 3 4)]
-            [idxs (index-bv-list 1 1 0 3 4 2)]
-            [gold (value-bv-list 1 1 0 3 4 2)])
+      (let ([inp (v-list 0 1 2 3 4)]
+            [idxs (v-list 1 1 0 3 4 2)]
+            [gold (v-list 1 1 0 3 4 2)])
         (check-equal? (vector-shuffle (list inp) idxs) gold)))
 
     (test-case
       "VECTOR-SHUFFLE: synthesize indices"
-      (define idxs-gold (index-bv-list 6 2 4 3))
-      (define-symbolic* idxs-lst (bitvector (index-fin)) [4])
+      (define idxs-gold (v-list 6 2 4 3))
+      (define-symbolic* idxs-lst real? [4])
       (define idxs (map box idxs-lst))
-      (define inp (index-bv-list 10 11 22 5 7 14 6))
-      (define out-gold (index-bv-list 6 22 7 5))
+      (define inp (v-list 10 11 22 5 7 14 6))
+      (define out-gold (v-list 6 22 7 5))
       (define idxs-synth
         (evaluate
           idxs
@@ -126,18 +131,18 @@
 
     (test-case
       "VECTOR-SHUFFLE: basic example, multiple registers"
-      (let ([inp1 (value-bv-list 0 1 2 3)]
-            [inp2 (value-bv-list 10 11 12 13)]
-            [idxs (index-bv-list 7 7 0 3 2 5)]
-            [gold (value-bv-list 13 13 0 3 2 11)])
+      (let ([inp1 (v-list 0 1 2 3)]
+            [inp2 (v-list 10 11 12 13)]
+            [idxs (v-list 7 7 0 3 2 5)]
+            [gold (v-list 13 13 0 3 2 11)])
         (check-equal? (vector-shuffle (list inp1 inp2) idxs) gold)))
 
     (test-case
       "VECTOR-SHUFFLE-SET: basic example, one register"
-      (let ([out-vec (value-bv-list 0 0 0 0)]
-            [vals (value-bv-list 10 11 12 13)]
-            [idxs (index-bv-list 3 1 0 2)]
-            [gold (value-bv-list 12 11 13 10)])
+      (let ([out-vec (v-list 0 0 0 0)]
+            [vals (v-list 10 11 12 13)]
+            [idxs (v-list 3 1 0 2)]
+            [gold (v-list 12 11 13 10)])
         (check-equal? (vector-shuffle-set! out-vec idxs vals) gold)))
     ))
 
