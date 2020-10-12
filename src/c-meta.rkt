@@ -2,8 +2,8 @@
 
 (require c)
 
-; (define prog (parse-program (string->path "../demo/tmp.txt")))
-(define prog (parse-program (string->path "demo/matrix-multiply.c")))
+(define prog (parse-program (string->path "../demo/preprocess-tmp.c")))
+; (define prog (parse-program (string->path "demo/matrix-multiply.c")))
 
 ;(define-values (stdout stderr) (gcc (lambda () prog)))
 

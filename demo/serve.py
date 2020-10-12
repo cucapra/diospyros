@@ -5,9 +5,10 @@ app = Flask(__name__)
 
 def compile(reponse):
     program = reponse['message']
-    with open("tmp.txt", "w") as text_file:
+    with open("tmp.c", "w") as text_file:
         text_file.write(program)
-    cmd = subprocess.run(['racket', '../src/c-meta.rkt'], stdout=subprocess.PIPE)
+    # cmd = subprocess.run(['racket', '../src/c-meta.rkt'], stdout=subprocess.PIPE)
+    cmd = subprocess.run(['python3', 'compile.py'], stdout=subprocess.PIPE)
     return cmd.stdout
 
 
