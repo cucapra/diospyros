@@ -20,15 +20,42 @@
         ; Assign
         [(expr:assign? stmt)
           (if (expr:array-ref? (expr:assign-left stmt))
-          (quasiquote
-            (v-list-set!
-            (unquote (translate (expr:array-ref-expr (expr:assign-left stmt))))
-            (unquote (translate (expr:array-ref-offset (expr:assign-left stmt))))
-            (unquote (translate (expr:assign-right stmt)))))
-          (quasiquote
-            ((unquote (translate (expr:assign-op stmt)))
-            (unquote (translate (expr:assign-left stmt)))
-            (unquote (translate (expr:assign-right stmt))))))]
+            ; Array update
+            (let* ([left (translate (expr:array-ref-expr (expr:assign-left stmt)))]
+                   [offset (translate (expr:array-ref-offset (expr:assign-left stmt)))]
+                   [right (translate (expr:assign-right stmt))]
+                   [op (translate (expr:assign-op stmt))])
+              (quasiquote
+                (v-list-set!
+                  (unquote left)
+                  (unquote offset)
+                  (unquote
+                    (match op
+                      [`= right]
+                      [`+= (quasiquote (+
+                                       (unquote right)
+                                       (v-list-get (unquote left) (unquote offset))))]
+                      [`-= (quasiquote (-
+                                       (unquote right)
+                                       (v-list-get (unquote left) (unquote offset))))]
+                      [`*= (quasiquote (*
+                                       (unquote right)
+                                       (v-list-get (unquote left) (unquote offset))))]
+                      [else (error  "can't handle assign op" op)])))))
+            ; Variable update
+            (let* ([left (translate (expr:assign-left stmt))]
+                   [right (translate (expr:assign-right stmt))]
+                   [op (translate (expr:assign-op stmt))])
+              (quasiquote
+                (set!
+                  (unquote left)
+                  (unquote
+                    (match (translate (expr:assign-op stmt))
+                      [`= right]
+                      [`+= (quasiquote (+ (unquote right) (unquote left)))]
+                      [`-= (quasiquote (- (unquote right) (unquote left)))]
+                      [`*= (quasiquote (* (unquote right) (unquote left)))]
+                      [else (error  "can't handle assign op" op)]))))))]
 
         ; Operations
         [(expr:unop? stmt)
