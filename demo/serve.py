@@ -7,7 +7,6 @@ def compile(reponse):
     program = reponse['message']
     with open("tmp.c", "w") as text_file:
         text_file.write(program)
-    # cmd = subprocess.run(['racket', '../src/c-meta.rkt'], stdout=subprocess.PIPE)
     cmd = subprocess.run(['python3', 'compile.py'], stdout=subprocess.PIPE)
     return cmd.stdout
 

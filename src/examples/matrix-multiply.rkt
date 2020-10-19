@@ -22,13 +22,6 @@
     (vec-extern-decl 'C (* A-rows B-cols) output-tag)
     (vec-const 'Z (make-v-list-zeros 1) float-type)))
 
-(define (postlude output-names)
-  (for/list ([n output-names]
-             [i (in-naturals 0)])
-    (let* ([start (* i (current-reg-size))]
-           [end (* (+ i 1) (current-reg-size))])
-      (vec-store 'C n start end))))
-
 ;; Runs the spec with symbolic inputs and returns:
 ;; - the resulting formula.
 ;; - the prelude instructions (list)

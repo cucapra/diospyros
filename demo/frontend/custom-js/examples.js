@@ -1,7 +1,7 @@
 const md = require('markdown-it')();
 const examples = [
   {
-    name: "Affine Memory",
+    name: "Matrix Matrix add",
     code: `
 let a: float[10];
 a[0];

@@ -94,11 +94,11 @@
     (call-with-input-file params
       (lambda (in) (validator (read-json in)))))
 
-      (define-values (spec prelude outputs) (only-spec config))
-      (define out-writer (make-spec-out-dir-writer out-dir))
-      (out-writer spec egg-spec)
-      (out-writer (concretize-prog prelude) egg-prelude)
-      (out-writer outputs egg-outputs))
+  (define-values (spec prelude outputs) (only-spec config))
+  (define out-writer (make-spec-out-dir-writer out-dir))
+  (out-writer spec egg-spec)
+  (out-writer (concretize-prog prelude) egg-prelude)
+  (out-writer outputs egg-outputs))
 
 (define bench-name (make-parameter #f))
 (define param-file (make-parameter #f))

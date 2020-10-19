@@ -23,7 +23,10 @@ def compile_tmp():
         sys.stdout.write(cmd.stderr.decode("utf-8"))
         exit(1)
 
-    sys.stdout.write(cmd.stdout.decode("utf-8"))
+    # sys.stdout.write(cmd.stdout.decode("utf-8"))
+    subprocess.check_output(["make", "-C", "..", "demo-egg"], stderr=subprocess.STDOUT)
+    # subprocess.run(["make", "-C", "..", "demo-egg"], stderr=subprocess.STDOUT)
+    subprocess.run(["cat", "../demo-out/kernel.c"])
 
 if __name__ == '__main__':
     compile_tmp()
