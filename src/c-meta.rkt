@@ -223,6 +223,17 @@
 (define-namespace-anchor anc)
 (define ns (namespace-anchor->namespace anc))
 
+; Returns tuple (<base type>, <total size across dimensions>)
+(define (multi-array-length array-ty)
+  (define length (translate (type:array-length array-ty)))
+  (define base (type:array-base array-ty))
+  (cond
+    [(type:primitive? base) length]
+    [(eq? base #f) length]
+    [(type:array? base) (* length (multi-array-length base))]
+    [else (error "Can't handle array type ~a" array-ty)]))
+
+; Assumes args are arrays of floats (potentially multi-dimensional)
 (define args (match (first program)
   [(decl:function decl-stmt
                   decl:function-storage-class
@@ -234,7 +245,7 @@
     (for/list ([arg (type:function-formals
                       (decl:declarator-type decl:function-declarator))])
       (list
-        (translate (type:array-length (decl:declarator-type (decl:formal-declarator arg))))
+        (multi-array-length (decl:declarator-type (decl:formal-declarator arg)))
         (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
 
 (define fn-name (match (first program)
