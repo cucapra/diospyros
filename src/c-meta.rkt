@@ -103,7 +103,9 @@
                   (define
                     (unquote (translate (decl:declarator-id decl)))
                     (unquote (translate (init:expr-expr init))))))))
-          `(begin (unquote stmts))]
+          (if (empty? stmts)
+              `void
+              `(begin (unquote stmts)))]
         [else (error "can't handle declaration" stmt)])]
     [(id? stmt)
       (cond
@@ -113,8 +115,11 @@
     [(stmt:expr? stmt)
       (translate (stmt:expr-expr stmt))]
     [(stmt:block? stmt)
-      (append (list `begin) (for/list ([s (stmt:block-items stmt)])
-        (translate s)))]
+      (if (empty? (stmt:block-items stmt))
+          `void
+          (append (list `begin)
+            (for/list ([s (stmt:block-items stmt)])
+              (translate s))))]
     [(stmt:if? stmt)
       (if (not (stmt:if-alt stmt))
         (quasiquote
@@ -242,8 +247,6 @@
                   decl:function-body)
     (translate (decl:declarator-id decl:function-declarator))]))
 
-; (pretty-print fn-name)
-
 (define out-writer (make-spec-out-dir-writer "../demo-out"))
 
 (eval racket-fn ns)
@@ -273,6 +276,9 @@
 
 (define output-names
   (filter (lambda (a) (string-suffix? (symbol->string a) "_out")) arg-names))
+(when (empty? output-names)
+  (error "Need to specify an output with suffix _out"))
+
 (define get-spec `(unquote (cons flatten output-names)))
 
 (define args-decls (for/list ([arg args])

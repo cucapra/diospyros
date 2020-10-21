@@ -18,8 +18,8 @@ def to_value(val, erase):
         return "(Get {} {})".format(pre,idx)
     return pre
 
-
 def to_egg(expr, erase):
+
     # Literal numbers
     if isinstance(expr, int) or isinstance(expr, float):
         return expr
@@ -65,7 +65,6 @@ def preprocess_egg_to_vecs(expr, width):
         if len(es) < width:
             return ["List"] + es
         if len(es) == width:
-             # print("vec")
             return ["Vec"] + es
         return ["Concat", ["Vec"] + es[0:width], elements_to_vec(es[width:])]
 
@@ -74,6 +73,8 @@ def preprocess_egg_to_vecs(expr, width):
 def rosette_to_egg(erase, preprocess, width):
     str_in = sys.stdin.read()
     str_in = str_in.replace("'#&", "")
+    str_in = str_in.replace("#&", "")
+    str_in = str_in.replace("'(", "(list ")
 
     sexp = sexpdata.loads(str_in)
 
