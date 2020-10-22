@@ -10,10 +10,7 @@
 
 (require c)
 
-(define program (parse-program (string->path "../demo/preprocess-tmp.c")))
-; (define prog (parse-program (string->path "demo/matrix-multiply.c")))
-
-;(define-values (stdout stderr) (gcc (lambda () prog)))
+(define program (parse-program (string->path "compile-out/preprocess-tmp.c")))
 
 (assert (eq? (length program) 1))
 
@@ -182,7 +179,7 @@
                     decl:function-preamble
                     decl:function-body)
 
-      ; TODO: check return type is void?
+      ; TODO: check return type is void
       (quasiquote
         (define
           (unquote
@@ -258,7 +255,7 @@
                   decl:function-body)
     (translate (decl:declarator-id decl:function-declarator))]))
 
-(define out-writer (make-spec-out-dir-writer "../demo-out"))
+(define out-writer (make-spec-out-dir-writer "compile-out"))
 
 (eval racket-fn ns)
 
