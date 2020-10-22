@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
 import click
+import os
 import subprocess
 import sys
 
+INTERMEDIATE = "compile-out"
+
 @click.command()
-@click.option('--intermediate',
-    click.Path(exists=True),
-    metavar='<dir>',
-    default='make',
-    help='command to build submissions')
 @click.argument('spec_file',
     type=click.Path(exists=True),
     metavar='<spec_file>')
-def cdios(spec_file, intermediate):
+def cdios(spec_file):
     """Takes a specification file, written in C, and:
         - Sanity check that it compiles with GCC
         - Translates it to equivalence Racket (best effort)
@@ -30,16 +28,23 @@ def cdios(spec_file, intermediate):
         exit(1)
     else:
         print("Standard C compilation successful")
-        print("Writing intermediate files to:".format)
+        print("Writing intermediate files to: {}".format(INTERMEDIATE))
 
     # Nuke output directory contents
-    subprocess.run(["rm", "-rf", "compile-out/*"], stderr=subprocess.STDOUT)
+    subprocess.run(["rm", "-rf", INTERMEDIATE], stderr=subprocess.STDOUT)
+    subprocess.run(["mkdir", INTERMEDIATE], stderr=subprocess.STDOUT)
 
     # Preprocess to handle #defines, etc
-    subprocess.run(["gcc", "-E", "tmp.c", "-o", "compile-out/preprocess-tmp.c"])
+    cmd = subprocess.run(["gcc", "-E", spec_file, "-o", os.path.join(INTERMEDIATE, "preprocessed.c")])
+    if cmd.returncode:
+        if cmd.stdout:
+            sys.stdout.write(cmd.stdout.decode("utf-8"))
+        if cmd.stderr:
+            sys.stdout.write(cmd.stderr.decode("utf-8"))
+        exit(1)
 
     # Remove preprocessing header
-    subprocess.run(["sed", "/^#/d", "-i", "compile-out/preprocess-tmp.c"])
+    subprocess.run(["sed", "/^#/d", "-i", os.path.join(INTERMEDIATE, "preprocessed.c")])
 
     # Run conversion to Racket
     cmd = subprocess.run(['racket', 'src/c-meta.rkt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -48,7 +53,7 @@ def cdios(spec_file, intermediate):
         exit(1)
 
     subprocess.run(["make", "compile-egg"], stderr=subprocess.STDOUT)
-    subprocess.run(["cat", "compile-out/kernel.c"])
+    subprocess.run(["cat", os.path.join(INTERMEDIATE, "kernel.c")])
 
 if __name__ == '__main__':
     cdios()

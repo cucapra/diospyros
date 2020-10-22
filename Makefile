@@ -4,8 +4,8 @@
 # Default vector width of 4
 VEC_WIDTH := 4
 
-# By default, run two jobs
-MAKEFLAGS += --jobs=2
+# By default, run one jobs
+MAKEFLAGS += --jobs=1
 
 RACKET_SRC := src/*.rkt src/examples/*.rkt src/backend/*.rkt
 
@@ -24,8 +24,13 @@ PY := pypy3
 
 test: build
 
-test-all: test build
+test-racket: test build
 	raco test --drdr src/*.rkt src/backend/*.rkt
+
+test-rust:
+	cargo test --manifest-path src/dios-egraphs/Cargo.toml
+
+test-all: test-racket test-rust
 
 build: dios dios-example-gen
 

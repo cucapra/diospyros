@@ -22,7 +22,6 @@
   (define clean? (equal? stat ""))
   (if (not clean?)
       (let ([warning (format "Warning: dirty git status:\n~a" stat)])
-        (display warning)
         warning)
       "Git status clean"))
 

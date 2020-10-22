@@ -10,7 +10,7 @@
 
 (require c)
 
-(define program (parse-program (string->path "compile-out/preprocess-tmp.c")))
+(define program (parse-program (string->path "compile-out/preprocessed.c")))
 
 (assert (eq? (length program) 1))
 
@@ -311,5 +311,6 @@
 (out-writer (eval get-spec ns) egg-spec)
 (out-writer (concretize-prog (eval get-prelude ns)) egg-prelude)
 (out-writer (eval get-outputs ns) egg-outputs)
+(out-writer racket-fn `racket-fn)
 
 
