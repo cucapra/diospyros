@@ -67,6 +67,7 @@
   (map (lambda (x) (assert (real? x) (~a "Expected a real, got " x))) xs)
   (map box xs))
 
+
 (define (v-list-set! lst idx val)
   (assert (list? lst) (~a "Expected a list, got " lst))
   (assert (real? idx) (~a "Expected a real, got " idx))

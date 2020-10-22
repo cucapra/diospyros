@@ -1,4 +1,3 @@
-
 #define A_ROWS 2
 #define A_COLS 2
 #define B_COLS 2

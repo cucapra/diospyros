@@ -36,9 +36,42 @@ evaluation to generate a specification, runs a vector rewrite engine written in
 
 [egg]:https://docs.rs/egg/0.5.0/egg/index.html
 
-## Compiling from C: `cdios` minimal C frontend
+## (Work in progress) Compiling from C: `cdios` minimal C frontend
+The minimal C frontend requires only a single file to specify a new kernel, but
+it is currently limited in expressiveness.
 
+To install `cdios`, run the following in the root directory:
+```
+pip3 install --user -e .
+```
 
+You can run a simple example with:
+```
+cdios demo/matrix-multiply.c
+```
+
+This will emit the generated C to standard out, as well as writing intermediate
+files to `compile-out/*` (including the final `kernel.c`).
+
+`cdios` runs programs through a standard C compiler (currently `gcc`) to sanity
+check correctness, then does a best-effort translation to equivalent Racket.
+
+Currently, programs must be a single C function that consumes and mutates
+single-dimensional arrays (both of these restrictions are likely to be removed
+in the next week or so).
+
+In addition, the following restrictions apply:
+- Arrays must have statically-specified sizes, which can be `#define`'d at the
+ start of the file.
+- Inputs and outputs are identified via naming convention. Inputs should be
+suffixed with `_in`, and outputs should be suffixed with `out`.
+- Control flow cannot be data dependent (i.e., you can branch on an index, but
+not based on the value of an array at that index).
+
+The following restrictions currently apply, but are likely to be improved/eliminated
+soon:
+- Early returns, breaks, and continues are not implemented yet.
+- Conditionals are partially implemented.
 
 ## Compiling from Racket DSL
 
@@ -55,7 +88,8 @@ Racket source code in a few places.
      and should include a key for `'reg-size` for the register wide (typically
      4) and keys for any kernel-specific sizes.
 - In `src/example-gen.rkt`, add your new file to the `require` list, then add
-    the new example to `known-benches` and `run-bench`.
+    the new example to the functions `known-benches` and `run-bench`.
+- Run `make` to rebuild the Racket source with your new changes.
 - To run your new benchmark, create a file named `<new>-params` and enter the
     desired configuration in JSON. For example, for `QProd`, we would create a
     file `q-prod-params`.

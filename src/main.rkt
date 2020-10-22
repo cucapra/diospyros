@@ -15,6 +15,21 @@
 (error-print-width 999999999999999999999999999)
 (pretty-print-depth #f)
 
+(define include #<<here-string-delimiter
+#include <float.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xtensa/sim.h>
+#include <xtensa/tie/xt_pdxn.h>
+#include <xtensa/tie/xt_timer.h>
+#include <xtensa/xt_profiling.h>
+#include "../../../../src/scalars.h"
+
+here-string-delimiter
+)
+
 (define (read-file-from-path path file)
   (define dir-path
     (if (absolute-path? path)
@@ -101,9 +116,9 @@
               (if (absolute-path? (out-file))
                 (out-file)
                 (build-path (current-directory) (out-file)))
-              (lambda (out) (display prog out))
+              (lambda (out) (display include out) (display prog out))
               #:exists 'replace)
-            (display prog)))
+            (begin (display include) (display prog))))
 
          (pretty-display "Compiling to Tensilica backend")
 
