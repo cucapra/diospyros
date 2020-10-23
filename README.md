@@ -6,11 +6,17 @@ Compile code for DSPs.
 
 ### Python
 - Install [Python][] > 3.0.
+- We also recommend installing [Pypy][] > 3.0 (then running `pypy3 -m ensurepip`).
+ If you do not want to install Pypy,
+you can pass `PY=python3` to any `make` commands that require it to avoid this
+dependency.
+- You will also need the following packages (with just `pip3` if avoiding `pypy3`):
+    - `pypy3 -mpip install sexpdata`
 
 ### Racket
 - Install [Racket][] > 7.4
 - Install [Rosette][] by running `raco pkg install rosette`.
-- Install additional Racket libraries: 
+- Install additional Racket libraries:
     - `raco pkg install threading`
     - `raco pkg install c-utils`
 
@@ -22,6 +28,7 @@ Compile code for DSPs.
 
 
 [python]: https://www.python.org/downloads/
+[pypy]: https://doc.pypy.org/en/latest/install.html
 [racket]: https://github.com/racket/racket
 [rosette]: https://docs.racket-lang.org/rosette-guide/index.html
 [rust]: https://www.rust-lang.org/tools/install
