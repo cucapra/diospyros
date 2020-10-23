@@ -10,7 +10,9 @@ Compile code for DSPs.
 ### Racket
 - Install [Racket][] > 7.4
 - Install [Rosette][] by running `raco pkg install rosette`.
-- Install additional Racket's libraries: `raco pkg install threading` `raco pkg install c-utils`
+- Install additional Racket libraries: 
+    - `raco pkg install threading`
+    - `raco pkg install c-utils`
 
 ### Rust
 - Install [Rust][].
