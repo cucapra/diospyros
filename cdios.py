@@ -18,6 +18,15 @@ def cdios(spec_file):
         - Uses Diospyros' equality saturation engine to find vectorization
         - Emits C with Tensilica DSP intrinsics
     """
+
+    # Fully quantify the specification file path
+    spec_file = os.path.realpath(spec_file)
+
+    # Force CWD directory to land in diospyros root
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    cwd = os.getcwd()
+    os.chdir(script_path)
+
     # Attempt to run gcc
     cmd = subprocess.run(["gcc", "-S", spec_file, "-o", "/dev/null"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -54,6 +63,10 @@ def cdios(spec_file):
 
     subprocess.run(["make", "compile-egg"], stderr=subprocess.STDOUT)
     subprocess.run(["cat", os.path.join(INTERMEDIATE, "kernel.c")])
+
+    # Go back to where launched from and copy out result files
+    subprocess.run(["cp", "-r", INTERMEDIATE, cwd])
+    os.chdir(cwd)
 
 if __name__ == '__main__':
     cdios()
