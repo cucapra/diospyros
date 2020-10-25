@@ -100,9 +100,10 @@
                   (define
                     (unquote (translate (decl:declarator-id decl)))
                     (unquote (translate (init:expr-expr init))))))))
-          (if (empty? stmts)
-              `void
-              `(begin (unquote stmts)))]
+          (cond
+            [(empty? stmts) `void]
+            [(equal? 1 (length stmts)) (first stmts)]
+            [else `(begin (unquote stmts))])]
         [else (error "can't handle declaration" stmt)])]
     [(id? stmt)
       (cond
@@ -120,7 +121,7 @@
     [(stmt:if? stmt)
       (if (not (stmt:if-alt stmt))
         (quasiquote
-          (if
+          (when
             (unquote (translate (stmt:if-test stmt)))
             (unquote (translate (stmt:if-cons stmt)))))
         (quasiquote
