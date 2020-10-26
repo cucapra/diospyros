@@ -333,6 +333,11 @@
         [(scalar-unnop id op v)
          (define c-ty-v (type-ref v))
          (type-set id c-ty-v)
+         (define bare
+          (match op
+            ['neg (format "(-(~a))" v)]
+            ['sgn (format "((~a > 0) - (~a < 0))" v)]))
+
          (c-decl c-ty-v #f (c-id id) #f
                  (c-bare (format "~a(~a)" op v)))]
 

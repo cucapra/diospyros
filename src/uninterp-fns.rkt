@@ -29,6 +29,6 @@
 (hash-set! uninterp-fn-map 'vec-neg vector-negate)
 (hash-set! uninterp-fn-map 'vec-sqrt vector-sqrt)
 (hash-set! uninterp-fn-map 'vec-sgn vector-sgn)
-(hash-set! uninterp-fn-map 'neg bvsub)
+(hash-set! uninterp-fn-map 'neg -)
 (hash-set! uninterp-fn-map '* *)
 (hash-set! uninterp-fn-map '+ +)
