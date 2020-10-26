@@ -80,7 +80,6 @@ not based on the value of an array at that index).
 The following restrictions currently apply, but are likely to be improved/eliminated
 soon:
 - Early returns, breaks, and continues are not implemented yet.
-- Conditionals are partially implemented.
 - Array access via pointers is not yet implemented, arrays should be specified
 with, for example, `float a_in[SIZE]`
 
