@@ -262,7 +262,7 @@
     (c-stmt
       (c-call (c-id name) vec-inputs))))
 
-(define (tensilica-g3-compile p)
+(define (tensilica-g3-compile fn-name p)
   ; Hoist all the constants to the top of the program.
   (define-values (consts rprog) (reorder-prog p))
 
@@ -491,7 +491,7 @@
           (c-empty))
         decl-consts
         (c-func-decl "void"
-                     "kernel"
+                     fn-name
                      (map (lambda (arg) (cons "float *" (c-id-id (input-name arg))))
                           (all-args))
                      body)))))

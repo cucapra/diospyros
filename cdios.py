@@ -11,7 +11,12 @@ INTERMEDIATE = "compile-out"
 @click.argument('spec_file',
     type=click.Path(exists=True),
     metavar='<spec_file>')
-def cdios(spec_file):
+@click.option('--name',
+    type=str,
+    metavar='<name>',
+    default='kernel',
+    help='Name of the kernel function in the generated C')
+def cdios(spec_file, name):
     """Takes a specification file, written in C, and:
         - Sanity check that it compiles with GCC
         - Translates it to equivalence Racket (best effort)
@@ -61,7 +66,9 @@ def cdios(spec_file):
         sys.stdout.write(cmd.stderr.decode("utf-8"))
         exit(1)
 
-    subprocess.run(["make", "compile-egg"], stderr=subprocess.STDOUT)
+    name_flag = "BACKEND_FLAGS=-n {}".format(name)
+    print(name_flag)
+    subprocess.run(["make", "compile-egg", name_flag], stderr=subprocess.STDOUT)
     subprocess.run(["cat", os.path.join(INTERMEDIATE, "kernel.c")])
 
     # Go back to where launched from and copy out result files

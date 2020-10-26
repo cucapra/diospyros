@@ -43,6 +43,7 @@ here-string-delimiter
   (define validation (make-parameter #f))
   (define intermediate (make-parameter #f))
   (define vec-width (make-parameter 4))
+  (define fn-name (make-parameter "kernel"))
 
   (define input-path
     (command-line
@@ -62,6 +63,9 @@ here-string-delimiter
       [("-w" "--vec-width") width
                             "Vector width (default is 4)"
                             (vec-width (string->number width))]
+      [("-n" "--name") n
+                       "Name for kernel function"
+                       (fn-name n)]
       #:args (path)
       path))
 
@@ -120,9 +124,11 @@ here-string-delimiter
               #:exists 'replace)
             (begin (display include) (display prog))))
 
-         (pretty-display "Compiling to Tensilica backend")
+        (pretty-display "Compiling to Tensilica backend")
+        (define (backend p) (tensilica-g3-compile (fn-name) p))
+
 
         (~> i-prog
-            tensilica-g3-compile
+            backend
             to-string
             write-out)])))
