@@ -1,0 +1,11 @@
+[package]
+name = "vec-dsl-conv"
+version = "0.1.0"
+authors = ["Rachit Nigam <rachit.nigam12@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lexpr = "0.2.5"
+itertools = "0.9.0"
