@@ -6,6 +6,7 @@ use std::io::{self, Read};
 /// For example, the name A$13 is transformed into (Get A 13).
 fn to_value(s: &str, erase: bool) -> lexpr::Value {
     let mut split = s.split("$").collect::<Vec<_>>();
+    assert!(split.len() == 2, "Failed to split symbol: {}", s);
     let (pre, idx) = (split.remove(0), split.remove(0));
     if !erase {
         lexpr::Value::list(vec![
@@ -42,7 +43,7 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                         .into_iter()
                         .map(|v| to_egg(v, erase, rewrites))
                         .collect_vec();
-                    if &*head == "list" && children.len() < 3 {
+                    if &*head == "list" || children.len() < 3 {
                         let mut list = vec![op];
                         list.append(&mut children);
                         return lexpr::Value::list(list);
@@ -64,7 +65,9 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
 
 fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
     if let lexpr::Value::Cons(c) = expr {
-        let (list, _) = c.into_vec();
+        let (mut list, _) = c.into_vec();
+        // Remove the "list" from the start of the vec.
+        list.remove(0);
         let mut concats = list
             .into_iter()
             .chunks(width)
@@ -74,7 +77,7 @@ fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
                 if chunk.len() == width {
                     chunk.insert(0, lexpr::Value::symbol("Vec"));
                 } else {
-                    chunk.insert(0, lexpr::Value::symbol("List"));
+                    chunk.insert(0, lexpr::Value::symbol("list"));
                 };
                 lexpr::Value::list(chunk)
             })
@@ -97,6 +100,7 @@ fn main() -> io::Result<()> {
     // Rewrite specifications
     let mut rewrites = HashMap::new();
     rewrites.insert("list", "List");
-    println!("{}", to_egg(v, false, &rewrites));
+    let x = preprocess_egg_to_vecs(v, 2);
+    println!("{}", to_egg(x, false, &rewrites));
     Ok(())
 }
