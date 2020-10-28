@@ -62,6 +62,32 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
     }
 }
 
+fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
+    if let lexpr::Value::Cons(c) = expr {
+        let (list, _) = c.into_vec();
+        let mut concats = list
+            .into_iter()
+            .chunks(width)
+            .into_iter()
+            .map(|c| {
+                let mut chunk = c.into_iter().collect_vec();
+                if chunk.len() == width {
+                    chunk.insert(0, lexpr::Value::symbol("Vec"));
+                } else {
+                    chunk.insert(0, lexpr::Value::symbol("List"));
+                };
+                lexpr::Value::list(chunk)
+            })
+            .collect_vec();
+        let init = concats.remove(0);
+        concats.into_iter().fold(init, |acc, x| {
+            lexpr::Value::list(vec![lexpr::Value::symbol("Concat"), x, acc])
+        })
+    } else {
+        panic!("Cannot pre-process non-list s-expression.")
+    }
+}
+
 fn main() -> io::Result<()> {
     let mut buffer = String::new();
     // Read the string provided on STDIN.
