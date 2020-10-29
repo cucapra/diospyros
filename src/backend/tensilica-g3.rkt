@@ -471,9 +471,12 @@
 
         [(vec-store dst src start end)
          (if (equal? output-tag (get-arg-tag dst))
+           (if (equal? 1 (- end start))
+             ; Special case: just write the pointer
+             (c-bare (format "*~a = ~a;" dst src))
            (begin
              (do-align-access dst start end)
-             (gen-align-store dst src start end))
+             (gen-align-store dst src start end)))
            (list))]
 
         [_  (error 'tensilica-g3-compile
