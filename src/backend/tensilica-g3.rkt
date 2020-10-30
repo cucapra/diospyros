@@ -9,6 +9,8 @@
 
 (provide tensilica-g3-compile)
 
+(define element-bytes 4)
+
 (define fresh-name (make-name-gen identity))
 
 (define (make-prefix-id pre)
@@ -111,7 +113,10 @@
                     start))
     (hash-set! loads-done mem end))
 
-  do-read)
+  (define (get-location mem)
+     (hash-ref loads-done mem))
+
+  (values do-read get-location))
 
 ; Track the C type of each id
 (define (make-type-tracker)
@@ -135,7 +140,7 @@
                   (align-reg-name src)
                   (c-cast "xb_vecMxf32 *"
                           (c-id  (mut-name src)))
-                  (c-num (* (current-reg-size)
+                  (c-num (* element-bytes
                             (- end start)))))))
 
 ; Generate aligning store into dst from src.
@@ -147,7 +152,7 @@
                 (align-reg-name dst)
                 (c-cast "xb_vecMxf32 *"
                         (c-id dst))
-                (c-num (* (current-reg-size)
+                (c-num (* element-bytes
                           (- end start)))))))
 
 (define (gen-shuffle type-set type-ref inst)
@@ -267,7 +272,7 @@
   (define-values (consts rprog) (reorder-prog p))
 
   ; Track aligned loads from external memories.
-  (define do-align-access (make-load-tracker))
+  (define-values (do-align-access get-align-loc) (make-load-tracker))
 
   ; Track inputs and outputs
   (define-values (get-arg-tag set-arg-tag! all-args)
@@ -473,7 +478,7 @@
          (if (equal? output-tag (get-arg-tag dst))
            (if (equal? 1 (- end start))
              ; Special case: just write the pointer
-             (c-bare (format "*~a = ~a;" dst src))
+            (c-bare (format "*~a = ~a;" dst src))
            (begin
              (do-align-access dst start end)
              (gen-align-store dst src start end)))
@@ -483,7 +488,20 @@
                    "Cannot compile instruction: ~a"
                    inst)])))
 
-  (define body (c-seq (flatten body-lst)))
+  ; Flush unaligned loads
+  (define output-flushes
+    (for/list ([a (all-args)]
+      #:when (and (equal? output-tag (get-arg-tag a))
+                  ; Only need to flush if unaligned
+                  (not (equal? (modulo (get-align-loc a) (current-reg-size)) 0))))
+      (c-stmt
+        (c-call (c-id "PDX_SAPOS_MXF32_FP")
+                (list (align-reg-name a)
+                      (c-cast "xb_vecMxf32 *"
+                              (c-id a)))))))
+
+  (define body (c-seq (flatten (list body-lst output-flushes))))
+
 
   (c-ast
     (c-seq
