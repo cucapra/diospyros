@@ -91,16 +91,13 @@ fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
     }
 }
 
-fn main() -> io::Result<()> {
-    let mut buffer = String::new();
-    // Read the string provided on STDIN.
-    io::stdin().read_to_string(&mut buffer)?;
+pub fn convert_string(input : &String) -> io::Result<String> {
     // Parse the given S-expr
-    let v = lexpr::from_str(&buffer)?;
+    let v = lexpr::from_str(input)?;
     // Rewrite specifications
     let mut rewrites = HashMap::new();
     rewrites.insert("list", "List");
     let x = preprocess_egg_to_vecs(v, 2);
     println!("{}", to_egg(x, false, &rewrites));
-    Ok(())
+    Ok("".to_string())
 }

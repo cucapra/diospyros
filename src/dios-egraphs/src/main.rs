@@ -5,6 +5,7 @@ pub mod searchutils;
 pub mod macsearcher;
 pub mod binopsearcher;
 pub mod config;
+pub mod stringconversion;
 
 extern crate clap;
 use clap::{Arg, App};
@@ -50,7 +51,9 @@ fn main() {
   let prog_str = fs::read_to_string(path)
       .expect("Failed to read the input file.");
 
-  let prog = prog_str.parse().unwrap();
+  let converted : String = stringconversion::convert_string(&prog_str)
+      .expect("Failed to convert the input file to egg AST.");
+  let prog = converted.parse().unwrap();
   eprintln!("Running egg with timeout {:?}s, width: {:?}", timeout, config::vector_width());
   let (cost, best) = rules::run(&prog, timeout, matches.is_present("no-ac"));
 
