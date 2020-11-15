@@ -6,9 +6,9 @@ define_language! {
 
         // Id is a key to identify EClasses within an EGraph, represents
         // children nodes
-        "+" = Add(Box<[Id]>),
-        "*" = Mul(Box<[Id]>),
-        "-" = Minus(Box<[Id]>),
+        "+" = Add([Id; 2]),
+        "*" = Mul([Id; 2]),
+        "-" = Minus([Id; 2]),
 
         "/" = Div([Id; 2]),
 

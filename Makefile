@@ -1,5 +1,5 @@
 .PHONY: test build test-all
-.PRECIOUS: %-out/res.rkt %-out/spec-egg.rkt
+.PRECIOUS: %-out/res.rkt
 
 # Default vector width of 4
 VEC_WIDTH := 4
@@ -47,25 +47,9 @@ clean:
 %-out: %-params
 	./dios-example-gen -w $(VEC_WIDTH) -b $* -p  $< -o $@
 
-# Pre-process spec for egg
-%-out/spec-egg.rkt: %-out src/dios-egraphs/vec-dsl-conversion.py
-	cat $*-out/spec.rkt | $(PY) src/dios-egraphs/vec-dsl-conversion.py -w $(VEC_WIDTH) -p > $@
-
 # Run egg rewriter
-%-out/res.rkt: %-out/spec-egg.rkt
-ifdef SPLIT
-	mkdir -p $*-out/specs $*-out/opt
-	$(PY) src/dios-egraphs/vec-dsl-split.py -n $(SPLIT) -p $*-out/specs/spec <$<
-	for file in $$(ls $*-out/specs/); do \
-		cargo run $(CARGO_FLAGS) \
-			--manifest-path src/dios-egraphs/Cargo.toml -- --no-ac \
-			$*-out/specs/"$$file" \
-			> $*-out/opt/"$$file"; \
-	done
-	$(PY) src/dios-egraphs/vec-dsl-merge.py -p $*-out/opt/spec $*-out/opt/spec* > $@
-else
-	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $(EGG_BUILD_FLAGS) -- $< $(EGG_FLAGS)  > $@
-endif
+%-out/res.rkt: %-out
+	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $(EGG_BUILD_FLAGS) -- $</spec.rkt $(EGG_FLAGS)  > $@
 
 # Backend code gen
 %-egg: %-out/res.rkt
