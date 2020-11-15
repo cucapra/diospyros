@@ -40,19 +40,21 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                 } else {
                     // The operator name might need to change
                     let op = lexpr::Value::symbol(rewrites.get(&*head).unwrap_or(&&*head).clone());
-                    // Early return if this is a simple list
                     let mut children = tail
                         .into_vec()
                         .0
                         .into_iter()
                         .map(|v| to_egg(v, erase, rewrites))
                         .collect_vec();
-                    if &*head == "list" || children.len() < vector_width() + 1 {
+
+                    // Early return if this is a simple list, vec, or already
+                    // a binary operation
+                    if &*head == "list" || &*head == "Vec" || children.len() < 3 {
                         let mut list = vec![op];
                         list.append(&mut children);
                         return lexpr::Value::list(list);
                     }
-                    // Rewrite all the children in the list.
+                    // Otherwise, turn variadic operations into binary ones
                     children.reverse();
                     let init = children.remove(0);
                     children
