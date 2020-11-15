@@ -1,6 +1,10 @@
 use itertools::Itertools;
 use std::collections::HashMap;
-use std::io::{self, Read};
+use std::io::{self};
+
+use crate::{
+    config::*
+};
 
 /// Transforms a named location in an array to a Get expressions.
 /// For example, the name A$13 is transformed into (Get A 13).
@@ -43,7 +47,7 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                         .into_iter()
                         .map(|v| to_egg(v, erase, rewrites))
                         .collect_vec();
-                    if &*head == "list" || children.len() < 3 {
+                    if &*head == "list" || children.len() < vector_width() + 1 {
                         let mut list = vec![op];
                         list.append(&mut children);
                         return lexpr::Value::list(list);
@@ -97,7 +101,9 @@ pub fn convert_string(input : &String) -> io::Result<String> {
     // Rewrite specifications
     let mut rewrites = HashMap::new();
     rewrites.insert("list", "List");
-    let x = preprocess_egg_to_vecs(v, 2);
-    println!("{}", to_egg(x, false, &rewrites));
-    Ok("".to_string())
+    let x = preprocess_egg_to_vecs(v, vector_width());
+    println!("after preprocess: {}", x);
+    let egg = to_egg(x, false, &rewrites);
+    println!("{}", egg);
+    lexpr::to_string(&egg)
 }
