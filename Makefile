@@ -48,8 +48,8 @@ clean:
 	./dios-example-gen -w $(VEC_WIDTH) -b $* -p  $< -o $@
 
 # Run egg rewriter
-%-out/res.rkt: %-out/spec.rkt
-	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $(EGG_BUILD_FLAGS) -- $< $(EGG_FLAGS)  > $@
+%-out/res.rkt: %-out
+	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $(EGG_BUILD_FLAGS) -- $</spec.rkt $(EGG_FLAGS)  > $@
 
 # Backend code gen
 %-egg: %-out/res.rkt

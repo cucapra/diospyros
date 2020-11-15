@@ -86,6 +86,7 @@ fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
                 lexpr::Value::list(chunk)
             })
             .collect_vec();
+        concats.reverse();
         let init = concats.remove(0);
         concats.into_iter().fold(init, |acc, x| {
             lexpr::Value::list(vec![lexpr::Value::symbol("Concat"), x, acc])
@@ -97,7 +98,8 @@ fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
 
 pub fn convert_string(input : &String) -> io::Result<String> {
     // Parse the given S-expr
-    let v = lexpr::from_str(input)?;
+    let input = input.replace("'#&", "");
+    let v = lexpr::from_str(&input)?;
     // Rewrite specifications
     let mut rewrites = HashMap::new();
     rewrites.insert("list", "List");
