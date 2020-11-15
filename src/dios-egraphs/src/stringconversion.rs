@@ -39,7 +39,7 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                     return to_egg(tail.into(), erase, rewrites);
                 } else {
                     // The operator name might need to change
-                    let op = lexpr::Value::symbol(rewrites.get(&*head).unwrap_or(&&*head).clone());
+                    let mut op = lexpr::Value::symbol(rewrites.get(&*head).unwrap_or(&&*head).clone());
                     let mut children = tail
                         .into_vec()
                         .0
@@ -50,6 +50,10 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                     // Early return if this is a simple list, vec, or already
                     // a binary operation
                     if &*head == "list" || &*head == "Vec" || children.len() < 3 {
+                        // Special case: (- a) -> (neg a)
+                        if &*head == "-" && children.len() == 1 {
+                            op = lexpr::Value::symbol("neg")
+                        }
                         let mut list = vec![op];
                         list.append(&mut children);
                         return lexpr::Value::list(list);

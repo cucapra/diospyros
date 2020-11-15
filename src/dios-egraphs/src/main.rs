@@ -76,7 +76,7 @@ mod tests {
   fn run_egpraph_with_start(prog : &str, exp_best : &str, exp_best_cost : f64) {
 
     let start = prog.parse().unwrap();
-    let (best_cost, best) = run(&start, 60, false);
+    let (best_cost, best) = run(&start, 60, true);
 
     println!(
       "original:\n{}\nbest:\n{}\nbest cost {}",
@@ -117,6 +117,46 @@ mod tests {
                       (Vec a cc 0 0)
                       (Vec b dd 0 0))";
     let exp_best_cost = 3.624;
+    run_egpraph_with_start(start, exp_best, exp_best_cost);
+  }
+
+  #[test]
+  fn qr_decomp_snippet() {
+    let start = "(Vec
+                    (*
+                      (neg (sgn (Get A 0)))
+                      (sqrt
+                        (+
+                          (* (Get A 0) (Get A 0))
+                          (* (Get A 2) (Get A 2)))))
+                    (*
+                      (neg (sgn (Get A 0)))
+                      (sqrt
+                        (+
+                          (* (Get A 0) (Get A 0))
+                          (* (Get A 2) (Get A 2)))))
+                    (*
+                      (neg (sgn (Get A 0)))
+                      (sqrt
+                        (+
+                          (* (Get A 0) (Get A 0))
+                          (* (Get A 2) (Get A 2)))))
+                    (Get A 2))";
+    let exp_best = "(VecMul
+                      (VecNeg
+                        (Vec
+                          (sgn (Get A 0))
+                          (sgn (Get A 0))
+                          (sgn (Get A 0))
+                          (neg (Get A 2))))
+                      (VecSqrt
+                        (VecMAC
+                          (VecMul
+                            (LitVec (Get A 0) (Get A 0) (Get A 0) 0)
+                            (Vec (Get A 0) (Get A 0) (Get A 0) 1))
+                          (Vec (Get A 2) (Get A 2) (Get A 2) 1)
+                          (Vec (Get A 2) (Get A 2) (Get A 2) 1))))";
+    let exp_best_cost = 109.353;
     run_egpraph_with_start(start, exp_best, exp_best_cost);
   }
 
