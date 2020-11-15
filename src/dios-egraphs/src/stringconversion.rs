@@ -102,8 +102,6 @@ pub fn convert_string(input : &String) -> io::Result<String> {
     let mut rewrites = HashMap::new();
     rewrites.insert("list", "List");
     let x = preprocess_egg_to_vecs(v, vector_width());
-    println!("after preprocess: {}", x);
     let egg = to_egg(x, false, &rewrites);
-    println!("{}", egg);
     lexpr::to_string(&egg)
 }
