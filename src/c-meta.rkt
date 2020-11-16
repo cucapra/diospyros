@@ -10,6 +10,9 @@
 
 (require c)
 
+(error-print-width 9999999999999999999999999999999)
+(pretty-print-depth #f)
+
 (define program (parse-program (string->path "compile-out/preprocessed.c")))
 
 (assert (eq? (length program) 1))
