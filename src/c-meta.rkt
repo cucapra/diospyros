@@ -41,14 +41,17 @@
                     (match op
                       [`= right]
                       [`+= (quasiquote (+
-                                       (unquote right)
-                                       (v-list-get (unquote left) (unquote offset))))]
+                                       (v-list-get (unquote left) (unquote offset))
+                                       (unquote right)))]
                       [`-= (quasiquote (-
-                                       (unquote right)
-                                       (v-list-get (unquote left) (unquote offset))))]
+                                       (v-list-get (unquote left) (unquote offset))
+                                       (unquote right)))]
                       [`*= (quasiquote (*
-                                       (unquote right)
-                                       (v-list-get (unquote left) (unquote offset))))]
+                                       (v-list-get (unquote left) (unquote offset))
+                                       (unquote right)))]
+                      [`>>= (quasiquote (arithmetic-shift
+                                        (v-list-get (unquote left) (unquote offset))
+                                        (unquote right)))]
                       [else (error  "can't handle assign op" op)])))))
             ; Variable update
             (let* ([left (translate (expr:assign-left stmt))]
@@ -60,9 +63,10 @@
                   (unquote
                     (match (translate (expr:assign-op stmt))
                       [`= right]
-                      [`+= (quasiquote (+ (unquote right) (unquote left)))]
-                      [`-= (quasiquote (- (unquote right) (unquote left)))]
-                      [`*= (quasiquote (* (unquote right) (unquote left)))]
+                      [`+= (quasiquote (+ (unquote left) (unquote right)))]
+                      [`-= (quasiquote (- (unquote left) (unquote right)))]
+                      [`*= (quasiquote (* (unquote left) (unquote right)))]
+                      [`>>= (quasiquote (arithmetic-shift (unquote left) (unquote right)))]
                       [else (error  "can't handle assign op" op)]))))))]
 
         ; Operations
@@ -111,7 +115,11 @@
     [(id? stmt)
       (cond
         [(id:var? stmt) (id:var-name stmt)]
-        [(id:op? stmt) (id:op-name stmt)]
+        [(id:op? stmt)
+          (define name (id:op-name stmt))
+          (match name
+            ['<< 'arithmetic-shift]
+            [else name])]
         [(id:label? stmt) (error "can't handle labels")])]
     [(stmt:expr? stmt)
       (translate (stmt:expr-expr stmt))]
@@ -156,6 +164,7 @@
           (match t-update
             [`(++ (unquote idx)) 1]
             [`(+= (unquote idx) , n) n]
+            [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
             [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
             [else (error "can't handle for loop update" t-update)]))
 
@@ -220,6 +229,8 @@
         #:exists 'replace))))
 
 (define racket-fn (translate-fn-decl (first program)))
+
+; (pretty-print racket-fn)
 
 (define-namespace-anchor anc)
 (define ns (namespace-anchor->namespace anc))
@@ -291,7 +302,7 @@
 (when (empty? output-names)
   (error "Need to specify an output with suffix _out"))
 
-(define get-spec `(unquote (cons flatten output-names)))
+(define get-spec `(flatten (unquote (cons list output-names))))
 
 (define args-decls (for/list ([arg args])
   (define arg-name (second arg))
