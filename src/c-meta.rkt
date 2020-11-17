@@ -51,7 +51,7 @@
                                        (unquote right)))]
                       [`>>= (quasiquote (arithmetic-shift
                                         (v-list-get (unquote left) (unquote offset))
-                                        (unquote right)))]
+                                        (- (unquote right))))]
                       [else (error  "can't handle assign op" op)])))))
             ; Variable update
             (let* ([left (translate (expr:assign-left stmt))]
@@ -66,7 +66,7 @@
                       [`+= (quasiquote (+ (unquote left) (unquote right)))]
                       [`-= (quasiquote (- (unquote left) (unquote right)))]
                       [`*= (quasiquote (* (unquote left) (unquote right)))]
-                      [`>>= (quasiquote (arithmetic-shift (unquote left) (unquote right)))]
+                      [`>>= (quasiquote (arithmetic-shift (unquote left) (- (unquote right))))]
                       [else (error  "can't handle assign op" op)]))))))]
 
         ; Operations
@@ -118,7 +118,12 @@
         [(id:op? stmt)
           (define name (id:op-name stmt))
           (match name
+            ['>> '(lambda (x y) (arithmetic-shift x (- y)))]
             ['<< 'arithmetic-shift]
+            ['\| 'bitwise-ior]
+            ['^ 'bitwise-xor]
+            ['& 'bitwise-and]
+            ['!= '(lambda (x y) (not (equal? x y)))]
             [else name])]
         [(id:label? stmt) (error "can't handle labels")])]
     [(stmt:expr? stmt)
@@ -140,6 +145,18 @@
             (unquote (translate (stmt:if-test stmt)))
             (unquote (translate (stmt:if-cons stmt)))
             (unquote (translate (stmt:if-alt stmt))))))]
+    [(stmt:while? stmt)
+      (define test (translate (stmt:while-test stmt)))
+      (define body (translate (stmt:while-body stmt)))
+      (quasiquote
+        (begin
+          (define (while)
+            (if (unquote test)
+                (begin
+                  (unquote body)
+                  (while))
+                '()))
+          (while)))]
     [(stmt:for? stmt)
       (let ([init (stmt:for-init stmt)]
             [test (stmt:for-test stmt)]

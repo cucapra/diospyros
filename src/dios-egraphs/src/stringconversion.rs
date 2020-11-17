@@ -104,7 +104,8 @@ fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
 
 pub fn convert_string(input : &String) -> io::Result<String> {
     // Parse the given S-expr
-    let input = input.replace("'#&", "");
+    let input = input.replace("#&", "");
+    let input = input.replace("'", "");
     let v = lexpr::from_str(&input)?;
     // Rewrite specifications
     let mut rewrites = HashMap::new();
