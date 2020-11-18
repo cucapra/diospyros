@@ -1,4 +1,4 @@
-#define SIZE 4
+#define SIZE 8
 
 void fft(float real_in[SIZE], float img_in[SIZE],
     float real_twid_in[SIZE/2], float img_twid_in[SIZE/2],
