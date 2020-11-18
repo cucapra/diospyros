@@ -4,6 +4,7 @@ void fft(float real_in[SIZE], float img_in[SIZE],
     float real_twid_in[SIZE/2], float img_twid_in[SIZE/2],
     float real_out[SIZE], float img_out[SIZE]){
     int even = 0;
+    int odd = 0;
     int log = 0;
     int rootindex = 0;
     int span = SIZE >> 1;
@@ -15,7 +16,8 @@ void fft(float real_in[SIZE], float img_in[SIZE],
     }
 
     while (span != 0){
-        for (int odd=span; odd<SIZE; odd++){
+        odd = span;
+        while (odd < SIZE) {
             odd = odd | span;
             even = odd ^ span;
 
@@ -35,6 +37,7 @@ void fft(float real_in[SIZE], float img_in[SIZE],
                     img_twid_in[rootindex]*real_out[odd];
                 real_out[odd] = temp;
             }
+            odd += 1;
         }
         span >>= 1;
         log += 1;

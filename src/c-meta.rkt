@@ -148,15 +148,18 @@
     [(stmt:while? stmt)
       (define test (translate (stmt:while-test stmt)))
       (define body (translate (stmt:while-body stmt)))
+      (define while-name
+        (string->symbol (~a "while"
+                             (src-start-line (expr-src (stmt:while-test stmt))))))
       (quasiquote
         (begin
-          (define (while)
+          (define ((unquote while-name))
             (if (unquote test)
                 (begin
                   (unquote body)
-                  (while))
+                  ((unquote while-name)))
                 '()))
-          (while)))]
+          ((unquote while-name))))]
     [(stmt:for? stmt)
       (let ([init (stmt:for-init stmt)]
             [test (stmt:for-test stmt)]
