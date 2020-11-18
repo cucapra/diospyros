@@ -1,5 +1,4 @@
-#define SIZE 16
-
+#define SIZE 4
 
 void fft(float real_in[SIZE], float img_in[SIZE],
     float real_twid_in[SIZE/2], float img_twid_in[SIZE/2],
@@ -29,7 +28,7 @@ void fft(float real_in[SIZE], float img_in[SIZE],
             img_out[even] = temp;
 
             rootindex = (even<<log) & (SIZE - 1);
-            if (rootindex) {
+            if (rootindex > 0) {
                 temp = real_twid_in[rootindex] * real_out[odd] -
                     img_twid_in[rootindex]  * img_out[odd];
                 img_out[odd] = real_twid_in[rootindex]*img_out[odd] +
