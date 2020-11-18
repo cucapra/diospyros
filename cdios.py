@@ -33,7 +33,7 @@ def cdios(spec_file, name):
     os.chdir(script_path)
 
     # Attempt to run gcc
-    cmd = subprocess.run(["gcc", "-S", spec_file, "-o", "/dev/null"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    cmd = subprocess.run(["gcc", "-std=c99", "-S", spec_file, "-o", "/dev/null"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # Bail early if GCC fails to compile
     # (note: don't assemble since we might not have a main function)

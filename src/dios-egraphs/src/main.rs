@@ -46,7 +46,7 @@ fn main() {
   let timeout = env::var("TIMEOUT")
       .ok()
       .and_then(|t| t.parse::<u64>().ok())
-      .unwrap_or(3600);
+      .unwrap_or(180);
 
   let prog_str = fs::read_to_string(path)
       .expect("Failed to read the input file.");
