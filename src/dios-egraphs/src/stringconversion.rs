@@ -2,10 +2,6 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use std::io::{self};
 
-use crate::{
-    config::*
-};
-
 /// Transforms a named location in an array to a Get expressions.
 /// For example, the name A$13 is transformed into (Get A 13).
 fn to_value(s: &str, erase: bool) -> lexpr::Value {
@@ -28,7 +24,12 @@ fn to_value(s: &str, erase: bool) -> lexpr::Value {
 fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> lexpr::Value {
     match expr {
         lexpr::Value::Number(_) => expr,
-        lexpr::Value::Symbol(s) => to_value(&*s, erase),
+        lexpr::Value::Symbol(s) =>
+            if s.contains("$") {
+                to_value(&*s, erase)
+            } else {
+                lexpr::Value::Symbol(s)
+            },
         lexpr::Value::Cons(c) => {
             if let (lexpr::Value::Symbol(head), lexpr::Value::Cons(tail)) = c.into_pair() {
                 if &*head == "box" {
@@ -49,15 +50,18 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
 
                     // Early return if this is a simple list, vec, or already
                     // a binary operation
-                    if &*head == "list" || &*head == "Vec" || children.len() < 3 {
-                        // Special case: (- a) -> (neg a)
-                        if &*head == "-" && children.len() == 1 {
-                            op = lexpr::Value::symbol("neg")
+                    if let lexpr::Value::Symbol(op_str) = op.clone() {
+                        if &*op_str == "List" || &*op_str == "Vec" || children.len() < 3 {
+                            // Special case: (- a) -> (neg a)
+                            if &*head == "-" && children.len() == 1 {
+                                op = lexpr::Value::symbol("neg")
+                            }
+                            let mut list = vec![op];
+                            list.append(&mut children);
+                            return lexpr::Value::list(list);
                         }
-                        let mut list = vec![op];
-                        list.append(&mut children);
-                        return lexpr::Value::list(list);
                     }
+
                     // Otherwise, turn variadic operations into binary ones
                     children.reverse();
                     let init = children.remove(0);
@@ -73,44 +77,15 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
     }
 }
 
-fn preprocess_egg_to_vecs(expr: lexpr::Value, width: usize) -> lexpr::Value {
-    if let lexpr::Value::Cons(c) = expr {
-        let (mut list, _) = c.into_vec();
-        // Remove the "list" from the start of the vec.
-        list.remove(0);
-        let mut concats = list
-            .into_iter()
-            .chunks(width)
-            .into_iter()
-            .map(|c| {
-                let mut chunk = c.into_iter().collect_vec();
-                if chunk.len() == width {
-                    chunk.insert(0, lexpr::Value::symbol("Vec"));
-                } else {
-                    chunk.insert(0, lexpr::Value::symbol("list"));
-                };
-                lexpr::Value::list(chunk)
-            })
-            .collect_vec();
-        concats.reverse();
-        let init = concats.remove(0);
-        concats.into_iter().fold(init, |acc, x| {
-            lexpr::Value::list(vec![lexpr::Value::symbol("Concat"), x, acc])
-        })
-    } else {
-        panic!("Cannot pre-process non-list s-expression.")
-    }
-}
-
 pub fn convert_string(input : &String) -> io::Result<String> {
     // Parse the given S-expr
+    // Remove residual Racket syntax markers
     let input = input.replace("#&", "");
     let input = input.replace("'", "");
     let v = lexpr::from_str(&input)?;
     // Rewrite specifications
     let mut rewrites = HashMap::new();
     rewrites.insert("list", "List");
-    let x = preprocess_egg_to_vecs(v, vector_width());
-    let egg = to_egg(x, false, &rewrites);
+    let egg = to_egg(v, false, &rewrites);
     lexpr::to_string(&egg)
 }
