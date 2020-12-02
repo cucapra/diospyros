@@ -252,11 +252,6 @@
             (c-id out)
             #f
             (c-call (c-id name) vec-inputs)))
-  ; Function application
-  ; (define app
-  ;   (c-assign (c-id out)
-  ;             (c-call (c-id name) vec-inputs)))
-  ; (list out-decl app))
   (list out-decl))
 
 (define (gen-vecMxf2-void-app name type-ref inputs)
@@ -336,10 +331,11 @@
          (define bare
           (match op
             ['neg (format "(-(~a))" v)]
-            ['sgn (format "((~a > 0) - (~a < 0))" v)]))
+            ['sgn (format "((~a > 0) - (~a < 0))" v v)]
+            [else (format "~a(~a)" op v)]))
 
          (c-decl c-ty-v #f (c-id id) #f
-                 (c-bare (format "~a(~a)" op v)))]
+                 (c-bare bare))]
 
         [(vec-lit id elems type)
          (define c-ty (c-type type))
@@ -452,24 +448,19 @@
         [(vec-app out 'vec-mul-sgn inputs)
          (gen-vecMxf2-pure-app "PDX_MULSGN_32" type-set type-ref out inputs)]
 
-        ; PDX_AND_M2X64(PDX_MOV_M2X64_FROM_M2XF64(X_re),PDX_MOVCI_M2X64(PDX_MOVVI_INT64_MININT))
         [(vec-app out 'vec-sgn inputs)
-         ; (define vec-inputs (map (curry to-vecMxf2 type-ref) inputs))
-         ; ; Declare out register.
-         ; (type-set out "xb_vecMxf32")
-         ; (define out-decl
-         ;   (c-decl "xb_vecMxf32"
-         ;           #f
-         ;           (c-id out)
-         ;           #f
-         ;           #f))
-         ; ; Function application
-         ; (define app
-         ;   (c-assign (c-id out)
-         ;             (c-bare (format "PDX_AND_M2X32(PDX_MOV_M2X32_FROM_M2XF32(~a),PDX_MOVCI_M2X32(PDX_MOVVI_INT32_MININT))"
-         ;                              (first inputs)))))
-         ; (list out-decl app)
-         (gen-vecMxf2-pure-app "sgn_MXF32" type-set type-ref out inputs)]
+          ; Special case for vector sgn: implement (v > 0) - (v < 0)
+          (define v (to-vecMxf2 type-ref (first inputs)))
+
+          ; Declare out register.
+          (type-set out "xb_vecMxf32")
+          (define out-decl
+            (c-decl "xb_vecMxf32"
+                    #f
+                    (c-id out)
+                    #f
+                    (c-bare (format "PDX_SUB_MXF32(PDX_OGT_MXF32(~a, PDX_ZERO_MXF32()), PDX_OLT_MXF32(~a, PDX_ZERO_MXF32()))" v v))))
+          (list out-decl)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _))
           (error 'tensilica-g3-compile
