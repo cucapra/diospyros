@@ -450,7 +450,7 @@
 
         [(vec-app out 'vec-sgn inputs)
           ; Special case for vector sgn: implement (v > 0) - (v < 0)
-          (define v (to-vecMxf2 type-ref (first inputs)))
+          (define v (to-string (to-vecMxf2 type-ref (first inputs))))
 
           ; Declare out register.
           (type-set out "xb_vecMxf32")
