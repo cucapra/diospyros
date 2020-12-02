@@ -449,7 +449,7 @@
          (gen-vecMxf2-pure-app "PDX_MULSGN_32" type-set type-ref out inputs)]
 
         [(vec-app out 'vec-sgn inputs)
-          ; Special case for vector sgn: implement (v > 0) - (v < 0)
+          ; Special case for vector sgn
           (define v (to-string (to-vecMxf2 type-ref (first inputs))))
 
           ; Declare out register.
@@ -459,7 +459,7 @@
                     #f
                     (c-id out)
                     #f
-                    (c-bare (format "PDX_SUB_MXF32(PDX_OGT_MXF32(~a, PDX_ZERO_MXF32()), PDX_OLT_MXF32(~a, PDX_ZERO_MXF32()))" v v))))
+                    (c-bare (format "PDX_MOV_MXF32_FROM_MX32(PDX_AND_MX32(PDX_MOV_MX32_FROM_MXF32(~a),PDX_MOVCI_MX32(PDX_MOVVI_INT32_MININT)))" v))))
           (list out-decl)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _))
