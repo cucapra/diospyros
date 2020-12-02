@@ -285,13 +285,6 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             "{}-out/res.rkt".format(benchmark),
             "{}/res.rkt".format(p_dir)])
 
-        imports = """"""
-
-        with open("{}/egg-kernel.c".format(p_dir), 'r+') as f:
-            content = f.read()
-            f.seek(0, 0)
-            f.write(imports + '\n' + content)
-
         print("Synthesis finished in {:.1f} seconds using {:.1f} MB".format(
             elapsed_time,
             memthread.maxmem / 10**6,

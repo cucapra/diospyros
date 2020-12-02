@@ -25,7 +25,6 @@
 #include <xtensa/tie/xt_pdxn.h>
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
-#include "../../../../src/scalars.h"
 
 here-string-delimiter
 )
