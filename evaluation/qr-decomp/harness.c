@@ -81,7 +81,9 @@ int nature_qr(const float *A, float *Q, float *R) {
   return 0;
 }
 
-float sgn(float v);
+float sgn(float v){
+  return (v > 0) - (v < 0);
+}
 
 // Naive implementation
 void naive_transpose(float *a, int n) {

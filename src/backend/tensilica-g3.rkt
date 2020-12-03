@@ -459,7 +459,7 @@
                     #f
                     (c-id out)
                     #f
-                    (c-bare (format "PDX_MOV_MXF32_FROM_MX32(PDX_AND_MX32(PDX_MOV_MX32_FROM_MXF32(~a),PDX_MOVCI_MX32(PDX_MOVVI_INT32_MININT)))" v))))
+                    (c-bare (format "PDX_DIV_MXF32(~a, PDX_ABS_MXF32(~a));" v v))))
           (list out-decl)]
 
         [(or (vec-void-app _ _) (vec-app _ _ _))
