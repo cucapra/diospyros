@@ -1,0 +1,13 @@
+{
+  "name" : "MatMult6x6x6x6",
+  "namespace" : "Eigen",
+  "inputs" : {
+      "foo" : "Eigen::Matrix<float, 6, 6>",
+      "bar" : "Eigen::Matrix<float, 6, 6>"
+  },
+  "outputs" : {
+      "result" : "Eigen::Matrix<float, 6, 6>"
+  },
+    "specification" : "MatMult6x6x6x6.c",
+    "specification_kernel" : "matrix_multiply"
+}
