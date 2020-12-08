@@ -144,8 +144,7 @@ def test_generator(manifest_data, test_file, benchmark_file):
         )
         benchmark.write("""
         if (!{}SpecResult.isApprox({}SynthResult)) {{
-           printf("Benchmark specification result and synthesis output does not
-           match for {}\\n");
+           printf("Benchmark specification result and synthesis output does not match for {}\\n");
            std::cout << "Specification: " << {}SpecResult << std::endl;
            std::cout << "Baseline: " << {}SynthResult << std::endl;
         }}""".format(arg, arg, arg, arg, arg))
