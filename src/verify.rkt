@@ -89,13 +89,15 @@
     env)
 
   ; Eval spec after namespace mucking
-  (define spec (eval spec-str ns))
+  (define spec (align-to-reg-size (eval spec-str ns)))
 
   (define prog-env (interp-and-env prog init-env))
   (define (get-and-align out)
     (align-to-reg-size (hash-ref prog-env (car out))))
   (define flatten-prog-outputs
     (flatten (map get-and-align (to-sizes (reverse prog-outs)))))
+
+  (assert (equal? (length spec) (length flatten-prog-outputs)))
 
   (define model
     (verify

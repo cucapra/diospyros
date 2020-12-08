@@ -14,7 +14,6 @@
   (define-values (out-names body) (egg-to-dios-prog egg-ast))
 
   (define out-name-list (box (flatten out-names)))
-  (pretty-print out-name-list)
   (define postlude
     (flatten
       (for/list ([o outputs])
