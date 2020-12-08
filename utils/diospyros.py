@@ -85,7 +85,7 @@ def generate(manifest_data):
 
     # set some default arguments if they are not defined
     if BUILD_DIR not in manifest_data:
-        manifest_data[BUILD_DIR] = kernel_name
+        manifest_data[BUILD_DIR] = DEFAULT_BUILD_DIR
     if SRC_DIR not in manifest_data:
         manifest_data[SRC_DIR] = os.path.join(
             manifest_data[BUILD_DIR], DEFAULT_SRC_DIR)
