@@ -106,7 +106,6 @@ def test_generator(manifest_data, test_file, benchmark_file):
     time = get_time();
     printf("Optimized Specification cycles: %d\\n", time);
 
-    return 0;
     """.format(
             specification_code, synthesized_code
         )
@@ -118,13 +117,23 @@ def test_generator(manifest_data, test_file, benchmark_file):
             EXPECT_TRUE({}SpecResult.isApprox({}SynthResult));
             """.format(arg, arg)
         )
+        benchmark.write("""
+        if (!{}SpecResult.isApprox({}SynthResult)) {{
+           printf("Benchmark specification result and synthesis output does not match for {}");
+        }}""".format(arg, arg, arg))
+
         if baseline_exists:
             gtest.write("""
             EXPECT_TRUE({}.isApprox({}SpecResult)));
             """.format(arg, arg))
+            benchmark.write("""
+            if (!{}.isApprox({}SpecResult)) {{
+               printf("Benchmark specification result and baseline result does not match for {}");
+            }}
+            """.format(arg, arg, arg))
 
     gtest.write("}\n")
-    benchmark.write("}\n")
+    benchmark.write("return 0;\n}\n")
 
     gtest.close()
     benchmark.close()
