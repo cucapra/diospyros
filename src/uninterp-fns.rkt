@@ -9,6 +9,15 @@
 (define-symbolic sqrt (~> real? real?))
 (define-symbolic sgn (~> real? real?))
 
+(define (sgn-implementation v)
+  (- (> v 0) (< v 0)))
+
+(define (uninterp-fn-assumptions)
+  (define-symbolic a real?)
+  (list
+    (equal? 1. (sqrt 1.))
+    (forall (list a) (equal? (sgn a) (sgn-implementation a)))))
+
 (define (vector-sqrt v)
   (for/list ([e v])
     (box (sqrt (unbox e)))))
@@ -31,4 +40,5 @@
 (hash-set! uninterp-fn-map 'vec-sgn vector-sgn)
 (hash-set! uninterp-fn-map 'neg -)
 (hash-set! uninterp-fn-map '* *)
+(hash-set! uninterp-fn-map '/ /)
 (hash-set! uninterp-fn-map '+ +)

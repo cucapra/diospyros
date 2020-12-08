@@ -484,12 +484,10 @@
                    "Cannot compile instruction: ~a"
                    inst)])))
 
-  ; Flush unaligned loads
+  ; Flush output loads
   (define output-flushes
     (for/list ([a (all-args)]
-      #:when (and (equal? output-tag (get-arg-tag a))
-                  ; Only need to flush if unaligned
-                  (not (equal? (modulo (get-align-loc a) (current-reg-size)) 0))))
+      #:when (equal? output-tag (get-arg-tag a)))
       (c-stmt
         (c-call (c-id "PDX_SAPOS_MXF32_FP")
                 (list (align-reg-name a)

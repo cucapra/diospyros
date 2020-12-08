@@ -101,8 +101,11 @@
 
   (define model
     (verify
-      (assert (equal? spec
-                      flatten-prog-outputs))))
+      #:assume (begin
+                  (for ([a (uninterp-fn-assumptions)])
+                    (assert a)))
+      #:guarantee (assert (equal? spec
+                                  flatten-prog-outputs))))
 
   (if (not (unsat? model))
     (pretty-display (format "Verification unsuccessful. Spec:\n ~a \nProg:\n ~a"
