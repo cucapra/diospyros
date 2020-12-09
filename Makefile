@@ -1,4 +1,4 @@
-.PHONY: test build test-all
+.PHONY: test build test-all dios-egraphs
 .PRECIOUS: %-out/res.rkt
 
 # Default vector width of 4
@@ -32,7 +32,10 @@ test-rust:
 
 test-all: test-racket test-rust
 
-build: dios dios-example-gen
+build: dios dios-example-gen dios-egraphs
+
+dios-egraphs:
+	cargo build --manifest-path ./src/dios-egraphs/Cargo.toml
 
 dios: $(RACKET_SRC)
 	raco exe -o dios src/main.rkt
