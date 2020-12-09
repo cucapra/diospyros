@@ -55,9 +55,9 @@ def driver():
 
     params = dict()
 
-    params["input_rows"] = int(args.input_rows)
-    params["input_cols"] = int(args.input_cols)
-    params["output_cols"] = int(args.output_cols)
+    params["input_rows"] = int(args.input_rows[0])
+    params["input_cols"] = int(args.input_cols[0])
+    params["output_cols"] = int(args.output_cols[0])
     params[BUILD_DIR] = str(args.build_dir[0])
 
     # identify the kernel type

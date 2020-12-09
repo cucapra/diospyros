@@ -49,6 +49,7 @@ void {}(
         },
         "outputs": {
             "c": "Eigen::Matrix<float, {}, {}>".format(input_rows, output_cols)
-        }
+        },
+        "test": "c = a * b"
     }
     return manifest_shard
