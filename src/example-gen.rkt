@@ -134,5 +134,11 @@
   (when (not (param-file))
     (error 'main
            "Missing parameter file."))
+
+  (when (not (output-dir))
+    (error 'main
+           "Missing output directory."))
+
+
   (parameterize [(current-reg-size (vec-width))]
     (run-bench (bench-name) (param-file) (output-dir))))
