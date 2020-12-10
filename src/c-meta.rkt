@@ -10,6 +10,9 @@
 
 (require c)
 
+; Convert a subset of C to equivalent Racket, operating on lists of boxed
+; Rosette real values.
+
 (error-print-width 9999999999999999999999999999999)
 (pretty-print-depth #f)
 
@@ -347,5 +350,3 @@
 (out-writer (concretize-prog (eval get-prelude ns)) egg-prelude)
 (out-writer (eval get-outputs ns) egg-outputs)
 (out-writer racket-fn `racket-fn)
-
-
