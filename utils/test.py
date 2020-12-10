@@ -152,7 +152,7 @@ def test_generator(manifest_data, test_file, benchmark_file):
         # only write output validation if the baseline code exists
         if baseline_exists:
             gtest.write("""
-            EXPECT_TRUE({}.isApprox({}SpecResult)));
+            EXPECT_TRUE({}.isApprox({}SpecResult));
             """.format(arg, arg))
             benchmark.write("""
             if (!{}.isApprox({}SpecResult)) {{
