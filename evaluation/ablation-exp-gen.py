@@ -33,7 +33,7 @@ def generate_base(params, out):
         "-p", params,
         "-o", experiment_path
     ],
-    stderr=subprocess.PIPE)
+    stderr=subprocess.STDERR)
 
     # Add all required file for the harness.
     for file in listdir("evaluation/mat-mul"):
@@ -67,7 +67,7 @@ def run_experiment(timeout, out):
             spec_path
         ],
         env=dict(os.environ, TIMEOUT=str(timeout)),
-        stderr=subprocess.PIPE,
+        stderr=subprocess.STDERR,
         stdout=f)
 
     cxx_out = os.path.join(exp_dir, "kernel.c")
