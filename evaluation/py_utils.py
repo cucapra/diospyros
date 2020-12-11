@@ -5,7 +5,6 @@ harness_dir = "evaluation/"
 
 conv2d = "2d-conv"
 matmul = "mat-mul"
-dft = "dft"
 qrdecomp = "qr-decomp"
 qprod = "q-prod"
 

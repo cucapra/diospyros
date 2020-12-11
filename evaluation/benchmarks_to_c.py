@@ -215,9 +215,6 @@ def params_to_name(benchmark, params):
                                             params["B-rows"],
                                             params["B-cols"],
                                             params["reg-size"])
-    if benchmark == dft:
-        return '{}_{}r'.format(params["N"],
-                               params["reg-size"])
 
     if benchmark == qrdecomp:
         return '{}_{}r'.format(params["N"],
@@ -334,10 +331,6 @@ def dimmensions_for_benchmark(benchmark, params):
                 "A_COLS=" + str(params["A-cols"]),
                 "B_ROWS=" + str(params["B-rows"]),
                 "B_COLS=" + str(params["B-cols"]),
-            ]
-    if benchmark == dft:
-        return [
-                "N=" + str(params["N"]),
             ]
     if benchmark == qrdecomp:
         return [

@@ -8,7 +8,6 @@
          "./configuration.rkt"
          "./examples/2d-conv.rkt"
          "./examples/matrix-multiply.rkt"
-         "./examples/discrete-fourier-transform.rkt"
          "./examples/qr-decomp.rkt"
          "./examples/q-prod.rkt")
 
@@ -20,7 +19,6 @@
 (define known-benches
   (list "mat-mul"
         "2d-conv"
-        "dft"
         "qr-decomp"
         "q-prod"))
 
@@ -71,8 +69,6 @@
                            conv2d:keys)]
       [("mat-mul") (values matrix-mul:only-spec
                            matrix-mul:keys)]
-      [("dft")     (values dft:only-spec
-                           dft:keys)]
       [("qr-decomp") (values qr-decomp:only-spec
                              qr-decomp:keys)]
       [("q-prod") (values q-prod:only-spec
