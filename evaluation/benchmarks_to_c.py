@@ -229,19 +229,18 @@ def params_to_name(benchmark, params):
 def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
     # Call example-gen, AKA synthesis. This is long running, so include an
     # for a timeout (which will usually still write early found solutions)
-    # TODO clean this up
-    sp.call([
+    sp.check_call([
         "rm",
         "-rf",
         "{}-out/".format(benchmark)])
-    sp.call([
+    sp.check_call([
         "mkdir",
         "{}-out/".format(benchmark)])
-    sp.call([
+    sp.check_call([
         "cp",
         params_f,
         "{}-params".format(benchmark)])
-    sp.call([
+    sp.check_call([
         "cat",
         params_f,])
 
@@ -250,7 +249,6 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
         "make",
         "-B",
         "{}-egg".format(benchmark),
-        # "SPLIT=100"
         ])
 
     # Start a thread to measure the memory usage.
@@ -271,13 +269,12 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
 
         elapsed_time = end_time - start_time
 
-        # TODO clean this up
-        sp.call([
+        sp.check_call([
             "mv",
             "{}-out/kernel.c".format(benchmark),
             "{}/egg-kernel.c".format(p_dir)])
 
-        sp.call([
+        sp.check_call([
             "mv",
             "{}-out/res.rkt".format(benchmark),
             "{}/res.rkt".format(p_dir)])
@@ -363,7 +360,7 @@ def run_benchmark(dir, benchmark, build, force):
             print("Running, outputting to file {}".format(csv_file))
 
             harness = os.path.join(harness_dir, benchmark)
-            sp.call(["make", "-C", harness, "clean"])
+            sp.check_call(["make", "-C", harness, "clean"])
 
             set_dimms = dimmensions_for_benchmark(benchmark, params)
             print(set_dimms)
@@ -372,7 +369,7 @@ def run_benchmark(dir, benchmark, build, force):
             make_run = ["make", "-C", harness, "run", set_kernel, set_output]
             if set_dimms:
                 make_run += set_dimms
-            sp.call(make_run)
+            sp.check_call(make_run)
 
 def main():
     # Argument parsing
@@ -401,8 +398,8 @@ def main():
 
     # Make clean and build if requested
     if args.build:
-        sp.call(["make", "clean"])
-        sp.call(["make", "build"])
+        sp.check_call(["make", "clean"])
+        sp.check_call(["make", "build"])
 
     # Create a subdirectory for this run
     make_dir(results_dir)
