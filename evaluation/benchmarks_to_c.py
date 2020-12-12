@@ -1,17 +1,17 @@
 """
 Compile and run several configurations of each benchmark: creating DSL
-programs via synthesis queries, compiling the results to C, and running. Each
-step can be skipped if needed (the last one will only work on a server with
-Xtensa tools installed.)
+programs via equality saturation queries, compiling the results to C,
+and running in simulation on the Xtensa compiler. Each step can be skipped if
+needed (the last one will only work on a server with Xtensa tools installed.)
 """
 from datetime import datetime
 from threading import Timer, Thread
 import argparse
 import json
 import os
+import psutil
 import subprocess as sp
 import time
-import psutil
 
 from py_utils import *
 
@@ -203,6 +203,7 @@ class MemChecker(Thread):
 
 
 def params_to_name(benchmark, params):
+    """Formatting for CSV data"""
     if benchmark == conv2d:
         return '{}x{}_{}x{}_{}r'.format(params["input-rows"],
                                             params["input-cols"],
@@ -226,9 +227,8 @@ def params_to_name(benchmark, params):
     print("Error: haven't defined nice filename for: ", benchmark)
     exit(1)
 
-def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
-    # Call example-gen, AKA synthesis. This is long running, so include an
-    # for a timeout (which will usually still write early found solutions)
+def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout):
+    # Call example-gen, AKA symbolic execution and equality saturation.
     sp.check_call([
         "rm",
         "-rf",
@@ -249,21 +249,16 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
         "make",
         "-B",
         "{}-egg".format(benchmark),
-        ])
+        ],
+        env=dict(os.environ, TIMEOUT=str(eq_sat_timeout)))
 
     # Start a thread to measure the memory usage.
     memthread = MemChecker(gen.pid)
     memthread.start()
 
-    def kill(process):
-        print("Hit timeout, killing synthesis subprocess")
-        process.kill()
-
-    timer = Timer(timeout, kill, [gen])
     try:
-        print("Running synthesis for {}, timeout: {}".format(benchmark, timeout))
+        print("Running synthesis for {}, equality saturation timeout: {}".format(benchmark, eq_sat_timeout))
 
-        timer.start()
         gen.communicate()
         end_time = time.time()
 
@@ -279,7 +274,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
             "{}-out/res.rkt".format(benchmark),
             "{}/res.rkt".format(p_dir)])
 
-        print("Synthesis finished in {:.1f} seconds using {:.1f} MB".format(
+        print("Synthesis and compilation finished in {:.1f} seconds using {:.1f} MB".format(
             elapsed_time,
             memthread.maxmem / 10**6,
         ))
@@ -289,10 +284,10 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, timeout):
         }
 
     finally:
-        timer.cancel()
         memthread.stop()
 
-def synthesize_benchmark(dir, benchmark, timeout, parameters):
+def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters):
+    """Call synthesis and write out data"""
     b_dir = os.path.join(dir, benchmark)
     make_dir(b_dir)
 
@@ -307,7 +302,7 @@ def synthesize_benchmark(dir, benchmark, timeout, parameters):
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
 
-        stats = call_synth_with_timeout(benchmark, params_f, p_dir, timeout)
+        stats = call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout)
 
         # Write synthesis statistics to a little JSON file here.
         stats_csv = os.path.join(p_dir, "stats.json")
@@ -315,6 +310,7 @@ def synthesize_benchmark(dir, benchmark, timeout, parameters):
             json.dump(stats, f, indent=4, sort_keys=True)
 
 def dimmensions_for_benchmark(benchmark, params):
+    """Make file parameters per benchmark"""
     if benchmark == conv2d:
         return [
                 "I_ROWS=" + str(params["input-rows"]),
@@ -335,10 +331,12 @@ def dimmensions_for_benchmark(benchmark, params):
             ]
     if benchmark == qprod:
         return None
-    print("Error: haven't dimensions  for: ", benchmark)
+    print("Error: missing dimensions for: ", benchmark)
     exit(1)
 
 def run_benchmark(dir, benchmark, build, force):
+    """Run benchmark in simulation on the Xtensa compiler, writing timing files
+    out to a CSV"""
     b_dir = os.path.join(dir, benchmark)
     for params_config in listdir(b_dir):
         if not os.path.isdir(params_config):
@@ -379,7 +377,7 @@ def main():
     parser.add_argument('-f', '--force', action='store_true',
         help="Force overwrite old results")
     parser.add_argument('-t', '--timeout', type=int, default=3600,
-        help="Timeout per call to ./dios-example-gen (seconds)")
+        help="Timeout per call to the equality saturation engine (seconds)")
     parser.add_argument('-o', '--output', type=str, default="",
         help="Non-default output directory")
     parser.add_argument('--skipsynth', action='store_true',
@@ -389,7 +387,7 @@ def main():
     parser.add_argument('--skiprun', action='store_true',
         help="Skip running generated C code")
     parser.add_argument('--test', action='store_true',
-        help="Run just one benchmark as a test")
+        help="Run just the smallest size per benchmark as a test")
     args = parser.parse_args()
 
     if args.skipsynth and args.skipc and args.skiprun:
@@ -415,10 +413,9 @@ def main():
         make_dir(cur_results_dir)
         print("Writing results to: {}".format(cur_results_dir))
 
-    # Pare it down to just one benchmark for a test run.
+    # Pare it down to just the smallest size per benchmark for a test run.
     if args.test:
-        params = {k: list(v) if k == '2d-conv' else []
-                  for k, v in PARAMETERS.items()}
+        params = {k: [v[0]] for k, v in PARAMETERS.items()}
     else:
         params = PARAMETERS
 
