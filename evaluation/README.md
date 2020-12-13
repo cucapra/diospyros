@@ -101,3 +101,4 @@ To post-process this output into the final numbers you see in the paper, pipe it
     make run | python3 dpmresults.py
 
 This will produce a JSON document with three values: the cycle count for the Eigen- and Diospyros-based executions, and the speedup (which is just the ratio of the two cycle counts).
+You can see the cycle counts and speedup number in the ASPLOS paper at the end of Section 5.6.
