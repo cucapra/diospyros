@@ -15,10 +15,12 @@ benchmarks = [
     qprod
 ]
 
+
 def make_dir(d):
     """Makes a directory if it does not already exist"""
     if not os.path.exists(d):
         os.mkdir(d)
+
 
 def listdir(d):
     """Lists the full paths of the contents of a directory"""

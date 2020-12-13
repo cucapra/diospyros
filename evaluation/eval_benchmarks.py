@@ -402,8 +402,8 @@ def main():
         help="Run translation validation")
     args = parser.parse_args()
 
-    if args.skipsynth and args.skipc and args.skiprun:
-        print("Skipping synthesis, building to C, and running: doing nothing")
+    if args.skipsynth and args.skiprun:
+        print("Skipping synthesis and running: doing nothing")
         exit(1)
 
     # Make clean and build if requested
