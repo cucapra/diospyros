@@ -23,9 +23,33 @@ fn is_all_same_memory_or_zero(vars: &Vec<String>) -> impl Fn(&mut EGraph, Id, &S
     }
 }
 
+fn filter_applicable_rules(rules : &mut Vec<Rewrite<VecLang, ()>>, prog: &RecExpr<VecLang>) {
+    let prog_str : String = prog.pretty(80);
+    let ops_to_filter = vec!["neg", "sqrt", "/"];
+    let unused_ops : Vec<&&str> = ops_to_filter.iter().filter(|&op| {
+        !prog_str.contains(op)
+    }).collect();
+
+    let mut dropped = "".to_string();
+    rules.retain(|r| {
+        let drop = unused_ops.iter().any(|&op| {
+            let rule_sr = format!("{:?}", r);
+            rule_sr.contains(op)
+        });
+        if drop {
+            dropped = format!("{} {}", dropped, r.name())
+        };
+        !drop
+    });
+    if dropped != "" {
+        eprintln!("Dropping inapplicable rules:{}", dropped);
+    }
+}
+
 /// Run the rewrite rules over the input program and return the best (cost, program)
 pub fn run(prog: &RecExpr<VecLang>, timeout: u64, no_ac: bool) -> (f64, RecExpr<VecLang>) {
-    let rules = rules(no_ac);
+    let mut rules = rules(no_ac);
+    filter_applicable_rules(&mut rules, prog);
     let mut init_eg : EGraph = EGraph::new(());
     init_eg.add(VecLang::Num(0));
     let runner = Runner::default()
