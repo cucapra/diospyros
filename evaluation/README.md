@@ -22,7 +22,7 @@ kernel compiled by Diospyros(QR decomposition).
 We have split this artifact into two components:
 1. **Diospyros compiler.** This is our publicly available compiler that
   produces C/C++ code with intrinsics. This component can be run on the provided
-  VirtualBox virtual machine, or installed from source and run locally on the
+  [VirtualBox][] virtual machine, or installed from source and run locally on the
   reviewer's machine.
 2. **Evaluation on licensed instruction set simulator (ISS)**
   Our compiler targets the Tensilica Fusion G3, which does not have an
@@ -36,3 +36,21 @@ We have split this artifact into two components:
 ### Artifact Sources
 
 [virtualbox]: https://www.virtualbox.org/
+
+### Seeing the Results
+
+Now that we have collected the data, the next step is to analyze the results to draw the charts and tables you see in the ASPLOS paper.
+First, use `charts.py` to generate the plots:
+
+    python3 charts.py
+
+[TK: Probably needs some command-line flags on that? Not sure. Also describe what files have been produced. --AS]
+
+The `charts.py` script also produces a file called `combined.csv` that contains all the raw data that went into the plots.
+You can look at it directly if you're curious about specific numbers.
+To see some statistics about the compilation process, run the `benchtbl.py` script:
+
+    python3 benchtbl.py --plain
+
+This script reads `combined.csv` to make a table like Table 1 in the ASPLOS paper.
+The `--plain` flag emits a plain-text table for reading directly; omit this flag to generate a LaTeX fragment instead.
