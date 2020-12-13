@@ -11,7 +11,6 @@ qprod = "q-prod"
 benchmarks = [
     matmul,
     conv2d,
-    # dft,
     qrdecomp,
     qprod
 ]

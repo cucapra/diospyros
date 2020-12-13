@@ -218,12 +218,4 @@
      (define new-prog (shuffle-truncation reg-alloc c-env))
      (define fn-map (hash 'vec-mac vector-mac))
 
-     (check-equal? (length (prog-insts new-prog)) 74)
-
-     ; TODO: need to update verify-prog to work with vectors
-     ; (define res
-     ;   (verify-prog p new-prog
-     ;                #:fn-map fn-map))
-
-     ; (check-equal? (unsat) res)
-     ))))
+     (check-equal? (length (prog-insts new-prog)) 74)))))

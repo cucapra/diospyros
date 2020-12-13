@@ -367,7 +367,6 @@
         ; input for the function arguments of this kernel and an aligning
         ; register.
         [(vec-extern-decl id size tag)
-         ; TODO: vec-extern-decl should have a type flag
          ; Aligning loads pump the pointer, so make a mutable copy
          (type-set id "float *")
          (type-set (mut-name id) "float *")

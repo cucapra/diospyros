@@ -50,8 +50,6 @@ fn main() {
   eprintln!("\nCost: {}", cost);
 }
 
-
-// TODO: update the other tests to run without long partitioning rules
 #[cfg(test)]
 mod tests {
 
