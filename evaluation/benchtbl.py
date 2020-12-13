@@ -4,6 +4,10 @@ time and memory required for Diospyros's execution.
 
 It reads results from `combined.csv`, which is produced by `charts.py`,
 as well as the fixed list of benchmarks in `benchmarks.csv`.
+
+The only CLI flag is `--plain`. Use `python3 benchtbl.py --plain` to get
+a readable plain-text table; omit `--plain` to get a fragment of TeX
+code for a table like in the paper.
 """
 import csv
 import sys
