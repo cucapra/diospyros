@@ -14,7 +14,7 @@ compiler and optimized library functions.
 for all 20 kernels that the scalar specification and vectorized result (both in
 our abstract vector domain specific language) are equivalent.
 - **Timeout ablation study (Figure 5)** Ablation study on a single kernel
-($10\times10$ by $10\times10$ \bench{MatMul}) over a range of equality saturation timeouts.
+(10×10 by 10×10 `MatMul`) over a range of equality saturation timeouts.
 - **Application case study (Section 5.6)** Speedup of an open source
 computer vision application (Theia Structure From Motion library) with a single
 kernel compiled by Diospyros(QR decomposition).
