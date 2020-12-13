@@ -30,10 +30,6 @@ dependency.
 - Install [Rust][].
 - Install dependencies for rewrite engine: `cargo install --path ./src/dios-egraphs`
 
-### (Optional) SMT solvers
-- For translation validation, install [z3][] or [Boolector][].
-
-
 ## (Work in progress) Compiling from C: `cdios` minimal C frontend
 The minimal C frontend requires only a single file to specify a new kernel, but
 it is currently limited in expressiveness.
