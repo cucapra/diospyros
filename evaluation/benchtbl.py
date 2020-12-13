@@ -7,7 +7,7 @@ as well as the fixed list of benchmarks in `benchmarks.csv`.
 """
 import csv
 import sys
-import numpy
+from functools import reduce
 
 
 def print_row(seq, end=True):
@@ -42,7 +42,8 @@ def split_size(size_str):
 def compare_size(size_str):
     def array_to_size(a):
         if "×" in a:
-            return numpy.prod([int(v) for v in a.split("×")])
+            return reduce(lambda a, b: a * b,
+                          [int(v) for v in a.split("×")])
         return int(a)
 
     s, _ = split_size(size_str)
