@@ -197,6 +197,9 @@ class MemChecker(Thread):
             except psutil.NoSuchProcess:
                 pass
 
+            except psutil.ProcessLookupError:
+                pass
+
             time.sleep(self.delay)
 
     def stop(self):

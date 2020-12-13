@@ -108,11 +108,13 @@
                                   flatten-prog-outputs))))
 
   (if (not (unsat? model))
-    (pretty-display (format "Verification unsuccessful. Spec:\n ~a \nProg:\n ~a"
+    (pretty-display (format "Translation validation unsuccessful. Spec:\n ~a \nProg:\n ~a"
                         spec
                         flatten-prog-outputs))
-    (pretty-display (format "Verification successful! ~a elements equal"
-                            (length spec))))
+    (pretty-display (format "~aTranslation validation successful! ~a elements equal~a\n"
+                            "\x1B[32m"    ; Green in terminal
+                            (length spec)
+                            "\x1B[0m")))  ; Back to black
   model)
 
 ; Verify input-output behavior of programs.
