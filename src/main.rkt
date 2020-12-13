@@ -74,7 +74,8 @@ here-string-delimiter
     (when (and (not (egg)) (validation))
       (error "Translation validation flag not valid when not in egg mode"))
 
-    (pretty-display (format "Reading input program from ~a" input-path))
+    (pretty-display (format "Reading input program from ~a" input-path)
+                    (current-error-port))
 
     ; To eval the input, use the current namespace
     (define ns (namespace-anchor->namespace a))
@@ -93,7 +94,7 @@ here-string-delimiter
           (define input-string (read (open-input-file input-path)))
           (eval input-string ns))))
 
-    (pretty-display "Optimizing intermediate program")
+    (pretty-display "Optimizing intermediate program" (current-error-port))
 
     ; Translation validation hook
     (when (validation)
@@ -123,7 +124,7 @@ here-string-delimiter
               #:exists 'replace)
             (begin (display include) (display prog))))
 
-        (pretty-display "Compiling to Tensilica backend")
+        (pretty-display "Compiling to Tensilica backend" (current-error-port))
         (define (backend p) (tensilica-g3-compile (fn-name) p))
 
 
