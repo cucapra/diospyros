@@ -76,3 +76,21 @@ To see some statistics about the compilation process, run the `benchtbl.py` scri
 
 This script reads `combined.csv` to make a table like Table 1 in the ASPLOS paper.
 The `--plain` flag emits a plain-text table for reading directly; omit this flag to generate a LaTeX fragment instead.
+
+### Theia Case Study
+
+The ASPLOS paper puts the QR decomposition kernel into context by measuring the impact on performance in an application: the [Theia][] structure-from-motion library.
+The `theia` subdirectory in this evaluation package contains the code necessary to reproduce those end-to-end results.
+
+The first step is to get the generated C code for the QR decomposition kernel.
+Copy the `egg_kernel.c` file from
+[TK: where? not sure where this comes from --AS]
+to the Theia directory.
+
+Then, type `make run` to compile and execute both versions of the `DecomposeProjectionMatrix` function: one using Eigen (as the original open-source code does) and one using the Diospyros-generated QR kernel.
+
+To post-process this output into the final numbers you see in the paper, pipe it into the `dpmresults.py` analysis script:
+
+    make run | python3 dpmresults.py
+
+This will produce a JSON document with three values: the cycle count for the Eigen- and Diospyros-based executions, and the speedup (which is just the ratio of the two cycle counts).
