@@ -79,6 +79,8 @@ The `--plain` flag emits a plain-text table for reading directly; omit this flag
 
 ### Theia Case Study
 
+[TK: This should go in some section where we are talking about typing commands on Gorgonzola, not about generating C code. --AS]
+
 The ASPLOS paper puts the QR decomposition kernel into context by measuring the impact on performance in an application: the [Theia][] structure-from-motion library.
 The `theia` subdirectory in this evaluation package contains the code necessary to reproduce those end-to-end results.
 
@@ -87,7 +89,10 @@ Copy the `egg_kernel.c` file from
 [TK: where? not sure where this comes from --AS]
 to the Theia directory.
 
+**Time estimate: 1 minute.**
+
 Then, type `make run` to compile and execute both versions of the `DecomposeProjectionMatrix` function: one using Eigen (as the original open-source code does) and one using the Diospyros-generated QR kernel.
+You can visually check the outputs to make sure they match.
 
 To post-process this output into the final numbers you see in the paper, pipe it into the `dpmresults.py` analysis script:
 
