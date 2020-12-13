@@ -59,12 +59,12 @@ namespace theia {
 class RQDecomposition {
  public:
   // Shorthand for transpose type.
-  typedef Eigen::Matrix<double,
+  typedef Eigen::Matrix<float,
                         3,
                         3,
                         Eigen::ColMajor> MatrixType;
 
-  typedef Eigen::Matrix<double,
+  typedef Eigen::Matrix<float,
                         3,
                         3,
                         Eigen::ColMajor> MatrixTransposeType;
@@ -116,8 +116,8 @@ class RQDecomposition {
     // Eigen::HouseholderQR<MatrixTransposeType> qr(matrix_flipud_transpose);
 
 
-    const MatrixQType& q0 = q_matrix;
-    const MatrixTransposeType& r0 = r_matrix;
+    const MatrixQType& q0 = q_matrix_float;
+    const MatrixTransposeType& r0 = r_matrix_float;
 
     // Flip upside down.
     matrix_r_ = r0.transpose();
