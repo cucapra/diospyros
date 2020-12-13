@@ -1,8 +1,9 @@
 """
-Compile and run several configurations of each benchmark: creating DSL
-programs via equality saturation queries, compiling the results to C,
-and running in simulation on the Xtensa compiler. Each step can be skipped if
-needed (the last one will only work on a server with Xtensa tools installed.)
+Compile and run several configurations of each benchmark: (1) creating DSL
+programs via equality saturation queries and compiling the results to C,
+and (2) running the benchmark in simulation on the Xtensa compiler. Each step
+can be skipped if needed (the last one will only work on a server with Xtensa
+tools installed.)
 """
 from datetime import datetime
 from threading import Timer, Thread
@@ -227,7 +228,7 @@ def params_to_name(benchmark, params):
     print("Error: haven't defined nice filename for: ", benchmark)
     exit(1)
 
-def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout):
+def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validation):
     # Call example-gen, AKA symbolic execution and equality saturation.
     sp.check_call([
         "rm",
@@ -244,13 +245,19 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout):
         "cat",
         params_f,])
 
-    start_time = time.time()
-    gen = sp.Popen([
+    synth_cmd = [
         "make",
         "-B",
         "{}-egg".format(benchmark),
-        ],
-        env=dict(os.environ, TIMEOUT=str(eq_sat_timeout)))
+    ]
+
+    # Run translation validation if requested
+    if validation:
+        synth_cmd += ["BACKEND_FLAGS=--validation"]
+
+    # Start wall clock time
+    start_time = time.time()
+    gen = sp.Popen(synth_cmd, env=dict(os.environ, TIMEOUT=str(eq_sat_timeout)))
 
     # Start a thread to measure the memory usage.
     memthread = MemChecker(gen.pid)
@@ -286,7 +293,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout):
     finally:
         memthread.stop()
 
-def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters):
+def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters, validation):
     """Call synthesis and write out data"""
     b_dir = os.path.join(dir, benchmark)
     make_dir(b_dir)
@@ -302,7 +309,7 @@ def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters):
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
 
-        stats = call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout)
+        stats = call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validation)
 
         # Write synthesis statistics to a little JSON file here.
         stats_csv = os.path.join(p_dir, "stats.json")
@@ -376,18 +383,18 @@ def main():
         help="Build ./dios and ./dios-example-gen executables")
     parser.add_argument('-f', '--force', action='store_true',
         help="Force overwrite old results")
-    parser.add_argument('-t', '--timeout', type=int, default=3600,
+    parser.add_argument('-t', '--timeout', type=int, default=180,
         help="Timeout per call to the equality saturation engine (seconds)")
     parser.add_argument('-o', '--output', type=str, default="",
         help="Non-default output directory")
     parser.add_argument('--skipsynth', action='store_true',
-        help="Skip the synthesis step and just build to C")
-    parser.add_argument('--skipc', action='store_true',
-        help="Skip building to C and just run synthesis")
+        help="Skip the synthesis step and run existing generated code")
     parser.add_argument('--skiprun', action='store_true',
         help="Skip running generated C code")
     parser.add_argument('--test', action='store_true',
         help="Run just the smallest size per benchmark as a test")
+    parser.add_argument('-v', '--validation', action='store_true',
+        help="Run translation validation")
     args = parser.parse_args()
 
     if args.skipsynth and args.skipc and args.skiprun:
@@ -421,9 +428,9 @@ def main():
 
     if not args.skipsynth:
         for b in benchmarks:
-            synthesize_benchmark(cur_results_dir, b, args.timeout, params)
+            synthesize_benchmark(cur_results_dir, b, args.timeout, params, args.validation)
 
-    if not args.skiprun:
+    if not args.skiprun and not args.validation:
         for b in benchmarks:
             run_benchmark(cur_results_dir, b, args.build, args.force)
 
