@@ -16,8 +16,8 @@ our abstract vector domain specific language) are equivalent.
 - **Timeout ablation study (Figure 5)** Ablation study on a single kernel
 (10×10 by 10×10 `MatMul`) over a range of equality saturation timeouts.
 - **Application case study (Section 5.6)** Speedup of an open source
-computer vision application (Theia Structure From Motion library) with a single
-kernel compiled by Diospyros(QR decomposition).
+computer vision application (the [Theia][] structure-from-motion library) with a single
+kernel compiled by Diospyros (QR decomposition).
 
 We have split this artifact into two components:
 1. **Diospyros compiler.** This is our publicly available compiler that
@@ -31,11 +31,12 @@ We have split this artifact into two components:
   statistics from our paper, we have provided reviews limited access to our
   research server (with permission from the AEC chairs).
 
+[virtualbox]: https://www.virtualbox.org/
+[theia]: https://github.com/sweeneychris/TheiaSfM
+
 ## Prerequisites
 
 ### Artifact Sources
-
-[virtualbox]: https://www.virtualbox.org/
 
 ### Seeing the Results
 
