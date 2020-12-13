@@ -5,11 +5,6 @@ EGG_OBJ := egg_kernel.o
 
 NATURE_OBJS := matmmltf_pdx4.o
 
-A_ROWS := 2
-A_COLS := 3
-B_ROWS := 3
-B_COLS := 3
-
 PARAMS := -DA_ROWS=$(A_ROWS) -DA_COLS=$(A_COLS)
 PARAMS := $(PARAMS) -DB_ROWS=$(B_ROWS) -DB_COLS=$(B_COLS)
 
