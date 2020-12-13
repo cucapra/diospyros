@@ -24,7 +24,7 @@ We have split this artifact into two components:
   produces C/C++ code with intrinsics. This component can be run on the provided
   [VirtualBox][] virtual machine, or installed from source and run locally on the
   reviewer's machine.
-2. **Evaluation on licensed instruction set simulator (ISS)**
+2. **Evaluation on licensed instruction set simulator (ISS).**
   Our compiler targets the Tensilica Fusion G3, which does not have an
   publicly accessible compiler or ISS (the vendor provides free academic licenses,
   but the process is not automated). To reproduce the cycle-level simulation
@@ -36,7 +36,28 @@ We have split this artifact into two components:
 
 ## Prerequisites
 
-### Artifact Sources
+If you use the provided VirtualBox virtual machine, it has all dependencies
+pre-installed.
+
+To run locally, clone this repository and follow the instructions for installing prerequisites from the top-level README.
+
+### Generating C/C++ with Intrinsics
+
+To start with, we will generate most of the compiled C/C++ with intrinsics off the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skip-run` flag to the followijng commands.
+
+First, to sanity check the setup, run the following test command, which compiles the smallest size of each unique kernel with a 10 second timeout for each:
+
+#### Time estimate: 30 seconds
+```
+python3 evaluation/eval_benchmarks.py --timeout 10 --skip-run --test
+```
+
+Once that succeeds, we can run the benchmarks with the default 180 second timeout.  For now,
+we suggest skipping the one kernel `4x4 QRDecomp` that requires 38 GB of memory, since it is infeasible to run in a VM. If you are running this locally on a machine with sufficient memory, you ran run the command without the `--skiplargemem` flag.  
+#### Time estimate: 45 minutes (+4.5 hours if no `--skiplargemem`)
+```
+python3 evaluation/eval_benchmarks.py --skip-run --skiplargemem
+```
 
 ### Seeing the Results
 
