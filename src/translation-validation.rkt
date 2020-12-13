@@ -48,10 +48,10 @@
             (vec-extern-decl-size decl)))
      (map get-id-size lst))
 
-  ; Constrain inputs
-  (define (assume-input-range i)
-    (assert (and (< i 100)
-                 (> i -100))))
+  ; ; Constrain inputs
+  ; (define (assume-input-range i)
+  ;   (assert (and (< i 100)
+  ;                (> i -100))))
 
   ; Generate symbolic inputs for prog
   (define init-env
@@ -66,7 +66,7 @@
                         [val (make-symbolic-v-list size name)])
                   (parameterize ([current-namespace ns])
                     (for ([i (range size)])
-                      (assume-input-range (v-list-get val i))
+                      ; (assume-input-range (v-list-get val i))
                       (eval `(define ,(symbol-append name i) ,(v-list-get val i)))))
                   (cons name val)))
                _))

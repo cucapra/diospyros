@@ -5,7 +5,7 @@
          "../interp.rkt"
          "../utils.rkt"
          "../prog-sketch.rkt"
-         "../verify.rkt"
+         "../translation-validation.rkt"
          threading
          racket/trace
          racket/generator

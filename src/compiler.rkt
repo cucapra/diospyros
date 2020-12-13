@@ -5,7 +5,7 @@
          "c-ast.rkt"
          "compile-passes.rkt"
          "dsp-insts.rkt"
-         "verify.rkt"
+         "translation-validation.rkt"
          "interp.rkt"
          "prog-sketch.rkt"
          "register-allocation-pass.rkt"

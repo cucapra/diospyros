@@ -3,7 +3,7 @@
 (require "ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
-         "verify.rkt")
+         "translation-validation.rkt")
 
 (provide (all-defined-out))
 

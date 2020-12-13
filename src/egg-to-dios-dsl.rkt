@@ -4,8 +4,7 @@
          "egg-ast.rkt"
          "dsp-insts.rkt"
          "utils.rkt"
-         "verify.rkt")
-
+         "translation-validation.rkt")
 
 (provide egg-to-dios-dsl)
 
