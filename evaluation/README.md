@@ -94,6 +94,8 @@ to the Theia directory.
 Then, type `make run` to compile and execute both versions of the `DecomposeProjectionMatrix` function: one using Eigen (as the original open-source code does) and one using the Diospyros-generated QR kernel.
 You can visually check the outputs to make sure they match.
 
+**Time estimate: 10 seconds.**
+
 To post-process this output into the final numbers you see in the paper, pipe it into the `dpmresults.py` analysis script:
 
     make run | python3 dpmresults.py
