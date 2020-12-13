@@ -1,3 +1,10 @@
+"""This script generates a table like Table 1 from the ASPLOS paper. It
+lists the benchmarks and their optimization characteristics: i.e., the
+time and memory required for Diospyros's execution.
+
+It reads results from `combined.csv`, which is produced by `charts.py`,
+as well as the fixed list of benchmarks in `benchmarks.csv`.
+"""
 import csv
 import sys
 import numpy
