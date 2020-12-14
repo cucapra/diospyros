@@ -36,25 +36,44 @@ We have split this artifact into two components:
 
 ## Prerequisites
 
-If you use the provided VirtualBox virtual machine, it has all dependencies
-pre-installed.
+### Option 1: VirtualBox
+If you use the provided VirtualBox virtual machine, it has all dependencies pre-installed. 
 
+1. Download [VirtualBox][] and follow the instructions, then login with:
+
+```
+password: asplos
+```
+2. Right-click the Deskop and select "Open Terminal here".
+3. Go to the project directory:
+```
+cd diospyros
+```
+
+### Option 1: Running locally
 To run locally, clone this repository and follow the instructions for installing prerequisites from the top-level README.
+
+```
+cd diospyos
+```
+
+## Using the compiler in the VirtualBox or locally
 
 ### Generating C/C++ with Intrinsics
 
-To start with, we will generate most of the compiled C/C++ with intrinsics off the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skip-run` flag to the followijng commands.
+To start with, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skip-run` flag to the followijng commands.
 
 First, to sanity check the setup, run the following test command, which compiles the smallest size of each unique kernel with a 10 second timeout for each:
 
 #### Time estimate: 30 seconds
 ```
-python3 evaluation/eval_benchmarks.py --timeout 10 --skip-run --test
+python3 evaluation/eval_benchmarks.py --timeout 10 --skip-run --test -o results
 ```
 
 Once that succeeds, we can run the benchmarks with the default 180 second timeout.  For now,
 we suggest skipping the one kernel `4x4 QRDecomp` that requires 38 GB of memory, since it is infeasible to run in a VM. If you are running this locally on a machine with sufficient memory, you ran run the command without the `--skiplargemem` flag.  
-#### Time estimate: 45 minutes (+4.5 hours if no `--skiplargemem`)
+
+#### Time estimate: 45 minutes (+5 hours if no `--skiplargemem`)
 ```
 python3 evaluation/eval_benchmarks.py --skip-run --skiplargemem
 ```
