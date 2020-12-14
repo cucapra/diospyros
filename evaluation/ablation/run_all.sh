@@ -2,7 +2,7 @@
 
 set -euf -o pipefail
 
-echo "name,cycles"
+echo "name,cycles" >> ../ablation.csv
 
 for exp in $(ls); do
   if [[ -d "$exp" && "$exp" != "base" ]]; then
