@@ -6,6 +6,7 @@ import shutil
 
 # Name of the directory to store the result of running example-gen.rkt
 BASE = "base"
+NATURE = "Nature"
 
 
 def check_path(path, diagnostic):
@@ -42,6 +43,20 @@ def generate_base(params, out):
     shutil.copy("evaluation/ablation/Makefile", experiment_path)
     shutil.copy("evaluation/ablation/harness.c", experiment_path)
     shutil.copy("evaluation/src/utils.h", experiment_path)
+
+
+def generate_nature(out):
+    """
+    Generate folder out/nature to run the nature experiment
+    """
+
+    check_path(
+        os.path.join(out, BASE),
+        f"The script should automatically generate this file. Something went wrong in the last step.")
+
+    nature = os.path.join(out, NATURE)
+    shutil.copytree("evaluation/ablation/nature", nature)
+    shutil.copy("../diospyros-private/src/utils.h", nature)
 
 
 def run_experiment(timeout, out):
@@ -127,6 +142,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     generate_base(args.parameter, args.output_dir)
+    generate_nature(args.output_dir)
     for timeout in args.timeouts:
         run_experiment(timeout, args.output_dir)
 
