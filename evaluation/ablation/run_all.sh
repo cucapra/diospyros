@@ -2,7 +2,7 @@
 
 set -euf -o pipefail
 
-echo "timeout,cycles"
+echo "name,cycles"
 
 for exp in $(ls); do
   if [[ -d "$exp" && "$exp" != "base" ]]; then
