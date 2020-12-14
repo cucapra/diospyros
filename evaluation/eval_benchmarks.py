@@ -200,6 +200,9 @@ class MemChecker(Thread):
             except psutil.ProcessLookupError:
                 pass
 
+            except psutil.AccessDenied:
+                pass
+
             time.sleep(self.delay)
 
     def stop(self):
@@ -258,9 +261,16 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validati
     if validation:
         synth_cmd += ["BACKEND_FLAGS=--validation"]
 
+    # Log compilation output
+    compile_log = os.path.join(p_dir, "compile-log.txt")
+
     # Start wall clock time
-    start_time = time.time()
-    gen = sp.Popen(synth_cmd, env=dict(os.environ, TIMEOUT=str(eq_sat_timeout)))
+    with open(compile_log, 'w+') as log:
+        start_time = time.time()
+        gen = sp.Popen(synth_cmd,
+                       env=dict(os.environ, TIMEOUT=str(eq_sat_timeout)),
+                       stderr=log,
+                       stdout=log)
 
     # Start a thread to measure the memory usage.
     memthread = MemChecker(gen.pid)
@@ -299,6 +309,10 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validati
             "{}-out/res.rkt".format(benchmark),
             "{}/res.rkt".format(p_dir)])
 
+        # Check for saturation
+        saturated = ""
+        with open(compile_log, 'r') as log:
+            saturated = "yes" if "Saturated" in log.read() else "no"
 
         print("Synthesis and compilation finished in {:.1f} seconds using {:.1f} MB".format(
             elapsed_time,
@@ -307,6 +321,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validati
         return {
             'time': elapsed_time,
             'memory': memthread.maxmem,
+            'saturated' : saturated,
         }
 
     finally:
@@ -328,6 +343,7 @@ def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters, validation)
         params_f = os.path.join(p_dir, "params.json")
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
+            f.write("\n")
 
         stats = call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validation)
 

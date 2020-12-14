@@ -332,16 +332,8 @@ def read_csvs(dir, benchmarks, out):
 
                 # Load synthesis statistics.
                 stats_file = os.path.join(params_config, 'stats.json')
-                if os.path.exists(stats_file):
-                    with open(stats_file) as f:
-                        stats_data = json.load(f)
-                else:
-                    # Tolerate missing statistics (because we added them
-                    # recently).
-                    stats_data = {
-                        'time': 0,
-                        'memory': 0,
-                    }
+                with open(stats_file) as f:
+                    stats_data = json.load(f)
 
                 for file in listdir(params_config):
                     # Load performance data.
@@ -354,7 +346,7 @@ def read_csvs(dir, benchmarks, out):
                         if not writer:
                             fields = reader.fieldnames
                             fields = ["benchmark"] + fields \
-                                + ["time", "memory"]
+                                + ["time", "memory", "saturated"]
                             writer = csv.DictWriter(outfile, fieldnames=fields)
                             writer.writeheader()
 

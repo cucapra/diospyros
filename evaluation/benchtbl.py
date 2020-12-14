@@ -100,7 +100,7 @@ def benchtbl(plain=False):
                     else:
                         stime_txt = '{:.1f}s'.format(stime)
 
-                    if 'Saturdated' in row and row['Saturated?'] != "Yes":
+                    if row['saturated'] != "yes":
                         stime_txt += '*' if plain else "\\rlap{$^\dagger$}"
                 else:
                     stime_txt = ''
