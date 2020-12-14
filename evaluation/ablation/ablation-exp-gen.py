@@ -56,7 +56,7 @@ def generate_nature(out):
 
     nature = os.path.join(out, NATURE)
     shutil.copytree("evaluation/ablation/nature", nature)
-    shutil.copy("../diospyros-private/src/utils.h", nature)
+    shutil.copy("evaluation/src/utils.h", nature)
 
 
 def run_experiment(timeout, out):
