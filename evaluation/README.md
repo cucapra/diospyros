@@ -44,7 +44,7 @@ If you use the provided VirtualBox virtual machine, it has all dependencies pre-
 ```
 password: asplos
 ```
-2. Right-click the Deskop and select "Open Terminal here".
+2. Right-click the Deskop and select "Open in Terminal".
 3. Go to the project directory:
 ```
 cd diospyros
@@ -101,6 +101,16 @@ python3 evaluation/eval_benchmarks.py --skiprun --skiplargemem -o results
 ```
 
 The results here follow the same pattern of files as specified above, but for 20/21 total kernel sizes.
+
+### Translation validation
+
+To run translation validation on the results we just generated, we will rerun the same script and pass `--validation` and the `--skipsynth` flag to tell the script to not regenerate the results.
+
+```
+python3 evaluation/eval_benchmarks.py --skiprun --skipsynth --validation -o results
+```
+
+The line `Translation validation successful! <N> elements equal` will be printed to the Terminal for each kernel that passes.
 
 ## On our research server, with the licensed Instruction Set Simulator
 
