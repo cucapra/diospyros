@@ -61,13 +61,13 @@ cd diospyos
 
 ### Generating C/C++ with Intrinsics
 
-To start with, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skip-run` flag to the followijng commands.
+To start with, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skiprun` flag to the following commands. 
 
 First, to sanity check the setup, run the following test command, which compiles the smallest size of each unique kernel with a 10 second timeout for each:
 
 #### Time estimate: 30 seconds
 ```
-python3 evaluation/eval_benchmarks.py --timeout 10 --skip-run --test -o test-results
+python3 evaluation/eval_benchmarks.py --timeout 10 --skiprun --test -o test-results
 ```
 
 This produces `*.c` files with vector intrinsics, along with metadata used for downstream translation validation, in a new `test-results` directory. The directory is structured with subdirectories for each function and size:
@@ -97,7 +97,7 @@ we suggest skipping the one kernel (`4x4 QRDecomp`) that requires 38 GB of memor
 
 #### Time estimate: 45 minutes (+5 hours if no `--skiplargemem`)
 ```
-python3 evaluation/eval_benchmarks.py --skip-run --skiplargemem -o results
+python3 evaluation/eval_benchmarks.py --skiprun --skiplargemem -o results
 ```
 
 The results here follow the same pattern of files as specified above, but for 20/21 total kernel sizes.
