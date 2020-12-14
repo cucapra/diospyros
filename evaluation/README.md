@@ -67,15 +67,36 @@ First, to sanity check the setup, run the following test command, which compiles
 
 #### Time estimate: 30 seconds
 ```
-python3 evaluation/eval_benchmarks.py --timeout 10 --skip-run --test -o results
+python3 evaluation/eval_benchmarks.py --timeout 10 --skip-run --test -o test-results
+```
+
+This produces `*.c` files with vector intrinsics, along with metadata used for downstream translation validation, in a new `test-results` directory. The directory is structured with subdirectories for each function and size:
+```
+- test-results
+  - 2d-conv  
+    - <sizes>
+  - mat-mul
+   - <sizes>
+  - q-prod 
+   - <sizes>
+  - qr-decomp
+```
+Within each size, there are the following files:
+```
+- egg-kernel.c  : vectorized C code with intrinsics.
+- params.json   : input size and vectorization parameters.
+- spec.rkt      : specification lifted with symbolic evaluation, in DSL.
+- res.rkt       : vectorized result of equality saturation, in DSL.
+- outputs.rkt, prelude.rkt : metadata for downstreaam translation validation. 
+- stats.json    : summary statistics from compilation, including wall clock time and memory usage.
 ```
 
 Once that succeeds, we can run the benchmarks with the default 180 second timeout.  For now,
-we suggest skipping the one kernel `4x4 QRDecomp` that requires 38 GB of memory, since it is infeasible to run in a VM. If you are running this locally on a machine with sufficient memory, you ran run the command without the `--skiplargemem` flag.  
+we suggest skipping the one kernel (`4x4 QRDecomp`) that requires 38 GB of memory (as documented in Table 1), since it is infeasible to run in a VM. If you are running locally on a machine with sufficient memory, you can include this benchmark by ommitting the `--skiplargemem` flag.  
 
 #### Time estimate: 45 minutes (+5 hours if no `--skiplargemem`)
 ```
-python3 evaluation/eval_benchmarks.py --skip-run --skiplargemem
+python3 evaluation/eval_benchmarks.py --skip-run --skiplargemem -o results
 ```
 
 ### Seeing the Results
