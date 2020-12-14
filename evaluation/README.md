@@ -249,7 +249,7 @@ The process of reproducing has two steps:
 The script `evaluation/ablation/ablation-exp-gen.py` can be used to generate
 executable vectorized solutions:
 
-#### Time estimate: 7 minutes
+#### Time estimate: 24 minutes
 ```
 python3 evaluation/ablation/ablation-exp-gen.py -p evaluation/ablation/params/mat-mul-large -o exp-out -t 10 30 60 120 180
 ```
