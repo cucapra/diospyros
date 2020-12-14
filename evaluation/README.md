@@ -230,3 +230,42 @@ To post-process this output into the final numbers you see in the paper, pipe it
 
 This will produce a JSON document with three values: the cycle count for the Eigen- and Diospyros-based executions, and the speedup (which is just the ratio of the two cycle counts).
 You can see the cycle counts and speedup number in the ASPLOS paper at the end of Section 5.6.
+
+---
+
+### Timeout Ablation Study
+
+Our ASPLOS paper studies the effect of changing the timeout of the equality
+saturation solver on the quality of the generated solution.
+The ablation study varies the timeout given to our solver and reports the
+number of cycles taken by the design.
+We assume that this experiment is performed on our research server with the
+Xtensa compiler and simulator available.
+
+The process of reproducing has two steps:
+1. Run the study with different timeouts and generate executable code.
+2. Simulate the executable code with the simulator.
+
+The script `evaluation/ablation/ablation-exp-gen.py` can be used to generate
+executable vectorized solutions:
+```
+python3 evaluation/ablation/ablation-exp-gen.py -p evaluation/ablation/params/mat-mul-large -o exp-out -t 10 30 60 120 180
+```
+
+- `-p`: Specifies the parameter file, which itself describes the size of
+  matrices used in a matrix-multiply kernel.
+- `-o`: Location of the output folder
+- `-t`: A list of the timeouts to run the solver with.
+
+Once the script is finished running, run the following to collect the data:
+```
+cd exp-out && ./run_all.sh && cd -
+```
+
+This will generate `exp-out/ablation.csv`
+
+Finally, run the following to generate the ablation study chart:
+```
+python3 evaluation/ablation/ablation_chart.py exp-out/ablation.csv
+```
+This will generate `ablation.pdf`
