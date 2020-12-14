@@ -1,13 +1,8 @@
 OBJECT = matmul.o
 
-EXPERT_SRC := ../../../diospyros-private/src/matrix_multiply_expert.c
-
-EGG_SRC := ../../../diospyros-private/src/egg_kernel.c
-
 NATURE_OBJS := matmmltf_pdx4.o
 
 SRC := harness.c
-KERNEL_SRC := kernel.c
 
 XCC := xt-xcc
 XCXX := xt-xc++
@@ -37,8 +32,8 @@ default: $(OBJECT)
 clean:
 	rm -rf $(OBJECT) $(ALL_OBJS)
 
-$(OBJECT): $(ALL_OBJS) $(KERNEL_SRC) $(SRC)
-	$(XCXX) $(PARAMS) $(XCXX_FLAGS) $(NATURE_INC) $(ALL_OBJS) $(KERNEL_SRC) $(SRC) -o $(OBJECT)
+$(OBJECT): $(ALL_OBJS) $(SRC)
+	$(XCXX) $(PARAMS) $(XCXX_FLAGS) $(NATURE_INC) $(ALL_OBJS) $(SRC) -o $(OBJECT)
 
 run: $(OBJECT)
 	$(XRUN) $(OBJECT)
