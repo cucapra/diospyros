@@ -259,7 +259,9 @@ python3 evaluation/ablation/ablation-exp-gen.py -p evaluation/ablation/params/ma
 
 Once the script is finished running, run the following to collect the data:
 ```
-cd exp-out && ./run_all.sh && cd -
+cd exp-out
+A_ROWS=10 A_COLS=10 B_ROWS=10 B_COLS=10 ./run_all.sh
+cd -
 ```
 
 This will generate `exp-out/ablation.csv`
