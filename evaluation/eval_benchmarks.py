@@ -328,7 +328,6 @@ def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters, validation)
         params_f = os.path.join(p_dir, "params.json")
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
-            params.write("\n")
 
         stats = call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validation)
 
