@@ -7,12 +7,12 @@ This directory contains the evaluation scripts for our ASPLOS 2021 paper,
 This artifact is intended to reproduce the 4 main experimental results from the
 paper:
 - **Compiling benchmarks (Table 1; Figure 4)** Compilation and simulated
-cycle-level performance of 20 kernels (across 4 distinct functions). We compare
+cycle-level performance of 21 kernels (across 4 distinct functions). We compare
 kernels compiled by Diospyros with kernels compiled with the vendor's optimizing
 compiler and optimized library functions.
 - **Translation validation (Section 3)**  Translation validation
-for all 20 kernels that the scalar specification and vectorized result (both in
-our abstract vector domain specific language) are equivalent.
+for all kernels that the scalar specification and vectorized result (both in
+our imperative vector domain specific language) are equivalent.
 - **Timeout ablation study (Figure 5)** Ablation study on a single kernel
 (10×10 by 10×10 `MatMul`) over a range of equality saturation timeouts.
 - **Application case study (Section 5.6)** Speedup of an open source
@@ -73,22 +73,23 @@ python3 evaluation/eval_benchmarks.py --timeout 10 --skip-run --test -o test-res
 This produces `*.c` files with vector intrinsics, along with metadata used for downstream translation validation, in a new `test-results` directory. The directory is structured with subdirectories for each function and size:
 ```
 - test-results
-  - 2d-conv  
-    - <sizes>
-  - mat-mul
-   - <sizes>
-  - q-prod 
-   - <sizes>
-  - qr-decomp
+    - 2d-conv  
+        - <sizes>
+    - mat-mul
+        - <sizes>
+    - q-prod 
+        - <sizes>
+    - qr-decomp
+        - <sizes>
 ```
 Within each size, there are the following files:
 ```
-- egg-kernel.c  : vectorized C code with intrinsics.
-- params.json   : input size and vectorization parameters.
-- spec.rkt      : specification lifted with symbolic evaluation, in DSL.
-- res.rkt       : vectorized result of equality saturation, in DSL.
+- egg-kernel.c.            : vectorized C code with intrinsics.
+- params.json              : input size and vectorization parameters.
+- spec.rkt                 : specification lifted with symbolic evaluation, in DSL.
+- res.rkt                  : vectorized result of equality saturation, in DSL.
 - outputs.rkt, prelude.rkt : metadata for downstreaam translation validation. 
-- stats.json    : summary statistics from compilation, including wall clock time and memory usage.
+- stats.json               : summary statistics from compilation, including wall clock time and memory usage.
 ```
 
 Once that succeeds, we can run the benchmarks with the default 180 second timeout.  For now,
@@ -98,6 +99,10 @@ we suggest skipping the one kernel (`4x4 QRDecomp`) that requires 38 GB of memor
 ```
 python3 evaluation/eval_benchmarks.py --skip-run --skiplargemem -o results
 ```
+
+The results here follow the same pattern of files as specified above, but for 20/21 total kernel sizes.
+
+## On our research server, with the licensed Instruction Set Simulator
 
 ### Seeing the Results
 
