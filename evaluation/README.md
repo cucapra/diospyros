@@ -1,7 +1,7 @@
 # Diospyros Evaluation
 
 This directory contains the evaluation scripts for our ASPLOS 2021 paper,
-"Vectorizarion for Digital Signal Processors via Equality Saturation".
+"Vectorization for Digital Signal Processors via Equality Saturation".
 
 
 This artifact is intended to reproduce the 4 main experimental results from the
@@ -102,7 +102,7 @@ Within each size, there are the following files:
 ```
 
 Once that succeeds, we can run the benchmarks with the default 180 second timeout.  For now,
-we suggest skipping the one kernel (`4x4 QRDecomp`) that requires 38 GB of memory (as documented in Table 1), since it is infeasible to run in a VM. If you are running locally on a machine with sufficient memory, you can include this benchmark by ommitting the `--skiplargemem` flag.
+we suggest skipping the one kernel (`4x4 QRDecomp`) that requires 38 GB of memory (as documented in Table 1), since it is infeasible to run in a VM. If you are running locally on a machine with sufficient memory, you can include this benchmark by omitting the `--skiplargemem` flag.
 
 #### Time estimate: 45 minutes (+5 hours if no `--skiplargemem`)
 ```
@@ -115,7 +115,7 @@ The results here follow the same pattern of files as specified above, but for 20
 
 To run translation validation on the results we just generated, we will rerun the same script and pass `--validation` and the `--skipsynth` flag to tell the script to not regenerate the results.
 
-#### Time estimate: 10 minutes 
+#### Time estimate: 10 minutes
 ```
 python3 evaluation/eval_benchmarks.py --skiprun --skipsynth --validation -o results
 ```
@@ -142,7 +142,7 @@ On the research server, cd to the project directory:
 cd /data/asplos-aec
 ```
 
-Here, we want to create a new folder per reviewer to avoid overwriting eachother's work. Run the following, replacing `<letter>` with the reviewer letter you are assigned in HotCRP (for example, `mkdir reviewer-A`). Then, copy the `diospyros` repo into your new directory and cd there:
+Here, we want to create a new folder per reviewer to avoid overwriting each other's work. Run the following, replacing `<letter>` with the reviewer letter you are assigned in HotCRP (for example, `mkdir reviewer-A`). Then, copy the `diospyros` repository into your new directory and `cd` there:
 
 #### On the server
 ```
@@ -170,9 +170,9 @@ You should see the 4 kernel directories and respective sizes:
 2d-conv		mat-mul		q-prod		qr-decomp
 ```
 
-### Running the Instruction Set Simualtor
+### Running the Instruction Set Simulator
 
-Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with instrinsics.
+Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with intrinsics.
 
 #### Time estimate: ? minutes
 ```
