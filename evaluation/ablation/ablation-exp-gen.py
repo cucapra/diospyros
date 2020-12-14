@@ -24,6 +24,7 @@ def generate_base(params, out):
 
     os.makedirs(out)
     experiment_path = os.path.join(out, BASE)
+    shutil.copy("evaluation/ablation/run_all.sh", out)
 
     print(f"Generating {out}/{BASE}")
     subprocess.run(
@@ -107,6 +108,7 @@ if __name__ == '__main__':
         "src/example-gen.rkt",
         "evaluation/ablation/harness.c",
         "evaluation/ablation/Makefile",
+        "evaluation/ablation/run_all.sh",
     ]
     for path in paths:
         check_path(

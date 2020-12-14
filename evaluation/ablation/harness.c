@@ -59,18 +59,11 @@ void naive_matrix_multiply(float *a, float *b, float *c, int row1, int col1, int
 
 int main(int argc, char **argv) {
 
-  FILE *file = fopen(OUTFILE, "w");
-  if (file == NULL) file = stdout;
-  fprintf(file, "kernel,A_ROWS,A_COLS,B_ROWS,B_COLS,cycles\n");
-
   init_rand(10);
 
   create_random_mat(a, A_ROWS, A_COLS);
   create_random_mat(b, B_ROWS, B_COLS);
   zero_matrix(c, A_ROWS, B_COLS);
-
-  print_matrix(a, A_ROWS, A_COLS);
-  print_matrix(b, B_ROWS, B_COLS);
 
   // Run naive once to warm cache
   naive_matrix_multiply(a, b, c_spec,  A_ROWS, A_COLS, B_COLS);
@@ -78,66 +71,14 @@ int main(int argc, char **argv) {
 
   int time = 0;
 
-  // Naive
-  start_cycle_timing;
-  naive_matrix_multiply(a, b, c,  A_ROWS, A_COLS, B_COLS);
-  stop_cycle_timing;
-  time = get_time();
-  print_matrix(c, A_ROWS, B_COLS);
-  output_check(c, c_spec, A_ROWS, B_COLS);
-  zero_matrix(c, A_ROWS, B_COLS);
-  printf("Naive : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
-
-  // Naive, hard-coded size
-  start_cycle_timing;
-  naive_matrix_multiply_hard_size(a, b, c);
-  stop_cycle_timing;
-  time = get_time();
-  print_matrix(c, A_ROWS, B_COLS);
-  output_check(c, c_spec, A_ROWS, B_COLS);
-  zero_matrix(c, A_ROWS, B_COLS);
-  printf("Naive hard size: %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Naive hard size",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
-
-  // Nature
-  start_cycle_timing;
-  matmmltf(a, A_ROWS, A_COLS, b, B_COLS, c);
-  stop_cycle_timing;
-  time = get_time();
-  print_matrix(c, A_ROWS, B_COLS);
-  output_check(c, c_spec, A_ROWS, B_COLS);
-  zero_matrix(c, A_ROWS, B_COLS);
-  printf("Nature : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Nature",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
-
   // Diospyros
   start_cycle_timing;
   kernel(a, b, c);
   stop_cycle_timing;
   time = get_time();
-  print_matrix(c, A_ROWS, B_COLS);
   output_check(c, c_spec, A_ROWS, B_COLS);
   zero_matrix(c, A_ROWS, B_COLS);
-  printf("Diospyros : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Diospyros",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
-
-  // Eigen
-  // Don't count data transformation toward timing
-  Eigen::Map<Eigen::Matrix<float, A_ROWS, A_COLS, Eigen::RowMajor>> e_a(a, A_ROWS, A_COLS);
-  Eigen::Map<Eigen::Matrix<float, B_ROWS, B_COLS, Eigen::RowMajor>> e_b(b, B_ROWS, B_COLS);
-  Eigen::Matrix<float, A_ROWS, B_COLS, Eigen::RowMajor> e_c;
-  start_cycle_timing;
-  e_c = e_a*e_b;
-  stop_cycle_timing;
-  time = get_time();
-
-  memcpy(c, e_c.data(), sizeof(float) * A_ROWS * B_COLS);
-  print_matrix(c, A_ROWS, B_COLS);
-  output_check(c, c_spec, A_ROWS, B_COLS);
-  zero_matrix(c, A_ROWS, B_COLS);
-  printf("Eigen : %d cycles\n", time);
-  fprintf(file, "%s,%d,%d,%d,%d,%d\n","Eigen",A_ROWS,A_COLS,B_ROWS,B_COLS,time);
+  printf("%d\n", time);
 
   return 0;
 }
