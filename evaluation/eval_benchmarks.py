@@ -314,6 +314,7 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validati
 
 def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters, validation):
     """Call synthesis and write out data"""
+    make_dir(dir)
     b_dir = os.path.join(dir, benchmark)
     make_dir(b_dir)
 
@@ -327,6 +328,7 @@ def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters, validation)
         params_f = os.path.join(p_dir, "params.json")
         with open(params_f, 'w+') as f:
             json.dump(params, f, indent=4)
+            params.write("\n")
 
         stats = call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validation)
 
@@ -440,9 +442,6 @@ def main():
         sp.check_call(["make", "clean"])
         sp.check_call(["make", "build"])
 
-    # Create a subdirectory for this run
-    make_dir(results_dir)
-
     if args.output:
         cur_results_dir = args.output
         print("Writing results to: {}".format(args.output))
@@ -450,6 +449,9 @@ def main():
         rev = sp.check_output(["git", "rev-parse", "--short", "HEAD"])
         rev = rev.decode("utf-8").strip()
         date = datetime.now().strftime('%Y-%m-%d_%H-%M')
+        # Create a subdirectory for this run
+        make_dir("../diospyros-private")
+        make_dir(results_dir)
         cur_results_dir = os.path.join(results_dir, '{}_{}'.format(date, rev))
         make_dir(cur_results_dir)
         print("Writing results to: {}".format(cur_results_dir))
