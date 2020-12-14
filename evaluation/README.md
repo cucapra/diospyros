@@ -59,9 +59,14 @@ cd diospyos
 
 ## Using the compiler in the VirtualBox or locally
 
+First, run make to ensure the compiler is up-to-date:
+```
+make
+```
+
 ### Generating C/C++ with Intrinsics
 
-To start with, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skiprun` flag to the following commands.
+To start, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skiprun` flag to the following commands.
 
 First, to sanity check the setup, run the following test command, which compiles the smallest size of each unique kernel with a 10 second timeout for each:
 
