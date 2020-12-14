@@ -175,10 +175,10 @@ class MemChecker(Thread):
         self.pid = pid
         self.maxmem = 0
         self.delay = delay
-        self._stop = False
+        self._stop_please = False
 
     def run(self):
-        while not self._stop:
+        while not self._stop_please:
             try:
                 proc = psutil.Process(self.pid)
 
@@ -203,7 +203,7 @@ class MemChecker(Thread):
             time.sleep(self.delay)
 
     def stop(self):
-        self._stop = True
+        self._stop_please = True
 
 
 def params_to_name(benchmark, params):
