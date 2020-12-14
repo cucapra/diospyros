@@ -281,8 +281,24 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validati
 
         sp.check_call([
             "mv",
+            "{}-out/spec.rkt".format(benchmark),
+            "{}/spec.rkt".format(p_dir)])
+
+        sp.check_call([
+            "mv",
+            "{}-out/prelude.rkt".format(benchmark),
+            "{}/prelude.rkt".format(p_dir)])
+
+        sp.check_call([
+            "mv",
+            "{}-out/outputs.rkt".format(benchmark),
+            "{}/outputs.rkt".format(p_dir)])
+
+        sp.check_call([
+            "mv",
             "{}-out/res.rkt".format(benchmark),
             "{}/res.rkt".format(p_dir)])
+
 
         print("Synthesis and compilation finished in {:.1f} seconds using {:.1f} MB".format(
             elapsed_time,
@@ -318,6 +334,19 @@ def synthesize_benchmark(dir, benchmark, eq_sat_timeout, parameters, validation)
         stats_csv = os.path.join(p_dir, "stats.json")
         with open(stats_csv, 'w') as f:
             json.dump(stats, f, indent=4, sort_keys=True)
+
+def only_validation(dir, benchmark):
+    """Call synthesis and write out data"""
+    b_dir = os.path.join(dir, benchmark)
+    for params_config in listdir(b_dir):
+        if not os.path.isdir(params_config):
+            continue
+        sp.check_call([
+            "./dios",
+            "--validation",
+            "-e",
+            "-o", "{}/egg-kernel.c".format(params_config),
+            "{}".format(params_config)])
 
 def dimmensions_for_benchmark(benchmark, params):
     """Make file parameters per benchmark"""
@@ -402,8 +431,8 @@ def main():
         help="Run translation validation")
     args = parser.parse_args()
 
-    if args.skipsynth and args.skiprun:
-        print("Skipping synthesis and running: doing nothing")
+    if args.skipsynth and args.skiprun and not args.validation:
+        print("Skipping synthesis, validation, and running: doing nothing")
         exit(1)
 
     # Make clean and build if requested
@@ -439,7 +468,11 @@ def main():
         for b in benchmarks:
             synthesize_benchmark(cur_results_dir, b, args.timeout, params, args.validation)
 
-    if not args.skiprun and not args.validation:
+    if args.validation and args.skipsynth:
+        for b in benchmarks:
+            only_validation(cur_results_dir, b)
+
+    if not args.skiprun:
         for b in benchmarks:
             run_benchmark(cur_results_dir, b, args.build, args.force)
 
