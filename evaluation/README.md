@@ -34,6 +34,8 @@ We have split this artifact into two components:
 [virtualbox]: https://www.virtualbox.org/
 [theia]: https://github.com/sweeneychris/TheiaSfM
 
+----
+
 ## Prerequisites
 
 ### Option 1: VirtualBox
@@ -64,7 +66,9 @@ First, run make to ensure the compiler is up-to-date:
 make
 ```
 
-### Generating C/C++ with Intrinsics
+----
+
+### Generating C/C++ with Intrinsics (on the VM or locally)
 
 To start, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skiprun` flag to the following commands.
 
@@ -118,7 +122,9 @@ python3 evaluation/eval_benchmarks.py --skiprun --skipsynth --validation -o resu
 
 The line `Translation validation successful! <N> elements equal` will be printed to the Terminal for each kernel that passes.
 
-## On our research server, with the licensed Instruction Set Simulator
+----
+
+## Running code on the licensed Instruction Set Simulator (on the research server)
 
 ### Setting up your directory
 
@@ -197,6 +203,8 @@ To see some statistics about the compilation process, run the `benchtbl.py` scri
 
 This script reads `all_benchmarks.csv` to make a table like Table 1 in the ASPLOS paper.
 The `--plain` flag emits a plain-text table for reading directly; omit this flag to generate a LaTeX fragment instead.
+
+----
 
 ### Theia Case Study
 
