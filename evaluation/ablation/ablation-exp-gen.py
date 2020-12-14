@@ -117,8 +117,8 @@ if __name__ == '__main__':
         )
 
     check_path(
-        ".evaluation/src/utils.h",
-        "Is the file `diospyros/evaluation/src/utils.h` missing?"
+        "evaluation/src/utils.h",
+        "Is the file `evaluation/src/utils.h` missing?"
     )
 
     # Don't overwrite the output directory
