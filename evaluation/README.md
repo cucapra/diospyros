@@ -50,7 +50,7 @@ password: asplos
 cd diospyros
 ```
 
-### Option 1: Running locally
+### Option 2: Running locally
 To run locally, clone this repository and follow the instructions for installing prerequisites from the top-level README.
 
 ```
