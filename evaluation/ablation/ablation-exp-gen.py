@@ -41,7 +41,7 @@ def generate_base(params, out):
     # Add all required file for the harness.
     shutil.copy("evaluation/ablation/Makefile", experiment_path)
     shutil.copy("evaluation/ablation/harness.c", experiment_path)
-    shutil.copy("../diospyros-private/src/utils.h", experiment_path)
+    shutil.copy("evaluation/src/utils.h", experiment_path)
 
 
 def run_experiment(timeout, out):
@@ -117,8 +117,8 @@ if __name__ == '__main__':
         )
 
     check_path(
-        "../diospyros-private/src/utils.h",
-        "Is the directory `../diospyros-private` missing?"
+        ".evaluation/src/utils.h",
+        "Is the file `diospyros/evaluation/src/utils.h` missing?"
     )
 
     # Don't overwrite the output directory
