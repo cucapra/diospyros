@@ -119,9 +119,12 @@ The line `Translation validation successful! <N> elements equal` will be printed
 Now that we have collected the data, the next step is to analyze the results to draw the charts and tables you see in the ASPLOS paper.
 First, use `charts.py` to generate the plots:
 
-    python3 charts.py
+    python3 evaluation/charts.py -d results
 
-[TK: Probably needs some command-line flags on that? Not sure. Also describe what files have been produced. --AS]
+This produces the following files:
+```
+all.
+```
 
 The `charts.py` script also produces a file called `combined.csv` that contains all the raw data that went into the plots.
 You can look at it directly if you're curious about specific numbers.
