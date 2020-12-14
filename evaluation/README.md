@@ -248,6 +248,8 @@ The process of reproducing has two steps:
 
 The script `evaluation/ablation/ablation-exp-gen.py` can be used to generate
 executable vectorized solutions:
+
+#### Time estimate: 7 minutes
 ```
 python3 evaluation/ablation/ablation-exp-gen.py -p evaluation/ablation/params/mat-mul-large -o exp-out -t 10 30 60 120 180
 ```
@@ -258,6 +260,8 @@ python3 evaluation/ablation/ablation-exp-gen.py -p evaluation/ablation/params/ma
 - `-t`: A list of the timeouts to run the solver with.
 
 Once the script is finished running, run the following to collect the data:
+
+#### Time estimate: 5? minutes
 ```
 cd exp-out
 A_ROWS=10 A_COLS=10 B_ROWS=10 B_COLS=10 ./run_all.sh
