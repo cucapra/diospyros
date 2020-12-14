@@ -111,6 +111,7 @@ The results here follow the same pattern of files as specified above, but for 20
 
 To run translation validation on the results we just generated, we will rerun the same script and pass `--validation` and the `--skipsynth` flag to tell the script to not regenerate the results.
 
+#### Time estimate: 10 minutes 
 ```
 python3 evaluation/eval_benchmarks.py --skiprun --skipsynth --validation -o results
 ```
@@ -118,6 +119,61 @@ python3 evaluation/eval_benchmarks.py --skiprun --skipsynth --validation -o resu
 The line `Translation validation successful! <N> elements equal` will be printed to the Terminal for each kernel that passes.
 
 ## On our research server, with the licensed Instruction Set Simulator
+
+### Setting up your directory
+
+First, SSH into our research server using the provided credentials:
+
+#### On the VM/locally
+```
+ssh <user>@<server address>
+```
+
+On the research server, cd to the project directory:
+
+#### On the server
+```
+cd /data/asplos-aec
+```
+
+Here, we want to create a new folder per reviewer to avoid overwriting eachother's work. Run the following, replacing `<letter>` with the reviewer letter you are assigned in HotCRP (for example, `mkdir reviewer-A`). Then, copy the `diospyros` repo into your new directory and cd there:
+
+#### On the server
+```
+mkdir reviewer-<letter>
+cp -r diospyros reviewer-<letter>/diospyros
+cd reviewer-<letter>/diospyros
+```
+
+Now, back on your original machine (the VM or locally), run the following command to copy the data you just generated to your new directory on the research server (replacing `<letter>` with your letter):
+
+#### On the VM/locally, in the `diospryros` root directory (Time estimate: 1 minute)
+```
+scp -r results <user>@<server address>:/data/asplos-aec/reviewer-<letter>/diospyros/results
+```
+
+Back on the server, check that you have your results:
+
+#### On the server
+```
+ls results/*
+```
+
+You should see the 4 kernel directories and respective sizes:
+```
+2d-conv		mat-mul		q-prod		qr-decomp
+```
+
+### Running the Instruction Set Simualtor
+
+Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with instrinsics.
+
+#### Time estimate: ? minutes
+```
+python3 evaluation/eval_benchmarks.py --skipsynth -d results
+```
+
+This will add a file `egg-kernel.csv` to each subdirectory of `results` with cycle-level performance for each kernel and corresponding baseline.
 
 ### Seeing the Results
 
