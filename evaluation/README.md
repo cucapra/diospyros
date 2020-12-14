@@ -176,7 +176,7 @@ Now, we can actually run the generated kernels on the vendor's instruction set s
 
 #### Time estimate: ? minutes
 ```
-python3 evaluation/eval_benchmarks.py --skipsynth -d results
+python3 evaluation/eval_benchmarks.py --skipsynth -o results
 ```
 
 This will add a file `egg-kernel.csv` to each subdirectory of `results` with cycle-level performance for each kernel and corresponding baseline.
@@ -261,7 +261,7 @@ python3 evaluation/ablation/ablation-exp-gen.py -p evaluation/ablation/params/ma
 
 Once the script is finished running, run the following to collect the data:
 
-#### Time estimate: 5? minutes
+#### Time estimate: 4 minutes
 ```
 cd exp-out
 A_ROWS=10 A_COLS=10 B_ROWS=10 B_COLS=10 ./run_all.sh
