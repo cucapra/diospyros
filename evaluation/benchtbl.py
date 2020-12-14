@@ -66,7 +66,7 @@ def benchtbl(plain=False):
     plain text suitable for viewing in a terminal.
     """
     # Descriptions of the benchmarks.
-    with open('benchmarks.csv') as f:
+    with open('evaluation/benchmarks.csv') as f:
         reader = csv.DictReader(f)
         benchmarks = list(reader)
 
@@ -75,7 +75,7 @@ def benchtbl(plain=False):
 
     # Data for each *size* of each benchmark.
     benchdata = {r['bench']: [] for r in benchmarks}
-    with open('combined.csv') as f:
+    with open('all_benchmarks.csv') as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row['Kernel'] == 'Diospyros':
@@ -100,7 +100,7 @@ def benchtbl(plain=False):
                     else:
                         stime_txt = '{:.1f}s'.format(stime)
 
-                    if row['Saturated?'] != "Yes":
+                    if 'Saturdated' in row and row['Saturated?'] != "Yes":
                         stime_txt += '*' if plain else "\\rlap{$^\dagger$}"
                 else:
                     stime_txt = ''

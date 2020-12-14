@@ -124,6 +124,9 @@ all_kernels = [
 
 def chart(graph_data):
 
+    name = "all_bechmarks_chart.pdf"
+    print("Charting graph for all benchmarks:", name)
+
     # Don't show expert in the chart, since there is only 1
     graph_data = graph_data[graph_data.Kernel != "Expert"]
 
@@ -178,11 +181,13 @@ def chart(graph_data):
             t.set_text("Naive\n(fixed size)")
 
     ax.set_xlabel('')
-    plt.savefig("all" + ".pdf", bbox_inches='tight')
+    plt.savefig(name, bbox_inches='tight')
     plt.close()
 
 def chart_small(graph_data):
     """Small summary chart for the extended abstract"""
+    name = "extended_abstract_chart.pdf"
+    print("Charting small graph for extended abstract:", name)
     small_benchmarks = [
         ("4×4\n4×4\nMatMul", "MatMul\n4×4 4×4"),
         ("4×4\n3×3\n2DConv", "2DConv\n4×4 3×3"),
@@ -259,7 +264,7 @@ def chart_small(graph_data):
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=3)
 
     ax.set_ylabel('')
-    plt.savefig("small" + ".pdf", bbox_inches='tight')
+    plt.savefig(name, bbox_inches='tight')
     plt.close()
 
 def format_data(files):
@@ -366,8 +371,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--directory', type=str,
         help="Directory from which to read CSVs")
-    parser.add_argument('-o', '--output', type=str, default="combined",
-        help="Non-default output directory")
+    parser.add_argument('-o', '--output', type=str, default="all_benchmarks.csv",
+        help="Non-default output file")
     args = parser.parse_args()
 
     input_dir = args.directory
@@ -376,7 +381,7 @@ def main():
     df = format_data(files)
 
     # Write data out
-    df.to_csv('combined.csv', index=False)
+    df.to_csv(args.output, index=False)
 
     chart(df)
     chart_small(df)

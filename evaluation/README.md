@@ -37,7 +37,7 @@ We have split this artifact into two components:
 ## Prerequisites
 
 ### Option 1: VirtualBox
-If you use the provided VirtualBox virtual machine, it has all dependencies pre-installed. 
+If you use the provided VirtualBox virtual machine, it has all dependencies pre-installed.
 
 1. Download [VirtualBox][] and follow the instructions, then login with:
 
@@ -61,7 +61,7 @@ cd diospyos
 
 ### Generating C/C++ with Intrinsics
 
-To start with, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skiprun` flag to the following commands. 
+To start with, we will generate most of the compiled C/C++ with intrinsics independently from the research server (either on the provided VM or locally). To skip running on the licensed simulator, we pass the `--skiprun` flag to the following commands.
 
 First, to sanity check the setup, run the following test command, which compiles the smallest size of each unique kernel with a 10 second timeout for each:
 
@@ -73,11 +73,11 @@ python3 evaluation/eval_benchmarks.py --timeout 10 --skiprun --test -o test-resu
 This produces `*.c` files with vector intrinsics, along with metadata used for downstream translation validation, in a new `test-results` directory. The directory is structured with subdirectories for each function and size:
 ```
 - test-results
-    - 2d-conv  
+    - 2d-conv
         - <sizes>
     - mat-mul
         - <sizes>
-    - q-prod 
+    - q-prod
         - <sizes>
     - qr-decomp
         - <sizes>
@@ -88,12 +88,12 @@ Within each size, there are the following files:
 - params.json              : input size and vectorization parameters.
 - spec.rkt                 : specification lifted with symbolic evaluation, in DSL.
 - res.rkt                  : vectorized result of equality saturation, in DSL.
-- outputs.rkt, prelude.rkt : metadata for downstreaam translation validation. 
+- outputs.rkt, prelude.rkt : metadata for downstreaam translation validation.
 - stats.json               : summary statistics from compilation, including wall clock time and memory usage.
 ```
 
 Once that succeeds, we can run the benchmarks with the default 180 second timeout.  For now,
-we suggest skipping the one kernel (`4x4 QRDecomp`) that requires 38 GB of memory (as documented in Table 1), since it is infeasible to run in a VM. If you are running locally on a machine with sufficient memory, you can include this benchmark by ommitting the `--skiplargemem` flag.  
+we suggest skipping the one kernel (`4x4 QRDecomp`) that requires 38 GB of memory (as documented in Table 1), since it is infeasible to run in a VM. If you are running locally on a machine with sufficient memory, you can include this benchmark by ommitting the `--skiplargemem` flag.
 
 #### Time estimate: 45 minutes (+5 hours if no `--skiplargemem`)
 ```
@@ -117,46 +117,47 @@ The line `Translation validation successful! <N> elements equal` will be printed
 ### Seeing the Results
 
 Now that we have collected the data, the next step is to analyze the results to draw the charts and tables you see in the ASPLOS paper.
-First, use `charts.py` to generate the plots:
+First, use `chart_benchmarks.py` to generate the plots:
 
-    python3 evaluation/charts.py -d results
+    python3 evaluation/chart_benchmarks.py -d results
 
 This produces the following files:
 ```
-all.
+all_benchmarks.csv          : Combined all individual benchmark runs into one CSV (Feeds Table 1)
+all_bechmarks_chart.pdf     : Charting graph for all benchmarks (Figure 4)
+extended_abstract_chart.pdf : Charting small graph for extended abstract
 ```
 
-The `charts.py` script also produces a file called `combined.csv` that contains all the raw data that went into the plots.
+The produced `all_benchmarks.csv` file contains all the raw data that went into the plots.
 You can look at it directly if you're curious about specific numbers.
 To see some statistics about the compilation process, run the `benchtbl.py` script:
 
-    python3 benchtbl.py --plain
+    python3 evaluation/benchtbl.py --plain
 
-This script reads `combined.csv` to make a table like Table 1 in the ASPLOS paper.
+This script reads `all_benchmarks.csv` to make a table like Table 1 in the ASPLOS paper.
 The `--plain` flag emits a plain-text table for reading directly; omit this flag to generate a LaTeX fragment instead.
 
 ### Theia Case Study
-
-[TK: This should go in some section where we are talking about typing commands on Gorgonzola, not about generating C code. --AS]
 
 The ASPLOS paper puts the QR decomposition kernel into context by measuring the impact on performance in an application: the [Theia][] structure-from-motion library.
 The `theia` subdirectory in this evaluation package contains the code necessary to reproduce those end-to-end results.
 
 The first step is to get the generated C code for the QR decomposition kernel.
-Copy the `egg_kernel.c` file from
-[TK: where? not sure where this comes from --AS]
-to the Theia directory.
+Copy the `egg_kernel.c` file from our previously generated code for an `N=3` `vecwidth=4` `QRDecomp` to the Theia directory:
+```
+cp results/qr-decomp/3_4r/egg-kernel.c theia/egg-kernel.c
+```
 
 **Time estimate: 1 minute.**
 
-Then, type `make run` to compile and execute both versions of the `DecomposeProjectionMatrix` function: one using Eigen (as the original open-source code does) and one using the Diospyros-generated QR kernel.
+Then, type `make run -C evaluation/theia` to compile and execute both versions of the `DecomposeProjectionMatrix` function: one using Eigen (as the original open-source code does) and one using the Diospyros-generated QR kernel.
 You can visually check the outputs to make sure they match.
 
 **Time estimate: 10 seconds.**
 
 To post-process this output into the final numbers you see in the paper, pipe it into the `dpmresults.py` analysis script:
 
-    make run | python3 dpmresults.py
+    make run -C evaluation/theia | python3 evaluation/dpmresults.py
 
 This will produce a JSON document with three values: the cycle count for the Eigen- and Diospyros-based executions, and the speedup (which is just the ratio of the two cycle counts).
 You can see the cycle counts and speedup number in the ASPLOS paper at the end of Section 5.6.
