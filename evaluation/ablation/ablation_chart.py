@@ -11,7 +11,7 @@ matplotlib.rcParams['text.usetex'] = True
 
 colorblind = sns.color_palette("colorblind", 6)
 palette = [
-    colorblind[2],   # green        - Bronzite
+    colorblind[2],   # green        - Diospyros
     colorblind[4],   # light purple - Nature
 ]
 

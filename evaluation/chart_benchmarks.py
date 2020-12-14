@@ -35,15 +35,10 @@ def get_color_palette():
     palette = [
                 base_palette[4], # light blue   - Naive
                 base_palette[5], # dark blue    - Naive (fixed size)
-                colorblind[2],   # green        - Bronzite
+                colorblind[2],   # green        - Diospyros
                 colorblind[4],   # light purple - Nature
                 colorblind[5],   # gold         - Eigen
                 ]
-
-    # if benchmark == matmul:
-    #     # For matmul, use purple for the expert
-    #     palette.append(sns.color_palette("colorblind", 5)[4])
-
     return palette
 
 def get_y_limit(benchmark):
@@ -111,8 +106,6 @@ def size_as_int(size_str):
 
 def get_baseline_names(benchmark):
     baselines = ["Naive", "Naive hard size", "Nature"]
-    # if benchmark == matmul:
-    #     return baselines + ["Expert"]
     return baselines
 
 def get_kernel_name_formatted(kernel):
@@ -123,7 +116,7 @@ def get_kernel_name_formatted(kernel):
 all_kernels = [
     'Naive',
     'Naive (fixed size)',
-    'Bronzite',
+    'Diospyros',
     'Nature',
     'Eigen',
     'Expert',
@@ -184,19 +177,12 @@ def chart(graph_data):
         if t.get_text() == "Naive (fixed size)":
             t.set_text("Naive\n(fixed size)")
 
-    # Annotate each bar with its value
-    # for p in ax.patches:
-        # if math.isnan(p.get_height()) or p.get_height() > 100:
-            # continue
-        # ax.annotate("%d" % p.get_height(), (p.get_x() + p.get_width() / 2., p.get_height()),
-             # ha='center', va='center', fontsize=11, color='black', xytext=(0, 6),
-             # textcoords='offset points')
-
     ax.set_xlabel('')
     plt.savefig("all" + ".pdf", bbox_inches='tight')
     plt.close()
 
 def chart_small(graph_data):
+    """Small summary chart for the extended abstract"""
     small_benchmarks = [
         ("4×4\n4×4\nMatMul", "MatMul\n4×4 4×4"),
         ("4×4\n3×3\n2DConv", "2DConv\n4×4 3×3"),
@@ -204,7 +190,6 @@ def chart_small(graph_data):
         ("4, 3, 4, 3\nQProd", "QProd\n4, 3, 4, 3"),
     ]
 
-    # yolo
     pd.set_option("mode.chained_assignment", None)
 
     # Combine Nature and Eigen into a single "Library" type
@@ -215,14 +200,14 @@ def chart_small(graph_data):
     graph_data.loc[graph_data.Kernel == 'Eigen', 'Kernel'] = 'Library'
 
     # Only show a few kernels
-    graph_data = graph_data[graph_data.Kernel.isin(["Naive (fixed size)", "Library", "Bronzite"])]
+    graph_data = graph_data[graph_data.Kernel.isin(["Naive (fixed size)", "Library", "Diospyros"])]
 
     # and only a few benchmarks
     graph_data = graph_data[graph_data.Size.isin(list(map(lambda b: b[0], small_benchmarks)))]
 
     # reorder
     graph_data.loc[graph_data.Kernel == 'Library', 'Order'] = 2
-    graph_data.loc[graph_data.Kernel == 'Bronzite', 'Order'] = 3
+    graph_data.loc[graph_data.Kernel == 'Diospyros', 'Order'] = 3
 
     # rename
     for old, new in small_benchmarks:
@@ -277,75 +262,6 @@ def chart_small(graph_data):
     plt.savefig("small" + ".pdf", bbox_inches='tight')
     plt.close()
 
-def write_summary_statistics(benchmark_data):
-    file = "summary.csv"
-    benchmark_data.sort_values(["Order"])
-    # Indexed by size:
-    naive_cycles = {}
-    nature_cycles = {}
-
-    headers = [
-        "Kernel",
-        "Size",
-        "Cycles",
-        "Speedup vs. Naive",
-        "Speedup vs. Nature",
-    ]
-
-    def format_fl(fl):
-        with decimal.localcontext() as ctx:
-            d = decimal.Decimal(fl)
-            ctx.rounding = decimal.ROUND_DOWN
-            floored = round(d, 1)
-            return "{0:.1f}".format(floored)
-
-    # Get speedup baselines
-    for _, row in benchmark_data.iterrows():
-        if row["Kernel"] == "Naive":
-            naive_cycles[row["Size"]] = float(row["Cycles (simulation)"])
-        if row["Kernel"] == "Nature":
-            nature_cycles[row["Size"]] = float(row["Cycles (simulation)"])
-
-    speedups_naive = []
-    speedups_nature = []
-
-    with open(file, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writeheader()
-
-        for _, r in benchmark_data.iterrows():
-            size = r["Size"]
-            cycles = r["Cycles (simulation)"]
-
-            speedup_naive = naive_cycles[size]/cycles
-            speedup_nature = nature_cycles[size]/cycles
-
-            if "Diospyros" in r["Kernel"]:
-                speedups_naive.append(speedup_naive)
-                speedups_nature.append(speedup_nature)
-
-                writer.writerow({
-                    "Kernel" : r["Kernel"],
-                    "Size" : size,
-                    "Cycles" : r["Cycles (simulation)"],
-                    "Speedup vs. Naive" : format_fl(speedup_naive),
-                    "Speedup vs. Nature" : format_fl(speedup_nature),
-                })
-
-        writer.writerow({
-            "Kernel" : "Min Diospyros speedup over X",
-            "Size" : "","Cycles" : "",
-            "Speedup vs. Naive" : format_fl(min(speedups_naive)),
-            "Speedup vs. Nature" : format_fl(min(speedups_nature)),
-        })
-        writer.writerow({
-            "Kernel" : "Max Diospyros speedup over X",
-            "Size" : "","Cycles" : "",
-            "Speedup vs. Naive" : format_fl(max(speedups_naive)),
-            "Speedup vs. Nature" : format_fl(max(speedups_nature)),
-        })
-
-
 def format_data(files):
     chart_data = defaultdict(list)
     benchmark_data = pd.DataFrame(
@@ -375,7 +291,7 @@ def format_data(files):
             baseline_names = set()
             for x in data:
                 if x["kernel"] == "Diospyros":
-                    x["kernel"] = "Bronzite"
+                    x["kernel"] = "Diospyros"
                 baseline_names.add(x["kernel"])
 
             for i, kernel in enumerate(baseline_names):
@@ -391,9 +307,9 @@ def format_data(files):
                     ignore_index=True)
 
     return benchmark_data
-    # write_summary_statistics(benchmark_data)
 
 def read_csvs(dir, benchmarks, out):
+    """Read in CSVs for cycle-level data and compilation statistics"""
     rows = 0
     files = []
     for benchmark in benchmarks:
@@ -454,7 +370,7 @@ def main():
         help="Non-default output directory")
     args = parser.parse_args()
 
-    input_dir = os.path.join(results_dir, args.directory)
+    input_dir = args.directory
 
     files = read_csvs(input_dir, benchmarks, args.output)
     df = format_data(files)

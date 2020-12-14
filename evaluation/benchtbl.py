@@ -78,7 +78,7 @@ def benchtbl(plain=False):
     with open('combined.csv') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row['Kernel'] == 'Bronzite':
+            if row['Kernel'] == 'Diospyros':
                 size, bench = split_size(row['Size'])
                 bench = bench.replace("\n", "")
 
