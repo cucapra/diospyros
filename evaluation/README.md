@@ -31,13 +31,8 @@ We have split this artifact into two components:
   but the process is not automated). To reproduce the cycle-level simulation
   statistics from our paper, we have provided reviews limited access to our
   research server (with permission from the AEC chairs).
-<<<<<<< Updated upstream
   
 We estimate the required components of this artifact to take around 2.5 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take a variable amount of time.
-=======
-
-We estimate the required components of this artifact to take around 2 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take a variable amount of time.
->>>>>>> Stashed changes
 
 [virtualbox]: https://www.virtualbox.org/
 [theia]: https://github.com/sweeneychris/TheiaSfM
@@ -335,6 +330,12 @@ Again, if you prefer to view PDF charts locally; if so, copy this back to your m
 ```
 scp -r <user>@<server address>:/data/asplos-aec/reviewer-<letter>/diospyros/ablation.pdf .
 ```
+
+## Optional: writing new kernels
+
+You can use the `cdios` tool to try writing new kernels for Diospyros in C (this is a new frontend). The instructions can be found in the `README.md` file in the root of the project repository. 
+
+To write new kernels in Racket, we suggest modifying one of the existing kernel riles in `src/examples`.
 
 ## Optional: writing new rewrite rules
 
