@@ -254,7 +254,7 @@ The `theia` subdirectory in this evaluation package contains the code necessary 
 The first step is to get the generated C code for the QR decomposition kernel.
 Copy the `egg_kernel.c` file from our previously generated code for an `N=3` `vecwidth=4` `QRDecomp` to the Theia directory:
 ```
-cp results/qr-decomp/3_4r/egg-kernel.c theia/egg-kernel.c
+cp results/qr-decomp/3_4r/egg-kernel.c evaluation/theia/
 ```
 
 **Time estimate: 1 minute.**
