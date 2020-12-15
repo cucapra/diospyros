@@ -190,7 +190,7 @@ If you would like to skip compiling this kernel, you can copy the (unsuccessfull
 
 #### Option 1: use existing data
 ```
-cp -r ../../diospyros-asplos-aec/qr-decomp/4_4r/ results/qr-decomp/4_4r/
+cp -r ../../diospyros-asplos-aec/qr-decomp/4_4r results/qr-decomp/
 ```
 
 #### Option 2: Generate new data (Time estimate: 4.5 hours) (Optional)
