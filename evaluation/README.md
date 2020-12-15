@@ -244,7 +244,7 @@ The `--plain` flag emits a plain-text table for reading directly; omit this flag
 
 You might prefer to view the PDF charts locally; if so, copy them back to your machine with:
 
-#### On the VM/locally
+#### On the VM/locally (Optional)
 ```
 scp -r <user>@<server address>:/data/asplos-aec/reviewer-<letter>/diospyros/*.pdf .
 ```
@@ -326,7 +326,7 @@ This will generate `ablation.pdf`.
 
 Again, if you prefer to view PDF charts locally; if so, copy this back to your machine with:
 
-#### On the VM/locally
+#### On the VM/locally (Optional)
 ```
 scp -r <user>@<server address>:/data/asplos-aec/reviewer-<letter>/diospyros/ablation.pdf .
 ```
