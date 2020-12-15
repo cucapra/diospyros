@@ -8,6 +8,8 @@ in either a Racket DSL or with a minimal subset of C), uses [Rosette][]'s symbol
 evaluation to generate a specification, runs a vector rewrite equality saturation engine written in
 [egg][], then emits C with DSP-specific intrinsics. Diospyros currently targets the [Tensilica Fusion G3 DSP][fusiong3].
 
+## ASPLOS
+
 ## Prerequisites
 
 ### Python
