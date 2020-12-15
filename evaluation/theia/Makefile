@@ -21,9 +21,9 @@ eigen.native: decompose-projection-matrix.cpp rq_decomposition.h
 eigen.xt: decompose-projection-matrix.cpp rq_decomposition.h
 	$(XT_CXX) $(CXXFLAGS) decompose-projection-matrix.cpp -o $@
 
-dios.xt: egg_kernel.c decompose-projection-matrix.cpp dios_rq_decomposition.h
+dios.xt: egg-kernel.c decompose-projection-matrix.cpp dios_rq_decomposition.h
 	$(XT_CXX) $(CXXFLAGS) -DDIOS \
-		egg_kernel.c decompose-projection-matrix.cpp -o $@
+		egg-kernel.c decompose-projection-matrix.cpp -o $@
 
 # Run the Xtensa versions. Use `make run-eigen`, `make run-dios`,
 # or `make run` for both.
