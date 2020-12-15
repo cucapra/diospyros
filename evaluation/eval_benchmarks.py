@@ -390,7 +390,7 @@ def dimmensions_for_benchmark(benchmark, params):
     print("Error: missing dimensions for: ", benchmark)
     exit(1)
 
-def run_benchmark(dir, benchmark, build, force):
+def run_benchmark(dir, benchmark, build, force, matmulexpert):
     """Run benchmark in simulation on the Xtensa compiler, writing timing files
     out to a CSV"""
     b_dir = os.path.join(dir, benchmark)
@@ -423,6 +423,8 @@ def run_benchmark(dir, benchmark, build, force):
             make_run = ["make", "-C", harness, "run", set_kernel, set_output]
             if set_dimms:
                 make_run += set_dimms
+            if benchmark == matmul and matmulexpert != None:
+                make_run += ["EXPERT_OBJ="+matmulexpert]
             sp.check_call(make_run)
 
 def main():
@@ -448,6 +450,8 @@ def main():
         help="Run just the smallest size per benchmark as a test")
     parser.add_argument('-v', '--validation', action='store_true',
         help="Run translation validation")
+    parser.add_argument('--matmulexpert', type=str,
+        help="Use a pre-built expert kernel for the matrix multiply expert")
     args = parser.parse_args()
 
     if args.skipsynth and args.skiprun and not args.validation:
@@ -504,7 +508,7 @@ def main():
 
     if not args.skiprun:
         for b in benchmarks:
-            run_benchmark(cur_results_dir, b, args.build, args.force)
+            run_benchmark(cur_results_dir, b, args.build, args.force, args.matmulexpert)
 
 if __name__ == main():
     main()
