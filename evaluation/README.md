@@ -31,8 +31,13 @@ We have split this artifact into two components:
   but the process is not automated). To reproduce the cycle-level simulation
   statistics from our paper, we have provided reviews limited access to our
   research server (with permission from the AEC chairs).
+<<<<<<< Updated upstream
   
 We estimate the required components of this artifact to take around 2.5 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take a variable amount of time.
+=======
+
+We estimate the required components of this artifact to take around 2 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take a variable amount of time.
+>>>>>>> Stashed changes
 
 [virtualbox]: https://www.virtualbox.org/
 [theia]: https://github.com/sweeneychris/TheiaSfM
@@ -227,7 +232,7 @@ First, use `chart_benchmarks.py` to generate the plots:
 This produces the following files:
 ```
 all_benchmarks.csv          : Combined all individual benchmark runs into one CSV (Feeds Table 1)
-all_bechmarks_chart.pdf     : Charting graph for all benchmarks (Figure 4)
+all_benchmarks_chart.pdf     : Charting graph for all benchmarks (Figure 4)
 extended_abstract_chart.pdf : Charting small graph for extended abstract
 ```
 
@@ -338,7 +343,7 @@ Our rewrite rules are defined in `src/dios-egraphs-src/rules.rs` using the [egg:
 rw!("div-new"; "(/ ?a 0)" => "0"),
 ```
 
-For more extensive rule patterns, refer to the [egg documentation][egg]. You can also try adding new operations to use in your rules by editing `src/dios-egraphs-src/veclang.rs`. 
+For more extensive rule patterns, refer to the [egg documentation][egg]. You can also try adding new operations to use in your rules by editing `src/dios-egraphs-src/veclang.rs`.
 
 [egg]: https://docs.rs/egg/0.6.0/egg/index.html
 

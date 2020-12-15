@@ -1,59 +1,49 @@
-.PHONY: test build test-all dios-egraphs
-.PRECIOUS: %-out/res.rkt
+OBJECT = matmul.o
 
-# Default vector width of 4
-VEC_WIDTH := 4
+EGG_SRC := ../../../diospyros-private/src/egg_kernel.c
+EGG_OBJ := egg_kernel.o
 
-# By default, run one jobs
-MAKEFLAGS += --jobs=1
+NATURE_OBJS := matmmltf_pdx4.o
 
-RACKET_SRC := src/*.rkt src/examples/*.rkt src/backend/*.rkt
+PARAMS := -DA_ROWS=$(A_ROWS) -DA_COLS=$(A_COLS)
+PARAMS := $(PARAMS) -DB_ROWS=$(B_ROWS) -DB_COLS=$(B_COLS)
 
-CARGO_FLAGS := --release
+SRC := harness.c
+KERNEL_SRC := kernel.c
 
-EGG_FLAGS := --no-ac
-ifeq ($(VEC_WIDTH),2)
-	EGG_BUILD_FLAGS := --features vec_width_2
-else ifeq ($(VEC_WIDTH),8)
-	EGG_BUILD_FLAGS := --features vec_width_8
-else ifneq ($(VEC_WIDTH),4)
-	$(error Bad vector width, currently 2, 4, or 8 supported)
-endif
+XCC := xt-xcc
+XCXX := xt-xc++
+XRUN := xt-run
+XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals
+# for verbose: -LNO:SIMD_V
+XCXX_FLAGS += -std=c++11 -O3 -LNO:SIMD -w
+XCXX_FLAGS += -I /usr/local/include/eigen-3
+XSIM_FLAGS := --summary --mem_model
 
-PY := pypy3
+NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
+NATURE_INC := -I $(NATURE_DIR)/include -I $(NATURE_DIR)/include_private -DXCHAL_HAVE_FUSIONG_SP_VFPU=1
 
-test: build
+PARAMS += -DOUTFILE='"$(OUTFILE)"'
 
-test-racket: test build
-	raco test --drdr src/*.rkt src/backend/*.rkt
+ALL_OBJS := $(NATURE_OBJS)
 
-test-rust:
-	cargo test --manifest-path src/dios-egraphs/Cargo.toml
+# Make Nature objects individually
+%.o: $(NATURE_DIR)/%.c
+	$(XCC) $(XCC_FLAGS) $(NATURE_INC) -c $^ -o $@
 
-test-all: test-racket test-rust
-
-build: dios dios-example-gen dios-egraphs
-
-dios-egraphs:
-	cargo build --manifest-path ./src/dios-egraphs/Cargo.toml
-
-dios: $(RACKET_SRC)
-	raco exe -o dios src/main.rkt
-
-dios-example-gen: $(RACKET_SRC)
-	raco exe -o dios-example-gen src/example-gen.rkt
+default: $(OBJECT)
 
 clean:
-	rm -rf dios dios-example-gen
+	rm -rf $(OBJECT) $(ALL_OBJS)
 
-# Build spec
-%-out: %-params
-	./dios-example-gen -w $(VEC_WIDTH) -b $* -p  $< -o $@
+$(OBJECT): $(ALL_OBJS) $(KERNEL_SRC) $(SRC)
+	$(XCXX) $(PARAMS) $(XCXX_FLAGS) $(NATURE_INC) $(ALL_OBJS) $(KERNEL_SRC) $(SRC) -o $(OBJECT)
 
-# Run egg rewriter
-%-out/res.rkt: %-out
-	cargo run $(CARGO_FLAGS) --manifest-path src/dios-egraphs/Cargo.toml $(EGG_BUILD_FLAGS) -- $</spec.rkt $(EGG_FLAGS)  > $@
+run: $(OBJECT)
+	$(XRUN) $(OBJECT)
 
-# Backend code gen
-%-egg: %-out/res.rkt
-	./dios $(BACKEND_FLAGS) -w $(VEC_WIDTH) -e -o $*-out/kernel.c $*-out
+sim: $(OBJECT)
+	$(XRUN) $(XSIM_FLAGS) $(OBJECT)
+
+$(EGG_OBJ): $(EGG_SRC)
+	$(XCC) $(XCC_FLAGS) -c $(EGG_SRC) -o $(EGG_OBJ)
