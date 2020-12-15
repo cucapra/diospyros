@@ -167,7 +167,29 @@ ls results/*
 
 You should see the 4 kernel directories and respective sizes:
 ```
-2d-conv		mat-mul		q-prod		qr-decomp
+2d-conv    mat-mul    q-prod    qr-decomp
+```
+
+
+### (Optional) Running the memory-intensive kernel
+
+As described in the second paragraph of **5.3. Kernel Benchmarks**, the  `4x4 QRDecomp` kernel is a pathological case where equality saturation takes 38GB of memory and ultimately, the E-graph does not saturate and it finds no vector instructions. We included this case in our paper to show where this approach still needs improvement, and to show that we can still beat library performance.
+
+Because of the very high memory usage, this kernel takes approximately 4.5 hours to fully compile (even with a 3 minute timeout on equality saturation; the backend of our compiler is time-intensive on the input file, which is itself 500 MB of source). We thus leave recompiling this kernel as optional.
+
+If you would like to skip compiling this kernel, you can copy the (unsuccessfully-vectorized, but otherwise compiled with our backend kernel) from elsewhere on our server:
+
+#### Option 1: use existing data
+```
+cp -r ../../diospyros-asplos-aec/qr-decomp/4_4r/ results/qr-decomp/
+```
+
+#### Option 2: Generate new data (Time estimate: 4.5 hours) (Optional)
+
+If you are okay waiting, this command will regenerate the data for this kernel (passing the `--onlylargemem` flag to generate just the one kernel left):
+
+```
+python3 evaluation/eval_benchmarks.py --skiprun --onlylargemem -o results
 ```
 
 ### Running the Instruction Set Simulator
@@ -226,7 +248,7 @@ You can visually check the outputs to make sure they match.
 
 To post-process this output into the final numbers you see in the paper, pipe it into the `dpmresults.py` analysis script:
 
-    make run -C evaluation/theia | python3 evaluation/dpmresults.py
+    make run -C evaluation/theia | python3 evaluation/theia/dpmresults.py
 
 This will produce a JSON document with three values: the cycle count for the Eigen- and Diospyros-based executions, and the speedup (which is just the ratio of the two cycle counts).
 You can see the cycle counts and speedup number in the ASPLOS paper at the end of Section 5.6.

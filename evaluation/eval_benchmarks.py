@@ -442,6 +442,8 @@ def main():
         help="Skip running generated C code")
     parser.add_argument('--skiplargemem', action='store_true',
         help="Skip kernels with large memory consumption")
+    parser.add_argument('--onlylargemem', action='store_true',
+        help="Only run kernels with large memory consumption")
     parser.add_argument('--test', action='store_true',
         help="Run just the smallest size per benchmark as a test")
     parser.add_argument('-v', '--validation', action='store_true',
@@ -450,6 +452,10 @@ def main():
 
     if args.skipsynth and args.skiprun and not args.validation:
         print("Skipping synthesis, validation, and running: doing nothing")
+        exit(1)
+
+    if args.skiplargemem and args.onlylargemem:
+        print("--skiplargemem and --onlylargemem are mutually exclusive")
         exit(1)
 
     # Make clean and build if requested
@@ -480,6 +486,13 @@ def main():
     if args.skiplargemem:
         # Filter out large QR decompositions
         params[qrdecomp] = filter(lambda k: int(k["N"]) < 4, params[qrdecomp])
+    elif args.onlylargemem:
+        # Filter out everything _but_ large QR decompositions
+        for k, v in params.items():
+            if k != qrdecomp:
+                params[k] = []
+            else:
+                params[k] = filter(lambda k: int(k["N"]) >= 4, v)
 
     if not args.skipsynth:
         for b in benchmarks:
