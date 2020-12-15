@@ -30,6 +30,8 @@ We have split this artifact into two components:
   but the process is not automated). To reproduce the cycle-level simulation
   statistics from our paper, we have provided reviews limited access to our
   research server (with permission from the AEC chairs).
+  
+We estimate the required components of this artifact to take around 2 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take additional time.
 
 [virtualbox]: https://www.virtualbox.org/
 [theia]: https://github.com/sweeneychris/TheiaSfM
@@ -62,6 +64,8 @@ cd diospyos
 ## Using the compiler in the VirtualBox or locally
 
 First, run make to ensure the compiler is up-to-date:
+
+#### Time estimate: 1 minute
 ```
 make
 ```
@@ -115,12 +119,12 @@ The results here follow the same pattern of files as specified above, but for 20
 
 To run translation validation on the results we just generated, we will rerun the same script and pass `--validation` and the `--skipsynth` flag to tell the script to not regenerate the results.
 
-#### Time estimate: 10 minutes
+#### Time estimate: 1 minute
 ```
 python3 evaluation/eval_benchmarks.py --skiprun --skipsynth --validation -o results
 ```
 
-The line `Translation validation successful! <N> elements equal` will be printed to the Terminal for each kernel that passes.
+The line `Translation validation successful! <N> elements equal` will be printed to the Terminal in green for each kernel that passes.
 
 ----
 
