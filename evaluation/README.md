@@ -31,7 +31,7 @@ We have split this artifact into two components:
   statistics from our paper, we have provided reviews limited access to our
   research server (with permission from the AEC chairs).
   
-We estimate the required components of this artifact to take around 2 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take additional time.
+We estimate the required components of this artifact to take around 2 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take a variable amount of time.
 
 [virtualbox]: https://www.virtualbox.org/
 [theia]: https://github.com/sweeneychris/TheiaSfM
