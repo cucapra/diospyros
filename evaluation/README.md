@@ -31,7 +31,7 @@ We have split this artifact into two components:
   statistics from our paper, we have provided reviews limited access to our
   research server (with permission from the AEC chairs).
   
-We estimate the required components of this artifact to take around 2 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take a variable amount of time.
+We estimate the required components of this artifact to take around 2.5 hours of reviewer time. To run one optional memory intensive kernel takes an additional 4.5 hours; and inspecting additional elements or writing new kernels will take a variable amount of time.
 
 [virtualbox]: https://www.virtualbox.org/
 [theia]: https://github.com/sweeneychris/TheiaSfM
@@ -41,7 +41,7 @@ We estimate the required components of this artifact to take around 2 hours of r
 ## Prerequisites
 
 ### Option 1: VirtualBox
-If you use the provided VirtualBox virtual machine, it has all dependencies pre-installed.
+If you use the [provided VirtualBox virtual machine][VM], it has all dependencies pre-installed.
 
 1. Using [VirtualBox][], open the provided OVA file and follow the instructions to import and start the VM. Then log in with:
 
@@ -56,6 +56,7 @@ cd diospyros
 
 We also recommend opening [this README][here] on the VM so you can easily copy and paste Terminal commands; open Firefox and this page can be found on the bookmarks bar.
 
+[VM]: https://cornell.box.com/s/ss7hbolbksuhze3hmt1a3qnnz9l21wja
 [here]: https://github.com/cucapra/diospyros/blob/master/evaluation/README.md
 
 ### Option 2: Running locally
