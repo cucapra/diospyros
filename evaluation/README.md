@@ -194,11 +194,11 @@ python3 evaluation/eval_benchmarks.py --skiprun --onlylargemem -o results
 
 ### Running the Instruction Set Simulator
 
-Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with intrinsics.
+Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with intrinsics. We also pass in the pre-built expert binary for matrix multiply.
 
 #### Time estimate: ? minutes
 ```
-python3 evaluation/eval_benchmarks.py --skipsynth -o results
+python3 evaluation/eval_benchmarks.py --skipsynth -o results --matmulexpert /data/asplos/diospyros-asplos-aec/mat_mul_expert.o
 ```
 
 This will add a file `egg-kernel.csv` to each subdirectory of `results` with cycle-level performance for each kernel and corresponding baseline.
@@ -225,6 +225,15 @@ To see some statistics about the compilation process, run the `benchtbl.py` scri
 
 This script reads `all_benchmarks.csv` to make a table like Table 1 in the ASPLOS paper.
 The `--plain` flag emits a plain-text table for reading directly; omit this flag to generate a LaTeX fragment instead.
+
+#### Optional: copy data back to VM/local machine
+
+You might prefer to view the PDF charts locally; if so, copy them back to your machine with:
+
+#### On the VM/locally
+```
+scp -r <user>@<server address>:/data/asplos-aec/reviewer-<letter>/diospyros/*.pdf .
+```
 
 ----
 
@@ -296,4 +305,14 @@ Finally, run the following to generate the ablation study chart:
 ```
 python3 evaluation/ablation/ablation_chart.py exp-out/ablation.csv
 ```
-This will generate `ablation.pdf`
+This will generate `ablation.pdf`.
+
+
+#### Optional: copy data back to VM/local machine
+
+Again, if you prefer to view PDF charts locally; if so, copy this back to your machine with:
+
+#### On the VM/locally
+```
+scp -r <user>@<server address>:/data/asplos-aec/reviewer-<letter>/diospyros/ablation.pdf .
+```
