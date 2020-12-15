@@ -190,7 +190,7 @@ If you would like to skip compiling this kernel, you can copy the (unsuccessfull
 
 #### Option 1: use existing data
 ```
-cp -r ../../diospyros-asplos-aec/qr-decomp/4_4r/ results/qr-decomp/
+cp -r ../../diospyros-asplos-aec/qr-decomp/4_4r results/qr-decomp/
 ```
 
 #### Option 2: Generate new data (Time estimate: 4.5 hours) (Optional)
@@ -205,9 +205,9 @@ python3 evaluation/eval_benchmarks.py --skiprun --onlylargemem -o results
 
 Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with intrinsics. We also pass in the pre-built expert binary for matrix multiply.
 
-#### Time estimate: ? minutes
+#### Time estimate: 20 minutes
 ```
-python3 evaluation/eval_benchmarks.py --skipsynth -o results --matmulexpert /data/asplos/diospyros-asplos-aec/mat_mul_expert.o
+python3 evaluation/eval_benchmarks.py --skipsynth -o results --matmulexpert /data/asplos-aec/diospyros-asplos-aec/mat_mul_expert.o
 ```
 
 This will add a file `egg-kernel.csv` to each subdirectory of `results` with cycle-level performance for each kernel and corresponding baseline.
@@ -325,3 +325,15 @@ Again, if you prefer to view PDF charts locally; if so, copy this back to your m
 ```
 scp -r <user>@<server address>:/data/asplos-aec/reviewer-<letter>/diospyros/ablation.pdf .
 ```
+
+## Optional: writing new rewrite rules
+
+Our rewrite rules are defined in `src/dios-egraphs-src/rules.rs` using the [egg: egraphs good][egg] Rust library. Try adding a new rule and repeating some of the previous steps. For example, we can write a new rule that says anything divided by 0 is 0:
+```
+rw!("div-new"; "(/ ?a 0)" => "0"),
+```
+
+For more extensive rule patterns, refer to the [egg documentation][egg]. You can also try adding new operations to use in your rules by editing `src/dios-egraphs-src/veclang.rs`. 
+
+[egg]: https://docs.rs/egg/0.6.0/egg/index.html
+
