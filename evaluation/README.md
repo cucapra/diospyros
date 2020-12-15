@@ -190,7 +190,7 @@ If you would like to skip compiling this kernel, you can copy the (unsuccessfull
 
 #### Option 1: use existing data
 ```
-cp -r ../../diospyros-asplos-aec/qr-decomp/4_4r/ results/qr-decomp/
+cp -r ../../diospyros-asplos-aec/qr-decomp/4_4r/ results/qr-decomp/4_4r/
 ```
 
 #### Option 2: Generate new data (Time estimate: 4.5 hours) (Optional)
@@ -207,7 +207,7 @@ Now, we can actually run the generated kernels on the vendor's instruction set s
 
 #### Time estimate: ? minutes
 ```
-python3 evaluation/eval_benchmarks.py --skipsynth -o results --matmulexpert /data/asplos/diospyros-asplos-aec/mat_mul_expert.o
+python3 evaluation/eval_benchmarks.py --skipsynth -o results --matmulexpert /data/asplos-aec/diospyros-asplos-aec/mat_mul_expert.o
 ```
 
 This will add a file `egg-kernel.csv` to each subdirectory of `results` with cycle-level performance for each kernel and corresponding baseline.
