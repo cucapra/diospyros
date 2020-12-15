@@ -54,6 +54,10 @@ password: asplos
 cd diospyros
 ```
 
+We also recommend opening [this README][here] on the VM so you can easily copy and paste Terminal commands; open Firefox and this page can be found on the bookmarks bar.
+
+[here]: https://github.com/cucapra/diospyros/blob/master/evaluation/README.md
+
 ### Option 2: Running locally
 To run locally, clone this repository and follow the instructions for installing prerequisites from the top-level README.
 
@@ -132,9 +136,10 @@ The line `Translation validation successful! <N> elements equal` will be printed
 
 ### Setting up your directory
 
-First, SSH into our research server using the provided credentials:
+First, SSH into our research server using the provided credentials (note, it may be easier to SSH in from your local machine's Terminal instead of opening a new Terminal window in the VM; either should work):
 
 #### On the VM/locally
+Open a new Terminal and run:
 ```
 ssh <user>@<server address>
 ```
