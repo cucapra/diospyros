@@ -5,8 +5,7 @@
 #include <xtensa/xt_profiling.h>
 #endif
 
-
-#define ERR_TOLERANCE 0.0001
+#define ERR_TOLERANCE 0.001
 
 // Time stamping
 int start = 0, stop = 0;
