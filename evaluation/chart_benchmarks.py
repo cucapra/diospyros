@@ -308,7 +308,8 @@ def format_data(files):
                     'Cycles (simulation)': int(kernel_row["cycles"]),
                     'Order' : all_kernels.index(get_kernel_name_formatted(kernel)),
                     'Time': kernel_row['time'],
-                    'Memory': kernel_row['memory']},
+                    'Memory': kernel_row['memory'],
+                    'saturated': kernel_row['saturated']},
                     ignore_index=True)
 
     return benchmark_data
