@@ -12,7 +12,7 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-#include "../../../diospyros-private/src/utils.h"
+#include "../src/utils.h"
 
 float a[A_ROWS * A_COLS] __attribute__((section(".dram0.data")));
 float b[B_ROWS * B_COLS] __attribute__((section(".dram0.data")));

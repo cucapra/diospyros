@@ -9,7 +9,7 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 
-#include "../../../diospyros-private/src/utils.h"
+#include "../src/utils.h"
 
 #define O_ROWS (I_ROWS + F_ROWS - 1)
 #define O_COLS (I_COLS + F_COLS - 1)

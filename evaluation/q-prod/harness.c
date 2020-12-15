@@ -10,7 +10,7 @@
 #include <xtensa/xt_profiling.h>
 
 #include "quaternion_product.h"
-#include "../../../diospyros-private/src/utils.h"
+#include "../src/utils.h"
 
 float a_q[4] __attribute__((section(".dram0.data")));
 float a_t[3] __attribute__((section(".dram0.data")));
