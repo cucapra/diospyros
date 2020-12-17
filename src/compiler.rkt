@@ -33,8 +33,8 @@
   ; Add optimization passes like const elimination.
   (define ssa-prog (ssa p))
   (define elim-prog (const-elim ssa-prog))
-  (define lvn-prog (lvn elim-prog))
-  (define trunc-prog (allocate-and-truncate lvn-prog))
+  (define trunc-prog (allocate-and-truncate elim-prog))
+  (define prog (lvn elim-prog))
 
   (when (check-transform-with-fn-map)
     (pretty-display "Running translation validation")
@@ -42,6 +42,6 @@
       (equal?
         (unsat)
         (verify-spec-prog spec
-                          (to-v-list-prog trunc-prog)
+                          (to-v-list-prog prog)
                           #:fn-map (check-transform-with-fn-map)))))
-  trunc-prog)
+  prog)
