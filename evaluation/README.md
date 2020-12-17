@@ -70,10 +70,11 @@ cd diospyos
 
 ## Using the compiler in the VirtualBox or locally
 
-First, run make to ensure the compiler is up-to-date:
+First, you can pull and run make to ensure the compiler is up-to-date:
 
 #### Time estimate: 1 minute
 ```
+git pull
 make
 ```
 
