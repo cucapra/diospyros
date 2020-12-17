@@ -228,7 +228,7 @@ First, use `chart_benchmarks.py` to generate the plots:
 This produces the following files:
 ```
 all_benchmarks.csv          : Combined all individual benchmark runs into one CSV (Feeds Table 1)
-all_benchmarks_chart.pdf     : Charting graph for all benchmarks (Figure 4)
+all_benchmarks_chart.pdf    : Charting graph for all benchmarks (Figure 4)
 extended_abstract_chart.pdf : Charting small graph for extended abstract
 ```
 
