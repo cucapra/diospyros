@@ -184,6 +184,7 @@ You should see the 4 kernel directories and respective sizes:
 2d-conv    mat-mul    q-prod    qr-decomp
 ```
 
+**Note:** because all of the artifact evaluation committee reviewers will be using the same account, compilation and execution times may vary if multiple reviewers are using the server at once.
 
 ### (Optional) Running the memory-intensive kernel
 
@@ -206,9 +207,13 @@ If you are okay waiting, this command will regenerate the data for this kernel (
 python3 evaluation/eval_benchmarks.py --skiprun --onlylargemem -o results
 ```
 
+We recommend [Tmux][] or similar to allow this command to run for multiple hours in case your SSH connection fails.
+
+[tmux]: https://github.com/tmux/tmux/wiki
+
 ### Running the Instruction Set Simulator
 
-Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with intrinsics. We also pass in the pre-built expert binary for matrix multiply.
+We now have generated kernels for all of the instances in the paper. Now, we can actually run the generated kernels on the vendor's instruction set simulator. We pass the `--skipsynth` flag to avoid re-running synthesis and compilation to C with intrinsics. We also pass in the pre-built expert binary for matrix multiply.
 
 #### Time estimate: 20 minutes
 ```
