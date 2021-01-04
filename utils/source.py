@@ -54,12 +54,3 @@ def source_generator(
     # remove temporary source file
     cmd = "rm -f {}".format(tmp_file)
     os.system(cmd)
-
-    # TODO: Suppression of scalar.h file from generated file is a hack
-    lines = None
-    with open(source_file, "r") as f:
-        lines = f.readlines()
-    with open(source_file, "w") as f:
-        for line in lines:
-            if not '#include "../../../../src/scalars.h' in line.strip("\n"):
-                f.write(line)
