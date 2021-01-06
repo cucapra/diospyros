@@ -1,0 +1,147 @@
+{
+    "2d-conv" : [
+        {
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 3,
+            "input-cols": 5,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 10,
+            "input-cols": 10,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 16,
+            "input-cols": 16,
+            "filter-rows": 2,
+            "filter-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 3,
+            "input-cols": 3,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 4,
+            "input-cols": 4,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 8,
+            "input-cols": 8,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 10,
+            "input-cols": 10,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 16,
+            "input-cols": 16,
+            "filter-rows": 3,
+            "filter-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 10,
+            "input-cols": 10,
+            "filter-rows": 4,
+            "filter-cols": 4,
+            "reg-size": 4
+        },
+        {
+            "input-rows": 16,
+            "input-cols": 16,
+            "filter-rows": 4,
+            "filter-cols": 4,
+            "reg-size": 4
+        }
+    ],
+    "mat-mul" : [
+        {
+            "A-rows": 2,
+            "A-cols": 2,
+            "B-rows": 2,
+            "B-cols": 2,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 2,
+            "A-cols": 3,
+            "B-rows": 3,
+            "B-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 3,
+            "A-cols": 3,
+            "B-rows": 3,
+            "B-cols": 3,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 4,
+            "A-cols": 4,
+            "B-rows": 4,
+            "B-cols": 4,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 8,
+            "A-cols": 8,
+            "B-rows": 8,
+            "B-cols": 8,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 10,
+            "A-cols": 10,
+            "B-rows": 10,
+            "B-cols": 10,
+            "reg-size": 4
+        },
+        {
+            "A-rows": 16,
+            "A-cols": 16,
+            "B-rows": 16,
+            "B-cols": 16,
+            "reg-size": 4
+        }
+    ],
+    "q-prod" : [
+        {
+            "reg-size": 4
+        }
+    ],
+    "qr-decomp" : [
+        {
+            "N": 3,
+            "reg-size": 4
+        },
+        {
+            "N": 4,
+            "reg-size": 4
+        }
+    ]
+}

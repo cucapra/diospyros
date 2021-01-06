@@ -16,154 +16,6 @@ import time
 
 from py_utils import *
 
-PARAMETERS = {
-    conv2d : [
-        {
-            "input-rows": 3,
-            "input-cols": 3,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 3,
-            "input-cols": 5,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 10,
-            "input-cols": 10,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 16,
-            "input-cols": 16,
-            "filter-rows": 2,
-            "filter-cols": 2,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 3,
-            "input-cols": 3,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 4,
-            "input-cols": 4,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 8,
-            "input-cols": 8,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 10,
-            "input-cols": 10,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 16,
-            "input-cols": 16,
-            "filter-rows": 3,
-            "filter-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 10,
-            "input-cols": 10,
-            "filter-rows": 4,
-            "filter-cols": 4,
-            "reg-size": 4
-        },
-        {
-            "input-rows": 16,
-            "input-cols": 16,
-            "filter-rows": 4,
-            "filter-cols": 4,
-            "reg-size": 4
-        },
-    ],
-    matmul : [
-        {
-            "A-rows": 2,
-            "A-cols": 2,
-            "B-rows": 2,
-            "B-cols": 2,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 2,
-            "A-cols": 3,
-            "B-rows": 3,
-            "B-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 3,
-            "A-cols": 3,
-            "B-rows": 3,
-            "B-cols": 3,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 4,
-            "A-cols": 4,
-            "B-rows": 4,
-            "B-cols": 4,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 8,
-            "A-cols": 8,
-            "B-rows": 8,
-            "B-cols": 8,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 10,
-            "A-cols": 10,
-            "B-rows": 10,
-            "B-cols": 10,
-            "reg-size": 4
-        },
-        {
-            "A-rows": 16,
-            "A-cols": 16,
-            "B-rows": 16,
-            "B-cols": 16,
-            "reg-size": 4
-        },
-    ],
-    qprod : [
-        {
-            "reg-size": 4
-        },
-    ],
-    qrdecomp : [
-        {
-            "N": 3,
-            "reg-size": 4
-        },
-        {
-            "N": 4,
-            "reg-size": 4
-        }
-    ],
-}
-
 class MemChecker(Thread):
     """A thread that continuously checks the memory usage of a process
     in the background to report the maximum measurement.
@@ -432,6 +284,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', action='store_true',
         help="Build ./dios and ./dios-example-gen executables")
+    parser.add_argument('-p', '--params', type=str, default="",
+        help="Pass non-default parameter file")
     parser.add_argument('-f', '--force', action='store_true',
         help="Force overwrite old results")
     parser.add_argument('-t', '--timeout', type=int, default=180,
@@ -481,11 +335,17 @@ def main():
         make_dir(cur_results_dir)
         print("Writing results to: {}".format(cur_results_dir))
 
+    # Get parameter file
+    if args.params:
+        params_file = args.params
+    else:
+        params_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), "asplos_parameters.json")
+    with open(params_file) as f:
+        params = json.load(f)
+
     # Pare it down to just the smallest size per benchmark for a test run.
     if args.test:
-        params = {k: [v[0]] for k, v in PARAMETERS.items()}
-    else:
-        params = PARAMETERS
+        params = {k: [v[0]] for k, v in params.items()}
 
     if args.skiplargemem:
         # Filter out large QR decompositions
