@@ -1,4 +1,4 @@
-use egg::{*};
+use egg::*;
 
 define_language! {
     pub enum VecLang {

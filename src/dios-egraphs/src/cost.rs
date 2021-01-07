@@ -1,8 +1,6 @@
-use egg::{*};
+use egg::*;
 
-use crate::{
-    veclang::{EGraph, VecLang},
-};
+use crate::veclang::{EGraph, VecLang};
 
 pub struct VecCostFn<'a> {
     pub egraph: &'a EGraph,
@@ -35,9 +33,13 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::Vec(vals) => {
                 // For now, workaround to determine if children are num, symbol,
                 // or get
-                let non_literals = vals.iter().any(|&x| costs(x) > 3.*LITERAL);
-                if non_literals {BIG} else {STRUCTURE}
-            },
+                let non_literals = vals.iter().any(|&x| costs(x) > 3. * LITERAL);
+                if non_literals {
+                    BIG
+                } else {
+                    STRUCTURE
+                }
+            }
             VecLang::LitVec(..) => LITERAL,
 
             // But scalar and vector ops cost something

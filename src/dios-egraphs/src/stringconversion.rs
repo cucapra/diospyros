@@ -24,12 +24,13 @@ fn to_value(s: &str, erase: bool) -> lexpr::Value {
 fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> lexpr::Value {
     match expr {
         lexpr::Value::Number(_) => expr,
-        lexpr::Value::Symbol(s) =>
+        lexpr::Value::Symbol(s) => {
             if s.contains("$") {
                 to_value(&*s, erase)
             } else {
                 lexpr::Value::Symbol(s)
-            },
+            }
+        }
         lexpr::Value::Cons(c) => {
             if let (lexpr::Value::Symbol(head), lexpr::Value::Cons(tail)) = c.into_pair() {
                 if &*head == "box" {
@@ -40,7 +41,8 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                     return to_egg(tail.into(), erase, rewrites);
                 } else {
                     // The operator name might need to change
-                    let mut op = lexpr::Value::symbol(rewrites.get(&*head).unwrap_or(&&*head).clone());
+                    let mut op =
+                        lexpr::Value::symbol(rewrites.get(&*head).unwrap_or(&&*head).clone());
                     let mut children = tail
                         .into_vec()
                         .0
@@ -77,7 +79,7 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
     }
 }
 
-pub fn convert_string(input : &String) -> io::Result<String> {
+pub fn convert_string(input: &String) -> io::Result<String> {
     // Parse the given S-expr
     // Remove residual Racket syntax markers
     let input = input.replace("#&", "");

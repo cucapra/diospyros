@@ -9,101 +9,104 @@ pub mod stringconversion;
 pub mod veclang;
 
 extern crate clap;
-use clap::{Arg, App};
+use clap::{App, Arg};
 
 fn main() {
+    let matches = App::new("Diospyros Rewriter")
+        .arg(
+            Arg::with_name("INPUT")
+                .help("Sets the input file")
+                .required(true)
+                .index(1),
+        )
+        .arg(
+            Arg::with_name("no-ac")
+                .long("no-ac")
+                .help("Disable associativity and commutativity rules"),
+        )
+        .get_matches();
 
-  let matches = App::new("Diospyros Rewriter")
-                    .arg(Arg::with_name("INPUT")
-                      .help("Sets the input file")
-                      .required(true)
-                      .index(1))
-                    .arg(Arg::with_name("no-ac")
-                      .long("no-ac")
-                      .help("Disable associativity and commutativity rules"))
-                    .get_matches();
+    use std::{env, fs};
 
-  use std::{env, fs};
+    // Get a path string to parse a program.
+    let path = matches.value_of("INPUT").unwrap();
+    let timeout = env::var("TIMEOUT")
+        .ok()
+        .and_then(|t| t.parse::<u64>().ok())
+        .unwrap_or(180);
+    let prog_str = fs::read_to_string(path).expect("Failed to read the input file.");
 
-  // Get a path string to parse a program.
-  let path = matches.value_of("INPUT").unwrap();
-  let timeout = env::var("TIMEOUT")
-      .ok()
-      .and_then(|t| t.parse::<u64>().ok())
-      .unwrap_or(180);
-  let prog_str = fs::read_to_string(path)
-      .expect("Failed to read the input file.");
+    // AST conversion: boxed Rosette terms to Egg syntax
+    let converted: String = stringconversion::convert_string(&prog_str)
+        .expect("Failed to convert the input file to egg AST.");
 
-  // AST conversion: boxed Rosette terms to Egg syntax
-  let converted : String = stringconversion::convert_string(&prog_str)
-      .expect("Failed to convert the input file to egg AST.");
+    // Rewrite a list of expressions to a concatenation of vectors
+    let concats = rewriteconcats::list_to_concats(&converted);
+    let prog = concats.unwrap().parse().unwrap();
 
-  // Rewrite a list of expressions to a concatenation of vectors
-  let concats =  rewriteconcats::list_to_concats(&converted);
-  let prog = concats.unwrap().parse().unwrap();
+    // Run rewriter
+    eprintln!(
+        "Running egg with timeout {:?}s, width: {:?}",
+        timeout,
+        config::vector_width()
+    );
+    let (cost, best) = rules::run(&prog, timeout, matches.is_present("no-ac"));
 
-  // Run rewriter
-  eprintln!("Running egg with timeout {:?}s, width: {:?}", timeout, config::vector_width());
-  let (cost, best) = rules::run(&prog, timeout, matches.is_present("no-ac"));
-
-  println!("{}", best.pretty(80)); /* Pretty print with width 80 */
-  eprintln!("\nCost: {}", cost);
+    println!("{}", best.pretty(80)); /* Pretty print with width 80 */
+    eprintln!("\nCost: {}", cost);
 }
 
 #[cfg(test)]
 mod tests {
 
-  use egg::{*};
-  use assert_approx_eq::assert_approx_eq;
-  use super::{
-      veclang::{VecLang},
-      rules::{*},
-  };
+    use super::{rules::*, veclang::VecLang};
+    use assert_approx_eq::assert_approx_eq;
+    use egg::*;
 
-  fn run_egpraph_with_start(prog : &str, exp_best : &str, exp_best_cost : f64) {
+    fn run_egpraph_with_start(prog: &str, exp_best: &str, exp_best_cost: f64) {
+        // AST conversion: boxed Rosette terms to Egg syntax
+        let converted: String = super::stringconversion::convert_string(&prog.to_string())
+            .expect("Failed to convert the input file to egg AST.");
 
-    // AST conversion: boxed Rosette terms to Egg syntax
-    let converted : String = super::stringconversion::convert_string(&prog.to_string())
-      .expect("Failed to convert the input file to egg AST.");
+        // Rewrite a list of expressions to a concatenation of vectors
+        let concats = super::rewriteconcats::list_to_concats(&converted);
+        let start = concats.unwrap().parse().unwrap();
 
-    // Rewrite a list of expressions to a concatenation of vectors
-    let concats = super::rewriteconcats::list_to_concats(&converted);
-    let start = concats.unwrap().parse().unwrap();
+        // Run with AC off
+        let (best_cost, best) = run(&start, 60, true);
 
-    // Run with AC off
-    let (best_cost, best) = run(&start, 60, true);
-
-    println!(
-      "original:\n{}\nbest:\n{}\nbest cost {}",
-      start.pretty(80),
-      best.pretty(80),
-      best_cost,
-    );
-    if best != exp_best.parse().unwrap() {
-      println!("Expected best not equal:{}",
-        exp_best.parse::<RecExpr<VecLang>>().unwrap().pretty(80));
+        println!(
+            "original:\n{}\nbest:\n{}\nbest cost {}",
+            start.pretty(80),
+            best.pretty(80),
+            best_cost,
+        );
+        if best != exp_best.parse().unwrap() {
+            println!(
+                "Expected best not equal:{}",
+                exp_best.parse::<RecExpr<VecLang>>().unwrap().pretty(80)
+            );
+        }
+        assert_approx_eq!(best_cost, exp_best_cost, 0.000001);
     }
-    assert_approx_eq!(best_cost, exp_best_cost, 0.000001);
-  }
 
+    #[test]
+    fn simple_vector_add() {
+        let start = "(Vec (+ a b) (+ c d) 0 0)";
+        let exp_best = "(VecAdd (Vec a c 0 0) (Vec b d 0 0))";
+        let exp_best_cost = 1.208;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn simple_vector_add() {
-    let start = "(Vec (+ a b) (+ c d) 0 0)";
-    let exp_best = "(VecAdd (Vec a c 0 0) (Vec b d 0 0))";
-    let exp_best_cost = 1.208;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
-
-  #[test]
-  fn vector_pairwise_mac() {
-    let start = "
+    #[test]
+    fn vector_pairwise_mac() {
+        let start = "
       (Vec
         (+ (* a b) (+ (* c d) (* e f)))
         (+ (* aa bb) (+ (* cc dd) (* ee ff)))
         0
         0)";
-    let exp_best = "
+        let exp_best = "
       (VecMAC
         (VecMAC
           (VecMul (Vec c aa 0 0) (Vec d bb 0 0))
@@ -111,13 +114,13 @@ mod tests {
           (Vec f ff 0 0))
         (Vec a cc 0 0)
         (Vec b dd 0 0))";
-    let exp_best_cost = 3.624;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 3.624;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn qr_decomp_snippet() {
-    let start = "
+    #[test]
+    fn qr_decomp_snippet() {
+        let start = "
       (Vec
         (*
           (neg (sgn (Get A 0)))
@@ -138,7 +141,7 @@ mod tests {
               (* (Get A 0) (Get A 0))
               (* (Get A 2) (Get A 2)))))
         (Get A 2))";
-    let _best_with_ac = "
+        let _best_with_ac = "
       (VecMul
         (VecNeg
           (Vec
@@ -153,21 +156,21 @@ mod tests {
               (Vec (Get A 0) (Get A 0) (Get A 0) 1))
             (Vec (Get A 2) (Get A 2) (Get A 2) 1)
             (Vec (Get A 2) (Get A 2) (Get A 2) 1))))";
-    let exp_best_cost = 121.048;
+        let exp_best_cost = 121.048;
 
-    // No rewrites found with AC off
-    run_egpraph_with_start(start, start, exp_best_cost);
-  }
+        // No rewrites found with AC off
+        run_egpraph_with_start(start, start, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_variadic_add_mac() {
-    let start = "
+    #[test]
+    fn vector_variadic_add_mac() {
+        let start = "
       (Vec
         (+ (* a b) (* c d) (* e f))
         (+ (* aa bb) (* cc dd) (* ee ff))
         0
         0)";
-    let exp_best = "
+        let exp_best = "
       (VecMAC
         (VecMAC
           (VecMul (Vec e ee 0 0) (Vec f ff 0 0))
@@ -175,81 +178,81 @@ mod tests {
           (Vec d dd 0 0))
         (Vec a aa 0 0)
         (Vec b bb 0 0))";
-    let exp_best_cost = 3.624;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 3.624;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_mac() {
-    let start = "
+    #[test]
+    fn vector_mac() {
+        let start = "
       (Vec (+ ?a0 (* ?b0 ?c0))
            (+ ?a1 (* ?b1 ?c1))
            (+ ?a2 (* ?b2 ?c2))
            (+ ?a3 (* ?b3 ?c3)))";
-    let exp_best = "
+        let exp_best = "
       (VecMAC (Vec ?a0 ?a1 ?a2 ?a3)
               (Vec ?b0 ?b1 ?b2 ?b3)
               (Vec ?c0 ?c1 ?c2 ?c3))";
-    let exp_best_cost = 1.312;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 1.312;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_mac_just_mul_or_zero() {
-    let start = "
+    #[test]
+    fn vector_mac_just_mul_or_zero() {
+        let start = "
       (Vec (+ ?a0 (* ?b0 ?c0))
             (* ?b1 ?c1)
             0
             (+ ?a3 (* ?b3 ?c3)))";
-    let exp_best = "
+        let exp_best = "
       (VecMAC (Vec ?a0 0 0 ?a3)
               (Vec ?b0 ?b1 0 ?b3)
               (Vec ?c0 ?c1 0 ?c3))";
-    let exp_best_cost = 1.312;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 1.312;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_matrix_multiply_2x2_2x2() {
-    let start = "
+    #[test]
+    fn vector_matrix_multiply_2x2_2x2() {
+        let start = "
       (Vec
         (+ (* v0 v4) (* v1 v6))
         (+ (* v0 v5) (* v1 v7))
         (+ (* v2 v4) (* v3 v6))
         (+ (* v2 v5) (* v3 v7)))";
-    let exp_best = "
+        let exp_best = "
       (VecMAC
         (VecMul
           (Vec v1 v1 v6 v7)
           (Vec v6 v7 v3 v3))
         (Vec v4 v5 v2 v2)
         (Vec v0 v0 v4 v5))";
-    let exp_best_cost = 2.416;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 2.416;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_matrix_multiply_2x2_2x2_explicit_get() {
-    let start = "
+    #[test]
+    fn vector_matrix_multiply_2x2_2x2_explicit_get() {
+        let start = "
       (Vec
         (+ (* (Get a 0) (Get b 0)) (* (Get a 1) (Get b 2)))
         (+ (* (Get a 0) (Get b 1)) (* (Get a 1) (Get b 3)))
         (+ (* (Get a 2) (Get b 0)) (* (Get a 3) (Get b 2)))
         (+ (* (Get a 2) (Get b 1)) (* (Get a 3) (Get b 3))))";
-    let exp_best = "
+        let exp_best = "
       (VecMAC
         (VecMul
           (LitVec (Get a 0) (Get a 0) (Get a 2) (Get a 2))
           (LitVec (Get b 0) (Get b 1) (Get b 0) (Get b 1)))
         (LitVec (Get a 1) (Get a 1) (Get a 3) (Get a 3))
         (LitVec (Get b 2) (Get b 3) (Get b 2) (Get b 3)))";
-    let exp_best_cost = 2.052;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 2.052;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_matrix_multiply_2x3_3x3() {
-    let start = "
+    #[test]
+    fn vector_matrix_multiply_2x3_3x3() {
+        let start = "
       (List
         (+
           (* (Get A 0) (Get B 0))
@@ -275,7 +278,7 @@ mod tests {
           (* (Get A 3) (Get B 2))
           (* (Get A 4) (Get B 5))
           (* (Get A 5) (Get B 8))))";
-    let exp_best = "
+        let exp_best = "
       (Concat
         (VecMAC
           (VecMAC
@@ -293,13 +296,13 @@ mod tests {
             (LitVec (Get B 7) (Get B 8) 0 0))
           (LitVec (Get A 3) (Get A 3) 0 0)
           (LitVec (Get B 1) (Get B 2) 0 0)))";
-    let exp_best_cost = 6.43;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 6.43;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_2d_conv_2x2_2x2() {
-    let start = "
+    #[test]
+    fn vector_2d_conv_2x2_2x2() {
+        let start = "
       (List
         (* v0 v4)
         (+ (* v0 v5) (* v1 v4))
@@ -310,7 +313,7 @@ mod tests {
         (* v2 v6)
         (+ (* v2 v7) (* v3 v6))
         (* v3 v7))";
-    let exp_best = "
+        let exp_best = "
       (Concat
         (VecMAC
           (VecMul (Vec 1 v0 1 v0) (Vec 0 v5 0 v6))
@@ -327,13 +330,13 @@ mod tests {
             (Vec v0 v3 v2 v3)
             (Vec v7 v5 v6 v6))
           (VecMul (Vec v3 0 0 0) (Vec v7 0 0 0))))";
-    let exp_best_cost = 9.656;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 9.656;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 
-  #[test]
-  fn vector_2d_conv_3x3_3x3() {
-    let start = "(Concat
+    #[test]
+    fn vector_2d_conv_3x3_3x3() {
+        let start = "(Concat
       (Vec
         (* v0 v9)
         (+ (* v0 v10) (* v1 v9))
@@ -402,7 +405,7 @@ mod tests {
                   (+ (* v7 v17) (* v8 v16)))
                 (List
                   (* v8 v17))))))))";
-    let exp_best = "
+        let exp_best = "
     (Vec
       (VecMAC
         (VecMAC
@@ -484,7 +487,7 @@ mod tests {
                 (List (* v8 v17)))))))
       0
       0)";
-    let exp_best_cost = 156.468;
-    run_egpraph_with_start(start, exp_best, exp_best_cost);
-  }
+        let exp_best_cost = 156.468;
+        run_egpraph_with_start(start, exp_best, exp_best_cost);
+    }
 }
