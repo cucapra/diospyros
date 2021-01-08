@@ -24,6 +24,11 @@ fn main() {
                 .long("no-ac")
                 .help("Disable associativity and commutativity rules"),
         )
+        .arg(
+            Arg::with_name("no-vec")
+                .long("no-vec")
+                .help("Disable vector rules"),
+        )
         .get_matches();
 
     use std::{env, fs};
@@ -44,13 +49,17 @@ fn main() {
     let concats = rewriteconcats::list_to_concats(&converted);
     let prog = concats.unwrap().parse().unwrap();
 
+    // Rules to disable flags
+    let no_ac = matches.is_present("no-ac");
+    let no_vec = matches.is_present("no-vec");
+
     // Run rewriter
     eprintln!(
         "Running egg with timeout {:?}s, width: {:?}",
         timeout,
         config::vector_width()
     );
-    let (cost, best) = rules::run(&prog, timeout, matches.is_present("no-ac"));
+    let (cost, best) = rules::run(&prog, timeout, no_ac, no_vec);
 
     println!("{}", best.pretty(80)); /* Pretty print with width 80 */
     eprintln!("\nCost: {}", cost);
@@ -73,7 +82,7 @@ mod tests {
         let start = concats.unwrap().parse().unwrap();
 
         // Run with AC off
-        let (best_cost, best) = run(&start, 60, true);
+        let (best_cost, best) = run(&start, 60, true, false);
 
         println!(
             "original:\n{}\nbest:\n{}\nbest cost {}",

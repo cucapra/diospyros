@@ -49,8 +49,13 @@ fn filter_applicable_rules(rules: &mut Vec<Rewrite<VecLang, ()>>, prog: &RecExpr
 }
 
 /// Run the rewrite rules over the input program and return the best (cost, program)
-pub fn run(prog: &RecExpr<VecLang>, timeout: u64, no_ac: bool) -> (f64, RecExpr<VecLang>) {
-    let mut rules = rules(no_ac);
+pub fn run(
+    prog: &RecExpr<VecLang>,
+    timeout: u64,
+    no_ac: bool,
+    no_vec: bool,
+) -> (f64, RecExpr<VecLang>) {
+    let mut rules = rules(no_ac, no_vec);
     filter_applicable_rules(&mut rules, prog);
     let mut init_eg: EGraph = EGraph::new(());
     init_eg.add(VecLang::Num(0));
@@ -121,7 +126,7 @@ pub fn build_litvec_rule() -> Rewrite<VecLang, ()> {
         if is_all_same_memory_or_zero(&mem_vars))
 }
 
-pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
+pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
     let mut rules: Vec<Rewrite<VecLang, ()>> = vec![
         rw!("add-0"; "(+ 0 ?a)" => "?a"),
         rw!("mul-0"; "(* 0 ?a)" => "0"),
@@ -131,21 +136,9 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
         rw!("mul-1-inv"; "?a" => "(* 1 ?a)"),
         rw!("div-1-inv"; "?a" => "(/ ?a 1)"),
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
-        rw!("vec-mac-add-mul";
-            "(VecAdd ?v0 (VecMul ?v1 ?v2))"
-            => "(VecMAC ?v0 ?v1 ?v2)"),
         // Literal vectors, that use the same memory or no memory in every lane,
         // are cheaper
         build_litvec_rule(),
-        // Custom searchers for vector ops
-        build_unop_rule("neg", "VecNeg"),
-        build_unop_rule("sqrt", "VecSqrt"),
-        build_unop_rule("sgn", "VecSgn"),
-        build_binop_rule("/", "VecDiv"),
-        build_binop_or_zero_rule("+", "VecAdd"),
-        build_binop_or_zero_rule("*", "VecMul"),
-        build_binop_or_zero_rule("-", "VecMinus"),
-        build_mac_rule(),
     ];
 
     // Bidirectional rules
@@ -161,6 +154,27 @@ pub fn rules(no_ac: bool) -> Vec<Rewrite<VecLang, ()>> {
         ]
         .concat(),
     );
+
+    // Vector rules
+    if !no_vec {
+        rules.extend(vec![
+            // Special MAC fusion rule
+            rw!("vec-mac-add-mul";
+                "(VecAdd ?v0 (VecMul ?v1 ?v2))"
+                => "(VecMAC ?v0 ?v1 ?v2)"),
+            // Custom searchers
+            build_unop_rule("neg", "VecNeg"),
+            build_unop_rule("sqrt", "VecSqrt"),
+            build_unop_rule("sgn", "VecSgn"),
+            build_binop_rule("/", "VecDiv"),
+            build_binop_or_zero_rule("+", "VecAdd"),
+            build_binop_or_zero_rule("*", "VecMul"),
+            build_binop_or_zero_rule("-", "VecMinus"),
+            build_mac_rule(),
+        ]);
+    } else {
+        eprintln!("Skipping vector rules")
+    }
 
     if !no_ac {
         rules.extend(vec![
