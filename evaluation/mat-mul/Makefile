@@ -1,8 +1,5 @@
 OBJECT = matmul.o
 
-EGG_SRC := ../../../diospyros-private/src/egg_kernel.c
-EGG_OBJ := egg_kernel.o
-
 NATURE_OBJS := matmmltf_pdx4.o
 
 PARAMS := -DA_ROWS=$(A_ROWS) -DA_COLS=$(A_COLS)
