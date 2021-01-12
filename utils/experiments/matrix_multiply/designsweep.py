@@ -12,12 +12,12 @@ from subprocess import Popen, PIPE
 import datetime
 
 RESULT_FILE = "results.json"
-MAKEFILE = "Makefile"
 XTENSA_CORE = "XTENSA_CORE"
 
 if __name__ == "__main__":
     if XTENSA_CORE not in os.environ:
-        os.environ["XTENSA_CORE"] = DEVICE_TARGET # define this to pass to Makefile builds
+        # define this to pass to Makefile builds
+        os.environ["XTENSA_CORE"] = DEVICE_TARGET
 
     # set the range of matrix multiplication parameters here
     input_rows = range(1, 2)
@@ -49,9 +49,6 @@ if __name__ == "__main__":
                     cmd = """eigen.py --kernel multiply --input_rows {} --input_cols {} \
               --output_cols {} --build_dir {}""".format(ir, ic, oc, build_dir)
                     os.system(cmd)
-
-                    # Copy out the Makefile to the target directory
-                    os.system("cp {} {}".format(MAKEFILE, build_dir))
 
                     # change to build directory
                     if os.path.exists(build_dir):
