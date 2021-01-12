@@ -35,6 +35,9 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             // LitVecs are general, arbitrary-index shuffles
             VecLang::LitVec(..) => LITERAL * 2.,
 
+            // Immediate shuffles are the cheapest
+            VecLang::ShufIm(..) => LITERAL,
+
             // But scalar and vector ops cost something
             VecLang::Add(vals) => OP * (vals.iter().count() as f64 - 1.),
             VecLang::Mul(vals) => OP * (vals.iter().count() as f64 - 1.),

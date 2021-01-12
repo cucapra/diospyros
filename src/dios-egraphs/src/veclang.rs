@@ -25,6 +25,9 @@ define_language! {
         // Vector with all literals
         "LitVec" = LitVec(Box<[Id]>),
 
+        // More efficient immediate shuffles
+        "ShufIm" = ShufIm(Box<[Id]>),
+
         "Get" = Get([Id; 2]),
 
         // Used for partitioning and recombining lists

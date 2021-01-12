@@ -138,6 +138,8 @@ pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         // Literal vectors, that use the same memory or no memory in every lane,
         // are cheaper
+
+        rw!("shufl-0022"; "(LitVec (Get ?a 0) (Get ?a 0) (Get ?a 2) (Get ?a 2))"  => "(ShufIm ?a PDX_SHFLI_32B_DUPLICATE_1_EVEN)"),
         build_litvec_rule(),
     ];
 
