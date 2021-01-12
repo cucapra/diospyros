@@ -94,9 +94,7 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BinOpSearcher {
                                 new_var_substs.push(subs);
                             }
                         // This lane is just 0
-                        } else if let Some(_) =
-                            self.zero_pattern.search_eclass(egraph, *child_eclass)
-                        {
+                        } else if self.zero_pattern.search_eclass(egraph, *child_eclass).is_some() {
                             // ?a and ?b  map to zero
                             let subs: Vec<(Var, Id)> = vec![
                                 (

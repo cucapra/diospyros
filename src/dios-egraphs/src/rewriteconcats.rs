@@ -5,7 +5,7 @@ use crate::config::*;
 
 // Rewrite a list of expressions to a nested concatenation of fixed-width
 // vectors, based on the configuration's vector width
-pub fn list_to_concats(input: &String) -> io::Result<String> {
+pub fn list_to_concats(input: &str) -> io::Result<String> {
     let width = vector_width();
     let v = lexpr::from_str(&input)?;
     if let lexpr::Value::Cons(c) = v {

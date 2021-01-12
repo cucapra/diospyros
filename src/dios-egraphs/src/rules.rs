@@ -12,7 +12,7 @@ use crate::{
 };
 
 // Check if all the variables, in this case memories, are equivalent
-fn is_all_same_memory_or_zero(vars: &Vec<String>) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+fn is_all_same_memory_or_zero(vars: &[String]) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let vars: Vec<Var> = vars.iter().map(|v| v.parse().unwrap()).collect();
     let zero = VecLang::Num(0);
     move |egraph, _, subst| {
@@ -43,7 +43,7 @@ fn filter_applicable_rules(rules: &mut Vec<Rewrite<VecLang, ()>>, prog: &RecExpr
         };
         !drop
     });
-    if dropped != "" {
+    if !dropped.is_empty() {
         eprintln!("Dropping inapplicable rules:{}", dropped);
     }
 }
@@ -113,8 +113,8 @@ pub fn build_unop_rule(op_str: &str, vec_str: &str) -> Rewrite<VecLang, ()> {
 pub fn build_litvec_rule() -> Rewrite<VecLang, ()> {
     let mem_vars = ids_with_prefix(&"a".to_string(), vector_width());
     let mut gets: Vec<String> = Vec::with_capacity(vector_width());
-    for i in 0..vector_width() {
-        gets.push(format!("(Get {} ?{}{})", mem_vars[i], "i", i))
+    for (i, mem_var) in mem_vars.iter().enumerate().take(vector_width()){
+        gets.push(format!("(Get {} ?{}{})", mem_var, "i", i))
     }
     let all_gets = gets.join(" ");
 

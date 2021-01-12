@@ -18,7 +18,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
         const STRUCTURE: f64 = 0.1;
         const VEC_OP: f64 = 1.;
         const OP: f64 = 1.;
-        const BIG: f64 = 100.0;
+        const BIG: f64 = 10.;
         let op_cost = match enode {
             // You get literals for extremely cheap
             VecLang::Num(..) => LITERAL,
@@ -26,21 +26,14 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::Get(..) => LITERAL,
 
             // And list structures for quite cheap
-            VecLang::List(..) => STRUCTURE,
+            VecLang::List(..) => BIG,
             VecLang::Concat(..) => STRUCTURE,
 
-            // Vectors are cheap if they have literal values
-            VecLang::Vec(vals) => {
-                // For now, workaround to determine if children are num, symbol,
-                // or get
-                let non_literals = vals.iter().any(|&x| costs(x) > 3. * LITERAL);
-                if non_literals {
-                    BIG
-                } else {
-                    STRUCTURE
-                }
-            }
-            VecLang::LitVec(..) => LITERAL,
+            // Vectors are just structures if they can't compile to shuffles
+            VecLang::Vec(..) => STRUCTURE,
+
+            // LitVecs are general, arbitrary-index shuffles
+            VecLang::LitVec(..) => LITERAL * 2.,
 
             // But scalar and vector ops cost something
             VecLang::Add(vals) => OP * (vals.iter().count() as f64 - 1.),

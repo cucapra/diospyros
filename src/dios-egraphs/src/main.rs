@@ -151,21 +151,14 @@ mod tests {
               (* (Get A 2) (Get A 2)))))
         (Get A 2))";
         let _best_with_ac = "
-      (VecMul
-        (VecNeg
-          (Vec
-            (sgn (Get A 0))
-            (sgn (Get A 0))
-            (sgn (Get A 0))
-            (neg (Get A 2))))
-        (VecSqrt
-          (VecMAC
-            (VecMul
-              (LitVec (Get A 0) (Get A 0) (Get A 0) 0)
-              (Vec (Get A 0) (Get A 0) (Get A 0) 1))
-            (Vec (Get A 2) (Get A 2) (Get A 2) 1)
-            (Vec (Get A 2) (Get A 2) (Get A 2) 1))))";
-        let exp_best_cost = 121.048;
+      ((VecMul
+        (VecNeg (Vec (sgn (Get A 0)) (sgn (Get A 0)) (sgn (Get A 0)) (neg 1)))
+        (Vec
+          (sqrt (+ (* (Get A 0) (Get A 0)) (* (Get A 2) (Get A 2))))
+          (sqrt (+ (* (Get A 0) (Get A 0)) (* (Get A 2) (Get A 2))))
+          (sqrt (+ (* (Get A 0) (Get A 0)) (* (Get A 2) (Get A 2))))
+          (Get A 2)))";
+        let exp_best_cost = 18.249;
 
         // No rewrites found with AC off
         run_egpraph_with_start(start, start, exp_best_cost);

@@ -5,7 +5,7 @@ use std::io::{self};
 /// Transforms a named location in an array to a Get expressions.
 /// For example, the name A$13 is transformed into (Get A 13).
 fn to_value(s: &str, erase: bool) -> lexpr::Value {
-    let mut split = s.split("$").collect::<Vec<_>>();
+    let mut split = s.split('$').collect::<Vec<_>>();
     assert!(split.len() == 2, "Failed to split symbol: {}", s);
     let (pre, idx) = (split.remove(0), split.remove(0));
     if !erase {
@@ -25,7 +25,7 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
     match expr {
         lexpr::Value::Number(_) => expr,
         lexpr::Value::Symbol(s) => {
-            if s.contains("$") {
+            if s.contains('$') {
                 to_value(&*s, erase)
             } else {
                 lexpr::Value::Symbol(s)
@@ -36,9 +36,9 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                 if &*head == "box" {
                     let (mut t, _) = tail.into_vec();
                     assert!(t.len() == 1, "Boxed value had more than one element");
-                    return to_egg(t.remove(0), erase, rewrites);
+                    to_egg(t.remove(0), erase, rewrites)
                 } else if &*head == "app" {
-                    return to_egg(tail.into(), erase, rewrites);
+                    to_egg(tail.into(), erase, rewrites)
                 } else {
                     // The operator name might need to change
                     let mut op =
@@ -79,7 +79,7 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
     }
 }
 
-pub fn convert_string(input: &String) -> io::Result<String> {
+pub fn convert_string(input: &str) -> io::Result<String> {
     // Parse the given S-expr
     // Remove residual Racket syntax markers
     let input = input.replace("#&", "");
