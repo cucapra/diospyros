@@ -20,7 +20,6 @@ def test_generator(manifest_data, test_file, benchmark_file):
     gtest = open(test_file, "w")
     benchmark = open(benchmark_file, "w")
     headers = """
-#include <Eigen>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 

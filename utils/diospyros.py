@@ -17,7 +17,7 @@ from source import *
 try:
     from build import *
 except:
-    pass
+    print("Warning: build.py not found on PYTHONPATH")
 
 # TODO: make sure @generated tag is added to files
 
