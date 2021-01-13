@@ -1,6 +1,6 @@
 [submodule "third-party/gtest/gtest"]
 	path = third-party/gtest/gtest
-	url = https://github.com/google/googletest
+	url = https://github.com/google/googletest.git
 [submodule "third-party/eigen/eigen"]
 	path = third-party/eigen/eigen
-	url = https://gitlab.com/libeigen/eigen
+	url = https://gitlab.com/libeigen/eigen.git
