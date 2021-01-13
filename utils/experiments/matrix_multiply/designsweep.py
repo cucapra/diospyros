@@ -18,12 +18,12 @@ DEVICE_TARGET = "FUSION_G3"
 if __name__ == "__main__":
     if XTENSA_CORE not in os.environ:
         # define this to pass to Makefile builds
-        os.environ["XTENSA_CORE"] = DEVICE_TARGET
+        os.environ[XTENSA_CORE] = DEVICE_TARGET
 
     # set the range of matrix multiplication parameters here
-    input_rows = range(1, 9)
-    input_cols = range(1, 9)
-    output_cols = range(1, 9)
+    input_rows = range(1, 2)
+    input_cols = range(1, 2)
+    output_cols = range(1, 2)
 
     results = dict()
     ts = datetime.datetime.now()
@@ -60,13 +60,9 @@ if __name__ == "__main__":
                         exit(-1)
 
                     # execute test
-                    test_cmd = "make test"
-                    os.system(test_cmd)
+                    test_cmd = "make test_bin"
 
-                    # run the test in simulation
-                    xt_cmd = "make sim"
-
-                    p = Popen(xt_cmd.split(), stdin=PIPE,
+                    p = Popen(test_cmd.split(), stdin=PIPE,
                               stdout=PIPE, stderr=PIPE)
                     output, err = p.communicate(
                         b"input data that is passed to subprocess' stdin")
@@ -75,11 +71,11 @@ if __name__ == "__main__":
                     test_failure = True if "FAILED" in str(output) else False
 
                     # execute benchmark
-                    benchmark_cmd = "make benchmark"
+                    benchmark_cmd = "make benchmark_bin"
                     os.system(benchmark_cmd)
 
-                    xt_cmd = ("xt-run --xtensa-core=FCV_FG3 {}".format
-                              ("benchmark"))
+                    xt_cmd = ("xt-run --xtensa-core={} {}".format
+                              (os.environ[XTENSA_CORE], "benchmark_bin"))
                     os.system(xt_cmd)
 
                 # scrape the resulting json file and load the results
