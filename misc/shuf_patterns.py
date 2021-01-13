@@ -34,22 +34,30 @@ def coarsen_indices(byte_indices, size):
     Given `size`, which is a number of bytes, convert an `N`-length
     shuffle pattern list to an `N/size`-length one that describes the
     pattern at the level of those "words."
+
+    If the pattern is not aligned to `size`, return None instead.
     """
+    out = []
     for i in range(0, len(byte_indices), size):
         byte_chunk = byte_indices[i:i + size]
-        assert byte_chunk[0] % size == 0
+        if byte_chunk[0] % size:
+            # Unaligned start point.
+            return None
         start = byte_chunk[0] // size
-        assert tuple(byte_chunk) == \
-            tuple(range(start * size, start * size + size))
-        yield start
+        if tuple(byte_chunk) != \
+           tuple(range(start * size, start * size + size)):
+            # Chunk is not a whole word.
+            return None
+        out.append(start)
+    return out
 
 
 def extract(infile):
     """Extract all the patterns from the documentation and print.
     """
     for idx, name, byte_indices in get_immediates(infile):
-        if '{}B'.format(BIT_WIDTH) in name:
-            word_indices = list(coarsen_indices(byte_indices, BIT_WIDTH // 8))
+        word_indices = coarsen_indices(byte_indices, BIT_WIDTH // 8)
+        if word_indices:
             print(name, word_indices)
 
 
