@@ -149,7 +149,11 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for MacSearcher {
                                 new_var_substs.push(subs);
                             }
                         // This lane is just 0
-                        } else if self.zero_pattern.search_eclass(egraph, *child_eclass).is_some() {
+                        } else if self
+                            .zero_pattern
+                            .search_eclass(egraph, *child_eclass)
+                            .is_some()
+                        {
                             // ?a, ?b, and ?c all map to zero
                             let subs: Vec<(Var, Id)> = vec![
                                 (

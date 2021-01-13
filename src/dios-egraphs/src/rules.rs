@@ -3,7 +3,7 @@ use egg::{rewrite as rw, *};
 use itertools::Itertools;
 
 use crate::{
-    binopsearcher::build_binop_or_zero_rule,
+    binopsearcher::build_binop_rule,
     config::*,
     cost::VecCostFn,
     macsearcher::build_mac_rule,
@@ -59,6 +59,7 @@ pub fn run(
     filter_applicable_rules(&mut rules, prog);
     let mut init_eg: EGraph = EGraph::new(());
     init_eg.add(VecLang::Num(0));
+    init_eg.add(VecLang::Num(1));
     let runner = Runner::default()
         .with_egraph(init_eg)
         .with_expr(&prog)
@@ -81,24 +82,6 @@ pub fn run(
     extractor.find_best(root)
 }
 
-pub fn build_binop_rule(op_str: &str, vec_str: &str) -> Rewrite<VecLang, ()> {
-    let searcher: Pattern<VecLang> =
-        vec_fold_op(&op_str.to_string(), &"a".to_string(), &"b".to_string())
-            .parse()
-            .unwrap();
-
-    let applier: Pattern<VecLang> = format!(
-        "({} {} {})",
-        vec_str,
-        vec_with_var(&"a".to_string()),
-        vec_with_var(&"b".to_string())
-    )
-    .parse()
-    .unwrap();
-
-    rw!(format!("{}_binop", op_str); { searcher } => { applier })
-}
-
 pub fn build_unop_rule(op_str: &str, vec_str: &str) -> Rewrite<VecLang, ()> {
     let searcher: Pattern<VecLang> = vec_map_op(&op_str.to_string(), &"a".to_string())
         .parse()
@@ -113,7 +96,7 @@ pub fn build_unop_rule(op_str: &str, vec_str: &str) -> Rewrite<VecLang, ()> {
 pub fn build_litvec_rule() -> Rewrite<VecLang, ()> {
     let mem_vars = ids_with_prefix(&"a".to_string(), vector_width());
     let mut gets: Vec<String> = Vec::with_capacity(vector_width());
-    for (i, mem_var) in mem_vars.iter().enumerate().take(vector_width()){
+    for (i, mem_var) in mem_vars.iter().enumerate().take(vector_width()) {
         gets.push(format!("(Get {} ?{}{})", mem_var, "i", i))
     }
     let all_gets = gets.join(" ");
@@ -166,10 +149,10 @@ pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
             build_unop_rule("neg", "VecNeg"),
             build_unop_rule("sqrt", "VecSqrt"),
             build_unop_rule("sgn", "VecSgn"),
-            build_binop_rule("/", "VecDiv"),
-            build_binop_or_zero_rule("+", "VecAdd"),
-            build_binop_or_zero_rule("*", "VecMul"),
-            build_binop_or_zero_rule("-", "VecMinus"),
+            build_binop_rule("/", "VecDiv", None, Some(1)),
+            build_binop_rule("+", "VecAdd", Some(0), Some(0)),
+            build_binop_rule("*", "VecMul", Some(1), Some(1)),
+            build_binop_rule("-", "VecMinus", None, Some(0)),
             build_mac_rule(),
         ]);
     } else {

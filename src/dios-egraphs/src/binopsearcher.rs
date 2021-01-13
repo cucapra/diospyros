@@ -8,13 +8,24 @@ use crate::{searchutils::*, veclang::VecLang};
 pub struct BinOpSearcher {
     pub left_var: String,
     pub right_var: String,
+    pub iden_var: Var,
     pub full_pattern: Pattern<VecLang>,
     pub vec_pattern: Pattern<VecLang>,
     pub op_pattern: Pattern<VecLang>,
-    pub zero_pattern: Pattern<VecLang>,
+    pub var_pattern: Pattern<VecLang>,
+    pub left_iden: Option<i8>,
+    pub right_iden: Option<i8>,
 }
 
-pub fn build_binop_or_zero_rule(op_str: &str, vec_str: &str) -> Rewrite<VecLang, ()> {
+pub fn build_binop_rule(
+    op_str: &str,
+    vec_str: &str,
+    left_iden: Option<i8>,
+    right_iden: Option<i8>,
+) -> Rewrite<VecLang, ()> {
+
+    assert!(left_iden.is_some() || right_iden.is_some());
+
     let left_var = "a".to_string();
     let right_var = "b".to_string();
     let full_pattern = vec_fold_op(&op_str.to_string(), &left_var, &right_var)
@@ -29,7 +40,8 @@ pub fn build_binop_or_zero_rule(op_str: &str, vec_str: &str) -> Rewrite<VecLang,
         .parse::<Pattern<VecLang>>()
         .unwrap();
 
-    let zero_pattern = "0".parse::<Pattern<VecLang>>().unwrap();
+    let iden_var : Var = Var::from_str("?y").unwrap();
+    let var_pattern = format!("{}", iden_var).parse::<Pattern<VecLang>>().unwrap();
 
     let applier: Pattern<VecLang> = format!(
         "({} {} {})",
@@ -43,10 +55,13 @@ pub fn build_binop_or_zero_rule(op_str: &str, vec_str: &str) -> Rewrite<VecLang,
     let searcher = BinOpSearcher {
         left_var,
         right_var,
+        iden_var,
         full_pattern,
         vec_pattern,
         op_pattern,
-        zero_pattern,
+        var_pattern,
+        left_iden,
+        right_iden,
     };
 
     rw!(format!("{}_binop_or_zero", op_str); { searcher } => { applier })
@@ -66,11 +81,19 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BinOpSearcher {
                 // Now we know the eclass is a Vec. The question is: does it
                 // match a pattern compatible with this binary operation?
                 let mut new_substs: Vec<Subst> = Vec::new();
-                let zero_id = egraph.lookup(VecLang::Num(0)).unwrap();
+
+                let num_id = move |num| {
+                    match num {
+                        0 => egraph.lookup(VecLang::Num(0)).unwrap(),
+                        1 => egraph.lookup(VecLang::Num(1)).unwrap(),
+                        _ =>  panic!("Unexpected number for identity variable"),
+                    }
+                };
 
                 // For each set of substitutions
                 for substs in matches.substs.iter() {
                     let mut all_matches_found = true;
+                    let mut iden_matches = 0;
                     let mut new_substs_options: Vec<Vec<Vec<(Var, Id)>>> = Vec::new();
 
                     // For each variable in (?x0, ?x1, ?x2, ?x3)
@@ -93,20 +116,41 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BinOpSearcher {
                                 }
                                 new_var_substs.push(subs);
                             }
-                        // This lane is just 0
-                        } else if self.zero_pattern.search_eclass(egraph, *child_eclass).is_some() {
-                            // ?a and ?b  map to zero
-                            let subs: Vec<(Var, Id)> = vec![
-                                (
-                                    Var::from_str(&format!("?{}{}", self.left_var, i)).unwrap(),
-                                    zero_id,
-                                ),
-                                (
-                                    Var::from_str(&format!("?{}{}", self.right_var, i)).unwrap(),
-                                    zero_id,
-                                ),
-                            ];
-                            new_var_substs.push(subs);
+                        // This lane is just some variable we can apply an identity on
+                        } else if let Some(iden_match) = self
+                            .var_pattern
+                            .search_eclass(egraph, *child_eclass)
+                        {
+                            assert!(iden_match.substs.len() == 1);
+                            iden_matches += 1;
+                            if let Some(left) = self.left_iden {
+                                // ?a maps to iden, ?b maps to the variable
+                                let subs: Vec<(Var, Id)> = vec![
+                                    (
+                                        Var::from_str(&format!("?{}{}", self.left_var, i)).unwrap(),
+                                        num_id(left),
+                                    ),
+                                    (
+                                        Var::from_str(&format!("?{}{}", self.right_var, i)).unwrap(),
+                                        *iden_match.substs.first().unwrap().get(self.iden_var).unwrap(),
+                                    ),
+                                ];
+                                new_var_substs.push(subs);
+                            }
+                            if let Some(right) = self.right_iden {
+                                // ?b maps to iden, ?a maps to the variable
+                                let subs: Vec<(Var, Id)> = vec![
+                                    (
+                                        Var::from_str(&format!("?{}{}", self.right_var, i)).unwrap(),
+                                        num_id(right),
+                                    ),
+                                    (
+                                        Var::from_str(&format!("?{}{}", self.left_var, i)).unwrap(),
+                                        *iden_match.substs.first().unwrap().get(self.iden_var).unwrap(),
+                                    ),
+                                ];
+                                new_var_substs.push(subs);
+                            }
 
                         // This lane isn't compatible, so whole Vec not a match
                         } else {
@@ -115,7 +159,8 @@ impl<A: Analysis<VecLang>> Searcher<VecLang, A> for BinOpSearcher {
                         }
                         new_substs_options.push(new_var_substs);
                     }
-                    if all_matches_found {
+                    // Skip a match if every lane just matched on an identity
+                    if all_matches_found && iden_matches < self.vec_pattern.vars().len() {
                         // Now there is at least one match, but we need to make
                         // potentially > 1 subst as children are combinatorial
                         let mut all_substs = all_matches_to_substs(&new_substs_options);
