@@ -6,6 +6,7 @@ given bit width (currently 32).
 """
 import sys
 import re
+import json
 
 IMMEDIATE_PATTERN = r'<tr><td>\s*(\d+)\s*</td><td>\s*(PDX_[^<]+)\s*</td>' \
     r'<td>\s*([\d,\s]+)\s*</td></tr>'
@@ -68,4 +69,4 @@ def extract_patterns(infile):
 
 if __name__ == '__main__':
     pats = extract_patterns(sys.stdin)
-    print(pats)
+    print(json.dumps(pats, indent=2, sort_keys=True))
