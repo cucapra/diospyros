@@ -69,4 +69,8 @@ def extract_patterns(infile):
 
 if __name__ == '__main__':
     pats = extract_patterns(sys.stdin)
-    print(json.dumps(pats, indent=2, sort_keys=True))
+    print(re.sub(
+        r'(\[|\d,|\d)\n\s*',
+        r'\1',
+        json.dumps(pats, indent=2, sort_keys=True),
+    ))
