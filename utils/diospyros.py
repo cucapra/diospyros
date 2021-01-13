@@ -13,11 +13,12 @@ from test import *
 from utils import *
 from source import *
 
-# only import if a build.py is defined for how to generate build files
+# check if a custom build system generator is defined
 try:
-    from build import *
+    from custom_build import *
+# if not import the default Makefile build generator
 except:
-    print("Warning: build.py not found on PYTHONPATH")
+    from build import *
 
 # TODO: make sure @generated tag is added to files
 

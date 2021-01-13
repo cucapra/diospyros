@@ -21,9 +21,9 @@ if __name__ == "__main__":
         os.environ[XTENSA_CORE] = DEVICE_TARGET
 
     # set the range of matrix multiplication parameters here
-    input_rows = range(1, 2)
-    input_cols = range(1, 2)
-    output_cols = range(1, 2)
+    input_rows = range(1, 9)
+    input_cols = range(1, 9)
+    output_cols = range(1, 9)
 
     results = dict()
     ts = datetime.datetime.now()
