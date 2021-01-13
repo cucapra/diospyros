@@ -52,14 +52,20 @@ def coarsen_indices(byte_indices, size):
     return out
 
 
-def extract(infile):
-    """Extract all the patterns from the documentation and print.
+def extract_patterns(infile):
+    """Extract all the patterns from the documentation file.
+
+    Collect a dictionary mapping keys to *unique* integer-tuple
+    patterns, arbitrarily choosing a single name for each pattern.
     """
+    all_patterns = {}
     for idx, name, byte_indices in get_immediates(infile):
         word_indices = coarsen_indices(byte_indices, BIT_WIDTH // 8)
         if word_indices:
-            print(name, word_indices)
+            all_patterns[tuple(word_indices)] = name
+    return {v: k for k, v in all_patterns.items()}
 
 
 if __name__ == '__main__':
-    extract(sys.stdin)
+    pats = extract_patterns(sys.stdin)
+    print(pats)
