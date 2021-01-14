@@ -25,10 +25,9 @@ for i in range(1, 9):
                 eigen = float(data["baseline"])
                 speedup = unoptimized / optimized
                 espeedup = eigen / optimized
-#                print("{}\t {}\t {}\t {}\t {} \t {} \t {} \t {} \t {}".format(i, j, k, data["Test Failure"], speedup, espeedup, eigen, unoptimized, optimized))
-                print("{}\t {}\t {}\t {}\t {} \t {}".format(i, j, k, data["Test Failure"], speedup, espeedup))
+                print("{}\t {}\t {}\t {}\t {} \t {} \t {} \t {} \t {}".format(i, j, k, data["Test Failure"], speedup, espeedup, eigen, unoptimized, optimized))
             except:
-                pass
+                print("{}\t {}\t {}\t EXCEPTION".format(i, j, k))
 
 # Only uncomment this if the entire 8x8x8 run is completed and you want to see the heatmap
 """
