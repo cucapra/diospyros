@@ -8,11 +8,11 @@ HEADERS := $(wildcard include/*.h)
 INCLUDES := -I include
 
 XCC := xt-xcc
-XCXX := xt-xc++ --xtensa-core=$(TARGET)
+XCXX := xt-clang++ --xtensa-core=$(TARGET)
 XRUN := xt-run --xtensa-core=$(TARGET)
 XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals -fvectorize
 # for verbose: -LNO:SIMD_V
-XCXX_FLAGS += -O3 -std=c++11
+XCXX_FLAGS += -O3 -std=c++11 -mtext-section-literals -mcoproc -LNO:SIMD -w -O3 -mcoproc -g -mlongcalls -DNDEBUG -ffunction-sections -fdata-sections -DEIGEN_STRONG_INLINE=inline -fvectorize -std=c++17
 XSIM_FLAGS := --summary --mem_model
 
 INCLUDES += -I $(DIOSPYROS_ROOT)/third-party/eigen/eigen/
