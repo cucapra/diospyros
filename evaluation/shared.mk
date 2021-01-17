@@ -8,7 +8,6 @@ XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals
 # for verbose: -LNO:SIMD_V
 XCXX_FLAGS += -std=c++11 -O3 -LNO:SIMD -w
 XCXX_FLAGS += -I /usr/local/include/eigen-3
-XRUN_FLAGS := --nosummary --mem_model
 XSIM_FLAGS := --summary --mem_model
 
 NATURE_DIR := /data/Xplorer-8.0.11-workspaces/workspace/fusiong3_library
@@ -31,7 +30,7 @@ $(OBJECT): $(ALL_OBJS) $(KERNEL_SRC) $(SRC)
 	$(XCXX) $(PARAMS) $(XCXX_FLAGS) $(NATURE_INC) $(ALL_OBJS) $(KERNEL_SRC) $(SRC) -o $(OBJECT)
 
 run: $(OBJECT)
-	$(XRUN) $(XRUN_FLAGS) $(OBJECT)
+	$(XRUN) $(OBJECT)
 
 sim: $(OBJECT)
 	$(XRUN) $(XSIM_FLAGS) $(OBJECT)

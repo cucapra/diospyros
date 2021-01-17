@@ -103,7 +103,6 @@ def driver():
     # generate the manifest associated with this build for reproducibility
     manifest_file = os.path.join(
         manifest_data[MANIFEST_PATH], "diospyros.json")
-    print("Writing manifest file to ", manifest_file)
     manifest_handle = open(manifest_file, "w")
     manifest_handle.write(json.dumps(manifest_data))
     manifest_handle.close()

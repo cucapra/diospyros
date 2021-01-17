@@ -14,7 +14,6 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        const ZERO: f64 = 0.0001;
         const LITERAL: f64 = 0.001;
         const STRUCTURE: f64 = 0.1;
         const VEC_OP: f64 = 1.;
@@ -22,7 +21,6 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
         const BIG: f64 = 10.;
         let op_cost = match enode {
             // You get literals for extremely cheap
-            VecLang::Num(0) => ZERO,
             VecLang::Num(..) => LITERAL,
             VecLang::Symbol(..) => LITERAL,
             VecLang::Get(..) => LITERAL,

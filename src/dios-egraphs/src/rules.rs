@@ -118,7 +118,6 @@ pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
         rw!("add-0-inv"; "?a" => "(+ 0 ?a)"),
         rw!("mul-1-inv"; "?a" => "(* 1 ?a)"),
         rw!("div-1-inv"; "?a" => "(/ ?a 1)"),
-        rw!("mul-0-inv"; "0" => "(* 0 0)"),
         rw!("expand-zero-get"; "0" => "(Get 0 0)"),
         // Literal vectors, that use the same memory or no memory in every lane,
         // are cheaper

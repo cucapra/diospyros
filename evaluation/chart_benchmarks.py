@@ -21,7 +21,7 @@ from py_utils import *
 print("Setting matplot configurations")
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
-# matplotlib.rcParams['text.usetex'] = True
+matplotlib.rcParams['text.usetex'] = True
 
 def get_color_palette():
     # Use a diverging color palette for the two versions of the naive baseline
