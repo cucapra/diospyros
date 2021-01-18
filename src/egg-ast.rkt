@@ -35,6 +35,7 @@
 ; keeping keep elements
 (define (truncate e keep)
   (define (tr e) (truncate e keep))
+  (define add (- (current-reg-size) keep))
   (match e
     [`(VecMAC ,acc ,v1 ,v2)
       `(VecMAC ,(tr acc) ,(tr v1) ,(tr v2))]
@@ -54,10 +55,10 @@
       `(VecSgn ,(tr v))]
     ; Use -1 to indicate "don't care"
     [`(Vec , vs ...)
-      (define trunc_vs (append (take vs keep) (make-list keep `nop)))
+      (define trunc_vs (append (take vs keep) (make-list add `nop)))
       (cons `Vec trunc_vs)]
     [`(LitVec , vs ...)
-      (define trunc_vs (append (take vs keep) (make-list keep `nop)))
+      (define trunc_vs (append (take vs keep) (make-list add `nop)))
       (cons `LitVec trunc_vs)]
     ))
 
@@ -88,7 +89,6 @@
         size))
       (truncate-output e output-sizes )]
     [_ e]))
-  (pretty-print truncated)
   (s-exp-to-ast truncated))
 
 (define (s-exp-to-ast e)
