@@ -25,13 +25,16 @@
 
   (define-values (Q R) (househoulder A))
 
+  (define len-Q (length (matrix-elements Q)))
+  (define len-R (length (matrix-elements R)))
+
   (define spec-Q (align-to-reg-size (matrix-elements Q)))
   (define spec-R (align-to-reg-size (matrix-elements R)))
 
   (values (append spec-Q spec-R)
           (prog prelude)
-          (list (list 'Q (length spec-Q))
-                (list 'R (length spec-R)))))
+          (list (list 'Q len-Q)
+                (list 'R len-R))))
 
 (define qr-decomp:keys
   (list 'N 'reg-size))

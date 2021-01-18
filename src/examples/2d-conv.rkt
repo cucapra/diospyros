@@ -42,11 +42,12 @@
     (make-symbolic-matrix I-rows I-cols 'I)
     (make-symbolic-matrix F-rows F-cols 'F)))
 
+  (define len (length (matrix-elements (2d-conv-spec I F))))
   (define spec (align-to-reg-size (matrix-elements (2d-conv-spec I F))))
 
   (values (matrix-elements (2d-conv-spec I F))
           (prog (prelude I-rows I-cols F-rows F-cols))
-          (list (list 'O (length spec)))))
+          (list (list 'O len))))
 
 ; Given an NxN input matrix, returns a smaller convolved matrix.
 (define (2d-conv-spec input filter)

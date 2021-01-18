@@ -32,13 +32,16 @@
 
   (define-values (rq rt) (quaternion-product aq at bq bt))
 
+  (define len-r-q (length (matrix-elements rq)))
+  (define len-r-t (length (matrix-elements rt)))
+
   (define spec-r-q (align-to-reg-size (matrix-elements rq)))
   (define spec-r-t (align-to-reg-size (matrix-elements rt)))
 
   (values (append spec-r-q spec-r-t)
           (prog prelude)
-          (list (list 'rq (length spec-r-t))
-                (list 'rt (length spec-r-t)))))
+          (list (list 'rq len-r-q)
+                (list 'rt len-r-t))))
 
 (define q-prod:keys
   (list 'reg-size))
