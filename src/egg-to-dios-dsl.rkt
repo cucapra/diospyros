@@ -9,7 +9,7 @@
 (provide egg-to-dios-dsl)
 
 (define (egg-to-dios-dsl egg-res prelude outputs)
-  (define egg-ast (s-exp-to-ast egg-res))
+  (define egg-ast (s-exp-to-ast-with-outputs egg-res outputs))
   (define-values (out-names body) (egg-to-dios-prog egg-ast))
 
   (define out-name-list (box (flatten out-names)))
@@ -41,8 +41,7 @@
         0))
   (define idxs (map get-idx gets))
 
-  ; TODO: handle multiple memories if the vector is not a
-  ; LitVec
+  ; Use -1 to indicate "don't care"
   (define mems-used
     (append
       (if has-zero `(Z) `())
@@ -109,16 +108,18 @@
                  (list v-prog
                        op-out)))]
       [(egg-vec vs)
+        ; replace nop with first element
+        (define new-vs (map (lambda (x) (if (eq? x `nop) (first vs) x)) vs))
         (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
-        (if (andmap get-or-zero? vs)
-          (egg-get-list-to-shuffle vs
+        (if (andmap get-or-zero? new-vs)
+          (egg-get-list-to-shuffle new-vs
                                    (new-name `shufs)
                                    (new-name `shuf-out))
           (begin
             (define (egg-to-tuple v)
               (define-values (n p) (egg-to-dios v))
               (list n p))
-            (define vs-egg (map egg-to-tuple vs))
+            (define vs-egg (map egg-to-tuple new-vs))
             (define names (map first vs-egg))
             (define progs (map second vs-egg))
             (define name (new-name 'lit))

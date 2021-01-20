@@ -34,11 +34,12 @@
   (define A (make-symbolic-matrix A-rows A-cols 'A))
   (define B (make-symbolic-matrix B-rows B-cols 'B))
 
+  (define len (length (matrix-multiply-spec A B)))
   (define spec (align-to-reg-size (matrix-multiply-spec A B)))
 
   (values spec
           (prog (prelude A-rows A-cols B-rows B-cols))
-          (list (list 'C (length spec)))))
+          (list (list 'C len))))
 
 ;; Generate a spec for matrix multiply of a given size.
 (define (matrix-multiply-spec mat-A mat-B)

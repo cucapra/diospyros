@@ -82,8 +82,10 @@ def run_experiment(timeout, out):
             [
                 "cargo",
                 "run",
+                "--release",
                 "--manifest-path", "src/dios-egraphs/Cargo.toml",
-                spec_path
+                spec_path,
+                "--no-ac"
             ],
             env=dict(os.environ, TIMEOUT=str(timeout)),
             stderr=subprocess.PIPE,

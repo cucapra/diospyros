@@ -22,7 +22,7 @@ def plot(df):
     """
     # Nature has a 10000 timeout because we want it to be at the bottom.
     df['timeout'] = df['name'].map(
-        lambda x: 1000 if x == 'Nature' else int(x))
+        lambda x: 10000 if x == 'Nature' else int(x))
     # Cleanup the kernel names
     df['name'] = df['name'].map(
         lambda x: 'Nature' if x == 'Nature' else x)
