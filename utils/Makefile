@@ -1,5 +1,8 @@
 TARGET=${XTENSA_CORE} # get the target device from the environment
-DIOSPYROS_ROOT=~/diospyros
+
+ifeq ($(DIOSPYROS_ROOT),)
+DIOSPYROS_ROOT=~/diospyros # set the root only if not in the environment
+endif
 
 SRCS := $(wildcard src/*.cpp)
 BENCHMARK_SRCS = $(wildcard bin/*.cpp)
