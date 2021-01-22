@@ -47,7 +47,7 @@ if __name__ == "__main__":
                     os.chdir(build_dir)
                 # execute the full build test otherwise
                 else:
-                    cmd = """eigen.py --kernel multiply --input_rows {} --input_cols {} \
+                    cmd = """../../eigen.py --kernel multiply --input_rows {} --input_cols {} \
               --output_cols {} --build_dir {}""".format(ir, ic, oc, build_dir)
                     os.system(cmd)
 
