@@ -16,9 +16,9 @@
 (error-print-width 9999999999999999999999999999999)
 (pretty-print-depth #f)
 
-(define program (parse-program (string->path "compile-out/preprocessed.c")))
+(define debug #f)
 
-(assert (eq? (length program) 1))
+(define program (parse-program (string->path "compile-out/preprocessed.c")))
 
 (define (translate stmt)
   (cond
@@ -95,7 +95,14 @@
           (quasiquote
             (v-list-get
               (unquote (translate (expr:array-ref-expr stmt)))
-              (unquote (translate(expr:array-ref-offset stmt)))))]
+              (unquote (translate (expr:array-ref-offset stmt)))))]
+        [(expr:call? stmt)
+          (define fn-name (translate (expr:call-function stmt)))
+          (define args
+             (for/list ([arg (expr:call-arguments stmt)])
+              (translate arg)))
+          (cons fn-name args)]
+
         [else (error "can't handle expr" stmt)])]
     [(decl? stmt)
       (cond
@@ -200,11 +207,11 @@
         `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
           (unquote (translate (stmt:for-body stmt)))))]
     [(stmt:return? stmt)
-      (when (stmt:return-result stmt) (error "can't handle non-void return"))
-      `(raise 'return)]
+       ; TODO: handle early returns
+      (define value (translate (stmt:return-result stmt)))
+      value]
     [else (error "can't handle statement" stmt)]))
 
-; TODO: handle multiple functions
 (define (translate-fn-decl fn-decl)
   (match fn-decl
     [(decl:function decl-stmt
@@ -215,7 +222,7 @@
                     decl:function-preamble
                     decl:function-body)
 
-      ; TODO: check return type is void
+      (define fn-body (translate decl:function-body))
       (quasiquote
         (define
           (unquote
@@ -224,10 +231,8 @@
               (for/list ([arg (type:function-formals
                                 (decl:declarator-type decl:function-declarator))])
                 (translate (decl:declarator-id (decl:formal-declarator arg))))))
-          ; `(with-handlers ([(lambda (x) (eq? x 'return)) void])
-            (unquote (translate decl:function-body))))
-      ; )
-]))
+               ; TODO: handle early returns
+              (unquote fn-body)))]))
 
 (define (create-base-directory out-dir)
   (define base
@@ -251,9 +256,24 @@
         (lambda (out) (pretty-print spec out))
         #:exists 'replace))))
 
-(define racket-fn (translate-fn-decl (first program)))
+(define outer-function (last program))
+(define (program-to-c program)
+  (define helper-functions (drop-right program 1))
+  (if (empty? helper-functions)
+    (translate-fn-decl outer-function)
+    (begin
+      ; TODO: combine
+      (define helper-trans (map translate-fn-decl helper-functions))
+      (define outer-trans (translate-fn-decl outer-function))
 
-; (pretty-print racket-fn)
+      (append (list `begin)
+              helper-trans
+              (list outer-trans)))))
+
+(define racket-fn (program-to-c program))
+
+(when debug
+  (pretty-print racket-fn))
 
 (define-namespace-anchor anc)
 (define ns (namespace-anchor->namespace anc))
@@ -269,7 +289,7 @@
     [else (error "Can't handle array type ~a" array-ty)]))
 
 ; Assumes args are arrays of floats (potentially multi-dimensional)
-(define args (match (first program)
+(define args (match outer-function
   [(decl:function decl-stmt
                   decl:function-storage-class
                   decl:function-inline?
@@ -283,15 +303,20 @@
         (multi-array-length (decl:declarator-type (decl:formal-declarator arg)))
         (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
 
-(define fn-name (match (first program)
-  [(decl:function decl-stmt
-                  decl:function-storage-class
-                  decl:function-inline?
-                  decl:function-return-type
-                  decl:function-declarator
-                  decl:function-preamble
-                  decl:function-body)
-    (translate (decl:declarator-id decl:function-declarator))]))
+(when debug
+  (pretty-print args))
+
+(define fn-name
+  (match outer-function
+    [(decl:function decl-stmt
+                    decl:function-storage-class
+                    decl:function-inline?
+                    decl:function-return-type
+                    decl:function-declarator
+                    decl:function-preamble
+                    decl:function-body)
+      (translate (decl:declarator-id decl:function-declarator))]
+    [else (error "can't handle decl" stmt)]))
 
 (define out-writer (make-spec-out-dir-writer "compile-out"))
 
@@ -303,22 +328,30 @@
   (cond
     ; Input
     [(string-suffix? arg-name-str "_in")
-      (eval `(define (unquote arg-name)
+      (define defn-input
+        `(define (unquote arg-name)
                      (make-symbolic-v-list (unquote (first arg))
-                                           (unquote arg-name-str)))
-            ns)
+                                           (unquote arg-name-str))))
+      (when debug (pretty-print defn-input))
+      (eval defn-input ns)
       ]
     ; Output
     [(string-suffix? arg-name-str "_out")
-      (eval `(define (unquote arg-name)
-                   (make-v-list-zeros (unquote (first arg))))
-            ns)
+      (define defn-output
+        `(define (unquote arg-name)
+                   (make-v-list-zeros (unquote (first arg)))))
+      (when debug (pretty-print defn-output))
+      (eval defn-output ns)
       ]
     [else (error "Arguments should be tagged _in or _out, got " arg-name-str)])
   arg-name))
 
+(define racket-prog-with-args `(unquote (append (list fn-name) arg-names)))
+
+(when debug (pretty-print racket-prog-with-args))
+
 ; Run it!
-(eval `(unquote (append (list fn-name) arg-names)) ns)
+(eval racket-prog-with-args ns)
 
 (define output-names
   (filter (lambda (a) (string-suffix? (symbol->string a) "_out")) arg-names))
