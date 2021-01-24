@@ -78,7 +78,7 @@
         (quasiquote (Concat (unquote trunc-v1) (unquote trunc-v2))))]
     [_
       (define keep (first sizes))
-      (if (eq? keep (current-reg-size)) e (truncate e (first sizes)))]))
+      (if (eq? keep (current-reg-size)) e (truncate e keep))]))
 
 (define (s-exp-to-ast-with-outputs e outputs)
   (define output-map make-hash)

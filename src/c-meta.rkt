@@ -358,7 +358,8 @@
 (when (empty? output-names)
   (error "Need to specify an output with suffix _out"))
 
-(define get-spec `(flatten (unquote (cons list output-names))))
+(define get-spec
+  `(flatten (map align-to-reg-size (unquote (cons list output-names)))))
 
 (define args-decls (for/list ([arg args])
   (define arg-name (second arg))
@@ -373,9 +374,10 @@
   `(prog (cons (vec-const 'Z (make-v-list-zeros 1) float-type)
          (unquote (cons list args-decls)))))
 
-(define outputs (for/list ([arg (filter (lambda (a) (string-suffix?  (symbol->string (second a)) "_out")) args)])
-  (define arg-name (second arg))
-  `(list '(unquote arg-name) (unquote (first arg)))))
+(define outputs
+  (for/list ([arg (filter (lambda (a) (string-suffix?  (symbol->string (second a)) "_out")) args)])
+    (define arg-name (second arg))
+    `(list '(unquote arg-name) (unquote (first arg)))))
 (define get-outputs `(unquote (cons list outputs)))
 
 ; Write out
