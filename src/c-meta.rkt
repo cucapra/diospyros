@@ -18,6 +18,16 @@
 
 (define debug #f)
 
+; Returns tuple (<base type>, <total size across dimensions>)
+(define (multi-array-length array-ty)
+  (define length (translate (type:array-length array-ty)))
+  (define base (type:array-base array-ty))
+  (cond
+    [(type:primitive? base) length]
+    [(eq? base #f) length]
+    [(type:array? base) (* length (multi-array-length base))]
+    [else (error "Can't handle array type ~a" array-ty)]))
+
 (define program (parse-program (string->path "compile-out/preprocessed.c")))
 
 (define (translate stmt)
@@ -112,11 +122,18 @@
               (let* ([init (decl:declarator-initializer decl)]
                      [type (decl:declarator-type decl)])
 
-                ; Assumes this is a variable declaration
+                ; Assumes this is float or float array
+                (define initializer
+                  (if init
+                    (translate (init:expr-expr init))
+                    (begin
+                      (define len
+                        (multi-array-length type))
+                      `(make-v-list-zeros (unquote len)))))
                 (quasiquote
                   (define
                     (unquote (translate (decl:declarator-id decl)))
-                    (unquote (translate (init:expr-expr init))))))))
+                    (unquote initializer))))))
           (cond
             [(empty? stmts) `void]
             [(equal? 1 (length stmts)) (first stmts)]
@@ -277,16 +294,6 @@
 
 (define-namespace-anchor anc)
 (define ns (namespace-anchor->namespace anc))
-
-; Returns tuple (<base type>, <total size across dimensions>)
-(define (multi-array-length array-ty)
-  (define length (translate (type:array-length array-ty)))
-  (define base (type:array-base array-ty))
-  (cond
-    [(type:primitive? base) length]
-    [(eq? base #f) length]
-    [(type:array? base) (* length (multi-array-length base))]
-    [else (error "Can't handle array type ~a" array-ty)]))
 
 ; Assumes args are arrays of floats (potentially multi-dimensional)
 (define args (match outer-function
