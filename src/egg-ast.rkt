@@ -78,17 +78,13 @@
         (quasiquote (Concat (unquote trunc-v1) (unquote trunc-v2))))]
     [_
       (define keep (first sizes))
-      (if (eq? keep (current-reg-size)) e (truncate e (first sizes)))]))
+      (if (eq? keep (current-reg-size)) e (truncate e keep))]))
 
 (define (s-exp-to-ast-with-outputs e outputs)
-  (define truncated (match e
-    [`(Concat ,_ ,_)
-      (define output-map make-hash)
-      (define output-sizes (for/list ([o outputs])
-        (match-define (list _ size) o)
-        size))
-      (truncate-output e output-sizes )]
-    [_ e]))
+  (define output-map make-hash)
+  (define output-sizes (for/list ([o outputs])
+  (match-define (list _ size) o) size))
+  (define truncated (truncate-output e output-sizes))
   (s-exp-to-ast truncated))
 
 (define (s-exp-to-ast e)
