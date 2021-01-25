@@ -13,11 +13,12 @@ from test import *
 from utils import *
 from source import *
 
-# only import if a build.py is defined for how to generate build files
+# check if a custom build system generator is defined
 try:
-    from build import *
+    from custom_build import *
+# if not import the default Makefile build generator
 except:
-    pass
+    from build import *
 
 # TODO: make sure @generated tag is added to files
 
@@ -130,8 +131,8 @@ def generate(manifest_data):
     try:
         build_generator(
             manifest_data, manifest_data[BUILD_DIR], target=kernel_name)
-    except:
-        pass  # ignore if the build generator routine is not defined
+    except Exception as e:
+        print("Warning: Attempt to run build generator failed: {}".format(e))
 
     return 0
 

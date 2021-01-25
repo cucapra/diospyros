@@ -15,3 +15,20 @@ An example command to run:
 ```
 python diospyros.py --manifest sample/diospyros.json
 ```
+
+Some environment flags to set:
+
+```
+DIOSPYROS_ROOT=<path to repo>
+XTENSA_CORE=<whatever local core is installed>
+```
+
+## Experiments
+
+To run a design sweep for matrix multiply (runtime: 4-6 hours):
+
+```
+cd utils/experiments/matrix_multiply
+python3 designsweep.py
+python3 pretty_print.py <report>.json
+```
