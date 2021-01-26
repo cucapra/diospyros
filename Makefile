@@ -22,9 +22,9 @@ endif
 
 PY := pypy3
 
-test: build
+test: test-racket test-rust
 
-test-racket: test build
+test-racket: build
 	raco test --drdr src/*.rkt src/backend/*.rkt
 
 test-rust:

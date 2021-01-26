@@ -28,8 +28,6 @@
     [(type:array? base) (* length (multi-array-length base))]
     [else (error "Can't handle array type ~a" array-ty)]))
 
-(define program (parse-program (string->path "compile-out/preprocessed.c")))
-
 (define (translate stmt)
   (cond
     [(expr? stmt)
@@ -273,48 +271,33 @@
         (lambda (out) (pretty-print spec out))
         #:exists 'replace))))
 
-(define outer-function (last program))
-(define (program-to-c program)
-  (define helper-functions (drop-right program 1))
-  (if (empty? helper-functions)
-    (translate-fn-decl outer-function)
-    (begin
-      ; TODO: combine
-      (define helper-trans (map translate-fn-decl helper-functions))
-      (define outer-trans (translate-fn-decl outer-function))
+(module+ main
 
-      (append (list `begin)
-              helper-trans
-              (list outer-trans)))))
+  (define program (parse-program (string->path "compile-out/preprocessed.c")))
 
-(define racket-fn (program-to-c program))
+  (define outer-function (last program))
+  (define (program-to-c program)
+    (define helper-functions (drop-right program 1))
+    (if (empty? helper-functions)
+      (translate-fn-decl outer-function)
+      (begin
+        (define helper-trans (map translate-fn-decl helper-functions))
+        (define outer-trans (translate-fn-decl outer-function))
 
-(when debug
-  (pretty-print racket-fn))
+        (append (list `begin)
+                helper-trans
+                (list outer-trans)))))
 
-(define-namespace-anchor anc)
-(define ns (namespace-anchor->namespace anc))
+  (define racket-fn (program-to-c program))
 
-; Assumes args are arrays of floats (potentially multi-dimensional)
-(define args (match outer-function
-  [(decl:function decl-stmt
-                  decl:function-storage-class
-                  decl:function-inline?
-                  decl:function-return-type
-                  decl:function-declarator
-                  decl:function-preamble
-                  decl:function-body)
-    (for/list ([arg (type:function-formals
-                      (decl:declarator-type decl:function-declarator))])
-      (list
-        (multi-array-length (decl:declarator-type (decl:formal-declarator arg)))
-        (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
+  (when debug
+    (pretty-print racket-fn))
 
-(when debug
-  (pretty-print args))
+  (define-namespace-anchor anc)
+  (define ns (namespace-anchor->namespace anc))
 
-(define fn-name
-  (match outer-function
+  ; Assumes args are arrays of floats (potentially multi-dimensional)
+  (define args (match outer-function
     [(decl:function decl-stmt
                     decl:function-storage-class
                     decl:function-inline?
@@ -322,73 +305,91 @@
                     decl:function-declarator
                     decl:function-preamble
                     decl:function-body)
-      (translate (decl:declarator-id decl:function-declarator))]
-    [else (error "can't handle decl" stmt)]))
+      (for/list ([arg (type:function-formals
+                        (decl:declarator-type decl:function-declarator))])
+        (list
+          (multi-array-length (decl:declarator-type (decl:formal-declarator arg)))
+          (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
 
-(define out-writer (make-spec-out-dir-writer "compile-out"))
+  (when debug
+    (pretty-print args))
 
-(eval racket-fn ns)
+  (define fn-name
+    (match outer-function
+      [(decl:function decl-stmt
+                      decl:function-storage-class
+                      decl:function-inline?
+                      decl:function-return-type
+                      decl:function-declarator
+                      decl:function-preamble
+                      decl:function-body)
+        (translate (decl:declarator-id decl:function-declarator))]
+      [else (error "can't handle decl" stmt)]))
 
-(define arg-names (for/list ([arg args])
-  (define arg-name (second arg))
-  (define arg-name-str (symbol->string (second arg)))
-  (cond
-    ; Input
-    [(string-suffix? arg-name-str "_in")
-      (define defn-input
-        `(define (unquote arg-name)
-                     (make-symbolic-v-list (unquote (first arg))
-                                           (unquote arg-name-str))))
-      (when debug (pretty-print defn-input))
-      (eval defn-input ns)
-      ]
-    ; Output
-    [(string-suffix? arg-name-str "_out")
-      (define defn-output
-        `(define (unquote arg-name)
-                   (make-v-list-zeros (unquote (first arg)))))
-      (when debug (pretty-print defn-output))
-      (eval defn-output ns)
-      ]
-    [else (error "Arguments should be tagged _in or _out, got " arg-name-str)])
-  arg-name))
+  (define out-writer (make-spec-out-dir-writer "compile-out"))
 
-(define racket-prog-with-args `(unquote (append (list fn-name) arg-names)))
+  (eval racket-fn ns)
 
-(when debug (pretty-print racket-prog-with-args))
-
-; Run it!
-(eval racket-prog-with-args ns)
-
-(define output-names
-  (filter (lambda (a) (string-suffix? (symbol->string a) "_out")) arg-names))
-(when (empty? output-names)
-  (error "Need to specify an output with suffix _out"))
-
-(define get-spec
-  `(flatten (map align-to-reg-size (unquote (cons list output-names)))))
-
-(define args-decls (for/list ([arg args])
-  (define arg-name (second arg))
-  (define arg-name-str (symbol->string (second arg)))
-  `(vec-extern-decl '(unquote arg-name)
-                    (unquote (first arg))
-                    (unquote (if (string-suffix? arg-name-str "_in")
-                        `input-tag
-                        `output-tag)))))
-
-(define get-prelude
-  `(prog (cons (vec-const 'Z (make-v-list-zeros 1) float-type)
-         (unquote (cons list args-decls)))))
-
-(define outputs
-  (for/list ([arg (filter (lambda (a) (string-suffix?  (symbol->string (second a)) "_out")) args)])
+  (define arg-names (for/list ([arg args])
     (define arg-name (second arg))
-    `(list '(unquote arg-name) (unquote (first arg)))))
-(define get-outputs `(unquote (cons list outputs)))
+    (define arg-name-str (symbol->string (second arg)))
+    (cond
+      ; Input
+      [(string-suffix? arg-name-str "_in")
+        (define defn-input
+          `(define (unquote arg-name)
+                       (make-symbolic-v-list (unquote (first arg))
+                                             (unquote arg-name-str))))
+        (when debug (pretty-print defn-input))
+        (eval defn-input ns)
+        ]
+      ; Output
+      [(string-suffix? arg-name-str "_out")
+        (define defn-output
+          `(define (unquote arg-name)
+                     (make-v-list-zeros (unquote (first arg)))))
+        (when debug (pretty-print defn-output))
+        (eval defn-output ns)
+        ]
+      [else (error "Arguments should be tagged _in or _out, got " arg-name-str)])
+    arg-name))
 
-; Write out
-(out-writer (eval get-spec ns) egg-spec)
-(out-writer (concretize-prog (eval get-prelude ns)) egg-prelude)
-(out-writer (eval get-outputs ns) egg-outputs)
-(out-writer racket-fn `racket-fn)
+  (define racket-prog-with-args `(unquote (append (list fn-name) arg-names)))
+
+  (when debug (pretty-print racket-prog-with-args))
+
+  ; Run it!
+  (eval racket-prog-with-args ns)
+
+  (define output-names
+    (filter (lambda (a) (string-suffix? (symbol->string a) "_out")) arg-names))
+  (when (empty? output-names)
+    (error "Need to specify an output with suffix _out"))
+
+  (define get-spec
+    `(flatten (map align-to-reg-size (unquote (cons list output-names)))))
+
+  (define args-decls (for/list ([arg args])
+    (define arg-name (second arg))
+    (define arg-name-str (symbol->string (second arg)))
+    `(vec-extern-decl '(unquote arg-name)
+                      (unquote (first arg))
+                      (unquote (if (string-suffix? arg-name-str "_in")
+                          `input-tag
+                          `output-tag)))))
+
+  (define get-prelude
+    `(prog (cons (vec-const 'Z (make-v-list-zeros 1) float-type)
+           (unquote (cons list args-decls)))))
+
+  (define outputs
+    (for/list ([arg (filter (lambda (a) (string-suffix?  (symbol->string (second a)) "_out")) args)])
+      (define arg-name (second arg))
+      `(list '(unquote arg-name) (unquote (first arg)))))
+  (define get-outputs `(unquote (cons list outputs)))
+
+  ; Write out
+  (out-writer (eval get-spec ns) egg-spec)
+  (out-writer (concretize-prog (eval get-prelude ns)) egg-prelude)
+  (out-writer (eval get-outputs ns) egg-outputs)
+  (out-writer racket-fn `racket-fn))
