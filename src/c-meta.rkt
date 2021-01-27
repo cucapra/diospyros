@@ -20,13 +20,16 @@
 
 ; Returns tuple (<base type>, <total size across dimensions>)
 (define (multi-array-length array-ty)
-  (define length (translate (type:array-length array-ty)))
-  (define base (type:array-base array-ty))
   (cond
-    [(type:primitive? base) length]
-    [(eq? base #f) length]
-    [(type:array? base) (* length (multi-array-length base))]
-    [else (error "Can't handle array type ~a" array-ty)]))
+    [(not (type:array? array-ty)) 1]
+    [else
+      (define length (translate (type:array-length array-ty)))
+      (define base (type:array-base array-ty))
+      (cond
+        [(type:primitive? base) length]
+        [(eq? base #f) length]
+        [(type:array? base) (* length (multi-array-length base))]
+        [else (error "Can't handle array type ~a" array-ty)])]))
 
 (define (translate stmt)
   (cond
@@ -149,6 +152,7 @@
             ['^ 'bitwise-xor]
             ['& 'bitwise-and]
             ['!= '(lambda (x y) (not (equal? x y)))]
+            ['== 'equal?]
             [else name])]
         [(id:label? stmt) (error "can't handle labels")])]
     [(stmt:expr? stmt)
