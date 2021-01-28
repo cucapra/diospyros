@@ -107,6 +107,12 @@
             (v-list-get
               (unquote (translate (expr:array-ref-expr stmt)))
               (unquote (translate (expr:array-ref-offset stmt)))))]
+        [(expr:if? stmt)
+          (quasiquote
+            (if
+              (unquote (translate (expr:if-test stmt)))
+              (unquote (translate (expr:if-cons stmt)))
+              (unquote (translate (expr:if-alt stmt)))))]
         [(expr:call? stmt)
           (define fn-name (translate (expr:call-function stmt)))
           (define args
