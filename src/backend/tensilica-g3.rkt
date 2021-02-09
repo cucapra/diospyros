@@ -393,9 +393,9 @@
                    inp-name))
          (define load-name (align-reg-name id))
 
-         (match tag
-          [input-array-tag (list)]
-          [input-scalar-tag
+         (cond
+          [(equal? tag input-scalar-tag) (list)]
+          [(equal? tag input-array-tag)
            ; If the extern is an input, we initialize the register for priming
            ; loads.
            (list
@@ -405,7 +405,7 @@
                        (c-call (c-id "PDX_LA_MXF32_PP")
                                (list
                                   (c-cast "xb_vecMxf32 *" inp-name)))))]
-          [output-tag
+          [(equal? tag output-tag)
            (list
              restrict-decl
              (c-decl "valign" #f load-name #f #f))])]
