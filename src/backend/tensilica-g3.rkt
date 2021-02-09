@@ -273,7 +273,6 @@
   (define-values (get-arg-tag set-arg-tag! all-args)
     (make-arg-tag-tracker))
   (define (arg-type arg)
-    (pretty-print (get-arg-tag arg))
     (define tag (get-arg-tag arg))
     (cond
       [(equal? tag input-array-tag) "float *"]
