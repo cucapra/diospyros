@@ -17,8 +17,8 @@
 
 (define (prelude A-rows A-cols B-rows B-cols)
   (list
-    (vec-extern-decl 'A (* A-rows A-cols) input-tag)
-    (vec-extern-decl 'B (* B-rows B-cols) input-tag)
+    (vec-extern-decl 'A (* A-rows A-cols) input-array-tag)
+    (vec-extern-decl 'B (* B-rows B-cols) input-array-tag)
     (vec-extern-decl 'C (* A-rows B-cols) output-tag)
     (vec-const 'Z (make-v-list-zeros 1) float-type)))
 

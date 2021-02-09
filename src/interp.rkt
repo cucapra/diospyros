@@ -233,22 +233,22 @@
        "check external declared vector defined"
        (define env (make-hash))
        (hash-set! env `x (make-v-list-zeros 2))
-       (define gold (v-list 0 0 0 0))
-       (define p (prog (list (vec-extern-decl `x 2 input-tag))))
+       (define gold (make-v-list-zeros 4))
+       (define p (prog (list (vec-extern-decl `x 2 input-array-tag))))
        (interp p env)
        (check-equal? (hash-ref env `x) gold))
 
       (test-case
        "check external declared vector undefined"
        (define env (make-hash))
-       (define p (prog (list (vec-extern-decl `x 2 input-tag))))
+       (define p (prog (list (vec-extern-decl `x 2 input-array-tag))))
        (check-exn exn:fail? (thunk (interp p env))))
 
       (test-case
        "check external declared vector wrong size"
        (define env (make-hash))
        (hash-set! env `x (make-vector 1 0))
-       (define p (prog (list (vec-extern-decl `x 2 input-tag))))
+       (define p (prog (list (vec-extern-decl `x 2 input-array-tag))))
        (check-exn exn:fail? (thunk (interp p env))))
 
       (test-case

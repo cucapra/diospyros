@@ -16,20 +16,23 @@
 (error-print-width 9999999999999999999999999999999)
 (pretty-print-depth #f)
 
-(define debug #f)
+(define debug #t)
 
 ; Returns tuple (<base type>, <total size across dimensions>)
 (define (multi-array-length array-ty)
-  (cond
-    [(not (type:array? array-ty)) 1]
-    [else
+  ; (cond
+  ;   [(not (type:array? array-ty)) 1]
+  ;   [else
       (define length (translate (type:array-length array-ty)))
       (define base (type:array-base array-ty))
       (cond
         [(type:primitive? base) length]
         [(eq? base #f) length]
         [(type:array? base) (* length (multi-array-length base))]
-        [else (error "Can't handle array type ~a" array-ty)])]))
+        [else (error "Can't handle array type ~a" array-ty)])
+  ; ])
+
+  )
 
 (define (translate stmt)
   (cond
@@ -385,7 +388,7 @@
     `(vec-extern-decl '(unquote arg-name)
                       (unquote (first arg))
                       (unquote (if (string-suffix? arg-name-str "_in")
-                          `input-tag
+                          `input-array-tag
                           `output-tag)))))
 
   (define get-prelude

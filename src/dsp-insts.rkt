@@ -1,4 +1,4 @@
-#lang rosette
+ #lang rosette
 
 (require "utils.rkt"
          "configuration.rkt"

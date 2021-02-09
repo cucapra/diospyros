@@ -204,10 +204,10 @@
         (define env (make-hash))
         (hash-set! env `x (make-vector 1 1))
         (define/prog p
-          (vec-extern-decl 'x 1 input-tag))
+          (vec-extern-decl 'x 1 input-array-tag))
         (define new-p (register-allocation p env))
         (define/prog gold
-          (vec-extern-decl 'x 1 input-tag))
+          (vec-extern-decl 'x 1 input-array-tag))
         (check-equal? new-p gold))
 
       (test-case
@@ -215,11 +215,11 @@
         (define env (make-hash))
         (hash-set! env `x (make-vector 1 1))
         (define/prog p
-          (vec-extern-decl 'x 1 input-tag)
+          (vec-extern-decl 'x 1 input-array-tag)
           (vec-app `out `f (list `x)))
         (define new-p (register-allocation p env))
         (define/prog gold
-          (vec-extern-decl 'x 1 input-tag)
+          (vec-extern-decl 'x 1 input-array-tag)
           (vec-load 'x_0_4 'x 0 4)
           (vec-app `out `f (list `x))
           (vec-store 'x 'x_0_4 0 4))

@@ -385,7 +385,7 @@
            (list
              decl
              (c-decl "valign" #f load-name #f #f)
-             (if (equal? input-tag tag)
+             (if (equal? input-array-tag tag)
                (c-assign load-name
                          (c-call (c-id "PDX_LA_MXF32_PP")
                                  (list

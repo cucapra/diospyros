@@ -156,8 +156,8 @@
   (define p
     (prog
       (list
-        (vec-extern-decl 'A 6 'extern-input)
-        (vec-extern-decl 'B 9 'extern-input)
+        (vec-extern-decl 'A 6 'extern-input-array)
+        (vec-extern-decl 'B 9 'extern-input-array)
         (vec-extern-decl 'C 6 'extern-output)
         (vec-decl 'reg-C 4)
         (vec-load 'C_0_4 'C 0 4)

@@ -271,8 +271,8 @@
         (define prog-smt
           (prog
            (list
-            (vec-extern-decl 'A 4 'extern-input)
-            (vec-extern-decl 'B 4 'extern-input)
+            (vec-extern-decl 'A 4 'extern-input-array)
+            (vec-extern-decl 'B 4 'extern-input-array)
             (vec-extern-decl 'C 4 'extern-output)
             (vec-decl 'reg-C 4)
             (vec-load 'C_0_4 'C 0 4)
@@ -293,8 +293,8 @@
             (vec-store 'C 'C_0_4 0 4))))
         (define prelude
           (list
-            (vec-extern-decl 'A 4 'extern-input)
-            (vec-extern-decl 'B 4 'extern-input)
+            (vec-extern-decl 'A 4 'extern-input-array)
+            (vec-extern-decl 'B 4 'extern-input-array)
             (vec-extern-decl 'C 4 'extern-output)))
         (define postlude
           (list
@@ -369,8 +369,8 @@
         (define prog-smt
           (prog
            (list
-            (vec-extern-decl 'A 6 'extern-input)
-            (vec-extern-decl 'B 9 'extern-input)
+            (vec-extern-decl 'A 6 'extern-input-array)
+            (vec-extern-decl 'B 9 'extern-input-array)
             (vec-extern-decl 'C 6 'extern-output)
             (vec-decl 'reg-C 4)
             (vec-load 'C_0_4 'C 0 4)
@@ -421,8 +421,8 @@
             (vec-store 'C 'C_4_6 4 6))))
         (define prelude
           (list
-            (vec-extern-decl 'A 6 'extern-input)
-            (vec-extern-decl 'B 9 'extern-input)
+            (vec-extern-decl 'A 6 'extern-input-array)
+            (vec-extern-decl 'B 9 'extern-input-array)
             (vec-extern-decl 'C 6 'extern-output)
             (vec-const 'Z '#(0) 'float)))
 
@@ -494,8 +494,8 @@
         (define prog-smt
           (prog
             (list
-              (vec-extern-decl 'I 4 'extern-input)
-              (vec-extern-decl 'F 4 'extern-input)
+              (vec-extern-decl 'I 4 'extern-input-array)
+              (vec-extern-decl 'F 4 'extern-input-array)
               (vec-extern-decl 'O 9 'extern-output)
               (vec-const 'Z '#(0) 'float)
               (vec-decl 'reg-O 4)
@@ -557,8 +557,8 @@
 
         (define prelude
           (list
-            (vec-extern-decl 'I 4 'extern-input)
-            (vec-extern-decl 'F 4 'extern-input)
+            (vec-extern-decl 'I 4 'extern-input-array)
+            (vec-extern-decl 'F 4 'extern-input-array)
             (vec-extern-decl 'O 9 'extern-output)
             (vec-const 'Z '#(0) 'float)))
 
