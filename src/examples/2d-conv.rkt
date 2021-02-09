@@ -23,8 +23,8 @@
   (define output-rows (sub1 (+ I-rows F-rows)))
   (define output-cols (sub1 (+ I-cols F-cols)))
   (list
-    (vec-extern-decl 'I (* I-rows I-cols) input-tag)
-    (vec-extern-decl 'F (* F-rows F-cols) input-tag)
+    (vec-extern-decl 'I (* I-rows I-cols) input-array-tag)
+    (vec-extern-decl 'F (* F-rows F-cols) input-array-tag)
     (vec-extern-decl 'O (* output-rows output-cols) output-tag)
     (vec-const 'Z (make-v-list-zeros 1) float-type)))
 

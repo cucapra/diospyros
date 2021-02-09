@@ -272,6 +272,12 @@
   ; Track inputs and outputs
   (define-values (get-arg-tag set-arg-tag! all-args)
     (make-arg-tag-tracker))
+  (define (arg-type arg)
+    (define tag (get-arg-tag arg))
+    (cond
+      [(equal? tag input-array-tag) "float *"]
+      [(equal? tag input-scalar-tag) "float"]
+      [(equal? tag output-tag) "float *"]))
 
   ; Track types for necessary casts
   (define-values (type-set type-ref) (make-type-tracker))
@@ -309,9 +315,15 @@
          (c-decl c-ty #f (c-id id) #f (c-bare expr))]
 
         [(array-get id arr idx)
-         (define c-ty (deref-type (type-ref arr)))
-         (type-set id c-ty)
-         (c-decl c-ty #f (c-id id) #f (c-bare (format "~a[~a]" arr idx)))]
+         (define ty (type-ref arr))
+         (if (string-suffix? ty " *")
+          (begin
+            (define c-ty (deref-type ty))
+            (type-set id c-ty)
+            (c-decl c-ty #f (c-id id) #f (c-bare (format "~a[~a]" arr idx))))
+          (begin
+            (type-set id ty)
+            (c-decl ty #f (c-id id) #f (c-bare (format "~a" arr)))))]
 
         [(scalar-binop id op lhs rhs)
          (define c-ty-l (type-ref lhs))
@@ -367,32 +379,36 @@
         ; input for the function arguments of this kernel and an aligning
         ; register.
         [(vec-extern-decl id size tag)
-         ; Aligning loads pump the pointer, so make a mutable copy
-         (type-set id "float *")
-         (type-set (mut-name id) "float *")
-         (set-arg-tag! id tag)
-         (let* ([inp-name (input-name id)]
-                [decl
-                  (c-decl "float *"
-                          "__restrict"
-                          (c-id (mut-name id))
-                          #f
-                          inp-name)]
-                [load-name (align-reg-name id)])
 
+         ; Aligning loads bump the pointer, so make a mutable copy
+         (set-arg-tag! id tag)
+         (define ty (arg-type id))
+         (type-set id ty)
+         (define inp-name (input-name id))
+         (define restrict-decl
+           (c-decl ty
+                   "__restrict"
+                   (c-id (mut-name id))
+                   #f
+                   inp-name))
+         (define load-name (align-reg-name id))
+
+         (cond
+          [(equal? tag input-scalar-tag) (list)]
+          [(equal? tag input-array-tag)
            ; If the extern is an input, we initialize the register for priming
            ; loads.
            (list
-             decl
+             restrict-decl
              (c-decl "valign" #f load-name #f #f)
-             (if (equal? input-tag tag)
-               (c-assign load-name
-                         (c-call (c-id "PDX_LA_MXF32_PP")
-                                 (list
-                                   (c-cast
-                                     "xb_vecMxf32 *"
-                                     inp-name))))
-               (list))))]
+             (c-assign load-name
+                       (c-call (c-id "PDX_LA_MXF32_PP")
+                               (list
+                                  (c-cast "xb_vecMxf32 *" inp-name)))))]
+          [(equal? tag output-tag)
+           (list
+             restrict-decl
+             (c-decl "valign" #f load-name #f #f))])]
 
         ; Assume vec-load is only called for aligned loads out of external
         ; memories and generate aligning load instructions. If the memory
@@ -495,7 +511,6 @@
 
   (define body (c-seq (flatten (list body-lst output-flushes))))
 
-
   (c-ast
     (c-seq
       (list
@@ -506,6 +521,6 @@
         decl-consts
         (c-func-decl "void"
                      fn-name
-                     (map (lambda (arg) (cons "float *" (c-id-id (input-name arg))))
+                     (map (lambda (arg) (cons (arg-type arg) (c-id-id (input-name arg))))
                           (all-args))
                      body)))))

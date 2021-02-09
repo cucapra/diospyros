@@ -22,6 +22,8 @@ endif
 
 PY := pypy3
 
+build: dios dios-example-gen dios-egraphs
+
 test: test-racket test-rust
 
 test-racket: build
@@ -31,8 +33,6 @@ test-rust:
 	cargo test --manifest-path src/dios-egraphs/Cargo.toml
 
 test-all: test-racket test-rust
-
-build: dios dios-example-gen dios-egraphs
 
 dios-egraphs:
 	cargo build --manifest-path ./src/dios-egraphs/Cargo.toml

@@ -8,9 +8,18 @@
 
 (provide egg-to-dios-dsl)
 
+(define (input-tag-map prelude)
+  (define map (make-hash))
+  (for ([e (prog-insts prelude)])
+    (match e
+      [(vec-extern-decl name _ tag) (hash-set! map name tag)]
+      [else void]))
+  map)
+
 (define (egg-to-dios-dsl egg-res prelude outputs)
   (define egg-ast (s-exp-to-ast-with-outputs egg-res outputs))
-  (define-values (out-names body) (egg-to-dios-prog egg-ast))
+  (define input-tags (input-tag-map prelude))
+  (define-values (out-names body) (egg-to-dios-prog egg-ast input-tags))
 
   (define out-name-list (box (flatten out-names)))
   (define postlude
@@ -54,7 +63,7 @@
       (vec-shuffle out-name shuf-name mems-used))))
 
 ; Functional expression -> (name, list of DSL instructions)
-(define (egg-to-dios-prog p)
+(define (egg-to-dios-prog p input-tags)
 
   (define mapped-consts-or-gets (make-hash))
   (define has-const-or-get? (curry hash-has-key? mapped-consts-or-gets))
@@ -110,7 +119,10 @@
       [(egg-vec vs)
         ; replace nop with first element
         (define new-vs (map (lambda (x) (if (eq? x `nop) (first vs) x)) vs))
-        (define (get-or-zero? v) (or (egg-get? v) (equal? v 0)))
+        (define (get-or-zero? v)
+          (or (and (egg-get? v)
+                   (equal? (hash-ref input-tags (egg-get-name v)) 'extern-input-array))
+              (equal? v 0)))
         (if (andmap get-or-zero? new-vs)
           (egg-get-list-to-shuffle new-vs
                                    (new-name `shufs)
@@ -271,8 +283,8 @@
         (define prog-smt
           (prog
            (list
-            (vec-extern-decl 'A 4 'extern-input)
-            (vec-extern-decl 'B 4 'extern-input)
+            (vec-extern-decl 'A 4 'extern-input-array)
+            (vec-extern-decl 'B 4 'extern-input-array)
             (vec-extern-decl 'C 4 'extern-output)
             (vec-decl 'reg-C 4)
             (vec-load 'C_0_4 'C 0 4)
@@ -293,8 +305,8 @@
             (vec-store 'C 'C_0_4 0 4))))
         (define prelude
           (list
-            (vec-extern-decl 'A 4 'extern-input)
-            (vec-extern-decl 'B 4 'extern-input)
+            (vec-extern-decl 'A 4 'extern-input-array)
+            (vec-extern-decl 'B 4 'extern-input-array)
             (vec-extern-decl 'C 4 'extern-output)))
         (define postlude
           (list
@@ -369,8 +381,8 @@
         (define prog-smt
           (prog
            (list
-            (vec-extern-decl 'A 6 'extern-input)
-            (vec-extern-decl 'B 9 'extern-input)
+            (vec-extern-decl 'A 6 'extern-input-array)
+            (vec-extern-decl 'B 9 'extern-input-array)
             (vec-extern-decl 'C 6 'extern-output)
             (vec-decl 'reg-C 4)
             (vec-load 'C_0_4 'C 0 4)
@@ -421,8 +433,8 @@
             (vec-store 'C 'C_4_6 4 6))))
         (define prelude
           (list
-            (vec-extern-decl 'A 6 'extern-input)
-            (vec-extern-decl 'B 9 'extern-input)
+            (vec-extern-decl 'A 6 'extern-input-array)
+            (vec-extern-decl 'B 9 'extern-input-array)
             (vec-extern-decl 'C 6 'extern-output)
             (vec-const 'Z '#(0) 'float)))
 
@@ -494,8 +506,8 @@
         (define prog-smt
           (prog
             (list
-              (vec-extern-decl 'I 4 'extern-input)
-              (vec-extern-decl 'F 4 'extern-input)
+              (vec-extern-decl 'I 4 'extern-input-array)
+              (vec-extern-decl 'F 4 'extern-input-array)
               (vec-extern-decl 'O 9 'extern-output)
               (vec-const 'Z '#(0) 'float)
               (vec-decl 'reg-O 4)
@@ -557,8 +569,8 @@
 
         (define prelude
           (list
-            (vec-extern-decl 'I 4 'extern-input)
-            (vec-extern-decl 'F 4 'extern-input)
+            (vec-extern-decl 'I 4 'extern-input-array)
+            (vec-extern-decl 'F 4 'extern-input-array)
             (vec-extern-decl 'O 9 'extern-output)
             (vec-const 'Z '#(0) 'float)))
 

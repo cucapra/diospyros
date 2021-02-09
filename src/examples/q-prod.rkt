@@ -21,11 +21,11 @@
 
   (define prelude
     (list
-      (vec-extern-decl 'aq (* 4 1) input-tag)
-      (vec-extern-decl 'at (* 3 1) input-tag)
-      (vec-extern-decl 'bq (* 4 1) input-tag)
-      (vec-extern-decl 'bt (* 3 1) input-tag)
-      (vec-extern-decl 'bt (* 3 1) input-tag)
+      (vec-extern-decl 'aq (* 4 1) input-array-tag)
+      (vec-extern-decl 'at (* 3 1) input-array-tag)
+      (vec-extern-decl 'bq (* 4 1) input-array-tag)
+      (vec-extern-decl 'bt (* 3 1) input-array-tag)
+      (vec-extern-decl 'bt (* 3 1) input-array-tag)
       (vec-extern-decl 'rq (* 4 1) output-tag)
       (vec-extern-decl 'rt (* 4 1) output-tag)
       (vec-const 'Z (make-v-list-zeros 1) float-type)))

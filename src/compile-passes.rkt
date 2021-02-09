@@ -56,7 +56,7 @@
 
 
 ; Returns two values:
-; 1. List all vec-extern-decl tagged with input-tag.
+; 1. List all vec-extern-decl tagged with input-array-tag.
 ; 2. List all vec-extern-decl tagged with output-tag.
 (define (get-inputs-and-outputs prog)
   (define ins (list))
@@ -66,7 +66,7 @@
     (match inst
       [(vec-extern-decl id size tag)
        (cond
-         [(equal? tag input-tag)
+         [(equal? tag input-array-tag)
           (set! ins (cons inst ins))]
          [(equal? tag output-tag)
           (set! outs (cons inst outs))]
@@ -397,8 +397,8 @@
   (define example
     (prog
       (list
-        (vec-extern-decl 'A 6 input-tag)
-        (vec-extern-decl 'B 9 input-tag)
+        (vec-extern-decl 'A 6 input-array-tag)
+        (vec-extern-decl 'B 9 input-array-tag)
         (vec-extern-decl 'C 6 output-tag)
         (vec-const 'Z '#(0) float-type)
         (vec-const 'shuf0-0 '#(3 5 1 2) int-type)

@@ -4,8 +4,9 @@
 
 (provide (all-defined-out))
 
-(define-values (input-tag output-tag)
-  (values 'extern-input
+(define-values (input-array-tag input-scalar-tag output-tag)
+  (values 'extern-input-array
+          'extern-input-scalar
           'extern-output))
 
 (define-values (int-type float-type)

@@ -18,7 +18,7 @@
 
   (define prelude
     (list
-      (vec-extern-decl 'A (* n n) input-tag)
+      (vec-extern-decl 'A (* n n) input-array-tag)
       (vec-extern-decl 'Q (* n n) output-tag)
       (vec-extern-decl 'R (* n n) output-tag)
       (vec-const 'Z (make-v-list-zeros 1) float-type)))
