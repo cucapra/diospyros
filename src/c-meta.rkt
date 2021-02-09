@@ -20,19 +20,13 @@
 
 ; Returns tuple (<base type>, <total size across dimensions>)
 (define (multi-array-length array-ty)
-  ; (cond
-  ;   [(not (type:array? array-ty)) 1]
-  ;   [else
-      (define length (translate (type:array-length array-ty)))
-      (define base (type:array-base array-ty))
-      (cond
-        [(type:primitive? base) length]
-        [(eq? base #f) length]
-        [(type:array? base) (* length (multi-array-length base))]
-        [else (error "Can't handle array type ~a" array-ty)])
-  ; ])
-
-  )
+  (define length (translate (type:array-length array-ty)))
+  (define base (type:array-base array-ty))
+  (cond
+    [(type:primitive? base) length]
+    [(eq? base #f) length]
+    [(type:array? base) (* length (multi-array-length base))]
+    [else (error "Can't handle array type ~a" array-ty)]))
 
 (define (translate stmt)
   (cond
@@ -134,12 +128,13 @@
 
                 ; Assumes this is float or float array
                 (define initializer
-                  (if init
-                    (translate (init:expr-expr init))
-                    (begin
-                      (define len
-                        (multi-array-length type))
-                      `(make-v-list-zeros (unquote len)))))
+                  (cond
+                    [init
+                      (translate (init:expr-expr init))]
+                    [(type:array? type)
+                      `(make-v-list-zeros (unquote (multi-array-length type)))]
+                    [(type:primitive? type) 0]
+                    [else (error "unexpected initializer in declaration" stmt)]))
                 (quasiquote
                   (define
                     (unquote (translate (decl:declarator-id decl)))
@@ -309,7 +304,8 @@
   (define-namespace-anchor anc)
   (define ns (namespace-anchor->namespace anc))
 
-  ; Assumes args are arrays of floats (potentially multi-dimensional)
+  ; Assumes args are arrays of floats (potentially multi-dimensional) or scalar
+  ; floats
   (define args (match outer-function
     [(decl:function decl-stmt
                     decl:function-storage-class
@@ -319,9 +315,13 @@
                     decl:function-preamble
                     decl:function-body)
       (for/list ([arg (type:function-formals
-                        (decl:declarator-type decl:function-declarator))])
+                      (decl:declarator-type decl:function-declarator))])
+        (define ty (decl:declarator-type (decl:formal-declarator arg)))
+        ; array-len if false if scalar
+        (define array-len
+          (if (type:array? ty) (multi-array-length ty) #f))
         (list
-          (multi-array-length (decl:declarator-type (decl:formal-declarator arg)))
+          array-len
           (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
 
   (when debug
@@ -346,13 +346,18 @@
   (define arg-names (for/list ([arg args])
     (define arg-name (second arg))
     (define arg-name-str (symbol->string (second arg)))
+    (define arg-len (first arg))
     (cond
       ; Input
       [(string-suffix? arg-name-str "_in")
         (define defn-input
+          (if arg-len
           `(define (unquote arg-name)
                        (make-symbolic-v-list (unquote (first arg))
-                                             (unquote arg-name-str))))
+                                             (unquote arg-name-str)))
+          `(define (unquote arg-name)
+                       (make-symbolic-with-prefix (unquote arg-name-str)
+                                                  real?))))
         (when debug (pretty-print defn-input))
         (eval defn-input ns)
         ]
