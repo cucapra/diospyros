@@ -390,11 +390,15 @@
   (define args-decls (for/list ([arg args])
     (define arg-name (second arg))
     (define arg-name-str (symbol->string (second arg)))
+    (define len (first arg))
+    (define tag
+      (cond
+        [(string-suffix? arg-name-str "_out") `output-tag]
+        [len `input-array-tag]
+        [else `input-scalar-tag]))
     `(vec-extern-decl '(unquote arg-name)
-                      (unquote (first arg))
-                      (unquote (if (string-suffix? arg-name-str "_in")
-                          `input-array-tag
-                          `output-tag)))))
+                      (unquote (if len len 1))
+                      (unquote tag))))
 
   (define get-prelude
     `(prog (cons (vec-const 'Z (make-v-list-zeros 1) float-type)
