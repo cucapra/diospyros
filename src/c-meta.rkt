@@ -363,6 +363,8 @@
         ]
       ; Output
       [(string-suffix? arg-name-str "_out")
+        (when (not arg-len)
+          (error "Scalar output arguments (tagged _out) unsupported " arg-name-str))
         (define defn-output
           `(define (unquote arg-name)
                      (make-v-list-zeros (unquote (first arg)))))
