@@ -414,8 +414,16 @@
       `(list '(unquote arg-name) (unquote (first arg)))))
   (define get-outputs `(unquote (cons list outputs)))
 
+  ; Get spec and check for forms we can't handle
+  (define spec (eval get-spec ns))
+  (define spec-string (pretty-format spec))
+  (cond
+    [(string-contains? spec-string "ite")
+      (error "Cannot handle data dependent control flow")]
+    [else void])
+
   ; Write out
-  (out-writer (eval get-spec ns) egg-spec)
+  (out-writer spec egg-spec)
   (out-writer (concretize-prog (eval get-prelude ns)) egg-prelude)
   (out-writer (eval get-outputs ns) egg-outputs)
   (out-writer racket-fn `racket-fn))
