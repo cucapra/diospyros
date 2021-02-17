@@ -152,6 +152,8 @@
           (match name
             ['>> '(lambda (x y) (arithmetic-shift x (- y)))]
             ['<< 'arithmetic-shift]
+            ['\|\| 'or]
+            ['&& 'and]
             ['\| 'bitwise-ior]
             ['^ 'bitwise-xor]
             ['& 'bitwise-and]
