@@ -283,7 +283,13 @@
 
 (module+ main
 
-  (define program (parse-program (string->path "compile-out/preprocessed.c")))
+  (define input-path
+    (command-line
+      #:program "Diospyros C-metaprogramming"
+      #:args (path)
+      path))
+
+  (define program (parse-program (string->path (~a input-path "/preprocessed.c"))))
 
   (define outer-function (last program))
   (define (program-to-c program)
@@ -341,7 +347,7 @@
         (translate (decl:declarator-id decl:function-declarator))]
       [else (error "can't handle decl" stmt)]))
 
-  (define out-writer (make-spec-out-dir-writer "compile-out"))
+  (define out-writer (make-spec-out-dir-writer input-path))
 
   (eval racket-fn ns)
 

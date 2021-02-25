@@ -5,7 +5,7 @@
 (provide suppress-git-info
          git-info-comment)
 
-; Supress the git information header
+; Suppress the git information header
 (define suppress-git-info (make-parameter #f))
 
 ; Return the non-error string output of a system command

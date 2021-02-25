@@ -5,7 +5,8 @@ import os
 import subprocess
 import sys
 
-INTERMEDIATE = "compile-out"
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 @click.command()
 @click.argument('spec_file',
@@ -16,7 +17,15 @@ INTERMEDIATE = "compile-out"
     metavar='<name>',
     default='kernel',
     help='Name of the kernel function in the generated C')
-def cdios(spec_file, name):
+@click.option('--inter',
+    is_flag=True,
+    default=False,
+    help='Use a name-based intermediate directory')
+@click.option('--git/--no-git',
+    default=True,
+    help='Include git info comment in the generated C')
+
+def cdios(spec_file, name, inter, git):
     """Takes a specification file, written in C, and:
         - Sanity check that it compiles with GCC
         - Translates it to equivalence Racket (best effort)
@@ -26,6 +35,14 @@ def cdios(spec_file, name):
 
     # Fully quantify the specification file path
     spec_file = os.path.realpath(spec_file)
+
+    # Intermediate
+    if inter:
+        file_name = os.path.splitext(os.path.basename(spec_file))[0]
+    else:
+        file_name = "compile"
+
+    intermediate = file_name + "-out"
 
     # Force CWD directory to land in diospyros root
     script_path = os.path.dirname(os.path.realpath(__file__))
@@ -41,15 +58,16 @@ def cdios(spec_file, name):
         sys.stdout.write(cmd.stderr.decode("utf-8"))
         exit(1)
     else:
-        print("Standard C compilation successful")
-        print("Writing intermediate files to: {}".format(INTERMEDIATE))
+        eprint("Standard C compilation successful")
+        eprint("Writing intermediate files to: {}".format(intermediate))
 
     # Nuke output directory contents
-    subprocess.run(["rm", "-rf", INTERMEDIATE], stderr=subprocess.STDOUT)
-    subprocess.run(["mkdir", INTERMEDIATE], stderr=subprocess.STDOUT)
+    subprocess.run(["rm", "-rf", intermediate], stderr=subprocess.STDOUT)
+    subprocess.run(["mkdir", intermediate], stderr=subprocess.STDOUT)
 
     # Preprocess to handle #defines, etc
-    cmd = subprocess.run(["gcc", "-E", spec_file, "-o", os.path.join(INTERMEDIATE, "preprocessed.c")])
+    preprocessed = os.path.join(intermediate, "preprocessed.c")
+    cmd = subprocess.run(["gcc", "-E", spec_file, "-o", preprocessed])
     if cmd.returncode:
         if cmd.stdout:
             sys.stdout.write(cmd.stdout.decode("utf-8"))
@@ -58,21 +76,22 @@ def cdios(spec_file, name):
         exit(1)
 
     # Remove preprocessing header
-    subprocess.run(["sed", "/^#/d", "-i", os.path.join(INTERMEDIATE, "preprocessed.c")])
+    subprocess.run(["sed", "/^#/d", "-i", os.path.join(intermediate, "preprocessed.c")])
 
     # Run conversion to Racket
-    cmd = subprocess.run(['racket', 'src/c-meta.rkt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     if cmd.returncode:
         sys.stdout.write(cmd.stderr.decode("utf-8"))
         exit(1)
 
-    name_flag = "BACKEND_FLAGS=-n {}".format(name)
-    print(name_flag)
-    subprocess.run(["make", "compile-egg", name_flag], stderr=subprocess.STDOUT)
-    subprocess.run(["cat", os.path.join(INTERMEDIATE, "kernel.c")])
+    flags = "BACKEND_FLAGS=-n {}".format(name)
+    if not git:
+        flags += " --suppress-git"
+    subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
 
     # Go back to where launched from and copy out result files
-    subprocess.run(["cp", "-r", INTERMEDIATE, cwd])
+    subprocess.run(["cp", "-r", intermediate, cwd])
     os.chdir(cwd)
 
 if __name__ == '__main__':
