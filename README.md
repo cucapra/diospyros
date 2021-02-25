@@ -47,7 +47,7 @@ pip3 install --user -e .
 
 You can run a simple example with:
 ```
-cdios demo/matrix-multiply.c
+cdios cdios-tests/matrix-multiply.c
 ```
 
 This will emit the generated C to standard out, as well as writing intermediate
