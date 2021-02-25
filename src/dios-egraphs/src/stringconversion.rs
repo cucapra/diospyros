@@ -53,9 +53,15 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
                     // Early return if this is a simple list, vec, or already
                     // a binary operation
                     if let lexpr::Value::Symbol(op_str) = op.clone() {
-                        if &*op_str == "List" || &*op_str == "Vec" || children.len() < 3 {
+                        if &*op_str == "List"
+                            || &*op_str == "Vec"
+                            || children.len() < 3
+                            || (&*head == "ite" &&  children.len() == 3) {
                             // Special case: (- a) -> (neg a)
                             if &*head == "-" && children.len() == 1 {
+                                op = lexpr::Value::symbol("neg")
+                            }
+                            if &*head == "!" && children.len() == 1 {
                                 op = lexpr::Value::symbol("neg")
                             }
                             let mut list = vec![op];
@@ -84,6 +90,7 @@ pub fn convert_string(input: &String) -> io::Result<String> {
     // Remove residual Racket syntax markers
     let input = input.replace("#&", "");
     let input = input.replace("'", "");
+    let input = input.replace("||", "or");
     let v = lexpr::from_str(&input)?;
     // Rewrite specifications
     let mut rewrites = HashMap::new();
