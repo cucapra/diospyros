@@ -1,0 +1,9 @@
+README.md
+cdios.py
+setup.py
+cdios.egg-info/PKG-INFO
+cdios.egg-info/SOURCES.txt
+cdios.egg-info/dependency_links.txt
+cdios.egg-info/entry_points.txt
+cdios.egg-info/requires.txt
+cdios.egg-info/top_level.txt

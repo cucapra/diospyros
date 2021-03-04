@@ -125,20 +125,45 @@
             (for/list ([decl (decl:vars-declarators stmt)])
               (let* ([init (decl:declarator-initializer decl)]
                      [type (decl:declarator-type decl)])
-
                 ; Assumes this is float or float array
-                (define initializer
-                  (cond
-                    [init
-                      (translate (init:expr-expr init))]
-                    [(type:array? type)
-                      `(make-v-list-zeros (unquote (multi-array-length type)))]
-                    [(type:primitive? type) 0]
-                    [else (error "unexpected initializer in declaration" stmt)]))
-                (quasiquote
-                  (define
-                    (unquote (translate (decl:declarator-id decl)))
-                    (unquote initializer))))))
+                (if (init:compound? init)
+                  (begin 
+                    (define arr-name (translate (decl:declarator-id decl)))
+                      (define (make-quasi-list init-list acc)
+                        (if (null? init-list) 
+                            acc
+                            (make-quasi-list 
+                              (cdr init-list) 
+                              (cons 
+                                (let ([inner_expr (init:expr-expr (car init-list))])
+                                  (quasiquote
+                                    (v-list-set! 
+                                    (unquote arr-name)
+                                    (unquote (translate (expr:array-ref-offset inner_expr)))
+                                    (v-list-get
+                                      (unquote (translate (expr:array-ref-expr inner_expr)))
+                                      (unquote (translate (expr:array-ref-offset inner_expr))))))) 
+                                acc))))
+                      (define assign-ref-array (make-quasi-list (reverse (init:compound-elements init)) '())) 
+                      (quasiquote
+                        (begin
+                          (define 
+                            (unquote (translate (decl:declarator-id decl)))
+                            (make-v-list-zeros (unquote (multi-array-length type))))
+                          unquote assign-ref-array)))
+                  (begin 
+                    (define initializer
+                      (cond
+                        [init
+                          (translate (init:expr-expr init))]
+                        [(type:array? type)
+                          `(make-v-list-zeros (unquote (multi-array-length type)))]
+                        [(type:primitive? type) 0]
+                        [else (error "unexpected initializer in declaration" stmt)]))
+                    (quasiquote
+                      (define
+                        (unquote (translate (decl:declarator-id decl)))
+                        (unquote initializer))))))))
           (cond
             [(empty? stmts) `void]
             [(equal? 1 (length stmts)) (first stmts)]
