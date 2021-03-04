@@ -145,13 +145,9 @@
                                     (unquote 
                                       (cond 
                                         [(id:var? inner_expr) 
-                                          (quasiquote
-                                            (unquote 
-                                              (translate inner_expr)))]
+                                          (translate inner_expr)]
                                         [(expr? inner_expr) 
-                                          (quasiquote
-                                            (unquote 
-                                              (translate inner_expr)))]
+                                          (translate inner_expr)]
                                         [else (error "unexpected expression in compound array assignment" inner_expr)]))))) 
                                 acc))))
                       (define assign-ref-array (make-quasi-list (reverse (init:compound-elements init)) (- (multi-array-length type) 1) '())) 
