@@ -129,22 +129,32 @@
                 (if (init:compound? init)
                   (begin 
                     (define arr-name (translate (decl:declarator-id decl)))
-                      (define (make-quasi-list init-list acc)
+                      (define (make-quasi-list init-list counter acc)
                         (if (null? init-list) 
                             acc
                             (make-quasi-list 
                               (cdr init-list) 
+                              (- counter 1)
                               (cons 
                                 (let ([inner_expr (init:expr-expr (car init-list))])
                                   (quasiquote
                                     (v-list-set! 
                                     (unquote arr-name)
-                                    (unquote (translate (expr:array-ref-offset inner_expr)))
-                                    (v-list-get
-                                      (unquote (translate (expr:array-ref-expr inner_expr)))
-                                      (unquote (translate (expr:array-ref-offset inner_expr))))))) 
+                                    ; (unquote (translate (expr:array-ref-offset inner_expr)))
+                                    (unquote counter)
+                                    (unquote 
+                                      (cond 
+                                        [(id:var? inner_expr) 
+                                          (quasiquote
+                                            (unquote 
+                                              (translate inner_expr)))]
+                                        [(expr? inner_expr) 
+                                          (quasiquote
+                                            (unquote 
+                                              (translate inner_expr)))]
+                                        [else (error "unexpected expression in compound array assignment" inner_expr)]))))) 
                                 acc))))
-                      (define assign-ref-array (make-quasi-list (reverse (init:compound-elements init)) '())) 
+                      (define assign-ref-array (make-quasi-list (reverse (init:compound-elements init)) (- (multi-array-length type) 1) '())) 
                       (quasiquote
                         (begin
                           (define 
