@@ -140,7 +140,6 @@
                                   (quasiquote
                                     (v-list-set! 
                                     (unquote arr-name)
-                                    ; (unquote (translate (expr:array-ref-offset inner_expr)))
                                     (unquote counter)
                                     (unquote 
                                       (cond 
