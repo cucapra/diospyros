@@ -128,9 +128,9 @@
     [`(/ , vs ...)
       (make-binop `/ vs)]
     [`(or , vs ...)
-      (make-binop `or vs)]
+      (make-binop `\|\| vs)]
     [`(&& , vs ...)
-      (make-binop `and vs)]
+      (make-binop `&& vs)]
     [`(< , vs ...)
       (make-binop `< vs)]
     [`(neg , v)
