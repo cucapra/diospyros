@@ -88,6 +88,7 @@ def cdios(spec_file, name, inter, debug, git):
     else:
         cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     if cmd.returncode:
+        print("CDIOS: Compiling C->Racket failed")
         sys.stdout.write(cmd.stderr.decode("utf-8"))
         exit(1)
 
@@ -95,9 +96,13 @@ def cdios(spec_file, name, inter, debug, git):
     if not git:
         flags += " --suppress-git"
     if debug:
-        subprocess.run(["make", "{}-egg".format(file_name), flags])
+        cmd = subprocess.run(["make", "{}-egg".format(file_name), flags])
     else:
-        subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        cmd = subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if cmd.returncode:
+        print("CDIOS: Rewriting or backend compilation failed")
+        sys.stdout.write(cmd.stderr.decode("utf-8"))
+        exit(1)
     subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
 
     # Go back to where launched from and copy out result files
