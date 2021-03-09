@@ -423,10 +423,10 @@
   ; Get spec and check for forms we can't handle
   (define spec (eval get-spec ns))
   (define spec-string (pretty-format spec))
-  ; (cond
-  ;   [(string-contains? spec-string "ite")
-  ;     (error "Cannot handle data dependent control flow")]
-  ;   [else void])
+  (cond
+    [(string-contains? spec-string "ite")
+      (pretty-print "WARNING: Cannot handle data dependent control flow")]
+    [else void])
 
   ; Write out
   (out-writer spec egg-spec)
