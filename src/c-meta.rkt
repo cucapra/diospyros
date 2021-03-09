@@ -425,7 +425,7 @@
   (define spec-string (pretty-format spec))
   (cond
     [(string-contains? spec-string "ite")
-      (error "Cannot handle data dependent control flow")]
+      (pretty-print "WARNING: Cannot handle data dependent control flow")]
     [else void])
 
   ; Write out

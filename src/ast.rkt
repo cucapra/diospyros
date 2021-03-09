@@ -65,6 +65,10 @@
 ; expressions: v-id must be a variable name.
 (struct scalar-unnop (id op v-id) #:transparent)
 
+; Perform a ternary op on scalar operations. Does not allow for nested
+; expressions: v-id must be a variable name.
+(struct scalar-ternop (id cond-id i-id e-id) #:transparent)
+
 ; Let binding
 (struct let-bind (id e type) #:transparent)
 

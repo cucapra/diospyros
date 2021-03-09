@@ -21,11 +21,15 @@ def eprint(*args, **kwargs):
     is_flag=True,
     default=False,
     help='Use a name-based intermediate directory')
+@click.option('--debug',
+    is_flag=True,
+    default=False,
+    help='Verbose debug output')
 @click.option('--git/--no-git',
     default=True,
     help='Include git info comment in the generated C')
 
-def cdios(spec_file, name, inter, git):
+def cdios(spec_file, name, inter, debug, git):
     """Takes a specification file, written in C, and:
         - Sanity check that it compiles with GCC
         - Translates it to equivalence Racket (best effort)
@@ -79,7 +83,10 @@ def cdios(spec_file, name, inter, git):
     subprocess.run(["sed", "/^#/d", "-i", os.path.join(intermediate, "preprocessed.c")])
 
     # Run conversion to Racket
-    cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if debug:
+        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate])
+    else:
+        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     if cmd.returncode:
         sys.stdout.write(cmd.stderr.decode("utf-8"))
         exit(1)
@@ -87,7 +94,10 @@ def cdios(spec_file, name, inter, git):
     flags = "BACKEND_FLAGS=-n {}".format(name)
     if not git:
         flags += " --suppress-git"
-    subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if debug:
+        subprocess.run(["make", "{}-egg".format(file_name), flags])
+    else:
+        subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
 
     # Go back to where launched from and copy out result files

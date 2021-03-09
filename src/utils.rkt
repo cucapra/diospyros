@@ -56,7 +56,7 @@
 
 (define (make-v-list-zeros size)
   (for/list ([_ (in-range size)])
-    (box 0)))
+    (box 0.0)))
 
 (define (make-v-list size val)
   (assert (real? val) (~a "Expected a real, got " val))

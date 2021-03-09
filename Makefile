@@ -20,17 +20,18 @@ else ifneq ($(VEC_WIDTH),4)
 	$(error Bad vector width, currently 2, 4, or 8 supported)
 endif
 
-PY := pypy3
-
 build: dios dios-example-gen dios-egraphs
 
-test: test-racket test-rust
+test: test-racket test-rust test-cdios
 
 test-racket: build
 	raco test --drdr src/*.rkt src/backend/*.rkt
 
 test-rust:
 	cargo test --manifest-path src/dios-egraphs/Cargo.toml
+
+test-cdios:
+	runt
 
 test-all: test-racket test-rust
 

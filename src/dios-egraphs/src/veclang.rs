@@ -9,8 +9,12 @@ define_language! {
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
         "-" = Minus([Id; 2]),
-
         "/" = Div([Id; 2]),
+
+        "or" = Or([Id; 2]),
+        "&&" = And([Id; 2]),
+        "ite" = Ite([Id; 3]),
+        "<" = Lt([Id; 2]),
 
         "sgn" = Sgn([Id; 1]),
         "sqrt" = Sqrt([Id; 1]),
