@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 
   // Diospyros
   start_cycle_timing;
-  foo(xyz[0], xyz[1], xyz[2], d_in, e_out);
+  kernel(xyz[0], xyz[1], xyz[2], d_in, e_out);
   stop_cycle_timing;
   time = get_time();
   print_matrix(e_out, 2, 1);
