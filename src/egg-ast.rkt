@@ -23,6 +23,7 @@
 (struct egg-concat (hd tl) #:transparent)
 (struct egg-unnop (op v) #:transparent)
 (struct egg-binop (op lhs rhs) #:transparent)
+(struct egg-ite (con ifb elseb) #:transparent)
 
 (define (parse-from-string s)
   (parse (open-input-string s)))
@@ -37,22 +38,6 @@
   (define (tr e) (truncate e keep))
   (define add (- (current-reg-size) keep))
   (match e
-    [`(VecMAC ,acc ,v1 ,v2)
-      `(VecMAC ,(tr acc) ,(tr v1) ,(tr v2))]
-    [`(VecMul ,v1 ,v2)
-      `(VecMul ,(tr v1) ,(tr v2))]
-    [`(VecMulSgn ,v1 ,v2)
-      `(VecMulSgn ,(tr v1) ,(tr v2))]
-    [`(VecAdd ,v1 ,v2)
-      `(VecAdd ,(tr v1) ,(tr v2))]
-    [`(VecDiv ,v1 ,v2)
-      `(VecDiv ,(tr v1) ,(tr v2))]
-    [`(VecNeg ,v)
-      `(VecNeg ,(tr v))]
-    [`(VecSqrt ,v)
-      `(VecSqrt ,(tr v))]
-    [`(VecSgn ,v)
-      `(VecSgn ,(tr v))]
     ; Use -1 to indicate "don't care"
     [`(Vec , vs ...)
       (define trunc_vs (append (take vs keep) (make-list add `nop)))
@@ -60,6 +45,8 @@
     [`(LitVec , vs ...)
       (define trunc_vs (append (take vs keep) (make-list add `nop)))
       (cons `LitVec trunc_vs)]
+    [`(,op , vs ...)
+      (cons op (map tr vs))]
     ))
 
 ; Replace unnecessary padding elements at the end of each output with no-ops
@@ -86,6 +73,11 @@
   (match-define (list _ size) o) size))
   (define truncated (truncate-output e output-sizes))
   (s-exp-to-ast truncated))
+
+(define (make-binop op vs)
+  (assert (> (length vs) 1) op)
+  (let ([xs (map s-exp-to-ast vs)])
+    (foldr (curry egg-binop op) (last xs) (drop-right xs 1))))
 
 (define (s-exp-to-ast e)
   (match e
@@ -116,17 +108,17 @@
     [`(Concat ,v1 ,v2)
       (egg-concat (s-exp-to-ast v1) (s-exp-to-ast v2))]
     [`(+ , vs ...)
-      (assert (> (length vs) 1) "+")
-      (let ([xs (map s-exp-to-ast vs)])
-        (foldr (curry egg-binop '+) (last xs) (drop-right xs 1)))]
+      (make-binop `+ vs)]
     [`(* , vs ...)
-      (assert (> (length vs) 1) "*")
-      (let ([xs (map s-exp-to-ast vs)])
-        (foldr (curry egg-binop '*) (last xs) (drop-right xs 1)))]
+      (make-binop `* vs)]
     [`(/ , vs ...)
-      (assert (> (length vs) 1) "/")
-      (let ([xs (map s-exp-to-ast vs)])
-        (foldr (curry egg-binop '/) (last xs) (drop-right xs 1)))]
+      (make-binop `/ vs)]
+    [`(or , vs ...)
+      (make-binop `\|\| vs)]
+    [`(&& , vs ...)
+      (make-binop `&& vs)]
+    [`(< , vs ...)
+      (make-binop `< vs)]
     [`(neg , v)
       (egg-unnop 'neg (s-exp-to-ast v))]
     [`(- , v)
@@ -135,4 +127,6 @@
       (egg-unnop 'sgn (s-exp-to-ast v))]
     [`(sqrt , v)
       (egg-unnop 'sqrt (s-exp-to-ast v))]
+    [`(ite ,c ,i ,e)
+      (egg-ite (s-exp-to-ast c) (s-exp-to-ast i) (s-exp-to-ast e))]
     [_ (error 's-exp-to-ast "invalid s-expression: ~a" e)]))

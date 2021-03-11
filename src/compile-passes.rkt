@@ -145,6 +145,13 @@
                        op
                        (rename-use l)
                        (rename-use r))]
+
+        [(scalar-ternop id c i e)
+         (scalar-ternop (rename-binding id)
+                       (rename-use c)
+                       (rename-use i)
+                       (rename-use e))]
+
         [(scalar-unnop id op v)
          (scalar-unnop (rename-binding id)
                        op
@@ -223,6 +230,8 @@
      id]
     [(scalar-binop id op l r)
      id]
+    [(scalar-ternop id c t e)
+     id]
     [(scalar-unnop id op v)
      id]
     [_ void]))
@@ -264,6 +273,11 @@
            op
            (id-to-num l)
            (id-to-num r))]
+    [(scalar-ternop id con if-b el-b)
+     (list `scalar-ternop
+           (id-to-num con)
+           (id-to-num if-b)
+           (id-to-num el-b))]
     [(scalar-unnop id op v)
      (list `scalar-unnop
             op
@@ -385,6 +399,8 @@
             (vec-lit new-id (map replace-arg elems) type)]
            [(scalar-binop id op l r)
             (scalar-binop new-id op (replace-arg l) (replace-arg r))]
+           [(scalar-ternop id i t e)
+            (scalar-ternop new-id (replace-arg i) (replace-arg t) (replace-arg e))]
            [(scalar-unnop _ op v)
             (scalar-unnop new-id op (replace-arg v))])])))
 

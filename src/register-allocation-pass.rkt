@@ -103,6 +103,10 @@
      (define-id id)
      (check-defined (list l r))
      (inst-result inst `())]
+    [(scalar-ternop id i t e)
+     (define-id id)
+     (check-defined (list i t e))
+     (inst-result inst `())]
     [(scalar-unnop id _ v)
      (define-id id)
      (check-defined (list v))
@@ -162,6 +166,7 @@
            (vec-write _ _)
            (let-bind _ _ _)
            (scalar-binop _ _ _ _)
+           (scalar-ternop _ _ _ _)
            (scalar-unnop _ _ _)
            (vec-lit _ _ _)
            (array-get _ _ _))

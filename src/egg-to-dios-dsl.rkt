@@ -204,6 +204,20 @@
           (flatten
             (list v1-prog
                   v2-prog)))]
+      [(egg-ite c i e)
+       (define-values (c-name c-prog) (egg-to-dios c))
+       (define-values (i-name i-prog) (egg-to-dios i))
+       (define-values (e-name e-prog) (egg-to-dios e))
+       (define res (new-name 'ite))
+       (define out
+         (scalar-ternop res c-name i-name e-name))
+       (values res
+               (flatten
+                 (list c-prog
+                       i-prog
+                       e-prog
+                       out)))
+        ]
       [_ (error 'egg-to-dios "cannot compile: ~a" e)]))
 
   (egg-to-dios p))

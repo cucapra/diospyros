@@ -337,6 +337,19 @@
          (c-decl c-ty-l #f (c-id id) #f
                  (c-bare (format "~a ~a ~a" lhs op rhs)))]
 
+        [(scalar-ternop id i t e)
+         (define c-ty-i (type-ref i))
+         (define c-ty-t (type-ref t))
+         (define c-ty-e (type-ref e))
+         (when (not (equal? c-ty-t c-ty-e))
+          (error 'tensilica-g3-compile
+                "Types for if and else in scalar ternop do not match ~a ~a"
+                c-ty-t
+                c-ty-e))
+         (type-set id c-ty-t)
+         (c-decl c-ty-t #f (c-id id) #f
+                 (c-bare (format "~a ? ~a : ~a" i t e)))]
+
         [(scalar-unnop id op v)
          (define c-ty-v (type-ref v))
          (type-set id c-ty-v)
