@@ -38,22 +38,6 @@
   (define (tr e) (truncate e keep))
   (define add (- (current-reg-size) keep))
   (match e
-    [`(VecMAC ,acc ,v1 ,v2)
-      `(VecMAC ,(tr acc) ,(tr v1) ,(tr v2))]
-    [`(VecMul ,v1 ,v2)
-      `(VecMul ,(tr v1) ,(tr v2))]
-    [`(VecMulSgn ,v1 ,v2)
-      `(VecMulSgn ,(tr v1) ,(tr v2))]
-    [`(VecAdd ,v1 ,v2)
-      `(VecAdd ,(tr v1) ,(tr v2))]
-    [`(VecDiv ,v1 ,v2)
-      `(VecDiv ,(tr v1) ,(tr v2))]
-    [`(VecNeg ,v)
-      `(VecNeg ,(tr v))]
-    [`(VecSqrt ,v)
-      `(VecSqrt ,(tr v))]
-    [`(VecSgn ,v)
-      `(VecSgn ,(tr v))]
     ; Use -1 to indicate "don't care"
     [`(Vec , vs ...)
       (define trunc_vs (append (take vs keep) (make-list add `nop)))
@@ -61,6 +45,8 @@
     [`(LitVec , vs ...)
       (define trunc_vs (append (take vs keep) (make-list add `nop)))
       (cons `LitVec trunc_vs)]
+    [`(,op , vs ...)
+      (cons op (map tr vs))]
     ))
 
 ; Replace unnecessary padding elements at the end of each output with no-ops
