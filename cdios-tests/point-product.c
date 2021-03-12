@@ -8,13 +8,13 @@ void cross_product(float lhs[3], float rhs[3], float result[3]) {
   Computes the point product
 */
 void point_product(float q_in[4], float p_in[4], float result_out[4]) {
-  // float qvec[3] = {q_in[0], q_in[1], q_in[2]};
+  float qvec[3] = {q_in[0], q_in[1], q_in[2]};
 
-  float qvec[3];
+  // float qvec[3];
 
-  qvec[0] = q_in[0];
-  qvec[1] = q_in[1];
-  qvec[2] = q_in[2];
+  // qvec[0] = q_in[0];
+  // qvec[1] = q_in[1];
+  // qvec[2] = q_in[2];
 
   float uv[3];
   cross_product(qvec, p_in, uv);
