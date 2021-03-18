@@ -35,7 +35,7 @@ float * __restrict orig_in_mut = orig_in;
   valign align_orig_in;
   align_orig_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) orig_in);
   float * __restrict sol_out_mut = sol_out;
-  valign align_sol_out;
+  valign align_sol_out = PDX_Z_ALIGN();
   float * __restrict filter_in_mut = filter_in;
   valign align_filter_in;
   align_filter_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) filter_in);
