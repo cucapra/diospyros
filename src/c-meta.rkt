@@ -129,33 +129,41 @@
                 (if (init:compound? init)
                   (begin 
                     (define arr-name (translate (decl:declarator-id decl)))
-                      (define (make-quasi-list init-list counter acc)
-                        (if (null? init-list) 
-                            acc
-                            (make-quasi-list 
-                              (cdr init-list) 
-                              (- counter 1)
-                              (cons 
-                                (let ([inner_expr (init:expr-expr (car init-list))])
-                                  (quasiquote
-                                    (v-list-set! 
-                                    (unquote arr-name)
-                                    (unquote counter)
-                                    (unquote 
-                                      (cond 
-                                        [(id:var? inner_expr) 
-                                          (translate inner_expr)]
-                                        [(expr? inner_expr) 
-                                          (translate inner_expr)]
-                                        [else (error "unexpected expression in compound array assignment" inner_expr)]))))) 
-                                acc))))
-                      (define assign-ref-array (make-quasi-list (reverse (init:compound-elements init)) (- (multi-array-length type) 1) '())) 
-                      (quasiquote
-                        (begin
-                          (define 
-                            (unquote (translate (decl:declarator-id decl)))
-                            (make-v-list-zeros (unquote (multi-array-length type))))
-                          unquote assign-ref-array)))
+                    (define mapped-values 
+                      (map (lambda (expr) (translate (init:expr-expr expr))) (init:compound-elements init)))
+                    (println (apply v-list (list 1 2 3 4)))
+                    (define (make-quasi-list init-list counter acc)
+                      (if (null? init-list) 
+                          acc
+                          (make-quasi-list 
+                            (cdr init-list) 
+                            (- counter 1)
+                            (cons 
+                              (let ([inner_expr (init:expr-expr (car init-list))])
+                                (quasiquote
+                                  (v-list-set! 
+                                  (unquote arr-name)
+                                  (unquote counter)
+                                  (unquote 
+                                    (cond 
+                                      [(id:var? inner_expr) 
+                                        (translate inner_expr)]
+                                      [(expr? inner_expr) 
+                                        (translate inner_expr)]
+                                      [else (error "unexpected expression in compound array assignment" inner_expr)]))))) 
+                              acc))))
+                    (define assign-ref-array (make-quasi-list (reverse (init:compound-elements init)) (- (multi-array-length type) 1) '())) 
+                    (quasiquote
+                      (begin
+                        (define 
+                          (unquote (translate (decl:declarator-id decl)))
+                          (make-v-list-zeros (unquote (multi-array-length type))))
+                        unquote assign-ref-array))
+                    (define final-list (apply v-list mapped-values))
+                    (println (list 1 2 3 4))
+                    (define new-list (apply list final-list))
+                    ; (quasiquote (define (unquote arr-name) new-list)))
+                    (quasiquote (define (unquote arr-name) '(unquote new-list))))
                   (begin 
                     (define initializer
                       (cond

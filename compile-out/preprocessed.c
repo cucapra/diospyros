@@ -4,9 +4,9 @@ void cross_product(float lhs[3], float rhs[3], float result[3]) {
   result[2] = lhs[0] * rhs[1] - lhs[1] * rhs[0];
 }
 
-/*
-  Computes the point product
-*/
+
+
+
 void point_product(float q_in[4], float p_in[4], float result_out[4]) {
   float qvec[3] = {q_in[0], q_in[1], q_in[2]};
 
