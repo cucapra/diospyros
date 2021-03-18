@@ -54,7 +54,7 @@ def cdios(spec_file, name, inter, debug, git):
     os.chdir(script_path)
 
     # Attempt to run gcc
-    cmd = subprocess.run(["gcc", "-std=c99", "-S", spec_file, "-o", "/dev/null"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    cmd = subprocess.run(["gcc", "-Wno-implicit-function-declaration", "-std=c99", "-S", spec_file, "-o", "/dev/null"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # Bail early if GCC fails to compile
     # (note: don't assemble since we might not have a main function)
@@ -71,7 +71,7 @@ def cdios(spec_file, name, inter, debug, git):
 
     # Preprocess to handle #defines, etc
     preprocessed = os.path.join(intermediate, "preprocessed.c")
-    cmd = subprocess.run(["gcc", "-E", spec_file, "-o", preprocessed])
+    cmd = subprocess.run(["gcc", "-Wno-implicit-function-declaration", "-E", spec_file, "-o", preprocessed])
     if cmd.returncode:
         if cmd.stdout:
             sys.stdout.write(cmd.stdout.decode("utf-8"))
