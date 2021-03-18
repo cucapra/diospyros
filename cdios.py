@@ -92,6 +92,9 @@ def cdios(spec_file, name, inter, debug, git):
         sys.stdout.write(cmd.stderr.decode("utf-8"))
         exit(1)
 
+    if not (os.path.exists("./dios") and os.path.exists("./dios-example-gen")):
+        subprocess.run(["make", "build"])
+
     flags = "BACKEND_FLAGS=-n {}".format(name)
     if not git:
         flags += " --suppress-git"
