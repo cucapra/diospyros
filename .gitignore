@@ -7,3 +7,6 @@ src/dios-egraphs/target/
 src/dios-egraphs/Cargo.lock
 src/dios-egraphs/**/*.rs.bk
 __pycache__
+*.egg-info/
+*.pyc
+*.pyo
