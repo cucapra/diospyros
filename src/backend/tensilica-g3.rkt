@@ -421,7 +421,11 @@
           [(equal? tag output-tag)
            (list
              restrict-decl
-             (c-decl "valign" #f load-name #f #f))])]
+             (c-decl "valign"
+                     #f
+                     load-name
+                     #f
+                     (c-call (c-id "PDX_Z_ALIGN") (list))))])]
 
         ; Assume vec-load is only called for aligned loads out of external
         ; memories and generate aligning load instructions. If the memory
