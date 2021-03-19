@@ -116,7 +116,8 @@
               ; Function translations
               (match fn
                 [`powf `expt]
-                [else (error "cant handle fn" fn)])))
+                ; [else (error "cant handle fn" fn)]
+                [else fn])))
           (define args
              (for/list ([arg (expr:call-arguments stmt)])
               (translate arg)))
