@@ -24,7 +24,7 @@ float * __restrict q_in_mut = q_in;
   valign align_p_in;
   align_p_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) p_in);
   float * __restrict result_out_mut = result_out;
-  valign align_result_out = PDX_Z_ALIGN();
+  valign align_result_out;
   xb_vecMxf32 p_in_0_4;
   PDX_LAV_MXF32_XP(p_in_0_4, align_p_in, (xb_vecMxf32 *) p_in_mut, 16);
   float v_1 = q_in[1];

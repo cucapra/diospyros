@@ -265,7 +265,7 @@ float * __restrict mat_in_mut = mat_in;
   valign align_f_in;
   align_f_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) f_in);
   float * __restrict mat_out_mut = mat_out;
-  valign align_mat_out = PDX_Z_ALIGN();
+  valign align_mat_out;
   xb_vecMxf32 mat_in_0_4;
   PDX_LAV_MXF32_XP(mat_in_0_4, align_mat_in, (xb_vecMxf32 *) mat_in_mut, 16);
   xb_vecMxf32 mat_in_4_8;
