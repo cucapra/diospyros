@@ -69,7 +69,7 @@ float * __restrict a_in_mut = a_in;
   valign align_c_in;
   align_c_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) c_in);
   float * __restrict d_out_mut = d_out;
-  valign align_d_out;
+  valign align_d_out = PDX_Z_ALIGN();
   xb_vecMxf32 a_in_0_4;
   PDX_LAV_MXF32_XP(a_in_0_4, align_a_in, (xb_vecMxf32 *) a_in_mut, 16);
   xb_vecMxf32 a_in_4_8;
