@@ -111,7 +111,12 @@
               (unquote (translate (expr:if-cons stmt)))
               (unquote (translate (expr:if-alt stmt)))))]
         [(expr:call? stmt)
-          (define fn-name (translate (expr:call-function stmt)))
+          (define fn-name 
+            (let* ([fn (translate (expr:call-function stmt))])
+              ; Function translations
+              (match fn
+                [`powf `expt]
+                [else (error "cant handle fn" fn)])))
           (define args
              (for/list ([arg (expr:call-arguments stmt)])
               (translate arg)))
@@ -272,7 +277,8 @@
                                 (decl:declarator-type decl:function-declarator))])
                 (translate (decl:declarator-id (decl:formal-declarator arg))))))
                ; TODO: handle early returns
-              (unquote fn-body)))]))
+              (unquote fn-body)))]
+    [else (error "can't translate function" fn-decl)]))
 
 (define (create-base-directory out-dir)
   (define base
