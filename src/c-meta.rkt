@@ -116,7 +116,8 @@
               ; Function translations
               (match fn
                 [`powf `expt]
-                [else (error "cant handle fn" fn)])))
+                ; [else (error "cant handle fn" fn)]
+                [else fn])))
           (define args
              (for/list ([arg (expr:call-arguments stmt)])
               (translate arg)))
@@ -130,20 +131,35 @@
             (for/list ([decl (decl:vars-declarators stmt)])
               (let* ([init (decl:declarator-initializer decl)]
                      [type (decl:declarator-type decl)])
-
                 ; Assumes this is float or float array
-                (define initializer
-                  (cond
-                    [init
-                      (translate (init:expr-expr init))]
-                    [(type:array? type)
-                      `(make-v-list-zeros (unquote (multi-array-length type)))]
-                    [(type:primitive? type) 0]
-                    [else (error "unexpected initializer in declaration" stmt)]))
-                (quasiquote
-                  (define
-                    (unquote (translate (decl:declarator-id decl)))
-                    (unquote initializer))))))
+                (if (init:compound? init)
+                  (begin 
+                    (define arr-name (translate (decl:declarator-id decl)))
+                    (define translated-values 
+                      (map 
+                        (lambda (expr) 
+                          (translate (init:expr-expr expr))) 
+                        (init:compound-elements init)))
+                    (define boxed-list 
+                      (map 
+                        (lambda (v) 
+                          (quasiquote (box (unquote v)))) 
+                        translated-values))
+                    (quasiquote 
+                      (define (unquote arr-name) (list unquote boxed-list))))
+                  (begin 
+                    (define initializer
+                      (cond
+                        [init
+                          (translate (init:expr-expr init))]
+                        [(type:array? type)
+                          `(make-v-list-zeros (unquote (multi-array-length type)))]
+                        [(type:primitive? type) 0]
+                        [else (error "unexpected initializer in declaration" stmt)]))
+                    (quasiquote
+                      (define
+                        (unquote (translate (decl:declarator-id decl)))
+                        (unquote initializer))))))))
           (cond
             [(empty? stmts) `void]
             [(equal? 1 (length stmts)) (first stmts)]
