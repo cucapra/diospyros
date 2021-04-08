@@ -1,9 +1,5 @@
 '(define (matrix_multiply a_in b_in c_out)
    (begin
-     (define test (make-v-list-zeros 9))
-     (v-list-get test 8)
-     (v-list-set! test 8 3.0)
-     (v-list-set! test 8 (+ (v-list-get test 8) (v-list-get test 8)))
      (for
       ((y (in-range 0 2 1)))
       (begin

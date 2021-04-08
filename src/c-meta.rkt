@@ -72,37 +72,66 @@
                    [right (translate (expr:assign-right stmt))]
                    [op (translate (expr:assign-op stmt))])
               (if (pair? (translate (expr:array-ref-expr (expr:assign-left stmt)))) 
-                (begin 
-                  (define arr-name 
-                    (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt))))))
-                  (define row
-                    (car (cdr (cdr (translate (expr:array-ref-expr (expr:assign-left stmt)))))))
-                  (define nrows 
-                    (car (cdr (hash-ref array-ctx arr-name))))
-                  (define col 
-                    (translate (expr:array-ref-offset (expr:assign-left stmt))))
-                  (define new-offset 
-                    (+ col (* row nrows)))
-                  (quasiquote 
-                    (v-list-set! 
-                      (unquote arr-name)
-                      (unquote new-offset)
-                      (unquote
-                        (match op
-                          [`= right]
-                          [`+= (quasiquote (+
-                                          (v-list-get (unquote arr-name) (unquote new-offset))
-                                          (unquote right)))]
-                          [`-= (quasiquote (-
-                                          (v-list-get (unquote arr-name) (unquote new-offset))
-                                          (unquote right)))]
-                          [`*= (quasiquote (*
-                                          (v-list-get (unquote arr-name) (unquote new-offset))
-                                          (unquote right)))]
-                          [`>>= (quasiquote (arithmetic-shift
+                (let* ([arr-name (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt)))))]
+                        [row (car (cdr (cdr (translate (expr:array-ref-expr (expr:assign-left stmt))))))]
+                        [nrows (car (cdr (hash-ref array-ctx arr-name)))]
+                        [col (translate (expr:array-ref-offset (expr:assign-left stmt)))]
+                        [new-offset (+ col (* row nrows))])
+                    (quasiquote 
+                      (v-list-set! 
+                        (unquote arr-name)
+                        (unquote new-offset)
+                        (unquote
+                          (match op
+                            [`= right]
+                            [`+= (quasiquote (+
                                             (v-list-get (unquote arr-name) (unquote new-offset))
-                                            (- (unquote right))))]
-                          [else (error  "can't handle assign op" op)])))))
+                                            (unquote right)))]
+                            [`-= (quasiquote (-
+                                            (v-list-get (unquote arr-name) (unquote new-offset))
+                                            (unquote right)))]
+                            [`*= (quasiquote (*
+                                            (v-list-get (unquote arr-name) (unquote new-offset))
+                                            (unquote right)))]
+                            [`>>= (quasiquote (arithmetic-shift
+                                              (v-list-get (unquote arr-name) (unquote new-offset))
+                                              (- (unquote right))))]
+                            [else (error  "can't handle assign op" op)])))))
+                ; (begin 
+                ;   (define arr-name 
+                ;     (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt))))))
+                ;   (define row
+                ;     (car (cdr (cdr (translate (expr:array-ref-expr (expr:assign-left stmt)))))))
+                ;   (println row)
+                ;   (define nrows 
+                ;     (car (cdr (hash-ref array-ctx arr-name))))
+                ;   (println nrows)
+                ;   (define col 
+                ;     (translate (expr:array-ref-offset (expr:assign-left stmt))))
+                ;   (println col)
+                ;   (define new-offset 
+                ;     (+ col (* row nrows)))
+                ;   (println new-offset)
+                ;   (quasiquote 
+                ;     (v-list-set! 
+                ;       (unquote arr-name)
+                ;       (unquote new-offset)
+                ;       (unquote
+                ;         (match op
+                ;           [`= right]
+                ;           [`+= (quasiquote (+
+                ;                           (v-list-get (unquote arr-name) (unquote new-offset))
+                ;                           (unquote right)))]
+                ;           [`-= (quasiquote (-
+                ;                           (v-list-get (unquote arr-name) (unquote new-offset))
+                ;                           (unquote right)))]
+                ;           [`*= (quasiquote (*
+                ;                           (v-list-get (unquote arr-name) (unquote new-offset))
+                ;                           (unquote right)))]
+                ;           [`>>= (quasiquote (arithmetic-shift
+                ;                             (v-list-get (unquote arr-name) (unquote new-offset))
+                ;                             (- (unquote right))))]
+                ;           [else (error  "can't handle assign op" op)])))))
                 (quasiquote
                   (v-list-set!
                     (unquote left)
