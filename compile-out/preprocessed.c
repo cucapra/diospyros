@@ -1,7 +1,7 @@
 void matrix_multiply(float a_in[2 * 2], float b_in[2 * 2],
                      float c_out[2 * 2]) {
     float test[3][3];
-    test[1][1];
+    test[2][2];
     for (int y = 0; y < 2; y++) {
         for (int x = 0; x < 2; x++) {
             c_out[2 * y + x] = 0;

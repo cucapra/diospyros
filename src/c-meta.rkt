@@ -28,28 +28,30 @@
     [(type:array? base) (* length (multi-array-length base))]
     [else (error "Can't handle array type ~a" array-ty)]))
 
-(define (get-array-dim array-ty dim size-list)
-  (define length (translate (type:array-length array-ty)))
-  (define base (type:array-base array-ty))
-  (cond
-    [(type:primitive? base) 
-      (quasiquote 
-        ((unquote (+ dim 1))
-         (unquote-splicing size-list)
-         (unquote length)))]
-    [(eq? base #f) 
-      (quasiquote 
-        ((unquote (+ dim 1))
-         (unquote-splicing size-list)
-         (unquote length)))]
-    [(type:array? base) 
-      (get-array-dim 
-        base 
-        (+ dim 1)
+(define (get-array-dim array-ty)
+  (define (get-array-dim-rec array-ty dim size-list)
+    (define length (translate (type:array-length array-ty)))
+    (define base (type:array-base array-ty))
+    (cond
+      [(type:primitive? base) 
         (quasiquote 
-          ((unquote-splicing size-list)
-            (unquote length))))]
-    [else (error "Can't handle array type ~a" array-ty)]))
+          ((unquote (+ dim 1))
+          (unquote-splicing size-list)
+          (unquote length)))]
+      [(eq? base #f) 
+        (quasiquote 
+          ((unquote (+ dim 1))
+          (unquote-splicing size-list)
+          (unquote length)))]
+      [(type:array? base) 
+        (get-array-dim-rec 
+          base 
+          (+ dim 1)
+          (quasiquote 
+            ((unquote-splicing size-list)
+              (unquote length))))]
+      [else (error "Can't handle array type ~a" array-ty)]))
+  (get-array-dim-rec array-ty 0 '()))
 
 (define array-ctx (make-hash))
 
@@ -137,7 +139,6 @@
                 (translate (expr:array-ref-offset stmt)))
               (define new-offset 
                 (+ col (* row nrows)))
-              (println new-offset)
               (quasiquote
                 (v-list-get
                   (unquote arr-name)
@@ -195,7 +196,7 @@
                         [init
                           (translate (init:expr-expr init))]
                         [(type:array? type)
-                          (define array-dim-info-list (get-array-dim type 0 '()))
+                          (define array-dim-info-list (get-array-dim type))
                           (hash-set! 
                             array-ctx 
                             (translate (decl:declarator-id decl)) 
