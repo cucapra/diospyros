@@ -28,6 +28,8 @@
     [(type:array? base) (* length (multi-array-length base))]
     [else (error "Can't handle array type ~a" array-ty)]))
 
+(define array-ctx (make-hash))
+
 (define (translate stmt)
   (cond
     [(expr? stmt)
@@ -100,10 +102,26 @@
             (translate (expr:prefix-expr stmt)))]
         [(expr:ref? stmt) (translate (expr:ref-id stmt))]
         [(expr:array-ref? stmt)
-          (quasiquote
-            (v-list-get
-              (unquote (translate (expr:array-ref-expr stmt)))
-              (unquote (translate (expr:array-ref-offset stmt)))))]
+          (if (pair? (translate (expr:array-ref-expr stmt))) 
+            (begin 
+              (define arr-name 
+                (car (cdr (translate (expr:array-ref-expr stmt)))))
+              (define row
+                (car (cdr (cdr (translate (expr:array-ref-expr stmt))))))
+              (define nrows 
+                (car (cdr (hash-ref array-ctx arr-name))))
+              (define col 
+                (translate (expr:array-ref-offset stmt)))
+              (define new-offset 
+                (+ col (* row nrows)))
+              (quasiquote
+                (v-list-get
+                  (unquote arr-name)
+                  (unquote new-offset))))
+            (quasiquote
+              (v-list-get
+                (unquote (translate (expr:array-ref-expr stmt)))
+                (unquote (translate (expr:array-ref-offset stmt))))))]
         [(expr:if? stmt)
           (quasiquote
             (if
@@ -153,6 +171,7 @@
                         [init
                           (translate (init:expr-expr init))]
                         [(type:array? type)
+                          (hash-set! array-ctx (translate (decl:declarator-id decl)) (quote (2 3 4)))
                           `(make-v-list-zeros (unquote (multi-array-length type)))]
                         [(type:primitive? type) 0]
                         [else (error "unexpected initializer in declaration" stmt)]))
