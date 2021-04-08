@@ -83,34 +83,32 @@
         [(expr:assign? stmt)
           (if (expr:array-ref? (expr:assign-left stmt))
             ; Array update
-            (let* ([left (translate (expr:array-ref-expr (expr:assign-left stmt)))]
-                   [offset (translate (expr:array-ref-offset (expr:assign-left stmt)))]
-                   [right (translate (expr:assign-right stmt))]
-                   [op (translate (expr:assign-op stmt))])
-              (let* ([translated-stmt (translate (expr:array-ref-expr (expr:assign-left stmt)))]
-                    [translated-offset (translate (expr:array-ref-offset (expr:assign-left stmt)))]
-                    [offset (translate-array-offset translated-stmt translated-offset)]
-                    [left (translate-array-name translated-stmt)]) 
-                (quasiquote
-                  (v-list-set!
-                    (unquote left)
-                    (unquote offset)
-                    (unquote
-                      (match op
-                        [`= right]
-                        [`+= (quasiquote (+
+            (let* ([translated-stmt (translate (expr:array-ref-expr (expr:assign-left stmt)))]
+                  [translated-offset (translate (expr:array-ref-offset (expr:assign-left stmt)))]
+                  [offset (translate-array-offset translated-stmt translated-offset)]
+                  [left (translate-array-name translated-stmt)]
+                  [right (translate (expr:assign-right stmt))]
+                  [op (translate (expr:assign-op stmt))]) 
+              (quasiquote
+                (v-list-set!
+                  (unquote left)
+                  (unquote offset)
+                  (unquote
+                    (match op
+                      [`= right]
+                      [`+= (quasiquote (+
+                                      (v-list-get (unquote left) (unquote offset))
+                                      (unquote right)))]
+                      [`-= (quasiquote (-
+                                      (v-list-get (unquote left) (unquote offset))
+                                      (unquote right)))]
+                      [`*= (quasiquote (*
+                                      (v-list-get (unquote left) (unquote offset))
+                                      (unquote right)))]
+                      [`>>= (quasiquote (arithmetic-shift
                                         (v-list-get (unquote left) (unquote offset))
-                                        (unquote right)))]
-                        [`-= (quasiquote (-
-                                        (v-list-get (unquote left) (unquote offset))
-                                        (unquote right)))]
-                        [`*= (quasiquote (*
-                                        (v-list-get (unquote left) (unquote offset))
-                                        (unquote right)))]
-                        [`>>= (quasiquote (arithmetic-shift
-                                          (v-list-get (unquote left) (unquote offset))
-                                          (- (unquote right))))]
-                        [else (error  "can't handle assign op" op)]))))))
+                                        (- (unquote right))))]
+                      [else (error  "can't handle assign op" op)])))))
               
             ; Variable update
             (let* ([left (translate (expr:assign-left stmt))]
