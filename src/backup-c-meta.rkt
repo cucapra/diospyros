@@ -53,6 +53,22 @@
 
 (define array-context (make-hash))
 
+(define (translate-array-offset translated-stmt translated-offset)
+  (if (pair? translated-stmt)
+    (let* ([arr-name (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt)))))]
+          [row (car (cdr (cdr (translate (expr:array-ref-expr (expr:assign-left stmt))))))]
+          [nrows (car (cdr (hash-ref array-ctx arr-name)))]
+          [col (translate (expr:array-ref-offset (expr:assign-left stmt)))]
+          [new-offset (+ col (* row nrows))])
+      new-offset)
+    (translated-offset)))
+
+(define (translate-array-name translated-stmt) 
+  (if (pair? translated-stmt)
+    (let* ([arr-name (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt)))))])
+      arr-name)
+    (translated-stmt)))
+
 (define (translate-w-array-ctx stmt a-ctx)
     (define (translate stmt)
     (cond

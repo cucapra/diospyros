@@ -53,6 +53,22 @@
       [else (error "Can't handle array type ~a" array-ty)]))
   (get-array-dim-rec array-ty 0 '()))
 
+(define (translate-array-offset translated-stmt translated-offset)
+  (if (pair? translated-stmt)
+    (let* ([arr-name (car (cdr translated-stmt))]
+          [row (car (cdr (cdr translated-stmt)))]
+          [nrows (car (cdr (hash-ref array-ctx arr-name)))]
+          [col translated-offset]
+          [new-offset (+ col (* row nrows))])
+      new-offset)
+    translated-offset))
+
+(define (translate-array-name translated-stmt) 
+  (if (pair? translated-stmt)
+    (let* ([arr-name (car (cdr translated-stmt))])
+      arr-name)
+    translated-stmt))
+
 (define array-ctx (make-hash))
 
 (define (translate stmt)
@@ -71,32 +87,57 @@
                    [offset (translate (expr:array-ref-offset (expr:assign-left stmt)))]
                    [right (translate (expr:assign-right stmt))]
                    [op (translate (expr:assign-op stmt))])
-              (if (pair? (translate (expr:array-ref-expr (expr:assign-left stmt)))) 
-                (let* ([arr-name (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt)))))]
-                        [row (car (cdr (cdr (translate (expr:array-ref-expr (expr:assign-left stmt))))))]
-                        [nrows (car (cdr (hash-ref array-ctx arr-name)))]
-                        [col (translate (expr:array-ref-offset (expr:assign-left stmt)))]
-                        [new-offset (+ col (* row nrows))])
-                    (quasiquote 
-                      (v-list-set! 
-                        (unquote arr-name)
-                        (unquote new-offset)
-                        (unquote
-                          (match op
-                            [`= right]
-                            [`+= (quasiquote (+
-                                            (v-list-get (unquote arr-name) (unquote new-offset))
-                                            (unquote right)))]
-                            [`-= (quasiquote (-
-                                            (v-list-get (unquote arr-name) (unquote new-offset))
-                                            (unquote right)))]
-                            [`*= (quasiquote (*
-                                            (v-list-get (unquote arr-name) (unquote new-offset))
-                                            (unquote right)))]
-                            [`>>= (quasiquote (arithmetic-shift
-                                              (v-list-get (unquote arr-name) (unquote new-offset))
-                                              (- (unquote right))))]
-                            [else (error  "can't handle assign op" op)])))))
+              (let* ([translated-stmt (translate (expr:array-ref-expr (expr:assign-left stmt)))]
+                    [translated-offset (translate (expr:array-ref-offset (expr:assign-left stmt)))]
+                    [offset (translate-array-offset translated-stmt translated-offset)]
+                    [left (translate-array-name translated-stmt)]) 
+                (quasiquote
+                  (v-list-set!
+                    (unquote left)
+                    (unquote offset)
+                    (unquote
+                      (match op
+                        [`= right]
+                        [`+= (quasiquote (+
+                                        (v-list-get (unquote left) (unquote offset))
+                                        (unquote right)))]
+                        [`-= (quasiquote (-
+                                        (v-list-get (unquote left) (unquote offset))
+                                        (unquote right)))]
+                        [`*= (quasiquote (*
+                                        (v-list-get (unquote left) (unquote offset))
+                                        (unquote right)))]
+                        [`>>= (quasiquote (arithmetic-shift
+                                          (v-list-get (unquote left) (unquote offset))
+                                          (- (unquote right))))]
+                        [else (error  "can't handle assign op" op)]))))))
+              ; (if (pair? (translate (expr:array-ref-expr (expr:assign-left stmt)))) 
+              ;   (let* ([arr-name (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt)))))]
+              ;           [row (car (cdr (cdr (translate (expr:array-ref-expr (expr:assign-left stmt))))))]
+              ;           [nrows (car (cdr (hash-ref array-ctx arr-name)))]
+              ;           [col (translate (expr:array-ref-offset (expr:assign-left stmt)))]
+              ;           [new-offset (+ col (* row nrows))])
+              ;       (quasiquote 
+              ;         (v-list-set! 
+              ;           (unquote arr-name)
+              ;           (unquote new-offset)
+              ;           (unquote
+              ;             (match op
+              ;               [`= right]
+              ;               [`+= (quasiquote (+
+              ;                               (v-list-get (unquote arr-name) (unquote new-offset))
+              ;                               (unquote right)))]
+              ;               [`-= (quasiquote (-
+              ;                               (v-list-get (unquote arr-name) (unquote new-offset))
+              ;                               (unquote right)))]
+              ;               [`*= (quasiquote (*
+              ;                               (v-list-get (unquote arr-name) (unquote new-offset))
+              ;                               (unquote right)))]
+              ;               [`>>= (quasiquote (arithmetic-shift
+              ;                                 (v-list-get (unquote arr-name) (unquote new-offset))
+              ;                                 (- (unquote right))))]
+              ;               [else (error  "can't handle assign op" op)])))))
+
                 ; (begin 
                 ;   (define arr-name 
                 ;     (car (cdr (translate (expr:array-ref-expr (expr:assign-left stmt))))))
@@ -132,26 +173,27 @@
                 ;                             (v-list-get (unquote arr-name) (unquote new-offset))
                 ;                             (- (unquote right))))]
                 ;           [else (error  "can't handle assign op" op)])))))
-                (quasiquote
-                  (v-list-set!
-                    (unquote left)
-                    (unquote offset)
-                    (unquote
-                      (match op
-                        [`= right]
-                        [`+= (quasiquote (+
-                                        (v-list-get (unquote left) (unquote offset))
-                                        (unquote right)))]
-                        [`-= (quasiquote (-
-                                        (v-list-get (unquote left) (unquote offset))
-                                        (unquote right)))]
-                        [`*= (quasiquote (*
-                                        (v-list-get (unquote left) (unquote offset))
-                                        (unquote right)))]
-                        [`>>= (quasiquote (arithmetic-shift
-                                          (v-list-get (unquote left) (unquote offset))
-                                          (- (unquote right))))]
-                        [else (error  "can't handle assign op" op)]))))))
+
+                ; (quasiquote
+                ;   (v-list-set!
+                ;     (unquote left)
+                ;     (unquote offset)
+                ;     (unquote
+                ;       (match op
+                ;         [`= right]
+                ;         [`+= (quasiquote (+
+                ;                         (v-list-get (unquote left) (unquote offset))
+                ;                         (unquote right)))]
+                ;         [`-= (quasiquote (-
+                ;                         (v-list-get (unquote left) (unquote offset))
+                ;                         (unquote right)))]
+                ;         [`*= (quasiquote (*
+                ;                         (v-list-get (unquote left) (unquote offset))
+                ;                         (unquote right)))]
+                ;         [`>>= (quasiquote (arithmetic-shift
+                ;                           (v-list-get (unquote left) (unquote offset))
+                ;                           (- (unquote right))))]
+                ;         [else (error  "can't handle assign op" op)]))))))
             ; Variable update
             (let* ([left (translate (expr:assign-left stmt))]
                    [right (translate (expr:assign-right stmt))]
