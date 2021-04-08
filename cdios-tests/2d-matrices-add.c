@@ -44,10 +44,10 @@
 
 void matrix_multiply(float a_in[A_ROWS * A_COLS], float b_in[A_COLS * B_COLS],
                      float c_out[A_ROWS * B_COLS]) {
-    // float test[NROWS][NCOLS][NCOLS][NCOLS];
-    // test[2][2][2][2];
-    // test[0][0][1][0] = 3.0;
-    // test[0][0][1][0] += test[0][0][1][0];
+    float test[NROWS][NCOLS][NCOLS][NCOLS];
+    test[2][2][2][2];
+    test[0][0][1][0] = 3.0;
+    test[0][0][1][0] += test[0][0][1][0];
     for (int y = 0; y < A_ROWS; y++) {
         for (int x = 0; x < B_COLS; x++) {
             c_out[B_COLS * y + x] = 0;

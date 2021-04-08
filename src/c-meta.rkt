@@ -189,21 +189,30 @@
         [(expr:ref? stmt) (translate (expr:ref-id stmt))]
         [(expr:array-ref? stmt)
           (if (pair? (translate (expr:array-ref-expr stmt))) 
-            (begin 
-              (define arr-name 
-                (car (cdr (translate (expr:array-ref-expr stmt)))))
-              (define row
-                (car (cdr (cdr (translate (expr:array-ref-expr stmt))))))
-              (define nrows 
-                (car (cdr (hash-ref array-ctx arr-name))))
-              (define col 
-                (translate (expr:array-ref-offset stmt)))
-              (define new-offset 
-                (+ col (* row nrows)))
+            (let* ([arr-name (car (cdr (translate (expr:array-ref-expr stmt))))]
+                    [row (car (cdr (cdr (translate (expr:array-ref-expr stmt)))))]
+                    [nrows (car (cdr (hash-ref array-ctx arr-name)))]
+                    [col (translate (expr:array-ref-offset stmt))]
+                    [new-offset (+ col (* row nrows))])
               (quasiquote
                 (v-list-get
                   (unquote arr-name)
                   (unquote new-offset))))
+            ; (begin 
+            ;   (define arr-name 
+            ;     (car (cdr (translate (expr:array-ref-expr stmt)))))
+            ;   (define row
+            ;     (car (cdr (cdr (translate (expr:array-ref-expr stmt))))))
+            ;   (define nrows 
+            ;     (car (cdr (hash-ref array-ctx arr-name))))
+            ;   (define col 
+            ;     (translate (expr:array-ref-offset stmt)))
+            ;   (define new-offset 
+            ;     (+ col (* row nrows)))
+            ;   (quasiquote
+            ;     (v-list-get
+            ;       (unquote arr-name)
+            ;       (unquote new-offset))))
             (quasiquote
               (v-list-get
                 (unquote (translate (expr:array-ref-expr stmt)))
