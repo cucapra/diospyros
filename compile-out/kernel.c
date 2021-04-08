@@ -8,13 +8,15 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 /*
-Git revision: 9856de5
+Git revision: 397b02b
 
 Warning: dirty git status:
- compile-out/kernel.c  |  58 ----------------------
- src/backup-c-meta.rkt |  16 ++++++
- src/c-meta.rkt        | 134 +++++++++++++++++++++++++++++++++-----------------
- 3 files changed, 104 insertions(+), 104 deletions(-)
+ cdios-tests/2d-matrices-add.c |  8 +++----
+ compile-out/kernel.c          | 56 -------------------------------------------
+ compile-out/preprocessed.c    |  8 +++----
+ compile-out/racket-fn.rkt     |  4 ----
+ src/c-meta.rkt                | 36 ++++++++++++++++++----------
+ 5 files changed, 31 insertions(+), 81 deletions(-)
 
 */
 int __attribute__((section(".dram0.data"))) Z[4] = {0, 0, 0, 0};
