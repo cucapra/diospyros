@@ -8,13 +8,12 @@
 #include <xtensa/tie/xt_timer.h>
 #include <xtensa/xt_profiling.h>
 /*
-Git revision: 683b045
+Git revision: 5eb0f94
 
 Warning: dirty git status:
- cdios-tests/2d-matrices-add.c | 79 +++++++++++++++++++++++++++----------------
- cdios.py                      |  2 +-
- src/c-meta.rkt                | 27 ++++++++++++---
- 3 files changed, 73 insertions(+), 35 deletions(-)
+ compile-out/kernel.c | 56 ----------------------------------------------------
+ src/c-meta.rkt       | 30 +++++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 57 deletions(-)
 
 */
 int __attribute__((section(".dram0.data"))) Z[4] = {0, 0, 0, 0};
