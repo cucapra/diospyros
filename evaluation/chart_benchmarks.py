@@ -32,13 +32,18 @@ def get_color_palette():
 
     colorblind = sns.color_palette("colorblind", 6)
 
+    # palette = [
+    #             base_palette[4], # light blue   - Naive
+    #             base_palette[5], # dark blue    - Naive (fixed size)
+    #             colorblind[2],   # green        - Diospyros
+    #             colorblind[4],   # light purple - Nature
+    #             colorblind[5],   # gold         - Eigen
+    #             ]
+
     palette = [
-                base_palette[4], # light blue   - Naive
-                base_palette[5], # dark blue    - Naive (fixed size)
-                colorblind[2],   # green        - Diospyros
-                colorblind[4],   # light purple - Nature
-                colorblind[5],   # gold         - Eigen
-                ]
+            (170/235, 170/235, 170/235), # dark blue    - Naive (fixed size)
+            (140/235, 40/235, 93/235),   # magenta        - Diospyros
+            ]
     return palette
 
 def get_y_limit(benchmark):
@@ -130,6 +135,20 @@ def chart(graph_data):
     # Don't show expert in the chart, since there is only 1
     graph_data = graph_data[graph_data.Kernel != "Expert"]
 
+    # Combine Nature and Eigen into a single "Library" type
+    graph_data = graph_data[((graph_data.Kernel != 'Nature') & (graph_data.Kernel != 'Eigen')) | \
+                            (((graph_data.Benchmark == 'q-prod') | (graph_data.Benchmark == 'qr-decomp')) & (graph_data.Kernel == 'Eigen')) | \
+                            (((graph_data.Benchmark != 'q-prod') & (graph_data.Benchmark != 'qr-decomp')) & (graph_data.Kernel == 'Nature'))]
+    graph_data.loc[graph_data.Kernel == 'Nature', 'Kernel'] = 'Library'
+    graph_data.loc[graph_data.Kernel == 'Eigen', 'Kernel'] = 'Library'
+
+    # Only show a few kernels
+    graph_data = graph_data[graph_data.Kernel.isin(["Naive (fixed size)", "Library", "Diospyros"])]
+
+    # reorder
+    graph_data.loc[graph_data.Kernel == 'Library', 'Order'] = 2
+    graph_data.loc[graph_data.Kernel == 'Diospyros', 'Order'] = 3
+
     figsize=(15,3)
     # Normalize data against key
     norm_key = 'Naive (fixed size)'
@@ -147,7 +166,7 @@ def chart(graph_data):
     graph_data_with_norm['cycles-norm'] = graph_data_with_norm['Cycles (simulation)-naive'] / graph_data_with_norm['Cycles (simulation)']
 
     # This sets the gray background, among other things
-    sns.set(font_scale=1.04)
+    sns.set(font_scale=1.04, style="whitegrid")
 
     graph_data_with_norm['size_sort'] = graph_data_with_norm.Size.map(size_as_int)
 
@@ -155,20 +174,27 @@ def chart(graph_data):
     graph_data_with_norm = graph_data_with_norm.sort_values(
             ['Benchmark', 'Order', 'size_sort'])
 
+    # Once normalized, remove fixed sized
+    graph_data_with_norm = graph_data_with_norm[graph_data_with_norm.Kernel.isin(["Library", "Diospyros"])]
+
     plt.rcParams['figure.figsize'] = figsize
     colors = get_color_palette()
+
     ax = sns.barplot(
         x="Size",
         y="cycles-norm",
         hue="Kernel",
         palette=colors,
-        data=graph_data_with_norm)
+        data=graph_data_with_norm,
+        zorder=2,
+        alpha=0.
+        )
     locs, labels = plt.xticks()
 
-    ax.set(ylabel="Speedup over Naive (fixed-size)")
+    ax.set(ylabel="Speedup over fixed-sized loop nest")
 
     # Add a line at 1 to show speed up baseline
-    ax.axhline(y=1, linewidth=1, color=colors[norm_color_loc])
+    ax.axhline(y=1, linewidth=1, color="black",zorder=1)
     ax.set_yscale('log')
 
     formatterY = FuncFormatter(lambda y, pos: '{0:g}'.format(y))
@@ -178,7 +204,7 @@ def chart(graph_data):
     legend = ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1)
     for t in legend.texts:
         if t.get_text() == "Naive (fixed size)":
-            t.set_text("Naive\n(fixed size)")
+            t.set_text("Fixed-sized\nloop nest")
 
     ax.set_xlabel('')
     plt.savefig(name, bbox_inches='tight')

@@ -9,12 +9,10 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
-colorblind = sns.color_palette("colorblind", 6)
 palette = [
-    colorblind[2],   # green        - Diospyros
-    colorblind[4],   # light purple - Nature
-]
-
+        (170/235, 170/235, 170/235), # gray    - Nature
+        (140/235, 40/235, 93/235),   # magenta        - Diospyros
+        ]
 
 def plot(df):
     """
@@ -25,19 +23,19 @@ def plot(df):
         lambda x: 10000 if x == 'Nature' else int(x))
     # Cleanup the kernel names
     df['name'] = df['name'].map(
-        lambda x: 'Nature' if x == 'Nature' else x)
+        lambda x: 'Nature Library' if x == 'Nature' else x)
 
-    plt.rcParams['figure.figsize'] = (10, 3)
+    plt.rcParams['figure.figsize'] = (7, 3)
 
     print(df)
     df = df.sort_values(['timeout'])
 
     # Color palette hackery
     pal = df['name'].map(
-        lambda x: colorblind[4] if x == 'Nature' else colorblind[2])
+        lambda x: palette[0] if x == 'Nature' else palette[1])
 
     # Set SNS formatting
-    sns.set(font_scale=1.6)
+    sns.set(font_scale=1.04, style="whitegrid")
 
 
     ax = sns.barplot(
@@ -45,8 +43,10 @@ def plot(df):
         x='cycles',
         palette = pal,
         data = df,
+        alpha=0.
     )
     locs, labels = plt.xticks()
+
 
     ax.set_ylabel('Timeout (seconds)')
     ax.set_xlabel('Simulation cycles, 10×10 10×10 MatMul')
