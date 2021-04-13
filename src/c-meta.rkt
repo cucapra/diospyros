@@ -1,12 +1,12 @@
 #lang rosette
 
-
 (require racket/cmdline
          json
          threading
          "./ast.rkt"
-         "./utils.rkt"
-         "./configuration.rkt")
+         "./configuration.rkt"
+         "./uninterp-fns.rkt"
+         "./utils.rkt")
 
 (require c)
 
@@ -111,12 +111,11 @@
               (unquote (translate (expr:if-cons stmt)))
               (unquote (translate (expr:if-alt stmt)))))]
         [(expr:call? stmt)
-          (define fn-name 
+          (define fn-name
             (let* ([fn (translate (expr:call-function stmt))])
               ; Function translations
               (match fn
                 [`powf `expt]
-                ; [else (error "cant handle fn" fn)]
                 [else fn])))
           (define args
              (for/list ([arg (expr:call-arguments stmt)])
@@ -133,21 +132,21 @@
                      [type (decl:declarator-type decl)])
                 ; Assumes this is float or float array
                 (if (init:compound? init)
-                  (begin 
+                  (begin
                     (define arr-name (translate (decl:declarator-id decl)))
-                    (define translated-values 
-                      (map 
-                        (lambda (expr) 
-                          (translate (init:expr-expr expr))) 
+                    (define translated-values
+                      (map
+                        (lambda (expr)
+                          (translate (init:expr-expr expr)))
                         (init:compound-elements init)))
-                    (define boxed-list 
-                      (map 
-                        (lambda (v) 
-                          (quasiquote (box (unquote v)))) 
+                    (define boxed-list
+                      (map
+                        (lambda (v)
+                          (quasiquote (box (unquote v))))
                         translated-values))
-                    (quasiquote 
+                    (quasiquote
                       (define (unquote arr-name) (list unquote boxed-list))))
-                  (begin 
+                  (begin
                     (define initializer
                       (cond
                         [init
