@@ -8,7 +8,7 @@
          "./uninterp-fns.rkt"
          "./utils.rkt")
 
-(require c)
+(require (prefix-in c: c))
 
 ; Convert a subset of C to equivalent Racket, operating on lists of boxed
 ; Rosette real values.
@@ -20,30 +20,30 @@
 
 ; Returns tuple (<base type>, <total size across dimensions>)
 (define (multi-array-length array-ty)
-  (define length (translate (type:array-length array-ty)))
-  (define base (type:array-base array-ty))
+  (define length (translate (c:type:array-length array-ty)))
+  (define base (c:type:array-base array-ty))
   (cond
-    [(type:primitive? base) length]
+    [(c:type:primitive? base) length]
     [(eq? base #f) length]
-    [(type:array? base) (* length (multi-array-length base))]
+    [(c:type:array? base) (* length (multi-array-length base))]
     [else (error "Can't handle array type ~a" array-ty)]))
 
 (define (translate stmt)
   (cond
-    [(expr? stmt)
+    [(c:expr? stmt)
       (cond
         ; Literals: only support int and float
-        [(expr:int? stmt) (expr:int-value stmt)]
-        [(expr:float? stmt) (expr:float-value stmt)]
+        [(c:expr:int? stmt) (c:expr:int-value stmt)]
+        [(c:expr:float? stmt) (c:expr:float-value stmt)]
 
         ; Assign
-        [(expr:assign? stmt)
-          (if (expr:array-ref? (expr:assign-left stmt))
+        [(c:expr:assign? stmt)
+          (if (c:expr:array-ref? (c:expr:assign-left stmt))
             ; Array update
-            (let* ([left (translate (expr:array-ref-expr (expr:assign-left stmt)))]
-                   [offset (translate (expr:array-ref-offset (expr:assign-left stmt)))]
-                   [right (translate (expr:assign-right stmt))]
-                   [op (translate (expr:assign-op stmt))])
+            (let* ([left (translate (c:expr:array-ref-expr (c:expr:assign-left stmt)))]
+                   [offset (translate (c:expr:array-ref-offset (c:expr:assign-left stmt)))]
+                   [right (translate (c:expr:assign-right stmt))]
+                   [op (translate (c:expr:assign-op stmt))])
               (quasiquote
                 (v-list-set!
                   (unquote left)
@@ -65,14 +65,14 @@
                                         (- (unquote right))))]
                       [else (error  "can't handle assign op" op)])))))
             ; Variable update
-            (let* ([left (translate (expr:assign-left stmt))]
-                   [right (translate (expr:assign-right stmt))]
-                   [op (translate (expr:assign-op stmt))])
+            (let* ([left (translate (c:expr:assign-left stmt))]
+                   [right (translate (c:expr:assign-right stmt))]
+                   [op (translate (c:expr:assign-op stmt))])
               (quasiquote
                 (set!
                   (unquote left)
                   (unquote
-                    (match (translate (expr:assign-op stmt))
+                    (match (translate (c:expr:assign-op stmt))
                       [`= right]
                       [`+= (quasiquote (+ (unquote left) (unquote right)))]
                       [`-= (quasiquote (- (unquote left) (unquote right)))]
@@ -81,64 +81,64 @@
                       [else (error  "can't handle assign op" op)]))))))]
 
         ; Operations
-        [(expr:unop? stmt)
+        [(c:expr:unop? stmt)
           (quasiquote
-            ((unquote (translate (expr:unop-op stmt)))
-            (unquote (translate (expr:unop-expr stmt)))))]
-        [(expr:binop? stmt)
+            ((unquote (translate (c:expr:unop-op stmt)))
+            (unquote (translate (c:expr:unop-expr stmt)))))]
+        [(c:expr:binop? stmt)
           (quasiquote
-            ((unquote (translate (expr:binop-op stmt)))
-            (unquote (translate (expr:binop-left stmt)))
-            (unquote (translate (expr:binop-right stmt)))))]
-        [(expr:postfix? stmt)
+            ((unquote (translate (c:expr:binop-op stmt)))
+            (unquote (translate (c:expr:binop-left stmt)))
+            (unquote (translate (c:expr:binop-right stmt)))))]
+        [(c:expr:postfix? stmt)
           (list
-            (translate (expr:postfix-op stmt))
-            (translate (expr:postfix-expr stmt)))]
-        [(expr:prefix? stmt)
+            (translate (c:expr:postfix-op stmt))
+            (translate (c:expr:postfix-expr stmt)))]
+        [(c:expr:prefix? stmt)
           (list
-            (translate (expr:prefix-op stmt))
-            (translate (expr:prefix-expr stmt)))]
-        [(expr:ref? stmt) (translate (expr:ref-id stmt))]
-        [(expr:array-ref? stmt)
+            (translate (c:expr:prefix-op stmt))
+            (translate (c:expr:prefix-expr stmt)))]
+        [(c:expr:ref? stmt) (translate (c:expr:ref-id stmt))]
+        [(c:expr:array-ref? stmt)
           (quasiquote
             (v-list-get
-              (unquote (translate (expr:array-ref-expr stmt)))
-              (unquote (translate (expr:array-ref-offset stmt)))))]
-        [(expr:if? stmt)
+              (unquote (translate (c:expr:array-ref-expr stmt)))
+              (unquote (translate (c:expr:array-ref-offset stmt)))))]
+        [(c:expr:if? stmt)
           (quasiquote
             (if
-              (unquote (translate (expr:if-test stmt)))
-              (unquote (translate (expr:if-cons stmt)))
-              (unquote (translate (expr:if-alt stmt)))))]
-        [(expr:call? stmt)
+              (unquote (translate (c:expr:if-test stmt)))
+              (unquote (translate (c:expr:if-cons stmt)))
+              (unquote (translate (c:expr:if-alt stmt)))))]
+        [(c:expr:call? stmt)
           (define fn-name
-            (let* ([fn (translate (expr:call-function stmt))])
+            (let* ([fn (translate (c:expr:call-function stmt))])
               ; Function translations
               (match fn
                 [`powf `expt]
                 [else fn])))
           (define args
-             (for/list ([arg (expr:call-arguments stmt)])
+             (for/list ([arg (c:expr:call-arguments stmt)])
               (translate arg)))
           (cons fn-name args)]
 
         [else (error "can't handle expr" stmt)])]
-    [(decl? stmt)
+    [(c:decl? stmt)
       (cond
-        [(decl:vars? stmt)
+        [(c:decl:vars? stmt)
           (define stmts
-            (for/list ([decl (decl:vars-declarators stmt)])
-              (let* ([init (decl:declarator-initializer decl)]
-                     [type (decl:declarator-type decl)])
+            (for/list ([decl (c:decl:vars-declarators stmt)])
+              (let* ([init (c:decl:declarator-initializer decl)]
+                     [type (c:decl:declarator-type decl)])
                 ; Assumes this is float or float array
-                (if (init:compound? init)
+                (if (c:init:compound? init)
                   (begin
-                    (define arr-name (translate (decl:declarator-id decl)))
+                    (define arr-name (translate (c:decl:declarator-id decl)))
                     (define translated-values
                       (map
                         (lambda (expr)
-                          (translate (init:expr-expr expr)))
-                        (init:compound-elements init)))
+                          (translate (c:init:expr-expr expr)))
+                        (c:init:compound-elements init)))
                     (define boxed-list
                       (map
                         (lambda (v)
@@ -150,25 +150,25 @@
                     (define initializer
                       (cond
                         [init
-                          (translate (init:expr-expr init))]
-                        [(type:array? type)
+                          (translate (c:init:expr-expr init))]
+                        [(c:type:array? type)
                           `(make-v-list-zeros (unquote (multi-array-length type)))]
-                        [(type:primitive? type) 0]
+                        [(c:type:primitive? type) 0]
                         [else (error "unexpected initializer in declaration" stmt)]))
                     (quasiquote
                       (define
-                        (unquote (translate (decl:declarator-id decl)))
+                        (unquote (translate (c:decl:declarator-id decl)))
                         (unquote initializer))))))))
           (cond
             [(empty? stmts) `void]
             [(equal? 1 (length stmts)) (first stmts)]
             [else `(begin (unquote stmts))])]
         [else (error "can't handle declaration" stmt)])]
-    [(id? stmt)
+    [(c:id? stmt)
       (cond
-        [(id:var? stmt) (id:var-name stmt)]
-        [(id:op? stmt)
-          (define name (id:op-name stmt))
+        [(c:id:var? stmt) (c:id:var-name stmt)]
+        [(c:id:op? stmt)
+          (define name (c:id:op-name stmt))
           (match name
             ['>> '(lambda (x y) (arithmetic-shift x (- y)))]
             ['<< 'arithmetic-shift]
@@ -180,32 +180,32 @@
             ['!= '(lambda (x y) (not (equal? x y)))]
             ['== 'equal?]
             [else name])]
-        [(id:label? stmt) (error "can't handle labels")])]
-    [(stmt:expr? stmt)
-      (translate (stmt:expr-expr stmt))]
-    [(stmt:block? stmt)
-      (if (empty? (stmt:block-items stmt))
+        [(c:id:label? stmt) (error "can't handle labels")])]
+    [(c:stmt:expr? stmt)
+      (translate (c:stmt:expr-expr stmt))]
+    [(c:stmt:block? stmt)
+      (if (empty? (c:stmt:block-items stmt))
           `void
           (append (list `begin)
-            (for/list ([s (stmt:block-items stmt)])
+            (for/list ([s (c:stmt:block-items stmt)])
               (translate s))))]
-    [(stmt:if? stmt)
-      (if (not (stmt:if-alt stmt))
+    [(c:stmt:if? stmt)
+      (if (not (c:stmt:if-alt stmt))
         (quasiquote
           (when
-            (unquote (translate (stmt:if-test stmt)))
-            (unquote (translate (stmt:if-cons stmt)))))
+            (unquote (translate (c:stmt:if-test stmt)))
+            (unquote (translate (c:stmt:if-cons stmt)))))
         (quasiquote
           (if
-            (unquote (translate (stmt:if-test stmt)))
-            (unquote (translate (stmt:if-cons stmt)))
-            (unquote (translate (stmt:if-alt stmt))))))]
-    [(stmt:while? stmt)
-      (define test (translate (stmt:while-test stmt)))
-      (define body (translate (stmt:while-body stmt)))
+            (unquote (translate (c:stmt:if-test stmt)))
+            (unquote (translate (c:stmt:if-cons stmt)))
+            (unquote (translate (c:stmt:if-alt stmt))))))]
+    [(c:stmt:while? stmt)
+      (define test (translate (c:stmt:while-test stmt)))
+      (define body (translate (c:stmt:while-body stmt)))
       (define while-name
         (string->symbol (~a "while"
-                             (src-start-line (expr-src (stmt:while-test stmt))))))
+                             (c:src-start-line (c:expr-src (c:stmt:while-test stmt))))))
       (quasiquote
         (begin
           (define ((unquote while-name))
@@ -215,21 +215,21 @@
                   ((unquote while-name)))
                 '()))
           ((unquote while-name))))]
-    [(stmt:for? stmt)
-      (let ([init (stmt:for-init stmt)]
-            [test (stmt:for-test stmt)]
-            [update (stmt:for-update stmt)])
+    [(c:stmt:for? stmt)
+      (let ([init (c:stmt:for-init stmt)]
+            [test (c:stmt:for-test stmt)]
+            [update (c:stmt:for-update stmt)])
 
         (when (not init) (error "for loops must include intialization"))
         (define-values (idx idx-init)
           (cond
-            [(decl:vars? init)
-              (when (not (eq? 1 (length (decl:vars-declarators init))))
+            [(c:decl:vars? init)
+              (when (not (eq? 1 (length (c:decl:vars-declarators init))))
                 (error "for loops must have a single index variable"))
-              (define fi (first (decl:vars-declarators init)))
+              (define fi (first (c:decl:vars-declarators init)))
               (values
-                (translate (decl:declarator-id fi))
-                (translate (init:expr-expr (decl:declarator-initializer fi))))]
+                (translate (c:decl:declarator-id fi))
+                (translate (c:init:expr-expr (c:decl:declarator-initializer fi))))]
             [else (error "unexpected for loop initializer " init)]))
         (when (not update) (error "for loops must include update"))
 
@@ -250,32 +250,32 @@
             [else (error "can't handle for loop bound" t-update)]))
 
         `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
-          (unquote (translate (stmt:for-body stmt)))))]
-    [(stmt:return? stmt)
+          (unquote (translate (c:stmt:for-body stmt)))))]
+    [(c:stmt:return? stmt)
        ; TODO: handle early returns
-      (define value (translate (stmt:return-result stmt)))
+      (define value (translate (c:stmt:return-result stmt)))
       value]
     [else (error "can't handle statement" stmt)]))
 
 (define (translate-fn-decl fn-decl)
   (match fn-decl
-    [(decl:function decl-stmt
-                    decl:function-storage-class
-                    decl:function-inline?
-                    decl:function-return-type
-                    decl:function-declarator
-                    decl:function-preamble
-                    decl:function-body)
+    [(c:decl:function decl-stmt
+                    c:decl:function-storage-class
+                    c:decl:function-inline?
+                    c:decl:function-return-type
+                    c:decl:function-declarator
+                    c:decl:function-preamble
+                    c:decl:function-body)
 
-      (define fn-body (translate decl:function-body))
+      (define fn-body (translate c:decl:function-body))
       (quasiquote
         (define
           (unquote
             (append
-              (list (translate (decl:declarator-id decl:function-declarator)))
-              (for/list ([arg (type:function-formals
-                                (decl:declarator-type decl:function-declarator))])
-                (translate (decl:declarator-id (decl:formal-declarator arg))))))
+              (list (translate (c:decl:declarator-id c:decl:function-declarator)))
+              (for/list ([arg (c:type:function-formals
+                                (c:decl:declarator-type c:decl:function-declarator))])
+                (translate (c:decl:declarator-id (c:decl:formal-declarator arg))))))
                ; TODO: handle early returns
               (unquote fn-body)))]
     [else (error "can't translate function" fn-decl)]))
@@ -310,7 +310,7 @@
       #:args (path)
       path))
 
-  (define program (parse-program (string->path (~a input-path "/preprocessed.c"))))
+  (define program (c:parse-program (string->path (~a input-path "/preprocessed.c"))))
 
   (define outer-function (last program))
   (define (program-to-c program)
@@ -336,37 +336,37 @@
   ; Assumes args are arrays of floats (potentially multi-dimensional) or scalar
   ; floats
   (define args (match outer-function
-    [(decl:function decl-stmt
-                    decl:function-storage-class
-                    decl:function-inline?
-                    decl:function-return-type
-                    decl:function-declarator
-                    decl:function-preamble
-                    decl:function-body)
-      (for/list ([arg (type:function-formals
-                      (decl:declarator-type decl:function-declarator))])
-        (define ty (decl:declarator-type (decl:formal-declarator arg)))
-        ; array-len if false if scalar
+    [(c:decl:function decl-stmt
+                    c:decl:function-storage-class
+                    c:decl:function-inline?
+                    c:decl:function-return-type
+                    c:decl:function-declarator
+                    c:decl:function-preamble
+                    c:decl:function-body)
+      (for/list ([arg (c:type:function-formals
+                      (c:decl:declarator-type c:decl:function-declarator))])
+        (define ty (c:decl:declarator-type (c:decl:formal-declarator arg)))
+        ; array-len is false if scalar
         (define array-len
-          (if (type:array? ty) (multi-array-length ty) #f))
+          (if (c:type:array? ty) (multi-array-length ty) #f))
         (list
           array-len
-          (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
+          (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))))]))
 
   (when debug
     (pretty-print args))
 
   (define fn-name
     (match outer-function
-      [(decl:function decl-stmt
-                      decl:function-storage-class
-                      decl:function-inline?
-                      decl:function-return-type
-                      decl:function-declarator
-                      decl:function-preamble
-                      decl:function-body)
-        (translate (decl:declarator-id decl:function-declarator))]
-      [else (error "can't handle decl" stmt)]))
+      [(c:decl:function decl-stmt
+                      c:decl:function-storage-class
+                      c:decl:function-inline?
+                      c:decl:function-return-type
+                      c:decl:function-declarator
+                      c:decl:function-preamble
+                      c:decl:function-body)
+        (translate (c:decl:declarator-id c:decl:function-declarator))]
+      [else (error "can't handle decl" outer-function)]))
 
   (define out-writer (make-spec-out-dir-writer input-path))
 
