@@ -58,9 +58,8 @@
     (let* ([arr-name (car (cdr translated-stmt))]
           [row (car (cdr (cdr translated-stmt)))]
           [nrows (car (cdr (hash-ref array-ctx arr-name)))]
-          [col translated-offset]
-          [new-offset (+ col (* row nrows))])
-      new-offset)
+          [col translated-offset])
+      `(+ (unquote col) (* (unquote row) (unquote nrows))))
     translated-offset))
 
 (define (translate-array-name translated-stmt) 
