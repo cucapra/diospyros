@@ -6,8 +6,8 @@
          threading
          "./ast.rkt"
          "./utils.rkt"
-         "./configuration.rkt")
-
+         "./configuration.rkt"
+         "./c-meta-utils.rkt")
 (require c)
 
 ; Convert a subset of C to equivalent Racket, operating on lists of boxed
@@ -20,13 +20,25 @@
 
 ; Returns tuple (<base type>, <total size across dimensions>)
 (define (multi-array-length array-ty)
-  (define length (translate (type:array-length array-ty)))
+  (define length (translate (type:array-length array-ty) (void)))
   (define base (type:array-base array-ty))
   (cond
     [(type:primitive? base) length]
     [(eq? base #f) length]
     [(type:array? base) (* length (multi-array-length base))]
     [else (error "Can't handle array type ~a" array-ty)]))
+
+;;; (define (translate-for-loop idx idx-init bound update-skip body cont)
+;;;   (call/cc 
+;;;     (lambda (break)
+;;;       (for ([idx (in-range idx-init bound update-skip)])
+;;;         (call/cc (lambda (continue)
+;;;           (if ;; (continue-condition) (continue i) 
+;;;             (if ;;(break-condition (break i) (translate body)))
+;;;           ))
+;;;         )
+;;;     (translate cont))))
+
 
 (define (translate stmt)
   (cond
@@ -187,9 +199,12 @@
     [(stmt:block? stmt)
       (if (empty? (stmt:block-items stmt))
           `void
-          (append (list `begin)
+          ;;; (call/ec (lambda (return)
+            (append (list `begin)
             (for/list ([s (stmt:block-items stmt)])
-              (translate s))))]
+              (translate s)))
+              ;;; ))
+              )]
     [(stmt:if? stmt)
       (if (not (stmt:if-alt stmt))
         (quasiquote
@@ -207,19 +222,27 @@
       (define while-name
         (string->symbol (~a "while"
                              (src-start-line (expr-src (stmt:while-test stmt))))))
-      (quasiquote
-        (begin
-          (define ((unquote while-name))
-            (if (unquote test)
-                (begin
-                  (unquote body)
-                  ((unquote while-name)))
-                '()))
-          ((unquote while-name))))]
+      ;;; (quasiquote
+      ;;;   (begin
+      ;;;     (define ((unquote while-name))
+      ;;;       (if (unquote test)
+      ;;;           (begin
+      ;;;             (unquote body)
+      ;;;             ((unquote while-name)))
+      ;;;           '()))
+      ;;;     ((unquote while-name))))]
+
+      `(call/ec (lambda (break)
+        (letrec ([loop (lambda ()
+          (when (unquote test)
+            (call/ec (lambda (continue) (unquote body)))
+          (loop)))])
+        (loop))))]
     [(stmt:for? stmt)
       (let ([init (stmt:for-init stmt)]
             [test (stmt:for-test stmt)]
-            [update (stmt:for-update stmt)])
+            [update (stmt:for-update stmt)]
+            [body (translate (stmt:for-body stmt))])
 
         (when (not init) (error "for loops must include intialization"))
         (define-values (idx idx-init)
@@ -249,13 +272,33 @@
             [`(< (unquote idx) ,bound) (values bound #f)]
             [`(<= (unquote idx) ,bound) (values (- bound update-skip) #f)]
             [else (error "can't handle for loop bound" t-update)]))
+        
+        ;;; (define for-continue
+        ;;;   `(for ([(unquote idx) (in-range (unquote (+ idx-init update-skip)) (unquote bound) (unquote update-skip))])
+        ;;;     (unquote (translate (stmt:for-body stmt) cont))))
 
         `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
           (unquote (translate (stmt:for-body stmt)))))]
+
+      ;;;  `(let ([idx (unquote idx-init)]) 
+      ;;;     (call/ec (lambda (break)
+      ;;;       (letrec ([loop (lambda ()
+      ;;;         (when (unquote test)
+      ;;;         (call/ec (lambda (continue) (unquote body)))
+      ;;;         (set! idx (+ idx (unquote update-skip)))
+      ;;;         (loop)))])
+      ;;;       (loop))))))]
+    [(stmt:continue? stmt) 
+      `(continue)]
+    [(stmt:break? stmt)
+      `(break)]
     [(stmt:return? stmt)
        ; TODO: handle early returns
-      (define value (translate (stmt:return-result stmt)))
-      value]
+      (if (not stmt) 
+        `(return)
+        (translate (stmt:return-result stmt)))]
+    [(void? stmt)
+      `void]
     [else (error "can't handle statement" stmt)]))
 
 (define (translate-fn-decl fn-decl)
@@ -268,15 +311,15 @@
                     decl:function-preamble
                     decl:function-body)
 
-      (define fn-body (translate decl:function-body))
+      (define fn-body (translate decl:function-body (conts (void) (void))))
       (quasiquote
         (define
           (unquote
             (append
-              (list (translate (decl:declarator-id decl:function-declarator)))
+              (list (translate (decl:declarator-id decl:function-declarator) (conts (void) (void))))
               (for/list ([arg (type:function-formals
                                 (decl:declarator-type decl:function-declarator))])
-                (translate (decl:declarator-id (decl:formal-declarator arg))))))
+                (translate (decl:declarator-id (decl:formal-declarator arg)) (conts (void) (void))))))
                ; TODO: handle early returns
               (unquote fn-body)))]
     [else (error "can't translate function" fn-decl)]))
@@ -352,7 +395,7 @@
           (if (type:array? ty) (multi-array-length ty) #f))
         (list
           array-len
-          (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
+          (translate (decl:declarator-id (decl:formal-declarator arg)) (conts (void) (void)))))]))
 
   (when debug
     (pretty-print args))
@@ -366,7 +409,7 @@
                       decl:function-declarator
                       decl:function-preamble
                       decl:function-body)
-        (translate (decl:declarator-id decl:function-declarator))]
+        (translate (decl:declarator-id decl:function-declarator) (conts (void) (void)))]
       [else (error "can't handle decl" stmt)]))
 
   (define out-writer (make-spec-out-dir-writer input-path))
