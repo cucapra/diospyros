@@ -6,8 +6,7 @@
          threading
          "./ast.rkt"
          "./utils.rkt"
-         "./configuration.rkt"
-         "./c-meta-utils.rkt")
+         "./configuration.rkt")
 (require c)
 
 ; Convert a subset of C to equivalent Racket, operating on lists of boxed
@@ -20,7 +19,7 @@
 
 ; Returns tuple (<base type>, <total size across dimensions>)
 (define (multi-array-length array-ty)
-  (define length (translate (type:array-length array-ty) (void)))
+  (define length (translate (type:array-length array-ty)))
   (define base (type:array-base array-ty))
   (cond
     [(type:primitive? base) length]
@@ -311,15 +310,15 @@
                     decl:function-preamble
                     decl:function-body)
 
-      (define fn-body (translate decl:function-body (conts (void) (void))))
+      (define fn-body (translate decl:function-body))
       (quasiquote
         (define
           (unquote
             (append
-              (list (translate (decl:declarator-id decl:function-declarator) (conts (void) (void))))
+              (list (translate (decl:declarator-id decl:function-declarator)))
               (for/list ([arg (type:function-formals
                                 (decl:declarator-type decl:function-declarator))])
-                (translate (decl:declarator-id (decl:formal-declarator arg)) (conts (void) (void))))))
+                (translate (decl:declarator-id (decl:formal-declarator arg))))))
                ; TODO: handle early returns
               (unquote fn-body)))]
     [else (error "can't translate function" fn-decl)]))
@@ -395,7 +394,7 @@
           (if (type:array? ty) (multi-array-length ty) #f))
         (list
           array-len
-          (translate (decl:declarator-id (decl:formal-declarator arg)) (conts (void) (void)))))]))
+          (translate (decl:declarator-id (decl:formal-declarator arg)))))]))
 
   (when debug
     (pretty-print args))
@@ -409,7 +408,7 @@
                       decl:function-declarator
                       decl:function-preamble
                       decl:function-body)
-        (translate (decl:declarator-id decl:function-declarator) (conts (void) (void)))]
+        (translate (decl:declarator-id decl:function-declarator))]
       [else (error "can't handle decl" stmt)]))
 
   (define out-writer (make-spec-out-dir-writer input-path))
