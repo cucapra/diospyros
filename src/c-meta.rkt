@@ -14,9 +14,11 @@
 ; Rosette real values.
 
 (error-print-width 9999999999999999999999999999999)
+(print-syntax-width +inf.0)
 (pretty-print-depth #f)
 
 (define debug #t)
+(define c-path (box ""))
 
 ; Returns tuple (<base type>, <total size across dimensions>)
 (define (multi-array-length array-ty)
@@ -241,7 +243,7 @@
             [`(+= (unquote idx) , n) n]
             [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
             [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
-            [else (error "can't handle for loop update" t-update)]))
+            [else (error "can't handle for loop update" (fmt-src (c:expr-src update)))]))
 
         (define-values (bound reverse)
           (match (translate test)
@@ -302,6 +304,33 @@
         (lambda (out) (pretty-print spec out))
         #:exists 'replace))))
 
+
+(define (position-to-string port start-offset end-offset)
+  (define pos (file-position port))
+  (file-position port (sub1 start-offset))
+  (define span (- end-offset start-offset))
+  (define result (read-string span port))
+  (file-position port pos)
+  result)
+
+
+(define (fmt-src expr)
+  (define src (cond
+    [(c:src? expr) expr]
+    [(c:expr? expr) (c:expr-src expr)]))
+
+  (match src
+    [(c:src start-offset
+            start-line
+            start-col
+            end-offset
+            end-line
+            end-col
+          _)
+      (position-to-string (open-input-file (unbox c-path))
+                          start-offset
+                          end-offset)]))
+
 (module+ main
 
   (define input-path
@@ -310,7 +339,9 @@
       #:args (path)
       path))
 
-  (define program (c:parse-program (string->path (~a input-path "/preprocessed.c"))))
+  (define path (string->path (~a input-path "preprocessed.c")))
+  (set-box! c-path path)
+  (define program (c:parse-program path))
 
   (define outer-function (last program))
   (define (program-to-c program)
@@ -366,7 +397,7 @@
                       c:decl:function-preamble
                       c:decl:function-body)
         (translate (c:decl:declarator-id c:decl:function-declarator))]
-      [else (error "can't handle decl" outer-function)]))
+      [else (error "can't handle declaration" outer-function)]))
 
   (define out-writer (make-spec-out-dir-writer input-path))
 
