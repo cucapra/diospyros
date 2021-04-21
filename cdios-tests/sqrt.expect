@@ -11,7 +11,7 @@
 int __attribute__((section(".dram0.data"))) Z[4] = {0, 0, 0, 0};
 float __attribute__((section(".dram0.data"))) v_0[4] = {0.0, 0, 0, 0};
 int __attribute__((section(".dram0.data"))) v_1[4] = {0, 1, 2, 3};
-int __attribute__((section(".dram0.data"))) v_9[4] = {4, 5, 6, 7};
+int __attribute__((section(".dram0.data"))) v_4[4] = {4, 5, 6, 7};
 void kernel(float * a_in, float * b_out) {
 float * __restrict a_in_mut = a_in;
   valign align_a_in;
@@ -24,13 +24,11 @@ float * __restrict a_in_mut = a_in;
   PDX_LAV_MXF32_XP(a_in_4_8, align_a_in, (xb_vecMxf32 *) a_in_mut, 16);
   xb_vecMxf32 v_2;
   v_2 = a_in_0_4;
-  xb_vecMxf32 v_7 = PDX_MUL_MXF32(v_2, v_2);
-  xb_vecMxf32 v_8 = PDX_MUL_MXF32(v_2, v_7);
-  xb_vecMxf32 v_10;
-  v_10 = a_in_4_8;
-  xb_vecMxf32 v_15 = PDX_MUL_MXF32(v_10, v_10);
-  xb_vecMxf32 v_16 = PDX_MUL_MXF32(v_10, v_15);
-  PDX_SAV_MXF32_XP(v_8, align_b_out, (xb_vecMxf32 *) b_out, 16);
-  PDX_SAV_MXF32_XP(v_16, align_b_out, (xb_vecMxf32 *) b_out, 16);
+  xb_vecMxf32 v_3 = PDX_SQRT_MXF32(v_2);
+  xb_vecMxf32 v_5;
+  v_5 = a_in_4_8;
+  xb_vecMxf32 v_6 = PDX_SQRT_MXF32(v_5);
+  PDX_SAV_MXF32_XP(v_3, align_b_out, (xb_vecMxf32 *) b_out, 16);
+  PDX_SAV_MXF32_XP(v_6, align_b_out, (xb_vecMxf32 *) b_out, 16);
   PDX_SAPOS_MXF32_FP(align_b_out, (xb_vecMxf32 *) b_out);
 }
