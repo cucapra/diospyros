@@ -4,6 +4,7 @@ error-for-update-missing-out/preprocessed.c:4:2:for (int i = 8; i < 0;) {
     b_out[i] = a_in[i] * scalar_in;
   }
 }
+If this is unexpected, please file a bug for Diospyros: https://github.com/cucapra/diospyros/issues/new
 
 ---CODE---
 1

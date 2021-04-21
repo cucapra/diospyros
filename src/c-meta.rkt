@@ -28,7 +28,7 @@
     [(c:type:primitive? base) length]
     [(eq? base #f) length]
     [(c:type:array? base) (* length (multi-array-length base))]
-    [else (error "Can't handle array type ~a" array-ty)]))
+    [else (src-error "Can't handle array type ~a" array-ty)]))
 
 (define (translate stmt)
   (cond
@@ -65,7 +65,7 @@
                       [`>>= (quasiquote (arithmetic-shift
                                         (v-list-get (unquote left) (unquote offset))
                                         (- (unquote right))))]
-                      [else (error  "can't handle assign op" op)])))))
+                      [else (src-error  "Can't handle assign op" op)])))))
             ; Variable update
             (let* ([left (translate (c:expr:assign-left stmt))]
                    [right (translate (c:expr:assign-right stmt))]
@@ -80,7 +80,7 @@
                       [`-= (quasiquote (- (unquote left) (unquote right)))]
                       [`*= (quasiquote (* (unquote left) (unquote right)))]
                       [`>>= (quasiquote (arithmetic-shift (unquote left) (- (unquote right))))]
-                      [else (error  "can't handle assign op" op)]))))))]
+                      [else (src-error  "Can't handle assign op" op)]))))))]
 
         ; Operations
         [(c:expr:unop? stmt)
@@ -124,7 +124,7 @@
               (translate arg)))
           (cons fn-name args)]
 
-        [else (error "can't handle expr" stmt)])]
+        [else (src-error "Can't handle expr" stmt)])]
     [(c:decl? stmt)
       (cond
         [(c:decl:vars? stmt)
@@ -156,7 +156,7 @@
                         [(c:type:array? type)
                           `(make-v-list-zeros (unquote (multi-array-length type)))]
                         [(c:type:primitive? type) 0]
-                        [else (error "unexpected initializer in declaration" stmt)]))
+                        [else (src-error "Unexpected initializer in declaration" stmt)]))
                     (quasiquote
                       (define
                         (unquote (translate (c:decl:declarator-id decl)))
@@ -165,7 +165,7 @@
             [(empty? stmts) `void]
             [(equal? 1 (length stmts)) (first stmts)]
             [else `(begin (unquote stmts))])]
-        [else (error "can't handle declaration" stmt)])]
+        [else (src-error "Can't handle declaration" stmt)])]
     [(c:id? stmt)
       (cond
         [(c:id:var? stmt) (c:id:var-name stmt)]
@@ -182,7 +182,7 @@
             ['!= '(lambda (x y) (not (equal? x y)))]
             ['== 'equal?]
             [else name])]
-        [(c:id:label? stmt) (error "can't handle labels")])]
+        [(c:id:label? stmt) (src-error "Can't handle labels" stmt)])]
     [(c:stmt:expr? stmt)
       (translate (c:stmt:expr-expr stmt))]
     [(c:stmt:block? stmt)
@@ -222,18 +222,18 @@
             [test (c:stmt:for-test stmt)]
             [update (c:stmt:for-update stmt)])
 
-        (when (not init) (error "for loops must include intialization"))
+        (when (not init) (src-error "For loops must include intialization" stmt))
         (define-values (idx idx-init)
           (cond
             [(c:decl:vars? init)
               (when (not (eq? 1 (length (c:decl:vars-declarators init))))
-                (error "for loops must have a single index variable"))
+                (src-error "For loops must have a single index variable" init))
               (define fi (first (c:decl:vars-declarators init)))
               (values
                 (translate (c:decl:declarator-id fi))
                 (translate (c:init:expr-expr (c:decl:declarator-initializer fi))))]
-            [else (error "unexpected for loop initializer " init)]))
-        (when (not update) (error "for loops must include update"))
+            [else (src-error "Unexpected for loop initializer " init)]))
+        (when (not update) (src-error "For loops must include update" stmt))
 
         ; TODO: handle reverse iteration
         (define t-update (translate update))
@@ -249,7 +249,7 @@
           (match (translate test)
             [`(< (unquote idx) ,bound) (values bound #f)]
             [`(<= (unquote idx) ,bound) (values (- bound update-skip) #f)]
-            [else (error "can't handle for loop bound" t-update)]))
+            [else (src-error "Can't handle for loop bound" update)]))
 
         `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
           (unquote (translate (c:stmt:for-body stmt)))))]
@@ -257,7 +257,7 @@
        ; TODO: handle early returns
       (define value (translate (c:stmt:return-result stmt)))
       value]
-    [else (error "can't handle statement" stmt)]))
+    [else (src-error "Can't handle statement" stmt)]))
 
 (define (translate-fn-decl fn-decl)
   (match fn-decl
@@ -280,7 +280,7 @@
                 (translate (c:decl:declarator-id (c:decl:formal-declarator arg))))))
                ; TODO: handle early returns
               (unquote fn-body)))]
-    [else (error "can't translate function" fn-decl)]))
+    [else (src-error "Can't translate function" fn-decl)]))
 
 (define (create-base-directory out-dir)
   (define base
@@ -316,8 +316,16 @@
 (define (src-error description expr)
   (define src (cond
     [(c:src? expr) expr]
-    [(c:expr? expr) (c:expr-src expr)]))
+    [(c:expr? expr) (c:expr-src expr)]
+    [(c:stmt? expr) (c:stmt-src expr)]
+    [(c:id? expr) (c:id-src expr)]
+    [(c:decl? expr) (c:decl-src expr)]
+    [(c:init? expr) (c:init-src expr)]
+    [(c:type? expr) (c:type-src expr)]
+    [else (raise-user-error  "Unexpected expression. Please file a bug for Diospyros: https://github.com/cucapra/diospyros/issues/new" expr)]))
 
+  (define bug-str
+    "If this is unexpected, please file a bug for Diospyros: https://github.com/cucapra/diospyros/issues/new")
   (match src
     [(c:src start-offset
             start-line
@@ -334,7 +342,7 @@
       (define rkt-srcloc
         (srcloc (unbox c-path) start-line start-col #f span))
 
-      (raise-user-error (~a description ":\n" (srcloc->string rkt-srcloc) ":" c-src))]))
+      (raise-user-error (~a description ":\n" (srcloc->string rkt-srcloc) ":" c-src "\n" bug-str))]))
 
 (module+ main
 
@@ -402,7 +410,7 @@
                       c:decl:function-preamble
                       c:decl:function-body)
         (translate (c:decl:declarator-id c:decl:function-declarator))]
-      [else (error "can't handle declaration" outer-function)]))
+      [else (src-error "Can't handle declaration" outer-function)]))
 
   (define out-writer (make-spec-out-dir-writer input-path))
 
@@ -429,14 +437,14 @@
       ; Output
       [(string-suffix? arg-name-str "_out")
         (when (not arg-len)
-          (error "Scalar output arguments (tagged _out) unsupported " arg-name-str))
+          (raise-user-error "Scalar output arguments (tagged _out) unsupported " arg-name-str))
         (define defn-output
           `(define (unquote arg-name)
                      (make-v-list-zeros (unquote (first arg)))))
         (when debug (pretty-print defn-output))
         (eval defn-output ns)
         ]
-      [else (error "Arguments should be tagged _in or _out, got " arg-name-str)])
+      [else (raise-user-error "Arguments should be tagged _in or _out, got " arg-name-str)])
     arg-name))
 
   (define racket-prog-with-args `(unquote (append (list fn-name) arg-names)))
@@ -449,7 +457,7 @@
   (define output-names
     (filter (lambda (a) (string-suffix? (symbol->string a) "_out")) arg-names))
   (when (empty? output-names)
-    (error "Need to specify an output with suffix _out"))
+    (raise-user-error "Need to specify an output with suffix _out"))
 
   (define get-spec
     `(flatten (map align-to-reg-size (unquote (cons list output-names)))))
