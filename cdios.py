@@ -83,14 +83,13 @@ def cdios(spec_file, name, inter, debug, git):
     subprocess.run(["sed", "/^#/d", "-i", os.path.join(intermediate, "preprocessed.c")])
 
     # Run conversion to Racket
-    if debug:
-        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate])
-    else:
-        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if cmd.returncode:
         print("CDIOS: Compiling C->Racket failed")
-        sys.stdout.write(cmd.stderr.decode("utf-8"))
+        sys.stdout.write(cmd.stdout.decode("utf-8"))
         exit(1)
+    elif debug:
+        sys.stdout.write(cmd.stdout.decode("utf-8"))
 
     if not (os.path.exists("./dios") and os.path.exists("./dios-example-gen")):
         subprocess.run(["make", "build"])
@@ -98,14 +97,14 @@ def cdios(spec_file, name, inter, debug, git):
     flags = "BACKEND_FLAGS=-n {}".format(name)
     if not git:
         flags += " --suppress-git"
-    if debug:
-        cmd = subprocess.run(["make", "{}-egg".format(file_name), flags])
-    else:
-        cmd = subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    cmd = subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if cmd.returncode:
         print("CDIOS: Rewriting or backend compilation failed")
-        sys.stdout.write(cmd.stderr.decode("utf-8"))
+        sys.stdout.write(cmd.stout.decode("utf-8"))
         exit(1)
+    elif debug:
+        sys.stdout.write(cmd.stout.decode("utf-8"))
     subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
 
     # Go back to where launched from and copy out result files

@@ -243,7 +243,7 @@
             [`(+= (unquote idx) , n) n]
             [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
             [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
-            [else (error "can't handle for loop update" (fmt-src (c:expr-src update)))]))
+            [else (src-error "Can't handle for loop update" update)]))
 
         (define-values (bound reverse)
           (match (translate test)
@@ -305,16 +305,15 @@
         #:exists 'replace))))
 
 
-(define (position-to-string port start-offset end-offset)
+(define (position-to-string port start-offset span)
   (define pos (file-position port))
   (file-position port (sub1 start-offset))
-  (define span (- end-offset start-offset))
   (define result (read-string span port))
   (file-position port pos)
   result)
 
 
-(define (fmt-src expr)
+(define (src-error description expr)
   (define src (cond
     [(c:src? expr) expr]
     [(c:expr? expr) (c:expr-src expr)]))
@@ -327,9 +326,15 @@
             end-line
             end-col
           _)
-      (position-to-string (open-input-file (unbox c-path))
-                          start-offset
-                          end-offset)]))
+      (define span (- end-offset start-offset))
+      (define c-src
+        (position-to-string (open-input-file (unbox c-path))
+                            start-offset
+                            span))
+      (define rkt-srcloc
+        (srcloc (unbox c-path) start-line start-col #f span))
+
+      (raise-user-error (~a description ":\n" (srcloc->string rkt-srcloc) ":" c-src))]))
 
 (module+ main
 
@@ -339,7 +344,7 @@
       #:args (path)
       path))
 
-  (define path (string->path (~a input-path "preprocessed.c")))
+  (define path (string->path (~a input-path "/preprocessed.c")))
   (set-box! c-path path)
   (define program (c:parse-program path))
 
