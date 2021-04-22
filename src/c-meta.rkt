@@ -184,30 +184,30 @@
                 ; Assumes this is float or float array
                 (define initializer
                   (cond
-                    [(init:compound? init) 
+                    [(c:init:compound? init) 
                       (define translated-values 
                         (map 
-                          (lambda (expr) (translate (init:expr-expr expr))) 
-                          (init:compound-elements init)))
+                          (lambda (expr) (translate (c:init:expr-expr expr))) 
+                          (c:init:compound-elements init)))
                       (define boxed-list 
                         (map 
                           (lambda (v) (quasiquote (box (unquote v)))) 
                           translated-values))
                       (quasiquote (list unquote boxed-list))]
                     [init
-                      (translate (init:expr-expr init))]
-                    [(type:array? type)
+                      (translate (c:init:expr-expr init))]
+                    [(c:type:array? type)
                       (define array-dim-info-list (get-array-dim type))
                       (hash-set! 
                         array-ctx 
-                        (translate (decl:declarator-id decl)) 
+                        (translate (c:decl:declarator-id decl)) 
                         (quasiquote (unquote array-dim-info-list)))
                       `(make-v-list-zeros (unquote (multi-array-length type)))]
-                    [(type:primitive? type) 0]
+                    [(c:type:primitive? type) 0]
                     [else (error "unexpected initializer in declaration" stmt)]))
                 (quasiquote
                   (define
-                    (unquote (translate (decl:declarator-id decl)))
+                    (unquote (translate (c:decl:declarator-id decl)))
                     (unquote initializer))))))
           (cond
             [(empty? stmts) `void]
