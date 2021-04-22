@@ -30,18 +30,6 @@
     [(c:type:array? base) (* length (multi-array-length base))]
     [else (src-error "Can't handle array type ~a" array-ty)]))
 
-;;; (define (translate-for-loop idx idx-init bound update-skip body cont)
-;;;   (call/cc
-;;;     (lambda (break)
-;;;       (for ([idx (in-range idx-init bound update-skip)])
-;;;         (call/cc (lambda (continue)
-;;;           (if ;; (continue-condition) (continue i)
-;;;             (if ;;(break-condition (break i) (translate body)))
-;;;           ))
-;;;         )
-;;;     (translate cont))))
-
-
 (define (translate stmt)
   (cond
     [(c:expr? stmt)
@@ -200,12 +188,9 @@
     [(c:stmt:block? stmt)
       (if (empty? (c:stmt:block-items stmt))
           `void
-          ;;; (call/ec (lambda (return)
-            (append (list `begin)
-            (for/list ([s (c:stmt:block-items stmt)])
-              (translate s)))
-              ;;; ))
-              )]
+          (append (list `begin)
+          (for/list ([s (c:stmt:block-items stmt)])
+            (translate s))))]
     [(c:stmt:if? stmt)
       (if (not (c:stmt:if-alt stmt))
         (quasiquote
@@ -220,18 +205,6 @@
     [(c:stmt:while? stmt)
       (define test (translate (c:stmt:while-test stmt)))
       (define body (translate (c:stmt:while-body stmt)))
-      (define while-name
-        (string->symbol (~a "while"
-                             (c:src-start-line (c:expr-src (c:stmt:while-test stmt))))))
-      ;;; (quasiquote
-      ;;;   (begin
-      ;;;     (define ((unquote while-name))
-      ;;;       (if (unquote test)
-      ;;;           (begin
-      ;;;             (unquote body)
-      ;;;             ((unquote while-name)))
-      ;;;           '()))
-      ;;;     ((unquote while-name))))]
 
       `(call/ec (lambda (break)
         (letrec ([loop (lambda ()
@@ -269,15 +242,6 @@
             [`(set! (unquote idx) (- (unquote n) (unquote idx))) (- n)]
             [else (src-error "Can't handle for loop update" update)]))
 
-        ;;; (define-values (bound reverse)
-        ;;;   (match (translate test)
-        ;;;     [`(< (unquote idx) ,bound) (values bound #f)]
-        ;;;     [`(<= (unquote idx) ,bound) (values (- bound update-skip) #f)]
-        ;;;     [else (src-error "Can't handle for loop bound" update)]))
-
-        ;;; `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
-        ;;;   (unquote (translate (c:stmt:for-body stmt)))))]
-
        `(let ([(unquote idx) (unquote idx-init)])
           (call/ec (lambda (break)
             (letrec ([loop (lambda ()
@@ -292,9 +256,8 @@
       `(break)]
     [(c:stmt:return? stmt)
        ; TODO: handle early returns
-      (if (not stmt)
-        `(return)
-        (translate (c:stmt:return-result stmt)))]
+      (translate (c:stmt:return-result stmt))
+    ]
     [(void? stmt)
       `void]
     [else (src-error "Can't handle statement" stmt)]))
