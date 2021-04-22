@@ -184,7 +184,6 @@
                 (define initializer
                   (cond
                     [(init:compound? init) 
-                      (define arr-name (translate (decl:declarator-id decl)))
                       (define translated-values 
                         (map 
                           (lambda (expr) (translate (init:expr-expr expr))) 
