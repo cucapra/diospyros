@@ -258,37 +258,34 @@
             [else (src-error "Unexpected for loop initializer " init)]))
         (when (not update) (src-error "For loops must include update" stmt))
 
-        ; TODO: handle reverse iteration
         (define t-update (translate update))
         (define update-skip
           (match t-update
             [`(++ (unquote idx)) 1]
             [`(+= (unquote idx) , n) n]
             [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
-            [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
+            [`(-- (unquote idx)) -1]
+            [`(-= (unquote idx) , n) (- n)]
+            [`(set! (unquote idx) (- (unquote n) (unquote idx))) (- n)]
             [else (src-error "Can't handle for loop update" update)]))
 
-        (define-values (bound reverse)
-          (match (translate test)
-            [`(< (unquote idx) ,bound) (values bound #f)]
-            [`(<= (unquote idx) ,bound) (values (- bound update-skip) #f)]
-            [else (src-error "Can't handle for loop bound" update)]))
+        ;;; (define-values (bound reverse)
+        ;;;   (match (translate test)
+        ;;;     [`(< (unquote idx) ,bound) (values bound #f)]
+        ;;;     [`(<= (unquote idx) ,bound) (values (- bound update-skip) #f)]
+        ;;;     [else (src-error "Can't handle for loop bound" update)]))
 
-        ;;; (define for-continue
-        ;;;   `(for ([(unquote idx) (in-range (unquote (+ idx-init update-skip)) (unquote bound) (unquote update-skip))])
-        ;;;     (unquote (translate (stmt:for-body stmt) cont))))
+        ;;; `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
+        ;;;   (unquote (translate (c:stmt:for-body stmt)))))]
 
-        `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
-          (unquote (translate (c:stmt:for-body stmt)))))]
-
-      ;;;  `(let ([idx (unquote idx-init)])
-      ;;;     (call/ec (lambda (break)
-      ;;;       (letrec ([loop (lambda ()
-      ;;;         (when (unquote test)
-      ;;;         (call/ec (lambda (continue) (unquote body)))
-      ;;;         (set! idx (+ idx (unquote update-skip)))
-      ;;;         (loop)))])
-      ;;;       (loop))))))]
+       `(let ([(unquote idx) (unquote idx-init)])
+          (call/ec (lambda (break)
+            (letrec ([loop (lambda ()
+              (when (unquote (translate test))
+              (call/ec (lambda (continue) (unquote body)))
+              (set! (unquote idx) (+ (unquote idx) (unquote update-skip)))
+              (loop)))])
+            (loop))))))]
     [(c:stmt:continue? stmt)
       `(continue)]
     [(c:stmt:break? stmt)
