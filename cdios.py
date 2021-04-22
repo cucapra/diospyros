@@ -5,6 +5,17 @@ import os
 import subprocess
 import sys
 
+class colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
@@ -28,14 +39,23 @@ def eprint(*args, **kwargs):
 @click.option('--git/--no-git',
     default=True,
     help='Include git info comment in the generated C')
+@click.option('--color/--no-color',
+    default=True,
+    help='Colored terminal output')
 
-def cdios(spec_file, name, inter, debug, git):
+def cdios(spec_file, name, inter, debug, git, color):
     """Takes a specification file, written in C, and:
         - Sanity check that it compiles with GCC
         - Translates it to equivalence Racket (best effort)
         - Uses Diospyros' equality saturation engine to find vectorization
         - Emits C with Tensilica DSP intrinsics
     """
+
+    def cdios_error(arg):
+        if color:
+            print(colors.FAIL + arg + colors.ENDC)
+        else:
+            print(arg)
 
     # Fully quantify the specification file path
     spec_file = os.path.realpath(spec_file)
@@ -83,14 +103,13 @@ def cdios(spec_file, name, inter, debug, git):
     subprocess.run(["sed", "/^#/d", "-i", os.path.join(intermediate, "preprocessed.c")])
 
     # Run conversion to Racket
-    if debug:
-        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate])
-    else:
-        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stderr=subprocess.PIPE)
+    cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if cmd.returncode:
-        print("CDIOS: Compiling C->Racket failed")
-        sys.stdout.write(cmd.stderr.decode("utf-8"))
+        cdios_error("CDIOS: Compiling C->Racket failed")
+        cdios_error(cmd.stdout.decode("utf-8"))
         exit(1)
+    elif debug:
+        sys.stdout.write(cmd.stdout.decode("utf-8"))
 
     if not (os.path.exists("./dios") and os.path.exists("./dios-example-gen")):
         subprocess.run(["make", "build"])
@@ -98,14 +117,14 @@ def cdios(spec_file, name, inter, debug, git):
     flags = "BACKEND_FLAGS=-n {}".format(name)
     if not git:
         flags += " --suppress-git"
-    if debug:
-        cmd = subprocess.run(["make", "{}-egg".format(file_name), flags])
-    else:
-        cmd = subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    cmd = subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if cmd.returncode:
-        print("CDIOS: Rewriting or backend compilation failed")
-        sys.stdout.write(cmd.stderr.decode("utf-8"))
+        cdios_error("CDIOS: Rewriting or backend compilation failed")
+        cdios_error(cmd.stdout.decode("utf-8"))
         exit(1)
+    elif debug:
+        sys.stdout.write(cmd.stdout.decode("utf-8"))
     subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
 
     # Go back to where launched from and copy out result files
