@@ -189,8 +189,8 @@
       (if (empty? (c:stmt:block-items stmt))
           `void
           (append (list `begin)
-          (for/list ([s (c:stmt:block-items stmt)])
-            (translate s))))]
+            (for/list ([s (c:stmt:block-items stmt)])
+              (translate s))))]
     [(c:stmt:if? stmt)
       (if (not (c:stmt:if-alt stmt))
         (quasiquote
@@ -205,7 +205,6 @@
     [(c:stmt:while? stmt)
       (define test (translate (c:stmt:while-test stmt)))
       (define body (translate (c:stmt:while-body stmt)))
-
       `(call/ec (lambda (break)
         (letrec ([loop (lambda ()
           (when (unquote test)
