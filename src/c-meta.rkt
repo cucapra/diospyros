@@ -321,7 +321,16 @@
                     decl:function-declarator
                     decl:function-preamble
                     decl:function-body)
-
+      (define args-lst 
+        (for/list ([arg (type:function-formals
+                                  (decl:declarator-type decl:function-declarator))])
+          (define ty (decl:declarator-type (decl:formal-declarator arg)))
+          (define array-dim-info-list (get-array-dim ty))
+          (hash-set! 
+            array-ctx 
+            (translate (decl:declarator-id (decl:formal-declarator arg))) 
+            (quasiquote (unquote array-dim-info-list)))
+          (translate (decl:declarator-id (decl:formal-declarator arg)))))
       (define fn-body (translate decl:function-body))
       (quasiquote
         (define

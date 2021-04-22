@@ -86,7 +86,7 @@ def cdios(spec_file, name, inter, debug, git):
     if debug:
         cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate])
     else:
-        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stderr=subprocess.PIPE)
     if cmd.returncode:
         print("CDIOS: Compiling C->Racket failed")
         sys.stdout.write(cmd.stderr.decode("utf-8"))
