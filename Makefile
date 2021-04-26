@@ -45,7 +45,7 @@ dios-example-gen: $(RACKET_SRC)
 	raco exe -o dios-example-gen src/example-gen.rkt
 
 clean:
-	rm -rf dios dios-example-gen
+	rm -rf dios dios-example-gen *-out/ __pycache__ src/compiled src/*~ build
 
 # Build spec
 %-out: %-params

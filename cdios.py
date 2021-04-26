@@ -66,7 +66,10 @@ def cdios(spec_file, name, inter, debug, git, color):
     else:
         file_name = "compile"
 
-    intermediate = file_name + "-out"
+    build_dir = "build"
+    if not os.path.exists(build_dir):
+        os.makedirs(build_dir)
+    intermediate = os.path.join(build_dir, file_name + "-out")
 
     # Force CWD directory to land in diospyros root
     script_path = os.path.dirname(os.path.realpath(__file__))
@@ -118,7 +121,7 @@ def cdios(spec_file, name, inter, debug, git, color):
     if not git:
         flags += " --suppress-git"
 
-    cmd = subprocess.run(["make", "{}-egg".format(file_name), flags], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    cmd = subprocess.run(["make", "{}-egg".format(os.path.join(build_dir, file_name)), flags], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if cmd.returncode:
         cdios_error("CDIOS: Rewriting or backend compilation failed")
         cdios_error(cmd.stdout.decode("utf-8"))
