@@ -205,22 +205,17 @@
     [(c:stmt:while? stmt)
       (define test (translate (c:stmt:while-test stmt)))
       (define body (translate (c:stmt:while-body stmt)))
-      (define while-name
-        (string->symbol (~a "while"
-                             (c:src-start-line (c:expr-src (c:stmt:while-test stmt))))))
-      (quasiquote
-        (begin
-          (define ((unquote while-name))
-            (if (unquote test)
-                (begin
-                  (unquote body)
-                  ((unquote while-name)))
-                '()))
-          ((unquote while-name))))]
+      `(call/ec (lambda (break)
+        (letrec ([loop (lambda ()
+          (when (unquote test)
+            (call/ec (lambda (continue) (unquote body)))
+          (loop)))])
+        (loop))))]
     [(c:stmt:for? stmt)
       (let ([init (c:stmt:for-init stmt)]
             [test (c:stmt:for-test stmt)]
-            [update (c:stmt:for-update stmt)])
+            [update (c:stmt:for-update stmt)]
+            [body (translate (c:stmt:for-body stmt))])
 
         (when (not init) (src-error "For loops must include intialization" stmt))
         (define-values (idx idx-init)
@@ -235,28 +230,35 @@
             [else (src-error "Unexpected for loop initializer " init)]))
         (when (not update) (src-error "For loops must include update" stmt))
 
-        ; TODO: handle reverse iteration
         (define t-update (translate update))
         (define update-skip
           (match t-update
             [`(++ (unquote idx)) 1]
             [`(+= (unquote idx) , n) n]
             [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
-            [`(set! (unquote idx) (+ (unquote n) (unquote idx))) n]
+            [`(-- (unquote idx)) -1]
+            [`(-= (unquote idx) , n) (- n)]
+            [`(set! (unquote idx) (- (unquote n) (unquote idx))) (- n)]
             [else (src-error "Can't handle for loop update" update)]))
 
-        (define-values (bound reverse)
-          (match (translate test)
-            [`(< (unquote idx) ,bound) (values bound #f)]
-            [`(<= (unquote idx) ,bound) (values (- bound update-skip) #f)]
-            [else (src-error "Can't handle for loop bound" update)]))
-
-        `(for ([(unquote idx) (in-range (unquote idx-init) (unquote bound) (unquote update-skip))])
-          (unquote (translate (c:stmt:for-body stmt)))))]
+       `(let ([(unquote idx) (unquote idx-init)])
+          (call/ec (lambda (break)
+            (letrec ([loop (lambda ()
+              (when (unquote (translate test))
+              (call/ec (lambda (continue) (unquote body)))
+              (set! (unquote idx) (+ (unquote idx) (unquote update-skip)))
+              (loop)))])
+            (loop))))))]
+    [(c:stmt:continue? stmt)
+      `(continue)]
+    [(c:stmt:break? stmt)
+      `(break)]
     [(c:stmt:return? stmt)
        ; TODO: handle early returns
-      (define value (translate (c:stmt:return-result stmt)))
-      value]
+      (translate (c:stmt:return-result stmt))
+    ]
+    [(void? stmt)
+      `void]
     [else (src-error "Can't handle statement" stmt)]))
 
 (define (translate-fn-decl fn-decl)
