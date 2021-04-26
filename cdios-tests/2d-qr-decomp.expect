@@ -1,0 +1,165 @@
+CDIOS: Compiling C->Racket failed
+'(begin
+   (define (sgn v) (begin (- (> v 0) (< v 0))))
+   (define (naive_fixed_transpose a)
+     (begin
+       (for
+        ((i (in-range 0 5 1)))
+        (begin
+          (for
+           ((j (in-range (+ i 1) 5 1)))
+           (begin
+             (define tmp (v-list-get a (+ j (* i 5))))
+             (v-list-set! a (+ j (* i 5)) (v-list-get a (+ i (* j 5))))
+             (v-list-set! a (+ i (* j 5)) tmp)))))))
+   (define (naive_norm x m)
+     (begin
+       (define sum 0)
+       (for
+        ((i (in-range 0 m 1)))
+        (begin (set! sum (+ sum (pow (v-list-get x i) 2)))))
+       (sqrt sum)))
+   (define (naive_fixed_matrix_multiply a b c)
+     (begin
+       (for
+        ((y (in-range 0 5 1)))
+        (begin
+          (for
+           ((x (in-range 0 5 1)))
+           (begin
+             (v-list-set! c (+ x (* y 5)) 0)
+             (for
+              ((k (in-range 0 5 1)))
+              (begin
+                (v-list-set!
+                 c
+                 (+ x (* y 5))
+                 (+
+                  (v-list-get c (+ x (* y 5)))
+                  (*
+                   (v-list-get a (+ k (* y 5)))
+                   (v-list-get b (+ x (* k 5))))))))))))))
+   (define (naive_fixed_qr_decomp A_in Q_out R_out)
+     (begin
+       (for
+        ((i (in-range 0 5 1)))
+        (begin
+          (for
+           ((j (in-range 0 5 1)))
+           (begin
+             (v-list-set!
+              R_out
+              (+ j (* i 5))
+              (v-list-get A_in (+ j (* i 5))))))))
+       (define I (make-v-list-zeros (* 5 5)))
+       (for
+        ((i (in-range 0 5 1)))
+        (begin
+          (for
+           ((j (in-range 0 5 1)))
+           (begin (v-list-set! I (+ j (* i 5)) (if (equal? i j) 1.0 0.0))))))
+       (for
+        ((k (in-range 0 (- 5 1) 1)))
+        (begin
+          (define m (- 5 k))
+          (define x (make-v-list-zeros m))
+          (define e (make-v-list-zeros m))
+          (for
+           ((i (in-range 0 m 1)))
+           (begin
+             (define row (+ k i))
+             (v-list-set! x i (v-list-get R_out (+ k (* row 5))))
+             (v-list-set! e i (v-list-get I (+ k (* row 5))))))
+          (define alpha (* (- (sgn (v-list-get x 0))) (naive_norm x m)))
+          (define u (make-v-list-zeros m))
+          (define v (make-v-list-zeros m))
+          (for
+           ((i (in-range 0 m 1)))
+           (begin
+             (v-list-set!
+              u
+              i
+              (+ (v-list-get x i) (* alpha (v-list-get e i))))))
+          (define norm_u (naive_norm u m))
+          (for
+           ((i (in-range 0 m 1)))
+           (begin (v-list-set! v i (/ (v-list-get u i) norm_u))))
+          (define q_min (make-v-list-zeros (* m m)))
+          (for
+           ((i (in-range 0 m 1)))
+           (begin
+             (for
+              ((j (in-range 0 m 1)))
+              (begin
+                (define q_min_i
+                  (-
+                   (if (equal? i j) 1.0 0.0)
+                   (* (* 2 (v-list-get v i)) (v-list-get v j))))
+                (v-list-set! q_min (+ j (* i m)) q_min_i)))))
+          (define q_t (make-v-list-zeros (* 5 5)))
+          (for
+           ((i (in-range 0 5 1)))
+           (begin
+             (for
+              ((j (in-range 0 5 1)))
+              (begin
+                (define q_t_i 0)
+                (if (or (< i k) (< j k))
+                  (begin (set! q_t_i (if (equal? i j) 1.0 0.0)))
+                  (begin
+                    (set! q_t_i (v-list-get q_min (+ (- j k) (* (- i k) m))))))
+                (v-list-set! q_t (+ j (* i 5)) q_t_i)))))
+          (if (equal? k 0)
+            (begin
+              (for
+               ((i (in-range 0 5 1)))
+               (begin
+                 (for
+                  ((j (in-range 0 5 1)))
+                  (begin
+                    (v-list-set!
+                     Q_out
+                     (+ j (* i 5))
+                     (v-list-get q_t (+ j (* i 5))))))))
+              (naive_fixed_matrix_multiply q_t A_in R_out))
+            (begin
+              (define res (make-v-list-zeros (* 5 5)))
+              ($-: expected real? arguments
+  arguments: (list (< 0 A_in$0))
+  context...:
+   /Users/avh/Library/Racket/7.9/pkgs/rosette/rosette/base/core/real.rkt:140:0: safe-apply-2
+   /Applications/Racket v7.9/collects/racket/private/for.rkt:1568:18: for-loop
+   /Applications/Racket v7.9/collects/racket/private/norm-define.rkt:52:83: naive_fixed_qr_decomp
+   (submod "/Users/avh/research/diospyros/src/c-meta.rkt" main): [running body]
+naive_fixed_matrix_multiply q_t Q_out res)
+              (for
+               ((i (in-range 0 5 1)))
+               (begin
+                 (for
+                  ((j (in-range 0 5 1)))
+                  (begin
+                    (v-list-set!
+                     Q_out
+                     (+ j (* i 5))
+                     (v-list-get res (+ j (* i 5))))))))
+              (naive_fixed_matrix_multiply q_t R_out res)
+              (for
+               ((i (in-range 0 5 1)))
+               (begin
+                 (for
+                  ((j (in-range 0 5 1)))
+                  (begin
+                    (v-list-set!
+                     R_out
+                     (+ j (* i 5))
+                     (v-list-get res (+ j (* i 5))))))))))))
+       (naive_fixed_transpose Q_out))))
+'(((* 5 5) A_in) ((* 5 5) Q_out) ((* 5 5) R_out))
+#f
+'(define A_in (make-symbolic-v-list (* 5 5) "A_in"))
+'(define Q_out (make-v-list-zeros (* 5 5)))
+'(define R_out (make-v-list-zeros (* 5 5)))
+'(naive_fixed_qr_decomp A_in Q_out R_out)
+
+---CODE---
+1
