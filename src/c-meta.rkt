@@ -184,27 +184,27 @@
                 ; Assumes this is float or float array
                 (define initializer
                   (cond
-                    [(c:init:compound? init) 
-                      (define translated-values 
-                        (map 
-                          (lambda (expr) (translate (c:init:expr-expr expr))) 
+                    [(c:init:compound? init)
+                      (define translated-values
+                        (map
+                          (lambda (expr) (translate (c:init:expr-expr expr)))
                           (c:init:compound-elements init)))
-                      (define boxed-list 
-                        (map 
-                          (lambda (v) (quasiquote (box (unquote v)))) 
+                      (define boxed-list
+                        (map
+                          (lambda (v) (quasiquote (box (unquote v))))
                           translated-values))
                       (quasiquote (list unquote boxed-list))]
                     [init
                       (translate (c:init:expr-expr init))]
                     [(c:type:array? type)
                       (define array-dim-info-list (get-array-dim type))
-                      (hash-set! 
-                        array-ctx 
-                        (translate (c:decl:declarator-id decl)) 
+                      (hash-set!
+                        array-ctx
+                        (translate (c:decl:declarator-id decl))
                         (quasiquote (unquote array-dim-info-list)))
                       `(make-v-list-zeros (unquote (multi-array-length type)))]
                     [(c:type:primitive? type) 0]
-                    [else (error "unexpected initializer in declaration" stmt)]))
+                    [else (src-error "Unexpected initializer in declaration" stmt)]))
                 (quasiquote
                   (define
                     (unquote (translate (c:decl:declarator-id decl)))
@@ -307,34 +307,34 @@
       value]
     [else (src-error "Can't handle statement" stmt)]))
 
-; extracts the number of nested holes the base type of the pointer is in
+; Extracts the number of nested holes the base type of the pointer is in
 ; ex: *int = 1, **int = 2, ***int = 3...
-(define (extract-pointer-dimension ty) 
-  (cond 
+(define (extract-pointer-dimension ty)
+  (cond
     [(eq? ty #f) 0]
     [else (+ 1 (extract-pointer-dimension (c:type:pointer-base ty)))]))
 
-; extracts n arguments from args beginning at idx as a list, if possible, 
+; Extracts n arguments from args beginning at idx as a list, if possible,
 ; otherwise empty list
 (define (extract-next-args n idx args)
-  (cond 
+  (cond
     [(>= idx (length args)) '()]
     [(eq? n 0) '()]
-    [else 
+    [else
       (define nth-arg (list-ref args idx))
       (define nth-ty (c:decl:declarator-type (c:decl:formal-declarator nth-arg)))
       (define nth-arg-processed (translate (c:decl:declarator-id (c:decl:formal-declarator nth-arg))))
-      (if (c:type:pointer? nth-ty) 
+      (if (c:type:pointer? nth-ty)
         '()
         (cons nth-arg-processed (extract-next-args (- n 1) (+ idx 1) args)))]))
 
-;marks however many arguments immediately after pointer as array dimensions
-(define (handle-pointer-as-array ty arg idx unprocessed-args) 
-  (when (< (+ idx 1) (length unprocessed-args)) 
+; Marks however many arguments immediately after pointer as array dimensions
+(define (handle-pointer-as-array ty arg idx unprocessed-args)
+  (when (< (+ idx 1) (length unprocessed-args))
     (let* ([pointer-depth (extract-pointer-dimension ty)]
            [n-args (extract-next-args pointer-depth (+ idx 1) unprocessed-args)])
-      (if (eq? n-args '()) 
-        array-ctx 
+      (if (eq? n-args '())
+        array-ctx
         (hash-set!
           array-ctx
           (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))
@@ -351,15 +351,15 @@
                     c:decl:function-body)
       (define args-lst
         (let ([unprocessed-args (c:type:function-formals
-                                  (c:decl:declarator-type c:decl:function-declarator))])         
+                                  (c:decl:declarator-type c:decl:function-declarator))])
           (for/list ([arg unprocessed-args]
                     [idx (in-range (length unprocessed-args))])
             (define ty (c:decl:declarator-type (c:decl:formal-declarator arg)))
             ; add to array context for pointer and array arguments in function declarations
-            (cond 
+            (cond
               [(c:type:pointer? ty) (handle-pointer-as-array ty arg idx unprocessed-args)]
-              [(c:type:array? ty) 
-                (begin 
+              [(c:type:array? ty)
+                (begin
                   (define array-dim-info-list (get-array-dim ty))
                   (hash-set!
                     array-ctx
