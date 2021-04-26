@@ -6,6 +6,8 @@
 #define QUATERNION_DIM 4
 #define SIZE 5
 
+void nested_pointer(float **test, int r, int c) {}
+
 // ---------------------QR FACTORIZATION---------------------------------
 float sgn(float v) { return (v > 0) - (v < 0); }
 
