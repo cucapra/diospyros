@@ -27,7 +27,7 @@
   (cond
     [(c:type:primitive? base) length]
     [(eq? base #f) length]
-    [(c:type:array? base) (* length (multi-array-length base))]
+    [(c:type:array? base) `(* (unquote length) (unquote (multi-array-length base)))]
     [else (src-error "Can't handle array type" array-ty)]))
 
 (define (get-array-dim array-ty)
