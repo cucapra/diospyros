@@ -320,11 +320,13 @@
         (for/list ([arg (c:type:function-formals
                                   (c:decl:declarator-type c:decl:function-declarator))])
           (define ty (c:decl:declarator-type (c:decl:formal-declarator arg)))
-          (define array-dim-info-list (get-array-dim ty))
-          (hash-set!
-            array-ctx
-            (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))
-            (quasiquote (unquote array-dim-info-list)))
+          (when (c:type:array? ty) 
+            (begin 
+              (define array-dim-info-list (get-array-dim ty))
+              (hash-set!
+                array-ctx
+                (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))
+                (quasiquote (unquote array-dim-info-list)))))
           (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))))
       (define fn-body (translate c:decl:function-body))
       (quasiquote
