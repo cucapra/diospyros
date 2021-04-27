@@ -32,6 +32,11 @@ dependency.
     - `raco pkg install threading`
     - `raco pkg install c-utils`
 
+### Z3
+- Install [z3][]:
+    - MacOS: `brew install z3`
+    - Linux example: `sudo apt-get install -y z3`
+
 ### Rust
 - Install [Rust][].
 - Install dependencies for rewrite engine: `cargo install --path ./src/dios-egraphs`
@@ -50,29 +55,32 @@ You can run a simple example with:
 cdios cdios-tests/matrix-multiply.c
 ```
 
-This will emit the generated C to standard out, as well as writing intermediate
-files to `compile-out/*` (including the final `kernel.c`).
+By default, this will compile the last function in the file and emit the
+generated C and header files to `build/compile-out/kernel.c` and
+`build/compile-out/kernel.h`, respectively. To compile a specific function,
+pass the name with `--function`. For example, `cdios cdios-tests/matrix-multiply.c --function matrix_multiply`
+writes the header to `build/compile-out/matrix_multiply.h` and the
+implementation to `build/compile-out/matrix_multiply.c`.
 
 `cdios` runs programs through a standard C compiler (currently `gcc`) to sanity
 check correctness, then does a best-effort translation to equivalent Racket.
 
-Currently, programs must be a single C function that consumes and mutates
-single-dimensional arrays (both of these restrictions are likely to be removed
-in the next week or so).
+Currently, programs must have one outermost C function that consumes and
+mutates arrays and scalars of type `float`. This outermost function must follow
+the specific naming conventions and restrictions below.
 
-In addition, the following restrictions apply:
 - Arrays must have statically-specified sizes, which can be `#define`'d at the
  start of the file.
-- Inputs and outputs are identified via naming convention. Inputs should be
-suffixed with `_in`, and outputs should be suffixed with `out`.
+- Inputs and outputs are identified via a suffix naming convention. Inputs
+should be suffixed with `_in`, and outputs should be suffixed with `out`.
 - Control flow cannot be data dependent (i.e., you can branch on an index, but
 not based on the value of an array at that index).
 
 The following restrictions currently apply, but are likely to be improved/eliminated
 soon:
-- Early returns, breaks, and continues are not implemented yet.
-- Array access via pointers is not yet implemented, arrays should be specified
-with, for example, `float a_in[SIZE]`
+- Early returns are not supported.
+- Array access via pointer dereference may not compile, and arrays should be specified
+with, for example, `float a_in[SIZE]`.
 
 Example matrix multiply:
 ```

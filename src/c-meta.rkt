@@ -17,7 +17,7 @@
 (print-syntax-width +inf.0)
 (pretty-print-depth #f)
 
-(define debug #t)
+(define debug #f)
 (define c-path (box ""))
 
 ; Returns tuple (<base type>, <total size across dimensions>)
@@ -471,9 +471,7 @@
       [(fn) (let ([found (findf (lambda (x) (equal? (fn) (get-fn-name x))) program)])
         (if found
             found
-            ; (raise-user-error "Can't find provided function: " (fn))
-            (pretty-print (~a "fn " (fn)))
-            ))]
+            (raise-user-error "Can't find provided function: " (fn))))]
       [else (last program)]))
 
   (define (program-to-c program)

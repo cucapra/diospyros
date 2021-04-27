@@ -59,9 +59,9 @@ def header_and_namespace(name, output_path, cdios_success):
 
 
     xtensa_guard  = """
-        #ifdef XTENSA
+        #if defined(__XTENSA__)
         {}
-        #endif // XTENSA
+        #endif // defined(__XTENSA__)
     """
 
     imports = [l for l in dios_lines if l.startswith('#include')]
