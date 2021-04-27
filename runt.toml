@@ -3,4 +3,4 @@ ver = "0.2.8"
 [[tests]]
 name = "cdios C-to-Racket tests"
 paths = [ "cdios-tests/*.c" ]
-cmd = "cdios --no-git --no-color --inter {} 2> /dev/null"
+cmd = "cdios --no-git --no-color --no-header --inter {} 2> /dev/null"

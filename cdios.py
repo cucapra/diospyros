@@ -19,6 +19,55 @@ class colors:
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
+def clang_format(contents):
+    tmp = ".clang-format.tmp"
+    with open(tmp, 'w') as f:
+        f.write(contents)
+    formatted = subprocess.check_output(["clang-format", tmp])
+    os.remove(tmp)
+    return formatted.decode("utf-8")
+
+def header_and_namespace(name, output_path, cdios_success):
+    with open(os.path.join(output_path, "preprocessed.c"), 'r') as file:
+        spec = file.readlines()
+
+    with open(os.path.join(output_path, "kernel.c"), 'r') as file:
+        dios_lines = file.readlines()
+
+    decl = [l.replace(" {", ";") for l in dios_lines if l.startswith('void')][0]
+
+    namespacing = """
+        namespace diospyros {{
+
+        {}
+
+        }} // namespace diospyros
+
+        namespace specification {{
+
+        {}
+
+        }} // namespace specification
+    """
+
+    header = namespacing.format(decl, decl)
+    formatted = clang_format(header)
+    header_path = os.path.join(output_path,"{}.h".format(name))
+    with open(header_path, 'w') as f:
+        f.write(formatted)
+    cdios_success("Header written to {}".format(header_path))
+
+    imports = [l for l in dios_lines if l.startswith('#include')]
+    dios_rest = [l for l in dios_lines if not l.startswith('#include')]
+    implementation = "".join(imports)
+    implementation += namespacing.format("".join(dios_rest), "".join(spec))
+    formatted = clang_format(implementation)
+    impl_path = os.path.join(output_path,"{}.c".format(name))
+    with open(impl_path, 'w') as f:
+        f.write(formatted)
+    cdios_success("Implementation written to {}".format(impl_path))
+
+
 @click.command()
 @click.argument('spec_file',
     type=click.Path(exists=True),
@@ -46,8 +95,11 @@ def eprint(*args, **kwargs):
 @click.option('--color/--no-color',
     default=True,
     help='Colored terminal output')
+@click.option('--header/--no-header',
+    default=True,
+    help='Emit code with a header file and namespacing')
 
-def cdios(spec_file, name, function, inter, debug, git, color):
+def cdios(spec_file, name, function, inter, debug, git, color, header):
     """Takes a specification file, written in C, and:
         - Sanity check that it compiles with GCC
         - Translates it to equivalence Racket (best effort)
@@ -58,6 +110,12 @@ def cdios(spec_file, name, function, inter, debug, git, color):
     def cdios_error(arg):
         if color:
             print(colors.FAIL + arg + colors.ENDC)
+        else:
+            print(arg)
+
+    def cdios_success(arg):
+        if color:
+            print(colors.OKGREEN + arg + colors.ENDC)
         else:
             print(arg)
 
@@ -144,7 +202,6 @@ def cdios(spec_file, name, function, inter, debug, git, color):
     flags = "BACKEND_FLAGS=-n {}".format(name)
     if not git:
         flags += " --suppress-git"
-
     cmd = subprocess.run(["make", "{}-egg".format(os.path.join(build_dir, file_name)), flags], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if cmd.returncode:
         cdios_error("CDIOS: Rewriting or backend compilation failed")
@@ -152,9 +209,12 @@ def cdios(spec_file, name, function, inter, debug, git, color):
         exit(1)
     elif debug:
         sys.stdout.write(cmd.stdout.decode("utf-8"))
-    subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
 
-    # subprocess.run(["clang-format", os.path.join(intermediate, "kernel.c"), ">", name + ".c"])
+    if not header:
+        subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
+
+    if header:
+        header_and_namespace(name, intermediate, cdios_success)
 
 
     # Go back to where launched from and copy out result files
