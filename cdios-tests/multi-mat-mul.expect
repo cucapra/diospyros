@@ -58,102 +58,129 @@ int __attribute__((section(".dram0.data"))) v_33_1[4] = {1, 1, 1, 1};
 int __attribute__((section(".dram0.data"))) v_51_1[4] = {0, 0, 0, 0};
 int __attribute__((section(".dram0.data"))) v_46_1[4] = {3, 3, 3, 3};
 int __attribute__((section(".dram0.data"))) v_51_2[4] = {0, 0, 0, 0};
-void kernel(float * a_in, float * b_in, float * c_in, float * d_out) {
-float * __restrict a_in_mut = a_in;
+void kernel(float *a_in, float *b_in, float *c_in, float *d_out) {
+  float *__restrict a_in_mut = a_in;
   valign align_a_in;
-  align_a_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) a_in);
-  float * __restrict b_in_mut = b_in;
+  align_a_in = PDX_LA_MXF32_PP((xb_vecMxf32 *)a_in);
+  float *__restrict b_in_mut = b_in;
   valign align_b_in;
-  align_b_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) b_in);
-  float * __restrict c_in_mut = c_in;
+  align_b_in = PDX_LA_MXF32_PP((xb_vecMxf32 *)b_in);
+  float *__restrict c_in_mut = c_in;
   valign align_c_in;
-  align_c_in = PDX_LA_MXF32_PP((xb_vecMxf32 *) c_in);
-  float * __restrict d_out_mut = d_out;
+  align_c_in = PDX_LA_MXF32_PP((xb_vecMxf32 *)c_in);
+  float *__restrict d_out_mut = d_out;
   valign align_d_out = PDX_Z_ALIGN();
   xb_vecMxf32 a_in_0_4;
-  PDX_LAV_MXF32_XP(a_in_0_4, align_a_in, (xb_vecMxf32 *) a_in_mut, 16);
+  PDX_LAV_MXF32_XP(a_in_0_4, align_a_in, (xb_vecMxf32 *)a_in_mut, 16);
   xb_vecMxf32 a_in_4_8;
-  PDX_LAV_MXF32_XP(a_in_4_8, align_a_in, (xb_vecMxf32 *) a_in_mut, 16);
+  PDX_LAV_MXF32_XP(a_in_4_8, align_a_in, (xb_vecMxf32 *)a_in_mut, 16);
   xb_vecMxf32 a_in_8_12;
-  PDX_LAV_MXF32_XP(a_in_8_12, align_a_in, (xb_vecMxf32 *) a_in_mut, 16);
+  PDX_LAV_MXF32_XP(a_in_8_12, align_a_in, (xb_vecMxf32 *)a_in_mut, 16);
   xb_vecMxf32 b_in_0_4;
-  PDX_LAV_MXF32_XP(b_in_0_4, align_b_in, (xb_vecMxf32 *) b_in_mut, 16);
+  PDX_LAV_MXF32_XP(b_in_0_4, align_b_in, (xb_vecMxf32 *)b_in_mut, 16);
   xb_vecMxf32 b_in_4_8;
-  PDX_LAV_MXF32_XP(b_in_4_8, align_b_in, (xb_vecMxf32 *) b_in_mut, 16);
+  PDX_LAV_MXF32_XP(b_in_4_8, align_b_in, (xb_vecMxf32 *)b_in_mut, 16);
   xb_vecMxf32 b_in_8_12;
-  PDX_LAV_MXF32_XP(b_in_8_12, align_b_in, (xb_vecMxf32 *) b_in_mut, 16);
+  PDX_LAV_MXF32_XP(b_in_8_12, align_b_in, (xb_vecMxf32 *)b_in_mut, 16);
   xb_vecMxf32 c_in_0_4;
-  PDX_LAV_MXF32_XP(c_in_0_4, align_c_in, (xb_vecMxf32 *) c_in_mut, 16);
+  PDX_LAV_MXF32_XP(c_in_0_4, align_c_in, (xb_vecMxf32 *)c_in_mut, 16);
   xb_vecMxf32 c_in_4_8;
-  PDX_LAV_MXF32_XP(c_in_4_8, align_c_in, (xb_vecMxf32 *) c_in_mut, 16);
+  PDX_LAV_MXF32_XP(c_in_4_8, align_c_in, (xb_vecMxf32 *)c_in_mut, 16);
   xb_vecMxf32 c_in_8_12;
-  PDX_LAV_MXF32_XP(c_in_8_12, align_c_in, (xb_vecMxf32 *) c_in_mut, 16);
+  PDX_LAV_MXF32_XP(c_in_8_12, align_c_in, (xb_vecMxf32 *)c_in_mut, 16);
   xb_vecMxf32 v_2;
-  v_2 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_0_4), *((xb_vecMx32 *) v_1_0)));
+  v_2 = PDX_MOV_MXF32_FROM_MX32(
+      PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_0_4), *((xb_vecMx32 *)v_1_0)));
   xb_vecMxf32 v_4;
-  v_4 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *) v_3_0)));
+  v_4 = PDX_MOV_MXF32_FROM_MX32(
+      PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *)v_3_0)));
   xb_vecMxf32 v_6;
-  v_6 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *) v_5_0)));
+  v_6 = PDX_MOV_MXF32_FROM_MX32(
+      PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *)v_5_0)));
   xb_vecMxf32 v_7 = PDX_MUL_MXF32(v_4, v_6);
   xb_vecMxf32 v_9;
-  v_9 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_4_8), PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *) v_8_0)));
+  v_9 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_4_8),
+                                             PDX_MOV_MX32_FROM_MXF32(a_in_0_4),
+                                             *((xb_vecMx32 *)v_8_0)));
   xb_vecMxf32 v_11;
-  v_11 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *) v_10_0)));
+  v_11 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *)v_10_0)));
   xb_vecMxf32 v_12 = v_7;
   PDX_MULA_MXF32(v_12, v_9, v_11);
   xb_vecMxf32 v_14;
-  v_14 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_8_12), PDX_MOV_MX32_FROM_MXF32(a_in_4_8), *((xb_vecMx32 *) v_13_0)));
+  v_14 = PDX_MOV_MXF32_FROM_MX32(
+      PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_8_12),
+                   PDX_MOV_MX32_FROM_MXF32(a_in_4_8), *((xb_vecMx32 *)v_13_0)));
   xb_vecMxf32 v_16;
-  v_16 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *) v_15_0)));
+  v_16 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *)v_15_0)));
   xb_vecMxf32 v_17 = v_12;
   PDX_MULA_MXF32(v_17, v_14, v_16);
   xb_vecMxf32 v_18 = PDX_MUL_MXF32(v_2, v_17);
   xb_vecMxf32 v_20;
-  v_20 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8), PDX_MOV_MX32_FROM_MXF32(c_in_0_4), *((xb_vecMx32 *) v_19_0)));
+  v_20 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8),
+                                              PDX_MOV_MX32_FROM_MXF32(c_in_0_4),
+                                              *((xb_vecMx32 *)v_19_0)));
   xb_vecMxf32 v_24;
-  v_24 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *) v_23_0)));
+  v_24 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *)v_23_0)));
   xb_vecMxf32 v_25 = PDX_MUL_MXF32(v_4, v_24);
   xb_vecMxf32 v_29;
-  v_29 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *) v_28_0)));
+  v_29 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *)v_28_0)));
   xb_vecMxf32 v_30 = v_25;
   PDX_MULA_MXF32(v_30, v_9, v_29);
   xb_vecMxf32 v_34;
-  v_34 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *) v_33_0)));
+  v_34 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *)v_33_0)));
   xb_vecMxf32 v_35 = v_30;
   PDX_MULA_MXF32(v_35, v_14, v_34);
   xb_vecMxf32 v_36 = v_18;
   PDX_MULA_MXF32(v_36, v_20, v_35);
   xb_vecMxf32 v_38;
-  v_38 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8), PDX_MOV_MX32_FROM_MXF32(c_in_0_4), *((xb_vecMx32 *) v_37_0)));
+  v_38 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8),
+                                              PDX_MOV_MX32_FROM_MXF32(c_in_0_4),
+                                              *((xb_vecMx32 *)v_37_0)));
   xb_vecMxf32 v_42;
-  v_42 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *) v_41_0)));
+  v_42 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *)v_41_0)));
   xb_vecMxf32 v_43 = PDX_MUL_MXF32(v_4, v_42);
   xb_vecMxf32 v_47;
-  v_47 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *) v_46_0)));
+  v_47 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_4_8), *((xb_vecMx32 *)v_46_0)));
   xb_vecMxf32 v_48 = v_43;
   PDX_MULA_MXF32(v_48, v_9, v_47);
   xb_vecMxf32 v_52;
-  v_52 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_8_12), *((xb_vecMx32 *) v_51_0)));
+  v_52 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(b_in_8_12), *((xb_vecMx32 *)v_51_0)));
   xb_vecMxf32 v_53 = v_48;
   PDX_MULA_MXF32(v_53, v_14, v_52);
   xb_vecMxf32 v_54 = v_36;
   PDX_MULA_MXF32(v_54, v_38, v_53);
   xb_vecMxf32 v_56;
-  v_56 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8), PDX_MOV_MX32_FROM_MXF32(c_in_0_4), *((xb_vecMx32 *) v_55_0)));
+  v_56 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8),
+                                              PDX_MOV_MX32_FROM_MXF32(c_in_0_4),
+                                              *((xb_vecMx32 *)v_55_0)));
   xb_vecMxf32 v_58;
-  v_58 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *) v_57_0)));
+  v_58 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *)v_57_0)));
   xb_vecMxf32 v_61 = PDX_MUL_MXF32(v_58, v_6);
   xb_vecMxf32 v_63;
-  v_63 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4), PDX_MOV_MX32_FROM_MXF32(a_in_4_8), *((xb_vecMx32 *) v_62_0)));
+  v_63 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4),
+                                              PDX_MOV_MX32_FROM_MXF32(a_in_4_8),
+                                              *((xb_vecMx32 *)v_62_0)));
   xb_vecMxf32 v_66 = v_61;
   PDX_MULA_MXF32(v_66, v_63, v_11);
   xb_vecMxf32 v_68;
-  v_68 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_8_12), PDX_MOV_MX32_FROM_MXF32(a_in_4_8), *((xb_vecMx32 *) v_67_0)));
+  v_68 = PDX_MOV_MXF32_FROM_MX32(
+      PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_8_12),
+                   PDX_MOV_MX32_FROM_MXF32(a_in_4_8), *((xb_vecMx32 *)v_67_0)));
   xb_vecMxf32 v_71 = v_66;
   PDX_MULA_MXF32(v_71, v_68, v_16);
   xb_vecMxf32 v_72 = PDX_MUL_MXF32(v_56, v_71);
   xb_vecMxf32 v_74;
-  v_74 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *) v_73_0)));
+  v_74 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *)v_73_0)));
   xb_vecMxf32 v_79 = PDX_MUL_MXF32(v_58, v_24);
   xb_vecMxf32 v_84 = v_79;
   PDX_MULA_MXF32(v_84, v_63, v_29);
@@ -162,7 +189,9 @@ float * __restrict a_in_mut = a_in;
   xb_vecMxf32 v_90 = v_72;
   PDX_MULA_MXF32(v_90, v_74, v_89);
   xb_vecMxf32 v_92;
-  v_92 = PDX_MOV_MXF32_FROM_MX32(PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_8_12), PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *) v_91_0)));
+  v_92 = PDX_MOV_MXF32_FROM_MX32(
+      PDX_SEL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_8_12),
+                   PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *)v_91_0)));
   xb_vecMxf32 v_97 = PDX_MUL_MXF32(v_58, v_42);
   xb_vecMxf32 v_102 = v_97;
   PDX_MULA_MXF32(v_102, v_63, v_47);
@@ -171,21 +200,26 @@ float * __restrict a_in_mut = a_in;
   xb_vecMxf32 v_108 = v_90;
   PDX_MULA_MXF32(v_108, v_92, v_107);
   xb_vecMxf32 v_110;
-  v_110 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *) v_41_1)));
+  v_110 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *)v_41_1)));
   xb_vecMxf32 v_112;
-  v_112 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *) v_15_1)));
+  v_112 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *)v_15_1)));
   xb_vecMxf32 v_115 = PDX_MUL_MXF32(v_112, v_6);
   xb_vecMxf32 v_117;
-  v_117 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_4_8), *((xb_vecMx32 *) v_33_1)));
+  v_117 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(a_in_4_8), *((xb_vecMx32 *)v_33_1)));
   xb_vecMxf32 v_120 = v_115;
   PDX_MULA_MXF32(v_120, v_117, v_11);
   xb_vecMxf32 v_122;
-  v_122 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_8_12), *((xb_vecMx32 *) v_51_1)));
+  v_122 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(a_in_8_12), *((xb_vecMx32 *)v_51_1)));
   xb_vecMxf32 v_125 = v_120;
   PDX_MULA_MXF32(v_125, v_122, v_16);
   xb_vecMxf32 v_126 = PDX_MUL_MXF32(v_110, v_125);
   xb_vecMxf32 v_128;
-  v_128 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *) v_46_1)));
+  v_128 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(c_in_4_8), *((xb_vecMx32 *)v_46_1)));
   xb_vecMxf32 v_133 = PDX_MUL_MXF32(v_112, v_24);
   xb_vecMxf32 v_138 = v_133;
   PDX_MULA_MXF32(v_138, v_117, v_29);
@@ -194,7 +228,8 @@ float * __restrict a_in_mut = a_in;
   xb_vecMxf32 v_144 = v_126;
   PDX_MULA_MXF32(v_144, v_128, v_143);
   xb_vecMxf32 v_146;
-  v_146 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(c_in_8_12), *((xb_vecMx32 *) v_51_2)));
+  v_146 = PDX_MOV_MXF32_FROM_MX32(PDX_SHFL_MX32(
+      PDX_MOV_MX32_FROM_MXF32(c_in_8_12), *((xb_vecMx32 *)v_51_2)));
   xb_vecMxf32 v_151 = PDX_MUL_MXF32(v_112, v_42);
   xb_vecMxf32 v_156 = v_151;
   PDX_MULA_MXF32(v_156, v_117, v_47);
@@ -202,8 +237,8 @@ float * __restrict a_in_mut = a_in;
   PDX_MULA_MXF32(v_161, v_122, v_52);
   xb_vecMxf32 v_162 = v_144;
   PDX_MULA_MXF32(v_162, v_146, v_161);
-  PDX_SAV_MXF32_XP(v_54, align_d_out, (xb_vecMxf32 *) d_out, 16);
-  PDX_SAV_MXF32_XP(v_108, align_d_out, (xb_vecMxf32 *) d_out, 16);
+  PDX_SAV_MXF32_XP(v_54, align_d_out, (xb_vecMxf32 *)d_out, 16);
+  PDX_SAV_MXF32_XP(v_108, align_d_out, (xb_vecMxf32 *)d_out, 16);
   *d_out = v_162;
-  PDX_SAPOS_MXF32_FP(align_d_out, (xb_vecMxf32 *) d_out);
+  PDX_SAPOS_MXF32_FP(align_d_out, (xb_vecMxf32 *)d_out);
 }
