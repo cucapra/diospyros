@@ -94,12 +94,23 @@ void transpose_and_multiply(float a_in[A_SIZE * A_SIZE],
 }
 ```
 
-We can now run `cdios` with: `cdios demo/src/kernel.c`. On success, we see:
+We can now run `cdios` with: `cdios demo/src/kernel.c --function transpose_and_multiply`. On success, we see:
 ```
 Standard C compilation successful
 Writing intermediate files to: build/compile-out
-Header written to build/compile-out/kernel.h
-Implementation written to build/compile-out/kernel.c
+Header written to build/compile-out/transpose_and_multiply.h
+Implementation written to build/compile-out/transpose_and_multiply.c
+```
+
+To incorporate this into our example, add an import:
+```
+#include "transpose_and_multiply.h"
+```
+
+Now, we can modify the `process_data` function to use our new version:
+```
+// Transpose
+diospyros::transpose_and_multiply(a_ref, b_ref, c_ref)
 ```
 
 [issue]: https://github.com/cucapra/diospyros/issues/new
