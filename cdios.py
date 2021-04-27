@@ -28,6 +28,10 @@ def eprint(*args, **kwargs):
     metavar='<name>',
     default='kernel',
     help='Name of the kernel function in the generated C')
+@click.option('--function',
+    type=str,
+    metavar='<function>',
+    help='Name of the function to optimize')
 @click.option('--inter',
     is_flag=True,
     default=False,
@@ -43,7 +47,7 @@ def eprint(*args, **kwargs):
     default=True,
     help='Colored terminal output')
 
-def cdios(spec_file, name, inter, debug, git, color):
+def cdios(spec_file, name, function, inter, debug, git, color):
     """Takes a specification file, written in C, and:
         - Sanity check that it compiles with GCC
         - Translates it to equivalence Racket (best effort)
@@ -65,6 +69,11 @@ def cdios(spec_file, name, inter, debug, git, color):
         file_name = os.path.splitext(os.path.basename(spec_file))[0]
     else:
         file_name = "compile"
+
+
+    # If function specified, use that as name
+    if function and (name == 'kernel'):
+        name = function
 
     build_dir = "build"
     if not os.path.exists(build_dir):
@@ -114,7 +123,14 @@ def cdios(spec_file, name, inter, debug, git, color):
     subprocess.run(["sed", "/^#/d", "-i", os.path.join(intermediate, "preprocessed.c")])
 
     # Run conversion to Racket
-    cmd = subprocess.run(['racket', 'src/c-meta.rkt', intermediate], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    rkt_cmd = [
+        'racket',
+        'src/c-meta.rkt'
+    ]
+    if function:
+        rkt_cmd += ["--function", function]
+    rkt_cmd += [intermediate]
+    cmd = subprocess.run(rkt_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if cmd.returncode:
         cdios_error("CDIOS: Compiling C->Racket failed")
         cdios_error(cmd.stdout.decode("utf-8"))
@@ -137,6 +153,9 @@ def cdios(spec_file, name, inter, debug, git, color):
     elif debug:
         sys.stdout.write(cmd.stdout.decode("utf-8"))
     subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
+
+    # subprocess.run(["clang-format", os.path.join(intermediate, "kernel.c"), ">", name + ".c"])
+
 
     # Go back to where launched from and copy out result files
     subprocess.run(["cp", "-r", intermediate, cwd])

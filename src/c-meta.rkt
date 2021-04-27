@@ -24,7 +24,6 @@
 (define (multi-array-length array-ty)
   (define length (translate (c:type:array-length array-ty)))
   (define base (c:type:array-base array-ty))
-  (pretty-print array-ty)
   (cond
     [(c:type:primitive? base)
       (when (not (eq? (c:type:primitive-name base) 'float))
@@ -449,9 +448,14 @@
 
 (module+ main
 
+  (define fn (make-parameter #f))
   (define input-path
     (command-line
       #:program "Diospyros C-metaprogramming"
+      #:once-each
+      [("-f" "--function") n
+                           "Name for function to be optimized"
+                           (fn n)]
       #:args (path)
       path))
 
@@ -459,9 +463,21 @@
   (set-box! c-path path)
   (define program (c:parse-program path))
 
-  (define outer-function (last program))
+  (define (get-fn-name f)
+     (symbol->string (translate (c:decl:declarator-id (c:decl:function-declarator f)))))
+
+  (define outer-function
+    (cond
+      [(fn) (let ([found (findf (lambda (x) (equal? (fn) (get-fn-name x))) program)])
+        (if found
+            found
+            ; (raise-user-error "Can't find provided function: " (fn))
+            (pretty-print (~a "fn " (fn)))
+            ))]
+      [else (last program)]))
+
   (define (program-to-c program)
-    (define helper-functions (drop-right program 1))
+    (define helper-functions (remove outer-function program))
     (if (empty? helper-functions)
       (translate-fn-decl outer-function)
       (begin
