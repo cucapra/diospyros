@@ -94,7 +94,15 @@ def cdios(spec_file, name, inter, debug, git, color):
 
     # Preprocess to handle #defines, etc
     preprocessed = os.path.join(intermediate, "preprocessed.c")
-    cmd = subprocess.run(["gcc", "-Wno-implicit-function-declaration", "-E", spec_file, "-o", preprocessed])
+    gcc_cmd = [
+        "gcc",
+        "-std=c99",
+        "-pedantic",
+        "-Wno-implicit-function-declaration",
+        "-E", spec_file,
+        "-o", preprocessed
+    ]
+    cmd = subprocess.run(gcc_cmd)
     if cmd.returncode:
         if cmd.stdout:
             sys.stdout.write(cmd.stdout.decode("utf-8"))

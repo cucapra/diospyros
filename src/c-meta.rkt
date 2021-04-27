@@ -24,8 +24,12 @@
 (define (multi-array-length array-ty)
   (define length (translate (c:type:array-length array-ty)))
   (define base (c:type:array-base array-ty))
+  (pretty-print array-ty)
   (cond
-    [(c:type:primitive? base) length]
+    [(c:type:primitive? base)
+      (when (not (eq? (c:type:primitive-name base) 'float))
+        (src-error "Can't handle array type" array-ty))
+      length]
     [(eq? base #f) length]
     [(c:type:array? base) `(* (unquote length) (unquote (multi-array-length base)))]
     [else (src-error "Can't handle array type" array-ty)]))
