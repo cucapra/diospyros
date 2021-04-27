@@ -57,10 +57,23 @@ def header_and_namespace(name, output_path, cdios_success):
         f.write(formatted)
     cdios_success("Header written to {}".format(header_path))
 
+
+    xtensa_guard  = """
+        #ifdef XTENSA
+        {}
+        #endif // XTENSA
+    """
+
     imports = [l for l in dios_lines if l.startswith('#include')]
+    xtensa_imports = [l for l in imports if "xtensa" in l]
+    std_imports = [l for l in imports if "xtensa" not in l]
+    imports = "".join(std_imports)
+    imports += xtensa_guard.format("".join(xtensa_imports))
+
     dios_rest = [l for l in dios_lines if not l.startswith('#include')]
     implementation = "".join(imports)
-    implementation += namespacing.format("".join(dios_rest), "".join(spec))
+    dios_impl = xtensa_guard.format("".join(dios_rest))
+    implementation += namespacing.format(dios_impl, "".join(spec))
     formatted = clang_format(implementation)
     impl_path = os.path.join(output_path,"{}.c".format(name))
     with open(impl_path, 'w') as f:
