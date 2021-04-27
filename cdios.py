@@ -210,16 +210,23 @@ def cdios(spec_file, name, function, inter, debug, git, color, header):
     elif debug:
         sys.stdout.write(cmd.stdout.decode("utf-8"))
 
-    if not header:
-        subprocess.run(["cat", os.path.join(intermediate, "kernel.c")])
-
-    if header:
-        header_and_namespace(name, intermediate, cdios_success)
-
-
     # Go back to where launched from and copy out result files
     subprocess.run(["cp", "-r", intermediate, cwd])
     os.chdir(cwd)
+
+
+    if header:
+        header_and_namespace(name, intermediate, cdios_success)
+    else:
+        impl_path = os.path.join(intermediate, "kernel.c")
+        with open(impl_path, 'r') as f:
+            impl = f.read()
+        formatted = clang_format(impl)
+        with open(impl_path, 'w') as f:
+            impl = f.write(formatted)
+        sys.stdout.write(formatted + "\n")
+
+
 
 if __name__ == '__main__':
     cdios()
