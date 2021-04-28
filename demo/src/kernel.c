@@ -16,7 +16,7 @@ void matrix_multiply(float *a, float *b, float *c) {
 // Naive implementation
 void transpose(float *a, float *out, int n) {
   for (int i = 0; i < n; i++) {
-    for (int j = i; j < n; j++) {
+    for (int j = 0; j < n; j++) {
       out[i*n + j] = a[j*n + i];
     }
   }
