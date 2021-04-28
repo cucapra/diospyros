@@ -1,4 +1,4 @@
-# Diospyros Example Tutorial
+# `cdios`/Diospyros Example Tutorial
 
 The following example will walk through using the `cdios` frontend for the
 Diospyros compiler. `cdios` takes code in a subset of C/C++ and produces a
@@ -48,7 +48,7 @@ Optimized : 15 cycles
 82.440002
 mismatch at (0,0) reference = 82.440002, actual = 0.000000, error = 82.440002
 ```
-The mismatch error is expected, because we haven't implemented the optimized
+The mismatch error is expected (as is the very low cycle count), because we haven't implemented the optimized
 version yet.
 
 There are multiple ways we can use `cdios` to vectorize this code. We could
@@ -64,7 +64,7 @@ Copy the `transpose` and `matrix_multiply` functions into your new file. You'll
 also need to copy the `#define` size lines.
 
 
- If we
+If we
 run `cdios` on the file now, it will fail because we have not annotated any
 function arguments with inputs and outputs:
 ```
@@ -146,9 +146,16 @@ input and output names with suffixes.
 4. Move the optimized header and implementation to where you want it, and call
 the new code in place of your kernel.
 5. Profit? There are some cases where `cdios`/Diospyros will produce code that
-is worse than the default compiles, so be sure to benchmark the results.
+is worse than the default compilers, so be sure to benchmark the results.
 
 Thanks for taking the time to read this example, and please [file bugs][issue] if you hit any issues!
 
+# More information
+
+You can find the full ASPLOS 2021 paper describing the Diospyros system (but not the `cdios` frontend, which is new) [here][paper]. We also have [5 minute][short] and [17 minute][long] talks describing the paper results. 
+
 [issue]: https://github.com/cucapra/diospyros/issues/new
 [wsl]: https://docs.microsoft.com/en-us/windows/wsl/install-win10
+[paper]: https://www.cs.cornell.edu/~avh/diospyros-asplos-2021-preprint.pdf
+[short]: https://youtu.be/pGHjvPLrmRc
+[long]: https://youtu.be/RvMI4prTqHY
