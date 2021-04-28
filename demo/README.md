@@ -150,5 +150,12 @@ is worse than the default compilers, so be sure to benchmark the results.
 
 Thanks for taking the time to read this example, and please [file bugs][issue] if you hit any issues!
 
+# More information
+
+You can find the full ASPLOS 2021 paper describing the Diospyros system (but not the `cdios` frontend, which is new) [here][paper]. We also have [5 minute][short] and [17 minute][long] talks describing the paper results. 
+
 [issue]: https://github.com/cucapra/diospyros/issues/new
 [wsl]: https://docs.microsoft.com/en-us/windows/wsl/install-win10
+[paper]: https://www.cs.cornell.edu/~avh/diospyros-asplos-2021-preprint.pdf
+[short]: https://youtu.be/pGHjvPLrmRc
+[long]: https://youtu.be/RvMI4prTqHY
