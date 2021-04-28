@@ -48,7 +48,7 @@ Optimized : 15 cycles
 82.440002
 mismatch at (0,0) reference = 82.440002, actual = 0.000000, error = 82.440002
 ```
-The mismatch error is expected, because we haven't implemented the optimized
+The mismatch error is expected (as is the very low cycle count), because we haven't implemented the optimized
 version yet.
 
 There are multiple ways we can use `cdios` to vectorize this code. We could
@@ -64,7 +64,7 @@ Copy the `transpose` and `matrix_multiply` functions into your new file. You'll
 also need to copy the `#define` size lines.
 
 
- If we
+If we
 run `cdios` on the file now, it will fail because we have not annotated any
 function arguments with inputs and outputs:
 ```
