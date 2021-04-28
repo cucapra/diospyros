@@ -242,3 +242,10 @@ void kernel(float *a_in, float *b_in, float *c_in, float *d_out) {
   *d_out = v_162;
   PDX_SAPOS_MXF32_FP(align_d_out, (xb_vecMxf32 *)d_out);
 }
+---STDERR---
+/Users/avh/research/diospyros/cdios-tests/multi-mat-mul.c:23:2: warning: no newline at end of file [-Wnewline-eof]
+}
+ ^
+1 warning generated.
+Standard C compilation successful
+Writing intermediate files to: build/multi-mat-mul-out

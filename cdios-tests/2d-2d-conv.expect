@@ -1362,3 +1362,6 @@ void kernel(float *mat_in, float *f_in, float *mat_out) {
   PDX_SAV_MXF32_XP(v_849, align_mat_out, (xb_vecMxf32 *)mat_out, 16);
   PDX_SAPOS_MXF32_FP(align_mat_out, (xb_vecMxf32 *)mat_out);
 }
+---STDERR---
+Standard C compilation successful
+Writing intermediate files to: build/2d-2d-conv-out

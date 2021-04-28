@@ -819,3 +819,10 @@ void kernel(float *real_in, float *img_in, float *real_twid_in,
   PDX_SAPOS_MXF32_FP(align_real_out, (xb_vecMxf32 *)real_out);
   PDX_SAPOS_MXF32_FP(align_img_out, (xb_vecMxf32 *)img_out);
 }
+---STDERR---
+/Users/avh/research/diospyros/cdios-tests/fft.c:45:2: warning: no newline at end of file [-Wnewline-eof]
+}
+ ^
+1 warning generated.
+Standard C compilation successful
+Writing intermediate files to: build/fft-out

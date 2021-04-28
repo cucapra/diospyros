@@ -10,42 +10,30 @@
 
 int __attribute__((section(".dram0.data"))) Z[4] = {0, 0, 0, 0};
 float __attribute__((section(".dram0.data"))) v_0[4] = {0.0, 0, 0, 0};
-int __attribute__((section(".dram0.data"))) v_1[4] = {0, 0, 2, 2};
-int __attribute__((section(".dram0.data"))) v_1_0[4] = {0, 0, 2, 2};
-int __attribute__((section(".dram0.data"))) v_3[4] = {0, 1, 0, 1};
-int __attribute__((section(".dram0.data"))) v_3_0[4] = {0, 1, 0, 1};
-int __attribute__((section(".dram0.data"))) v_6[4] = {1, 1, 3, 3};
-int __attribute__((section(".dram0.data"))) v_6_0[4] = {1, 1, 3, 3};
-int __attribute__((section(".dram0.data"))) v_8[4] = {2, 3, 2, 3};
-int __attribute__((section(".dram0.data"))) v_8_0[4] = {2, 3, 2, 3};
-void kernel(float *a_in, float *b_in, float *c_out) {
+int __attribute__((section(".dram0.data"))) v_1[4] = {0, 1, 2, 3};
+int __attribute__((section(".dram0.data"))) v_5[4] = {4, 5, 6, 7};
+void kernel(float *a_in, float *b_out) {
   float *__restrict a_in_mut = a_in;
   valign align_a_in;
   align_a_in = PDX_LA_MXF32_PP((xb_vecMxf32 *)a_in);
-  float *__restrict b_in_mut = b_in;
-  valign align_b_in;
-  align_b_in = PDX_LA_MXF32_PP((xb_vecMxf32 *)b_in);
-  float *__restrict c_out_mut = c_out;
-  valign align_c_out = PDX_Z_ALIGN();
+  float *__restrict b_out_mut = b_out;
+  valign align_b_out = PDX_Z_ALIGN();
   xb_vecMxf32 a_in_0_4;
   PDX_LAV_MXF32_XP(a_in_0_4, align_a_in, (xb_vecMxf32 *)a_in_mut, 16);
-  xb_vecMxf32 b_in_0_4;
-  PDX_LAV_MXF32_XP(b_in_0_4, align_b_in, (xb_vecMxf32 *)b_in_mut, 16);
+  xb_vecMxf32 a_in_4_8;
+  PDX_LAV_MXF32_XP(a_in_4_8, align_a_in, (xb_vecMxf32 *)a_in_mut, 16);
   xb_vecMxf32 v_2;
-  v_2 = PDX_MOV_MXF32_FROM_MX32(
-      PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *)v_1_0)));
-  xb_vecMxf32 v_4;
-  v_4 = PDX_MOV_MXF32_FROM_MX32(
-      PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *)v_3_0)));
-  xb_vecMxf32 v_5 = PDX_MUL_MXF32(v_2, v_4);
-  xb_vecMxf32 v_7;
-  v_7 = PDX_MOV_MXF32_FROM_MX32(
-      PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(a_in_0_4), *((xb_vecMx32 *)v_6_0)));
-  xb_vecMxf32 v_9;
-  v_9 = PDX_MOV_MXF32_FROM_MX32(
-      PDX_SHFL_MX32(PDX_MOV_MX32_FROM_MXF32(b_in_0_4), *((xb_vecMx32 *)v_8_0)));
-  xb_vecMxf32 v_10 = v_5;
-  PDX_MULA_MXF32(v_10, v_7, v_9);
-  PDX_SAV_MXF32_XP(v_10, align_c_out, (xb_vecMxf32 *)c_out, 16);
-  PDX_SAPOS_MXF32_FP(align_c_out, (xb_vecMxf32 *)c_out);
+  v_2 = a_in_0_4;
+  float v_3 = 1;
+  float v_4_tmp[4] = {v_3, v_3, v_3, v_3};
+  xb_vecMxf32 v_4 = *((xb_vecMxf32 *)v_4_tmp);
+  xb_vecMxf32 v_6;
+  v_6 = a_in_4_8;
+  xb_vecMxf32 v_7 = PDX_ADD_MXF32(v_4, v_6);
+  PDX_SAV_MXF32_XP(v_2, align_b_out, (xb_vecMxf32 *)b_out, 16);
+  PDX_SAV_MXF32_XP(v_7, align_b_out, (xb_vecMxf32 *)b_out, 16);
+  PDX_SAPOS_MXF32_FP(align_b_out, (xb_vecMxf32 *)b_out);
 }
+---STDERR---
+Standard C compilation successful
+Writing intermediate files to: build/if-else-out

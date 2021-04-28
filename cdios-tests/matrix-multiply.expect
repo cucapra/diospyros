@@ -49,3 +49,6 @@ void kernel(float *a_in, float *b_in, float *c_out) {
   PDX_SAV_MXF32_XP(v_10, align_c_out, (xb_vecMxf32 *)c_out, 16);
   PDX_SAPOS_MXF32_FP(align_c_out, (xb_vecMxf32 *)c_out);
 }
+---STDERR---
+Standard C compilation successful
+Writing intermediate files to: build/matrix-multiply-out

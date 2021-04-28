@@ -5,3 +5,6 @@ If this is unexpected, please file a bug for Diospyros: https://github.com/cucap
 
 ---CODE---
 1
+---STDERR---
+Standard C compilation successful
+Writing intermediate files to: build/error-for-update-out
