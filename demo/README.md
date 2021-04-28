@@ -134,5 +134,21 @@ And run again with `make`. Depending on the parameters, the new code might be
 an order of magnitude faster! You can change the `ITERATIONS` variable to see
 how the performance varies with the outer loop size.
 
+# Running your own code
+
+The above example illustrates the main steps to running your own favorite
+kernel or operator through the `cdios` compiler:
+1. Identify functionality that is data-independent and operates on relatively
+small chunks of data at once.
+2. Create a new C file with the naive implementation of that functionality. Tag
+input and output names with suffixes.
+3. Pass the file and function name to the `cdios` tool.
+4. Move the optimized header and implementation to where you want it, and call
+the new code in place of your kernel.
+5. Profit? There are some cases where `cdios`/Diospyros will produce code that
+is worse than the default compiles, so be sure to benchmark the results.
+
+Thanks for taking the time to read this example, and please [file bugs][issue] if you hit any issues!
+
 [issue]: https://github.com/cucapra/diospyros/issues/new
 [wsl]: https://docs.microsoft.com/en-us/windows/wsl/install-win10
