@@ -38,6 +38,19 @@ small-sized blocks. For each block, we take the transpose of the section of `a`
 and multiply it by the corresponding section of `b`. This naive functionality
 is implemented in `src/example.c`.
 
+To compile and run the code as-is with the Xtensa simulator, run `make` from
+the `demo` directory. You should see something like this:
+```
+xt-clang++  src/example.c src/transpose_and_multiply.c -o example.o
+xt-run --nosummary --mem_model example.o
+Naive : 6099 cycles
+Optimized : 15 cycles
+82.440002
+mismatch at (0,0) reference = 82.440002, actual = 0.000000, error = 82.440002
+```
+The mismatch error is expected, because we haven't implemented the optimized
+version yet.
+
 There are multiple ways we can use `cdios` to vectorize this code. We could
 vectorize the `transpose` and `matrix_multiply` functions seperately by passing
 each with `--function` to `cdios`. Instead, this tutorial will walk through
@@ -102,15 +115,24 @@ Header written to build/compile-out/transpose_and_multiply.h
 Implementation written to build/compile-out/transpose_and_multiply.c
 ```
 
-To incorporate this into our example, add an import:
+To incorporate this into our example, move the two files to the `src` directory, and add an import:
 ```
 #include "transpose_and_multiply.h"
 ```
 
-Now, we can modify the `process_data` function to use our new version:
+Now, we can modify the `process_data_optimized` function to use our new version:
 ```
-diospyros::transpose_and_multiply(a_ref, b_ref, c_ref)
+diospyros::transpose_and_multiply(a, b, c);
 ```
+
+Finally, add the source to our Makefile:
+```
+SRCS := src/example.c src/transpose_and_multiply.c
+```
+
+And run again with `make`. Depending on the parameters, the new code might be
+an order of magnitude faster! You can change the `ITERATIONS` variable to see
+how the performance varies with the outer loop size.
 
 [issue]: https://github.com/cucapra/diospyros/issues/new
 [wsl]: https://docs.microsoft.com/en-us/windows/wsl/install-win10

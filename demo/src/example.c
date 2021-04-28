@@ -75,15 +75,14 @@ void process_data(float *a, float *b, float *c) {
   }
 }
 
-void process_data_dios(float *a, float *b, float *c) {
+void process_data_optimized(float *a, float *b, float *c) {
 
   float *a_ref = a;
   float *b_ref = b;
   float *c_ref = c;
 
   for (int k = 0; k <  ITERATIONS; k++) {
-    // TODO
-    diospyros::transpose_and_multiply(a_ref, b_ref, c_ref);
+    // TODO: replace with optimized call
 
     // Bump pointers
     a_ref += (A_SIZE*A_SIZE);
@@ -141,7 +140,6 @@ int main(int argc, char **argv) {
   #endif // defined(__XTENSA__)
 
   // TODO: call optimized code, using `c`
-  process_data_dios(a, b, c);
 
   #if defined(__XTENSA__)
   stop_cycle_timing;
