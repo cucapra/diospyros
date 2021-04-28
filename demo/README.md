@@ -146,7 +146,7 @@ input and output names with suffixes.
 4. Move the optimized header and implementation to where you want it, and call
 the new code in place of your kernel.
 5. Profit? There are some cases where `cdios`/Diospyros will produce code that
-is worse than the default compiles, so be sure to benchmark the results.
+is worse than the default compilers, so be sure to benchmark the results.
 
 Thanks for taking the time to read this example, and please [file bugs][issue] if you hit any issues!
 
