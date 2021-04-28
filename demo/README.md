@@ -94,7 +94,7 @@ void transpose_and_multiply(float a_in[A_SIZE * A_SIZE],
 }
 ```
 
-We can now run `cdios` with: `cdios demo/src/kernel.c --function transpose_and_multiply`. On success, we see:
+We can now run `cdios` with: `cdios src/kernel.c --function transpose_and_multiply`. On success, we see:
 ```
 Standard C compilation successful
 Writing intermediate files to: build/compile-out

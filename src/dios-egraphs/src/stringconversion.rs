@@ -89,7 +89,7 @@ pub fn convert_string(input: &String) -> io::Result<String> {
     // Parse the given S-expr
     // Remove residual Racket syntax markers
     let input = input.replace("#&", "");
-    let input = input.replace("'", "");
+    let input = input.replace("'(", "(list ");
     let input = input.replace("||", "or");
     let v = lexpr::from_str(&input)?;
     // Rewrite specifications
