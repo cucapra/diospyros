@@ -152,15 +152,15 @@ def cdios(spec_file, name, function, inter, debug, git, color, header):
         os.makedirs(build_dir)
     intermediate = os.path.join(build_dir, file_name + "-out")
 
-    # # Force CWD directory to land in diospyros root
-    # script_path = os.path.dirname(os.path.realpath(__file__))
-    # cwd = os.getcwd()
-    # os.chdir(script_path)
-
     # Get path to Diospyros makefile
     script_dir = os.path.dirname(os.path.realpath(__file__))
     makefile = os.path.join(script_dir, "Makefile")
     make_path = ["-f", makefile]
+
+    build_dir = "build"
+    if not os.path.exists(build_dir):
+        os.makedirs(build_dir)
+    intermediate = os.path.join(build_dir, file_name + "-out")
 
     # Attempt to run gcc
     gcc_cmd = ["gcc",

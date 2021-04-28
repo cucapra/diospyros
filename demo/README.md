@@ -109,7 +109,6 @@ To incorporate this into our example, add an import:
 
 Now, we can modify the `process_data` function to use our new version:
 ```
-// Transpose
 diospyros::transpose_and_multiply(a_ref, b_ref, c_ref)
 ```
 

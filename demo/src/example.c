@@ -6,6 +6,8 @@
 
 #include "../../evaluation/src/utils.h"
 
+#include "transpose_and_multiply.h"
+
 #define A_SIZE 3
 #define B_ROWS 3
 #define B_COLS 4
@@ -60,11 +62,7 @@ void process_data(float *a, float *b, float *c) {
 
   for (int k = 0; k <  ITERATIONS; k++) {
     // Transpose a
-    float tmp[A_SIZE * A_SIZE];
-    transpose(a_ref, tmp, A_SIZE);
-
-    // Then multiply by b
-    matrix_multiply(tmp, b_ref, c_ref);
+    diospyros::transpose_and_multiply(a_ref, b_ref, c_ref);
 
     // Bump pointers
     a_ref += (A_SIZE*A_SIZE);
