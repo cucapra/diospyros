@@ -281,9 +281,5 @@ void kernel(float *orig_in, float *sol_out, float *filter_in) {
   PDX_SAPOS_MXF32_FP(align_sol_out, (xb_vecMxf32 *)sol_out);
 }
 ---STDERR---
-/Users/avh/research/diospyros/cdios-tests/stencil-2d.c:18:2: warning: no newline at end of file [-Wnewline-eof]
-}
- ^
-1 warning generated.
 Standard C compilation successful
 Writing intermediate files to: build/stencil-2d-out

@@ -88,9 +88,5 @@ void kernel(float *q_in, float *p_in, float *result_out) {
   PDX_SAPOS_MXF32_FP(align_result_out, (xb_vecMxf32 *)result_out);
 }
 ---STDERR---
-/Users/avh/research/diospyros/cdios-tests/point-product.c:25:2: warning: no newline at end of file [-Wnewline-eof]
-}
- ^
-1 warning generated.
 Standard C compilation successful
 Writing intermediate files to: build/point-product-out

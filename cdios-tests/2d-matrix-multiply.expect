@@ -50,9 +50,5 @@ void kernel(float *a_in, float *b_in, float *c_out) {
   PDX_SAPOS_MXF32_FP(align_c_out, (xb_vecMxf32 *)c_out);
 }
 ---STDERR---
-/Users/avh/research/diospyros/cdios-tests/2d-matrix-multiply.c:16:2: warning: no newline at end of file [-Wnewline-eof]
-}
- ^
-1 warning generated.
 Standard C compilation successful
 Writing intermediate files to: build/2d-matrix-multiply-out

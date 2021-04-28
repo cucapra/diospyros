@@ -4,9 +4,5 @@ Unexpected expression. Please file a bug for Diospyros: https://github.com/cucap
 ---CODE---
 1
 ---STDERR---
-/Users/avh/research/diospyros/cdios-tests/return.c:11:2: warning: no newline at end of file [-Wnewline-eof]
-}
- ^
-1 warning generated.
 Standard C compilation successful
 Writing intermediate files to: build/return-out

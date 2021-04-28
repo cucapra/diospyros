@@ -165,12 +165,11 @@ def cdios(spec_file, name, function, inter, debug, git, color, header):
     # Attempt to run gcc
     gcc_cmd = ["gcc",
         "-Wno-implicit-function-declaration",
-        "-Wno-newline-eof",
         "-std=c99",
         "-S", spec_file,
         "-o", "/dev/null"
     ]
-    cmd = subprocess.run(gcc_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    cmd = subprocess.run(gcc_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     # Bail early if GCC fails to compile
     # (note: don't assemble since we might not have a main function)

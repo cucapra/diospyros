@@ -37,9 +37,5 @@ void kernel(float *a_in, float scalar_in, float *b_out) {
   PDX_SAPOS_MXF32_FP(align_b_out, (xb_vecMxf32 *)b_out);
 }
 ---STDERR---
-/Users/avh/research/diospyros/cdios-tests/continue-w.c:16:2: warning: no newline at end of file [-Wnewline-eof]
-}
- ^
-1 warning generated.
 Standard C compilation successful
 Writing intermediate files to: build/continue-w-out
