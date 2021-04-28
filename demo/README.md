@@ -1,4 +1,4 @@
-# Diospyros Example Tutorial
+# `cdios`/Diospyros Example Tutorial
 
 The following example will walk through using the `cdios` frontend for the
 Diospyros compiler. `cdios` takes code in a subset of C/C++ and produces a
