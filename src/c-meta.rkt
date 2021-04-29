@@ -170,7 +170,6 @@
               ; Function translations
               (match fn
                 [`powf `expt]
-                [`compare `sgn]
                 [else fn])))
           (define args
              (for/list ([arg (c:expr:call-arguments stmt)])

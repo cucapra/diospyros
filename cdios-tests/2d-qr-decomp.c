@@ -5,7 +5,7 @@
 // compare is a pseudo function to be interpreted within the c-meta.rkt file,
 // and is translated to sgn in racket jsut like powf is translated to expf in
 // racket
-float sgn(float v) { return compare(v); }
+// float sgn(float v) { return compare(v); }
 
 // Naive with fixed size transpose of matrix A
 void naive_fixed_transpose(float a[SIZE][SIZE]) {
