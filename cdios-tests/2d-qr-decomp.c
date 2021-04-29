@@ -1,7 +1,7 @@
 #define SIZE 2
 
 // ---------------------QR FACTORIZATION---------------------------------
-// OLD VERSION: float sgn(float v) { return (v > 0) - (v < 0); }
+// OLD VERSION : float sgn(float v) { return (v > 0) - (v < 0); }
 // compare is a pseudo function to be interpreted within the c-meta.rkt file,
 // and is translated to sgn in racket jsut like powf is translated to expf in
 // racket
