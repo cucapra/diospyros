@@ -6,8 +6,6 @@
 
 #include "../../evaluation/src/utils.h"
 
-#include "transpose_and_multiply.h"
-
 #define A_SIZE 3
 #define B_ROWS 3
 #define B_COLS 4
@@ -139,7 +137,7 @@ int main(int argc, char **argv) {
   start_cycle_timing;
   #endif // defined(__XTENSA__)
 
-  // TODO: call optimized code, using `c`
+  process_data_optimized(a, b, c_spec);
 
   #if defined(__XTENSA__)
   stop_cycle_timing;
