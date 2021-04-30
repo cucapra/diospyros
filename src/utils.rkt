@@ -39,12 +39,20 @@
   (let ([fill (make-list (- align-len len) (box 0))])
     (append vec fill)))
 
+(define index-map (make-hash))
+(define (index! name)
+  (when (not (hash-has-key? index-map name)) (hash-set! index-map name 0))
+  (define idx (hash-ref index-map name))
+  (hash-set! index-map name (add1 idx))
+  idx)
+
+ (define (make-symbolic-with-prefix name type)
+  (constant (list name (index! name)) type))
+
 ;;========================= LIST MANIPULATION =========================
 
 ;;========================= BITVECTOR LISTS =========================
 
-(define (make-symbolic-with-prefix name type)
-  (constant (list name ((current-oracle) name)) type))
 
 (define (make-symbolic-v-list size [prefix 'v])
   (for/list ([_ (in-range size)])

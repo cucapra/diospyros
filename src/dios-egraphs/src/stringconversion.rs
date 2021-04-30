@@ -91,6 +91,7 @@ pub fn convert_string(input: &String) -> io::Result<String> {
     let input = input.replace("#&", "");
     let input = input.replace("'(", "(list ");
     let input = input.replace("||", "or");
+    let input = input.replace("'", "");
     let v = lexpr::from_str(&input)?;
     // Rewrite specifications
     let mut rewrites = HashMap::new();

@@ -18,15 +18,11 @@ See our [evaluation README][eval] for instructions on generating the data for ou
 
 ### Python
 - Install [Python][] > 3.0.
-- We also recommend installing [Pypy][] > 3.0 (then running `pypy3 -m ensurepip`).
- If you do not want to install Pypy,
-you can pass `PY=python3` to any `make` commands that require it to avoid this
-dependency.
-- You will also need the following packages (with just `pip3` if avoiding `pypy3`):
-    - `pypy3 -mpip install sexpdata`
+- You will also need the following packages:
+    - `pip3 -mpip install sexpdata`
 
 ### Racket
-- Install [Racket][] > 7.4
+- Install [Racket][] > 8.0.
 - Install [Rosette][] by running `raco pkg install rosette`.
 - Install additional Racket libraries:
     - `raco pkg install threading`
