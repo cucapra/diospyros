@@ -174,7 +174,9 @@ def cdios(spec_file, name, function, inter, debug, git, color, header):
     # Bail early if GCC fails to compile
     # (note: don't assemble since we might not have a main function)
     if cmd.returncode:
-        sys.stdout.write(cmd.stderr.decode("utf-8"))
+        cdios_error("Standard C compilation failed")
+        if cmd.stdout:
+            cdios_error(cmd.stdout.decode("utf-8"))
         exit(1)
     else:
         eprint("Standard C compilation successful")
@@ -196,10 +198,11 @@ def cdios(spec_file, name, function, inter, debug, git, color, header):
     ]
     cmd = subprocess.run(gcc_cmd)
     if cmd.returncode:
+        cdios_error("Standard C compilation failed")
         if cmd.stdout:
-            sys.stdout.write(cmd.stdout.decode("utf-8"))
+            cdios_error(cmd.stdout.decode("utf-8"))
         if cmd.stderr:
-            sys.stdout.write(cmd.stderr.decode("utf-8"))
+            cdios_error(cmd.stderr.decode("utf-8"))
         exit(1)
 
     # Remove preprocessing header
