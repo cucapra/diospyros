@@ -12,7 +12,7 @@
 #define B_ROWS 3
 #define B_COLS 4
 
-#define ITERATIONS 2
+#define ITERATIONS 4
 
 #if defined(__XTENSA__)
 #include <xtensa/sim.h>
@@ -82,7 +82,7 @@ void process_data_optimized(float *a, float *b, float *c) {
   float *c_ref = c;
 
   for (int k = 0; k <  ITERATIONS; k++) {
-    diospyros::transpose_and_multiply(a, b, c);
+    diospyros::transpose_and_multiply(a_ref, b_ref, c_ref);
 
     // Bump pointers
     a_ref += (A_SIZE*A_SIZE);
@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
   start_cycle_timing;
   #endif // defined(__XTENSA__)
 
-  process_data_optimized(a, b, c_spec);
+  process_data_optimized(a, b, c);
 
   #if defined(__XTENSA__)
   stop_cycle_timing;

@@ -93,11 +93,12 @@
 
   (assert (equal? (length spec) (length flatten-prog-outputs)))
 
+  (for ([a (uninterp-fn-assumptions)])
+    (assert a))
+
   (define model
     (verify
-      (begin
-        (for ([a (uninterp-fn-assumptions)]) (assume a))
-        (assert (equal? spec flatten-prog-outputs)))))
+        (assert (equal? spec flatten-prog-outputs))))
 
   (if (not (unsat? model))
     (pretty-display (format "Translation validation unsuccessful. Spec:\n ~a \nProg:\n ~a"

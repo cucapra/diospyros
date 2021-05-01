@@ -1,10 +1,10 @@
 SRCS := src/example.c
 
-COMPLETED_SRCS := src/completed_example.c src/transpose_and_multiply.h
+COMPLETED_SRCS := src-completed/completed_example.c src-completed/transpose_and_multiply.c
 
 XCXX := xt-clang++
 XRUN := xt-run
-XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals -fvectorize
+XCC_FLAGS += -O3 -mlongcalls -mtext-section-literals -fvectorize -Wno-deprecated
 XSIM_FLAGS := --nosummary --mem_model
 
 OBJ := example.o
@@ -23,8 +23,8 @@ $(COMPLETED_OBJ): $(COMPLETED_SRCS)
 sim: $(OBJ)
 	$(XRUN) $(XSIM_FLAGS) $(OBJ)
 
-completed: $(COMPLETED_SRCS)
-	$(XRUN) $(XSIM_FLAGS) $(COMPLETED_SRCS)
+completed: $(COMPLETED_OBJ)
+	$(XRUN) $(XSIM_FLAGS) $(COMPLETED_OBJ)
 
 clean:
-	rm -rf $(OBJ)
+	rm -rf $(OBJ) $(COMPLETED_OBJ)
