@@ -53,7 +53,6 @@ optimized version of the code, and the cycle counts (from `XT_RSR_CCOUNT()` in
 `XT_ISS_CYCLE_ACCURATE` mode) for each.
 
 
-
 ## Example walk through: using `cdios` to get these results.
 
 The naive functionality is implemented in `src/example.c`.
@@ -127,7 +126,7 @@ void transpose_and_multiply(float a_in[A_SIZE * A_SIZE],
 }
 ```
 
-We can now run `cdios` with: `cdios src/kernel.c --function transpose_and_multiply`. On success, we see:
+We can now run `cdios` with: `cdios src/example.c --function transpose_and_multiply`. On success, we see:
 ```
 Standard C compilation successful
 Writing intermediate files to: build/compile-out
