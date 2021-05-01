@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   start_cycle_timing;
   #endif // defined(__XTENSA__)
 
-  process_data_optimized(a, b, c_spec);
+  process_data_optimized(a, b, c);
 
   #if defined(__XTENSA__)
   stop_cycle_timing;

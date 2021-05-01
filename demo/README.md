@@ -33,7 +33,7 @@ matrix sizes (performance degrades, especially in memory consumption, with over 
 
 # Example: transpose then multiply
 
-For this example, we want to process two large arrays of data, `a` and `b`, in
+For this example, we want to process two arrays of data, `a` and `b`, in
 small-sized blocks. For each block, we take the transpose of the section of `a`
 and multiply it by the corresponding section of `b`. We process `ITERATIONS`
 many sections of data. This example assumes you are running commands from the
@@ -52,6 +52,27 @@ performance. We print the result matrices for the naive version and the
 optimized version of the code, and the cycle counts (from `XT_RSR_CCOUNT()` in
 `XT_ISS_CYCLE_ACCURATE` mode) for each.
 
+You should see something like this:
+```
+Naive : 288 cycles
+
+82.440002, 52.220001, 69.760002, 78.220001, ;
+82.180000, 51.880005, 70.190002, 81.420006, ;
+42.860001, 27.370001, 47.660000, 61.360004, ;
+
+146.700012, 158.060013, 110.740005, 134.750000, ;
+137.080002, 152.920013, 100.630005, 122.259995, ;
+66.639999, 101.770004, 56.180004, 66.320000, ;
+Optimized : 138 cycles
+
+82.440002, 52.220001, 69.760002, 78.220001, ;
+82.180000, 51.880001, 70.190002, 81.420006, ;
+42.860001, 27.370001, 47.660000, 61.360001, ;
+
+146.700012, 158.060013, 110.740005, 134.750000, ;
+137.080002, 152.920013, 100.630005, 122.260002, ;
+66.639999, 101.770004, 56.180000, 66.320000, ;
+```
 
 
 ## Example walk through: using `cdios` to get these results.
@@ -127,7 +148,7 @@ void transpose_and_multiply(float a_in[A_SIZE * A_SIZE],
 }
 ```
 
-We can now run `cdios` with: `cdios src/kernel.c --function transpose_and_multiply`. On success, we see:
+We can now run `cdios` with: `cdios src/example.c --function transpose_and_multiply`. On success, we see:
 ```
 Standard C compilation successful
 Writing intermediate files to: build/compile-out
@@ -142,7 +163,7 @@ To incorporate this into our example, move the two files to the `src` directory,
 
 Now, we can modify the `process_data_optimized` function to use our new version:
 ```
-diospyros::transpose_and_multiply(a, b, c);
+diospyros::transpose_and_multiply(a_ref, b_ref, c_ref);
 ```
 
 Finally, add the source to our Makefile:
@@ -150,8 +171,7 @@ Finally, add the source to our Makefile:
 SRCS := src/example.c src/transpose_and_multiply.c
 ```
 
-And run again with `make`. Depending on the parameters, the new code might be
-an order of magnitude faster!
+And run again with `make` to see the results.
 
 ## Adjusting parameters
 
@@ -160,12 +180,12 @@ how the performance varies with the outer loop size (you don't need to rerun
 `cdios` because the inner code size stays fixed).
 
 You can also adjust the inner loop size by editing the `A_SIZE`, `B_ROWS`, and
-similar variables in `src/example.c`. For these changes, `cdios` needs to run
+`B_COLS` variables in `src/example.c`. For these changes, `cdios` needs to run
 again to optimize for the new inner loop size.
 
 # Running your own code
 
-The above example illustrates the main steps to running your own favorite
+The above example illustrates the main steps to running your own desired
 kernel or operator through the `cdios` compiler:
 1. Identify functionality that is data-independent and operates on relatively
 small chunks of data at once.
@@ -175,7 +195,7 @@ input and output names with suffixes.
 4. Move the optimized header and implementation to where you want it, and call
 the new code in place of your kernel.
 5. Profit? There are some cases where `cdios`/Diospyros will produce code that
-is worse than the default compilers, so be sure to benchmark the results.
+is worse than the default compilers (especially `xt-clang++`), so be sure to benchmark the results.
 
 Thanks for taking the time to read this example, and please [file bugs][issue] if you hit any issues!
 
