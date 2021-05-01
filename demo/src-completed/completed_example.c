@@ -12,7 +12,7 @@
 #define B_ROWS 3
 #define B_COLS 4
 
-#define ITERATIONS 4
+#define ITERATIONS 2
 
 #if defined(__XTENSA__)
 #include <xtensa/sim.h>
