@@ -35,13 +35,33 @@ matrix sizes (performance degrades, especially in memory consumption, with over 
 
 For this example, we want to process two large arrays of data, `a` and `b`, in
 small-sized blocks. For each block, we take the transpose of the section of `a`
-and multiply it by the corresponding section of `b`. This naive functionality
-is implemented in `src/example.c`.
+and multiply it by the corresponding section of `b`. We process `ITERATIONS`
+many sections of data. This example assumes you are running commands from the
+`diospyros/demo` directory.
+
+## Completed example: expected speedup
+
+A completed version of this tutorial is in the `src-completed` directory. We
+can run this first to see the performance benefits of using `cdios`/Diospyros.
+
+
+First, run `make completed-demo`. You can checkout the `Makefile` to see what
+this does. In short, we use `xt-clang++` with (`-O3 -mlongcalls -mtext-section-literals -fvectorize`)
+to compile the code, then `xt-run` (with `--mem_model`) to simulate its runtime
+performance. We print the result matrices for the naive version and the
+optimized version of the code, and the cycle counts (from `XT_RSR_CCOUNT()` in
+`XT_ISS_CYCLE_ACCURATE` mode) for each.
+
+
+
+## Example walk through: using `cdios` to get these results.
+
+The naive functionality is implemented in `src/example.c`.
 
 To compile and run the code as-is with the Xtensa simulator, run `make` from
 the `demo` directory. You should see something like this:
 ```
-xt-clang++  src/example.c src/transpose_and_multiply.c -o example.o
+xt-clang++ -O3 -mlongcalls -mtext-section-literals -fvectorize src/example.c src/transpose_and_multiply.c -o example.o
 xt-run --nosummary --mem_model example.o
 Naive : 6099 cycles
 Optimized : 15 cycles
@@ -131,8 +151,17 @@ SRCS := src/example.c src/transpose_and_multiply.c
 ```
 
 And run again with `make`. Depending on the parameters, the new code might be
-an order of magnitude faster! You can change the `ITERATIONS` variable to see
-how the performance varies with the outer loop size.
+an order of magnitude faster!
+
+## Adjusting parameters
+
+You can change the `ITERATIONS` variable in `src/example.c` to see
+how the performance varies with the outer loop size (you don't need to rerun
+`cdios` because the inner code size stays fixed).
+
+You can also adjust the inner loop size by editing the `A_SIZE`, `B_ROWS`, and
+similar variables in `src/example.c`. For these changes, `cdios` needs to run
+again to optimize for the new inner loop size.
 
 # Running your own code
 
@@ -152,7 +181,7 @@ Thanks for taking the time to read this example, and please [file bugs][issue] i
 
 # More information
 
-You can find the full ASPLOS 2021 paper describing the Diospyros system (but not the `cdios` frontend, which is new) [here][paper]. We also have [5 minute][short] and [17 minute][long] talks describing the paper results. 
+You can find the full ASPLOS 2021 paper describing the Diospyros system (but not the `cdios` frontend, which is new) [here][paper]. We also have [5 minute][short] and [17 minute][long] talks describing the paper results.
 
 [issue]: https://github.com/cucapra/diospyros/issues/new
 [wsl]: https://docs.microsoft.com/en-us/windows/wsl/install-win10
