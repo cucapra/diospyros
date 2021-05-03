@@ -19,7 +19,7 @@ export XTENSA_CORE=XRC_FUSIONG3_MAX_BM
 
 To install `cdios`, follow the instructions in the top-level README under the sections
 **Prerequisites** and **(Work in progress) Compiling from C: `cdios` minimal
- C frontend**. Note that these instructions have been testes on MacOS and Linux;
+ C frontend**. Note that these instructions have been tested on MacOS and Linux;
  we suggest using [Windows Subsystem for Linux][wsl] if running on Windows.
 
 # Scope
