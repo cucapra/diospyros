@@ -45,7 +45,7 @@ A completed version of this tutorial is in the `src-completed` directory. We
 can run this first to see the performance benefits of using `cdios`/Diospyros.
 
 
-First, run `make completed-demo`. You can checkout the `Makefile` to see what
+First, run `make completed`. You can checkout the `Makefile` to see what
 this does. In short, we use `xt-clang++` with (`-O3 -mlongcalls -mtext-section-literals -fvectorize`)
 to compile the code, then `xt-run` (with `--mem_model`) to simulate its runtime
 performance. We print the result matrices for the naive version and the
