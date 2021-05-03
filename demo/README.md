@@ -91,15 +91,21 @@ You will see that the naive C++ implementations for the matrix multiply and tran
 For now just compile and run the code as-is with the Xtensa simulator by running `make` from
 the `diospyros/demo` directory just to check that the tools work. You should see something like this:
 ```
-xt-clang++ -O3 -mlongcalls -mtext-section-literals -fvectorize src/example.c src/transpose_and_multiply.c -o example.o
+xt-clang++ -O3 -mlongcalls -mtext-section-literals -fvectorize -Wno-deprecated src/example.c -o example.o
 xt-run --nosummary --mem_model example.o
-Naive : 6099 cycles
-Optimized : 15 cycles
+Naive : 268 cycles
+
+82.440002, 52.220001, 69.760002, 78.220001, ;
+//...
+Optimized : 12 cycles
+
+0.000000, 0.000000, 0.000000, 0.000000, ;
+//...
 82.440002
-mismatch at (0,0) reference = 82.440002, actual = 0.000000, error = 82.440002
+mismatch at (0,0) reference = 82.440002, actual = 0.000000, error = 82.440002 
 ```
 The mismatch error is expected (as is the very low cycle count), because we haven't implemented the optimized
-version yet so you can ignore the result right now. To fix this, we will use `cdios` to generate an intrinsic optimized kernel to fill the stub.
+version yet, so you can ignore the result right now. To fix this, we will use `cdios` to generate an intrinsic optimized kernel to fill the stub.
 
 To start with, create a new file `kernel.c` in the `src` directory. The `cdios` tool can
 only support a subset of C, so it's easiest to start with a clean slate.
@@ -187,7 +193,7 @@ To see a completed version of this demonstration, you can also look at the `dios
 
 You can change the `ITERATIONS` variable in `src/example.c` to see
 how the performance varies with the outer loop size (you don't need to rerun
-`cdios` because the inner code size stays fixed).
+`cdios` because the inner loop sizes stays fixed).
 
 You can also adjust the inner loop size by editing the `A_SIZE`, `B_ROWS`, and
 `B_COLS` variables in `src/example.c`. For these changes, `cdios` needs to run
