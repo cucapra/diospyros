@@ -254,8 +254,7 @@
     [(c:stmt:break? stmt)
       `(break)]
     [(c:stmt:return? stmt)
-       ; TODO: handle early returns
-      (translate (c:stmt:return-result stmt))
+      `(return)
     ]
     [(void? stmt)
       `void]
@@ -271,7 +270,9 @@
                     c:decl:function-preamble
                     c:decl:function-body)
 
-      (define fn-body (translate c:decl:function-body))
+      (define fn-body 
+        `(call/cc (lambda (return) 
+          (unquote (translate c:decl:function-body)))))
       (quasiquote
         (define
           (unquote
@@ -280,7 +281,6 @@
               (for/list ([arg (c:type:function-formals
                                 (c:decl:declarator-type c:decl:function-declarator))])
                 (translate (c:decl:declarator-id (c:decl:formal-declarator arg))))))
-               ; TODO: handle early returns
               (unquote fn-body)))]
     [else (src-error "Can't translate function" fn-decl)]))
 
