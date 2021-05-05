@@ -4,19 +4,19 @@
          "utils.rkt"
          "dsp-insts.rkt")
 
+
+(require (prefix-in rkt: rosette))
+
 (provide (all-defined-out))
 
 (define-symbolic sqrt (~> real? real?))
 (define-symbolic sgn (~> real? real?))
 
-(define (sgn-implementation v)
-  (- (> v 0) (< v 0)))
-
 (define (uninterp-fn-assumptions)
   (define-symbolic a real?)
   (list
     (equal? 1. (sqrt 1.))
-    (forall (list a) (equal? (sgn a) (sgn-implementation a)))))
+    (forall (list a) (equal? (sgn a) (rkt:sgn a)))))
 
 (define (vector-sqrt v)
   (for/list ([e v])

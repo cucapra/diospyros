@@ -134,6 +134,9 @@ def call_synth_with_timeout(benchmark, params_f, p_dir, eq_sat_timeout, validati
         gen.communicate()
         end_time = time.time()
 
+        with open(compile_log, 'r') as log:
+            print(log.read())
+
         elapsed_time = end_time - start_time
 
         sp.check_call([
