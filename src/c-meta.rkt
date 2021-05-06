@@ -305,8 +305,7 @@
     [(c:stmt:break? stmt)
       `(break)]
     [(c:stmt:return? stmt)
-       ; TODO: handle early returns
-      (translate (c:stmt:return-result stmt))
+      `(return)
     ]
     [(void? stmt)
       `void]
@@ -354,24 +353,27 @@
                     c:decl:function-declarator
                     c:decl:function-preamble
                     c:decl:function-body)
-      (define args-lst
-        (let ([unprocessed-args (c:type:function-formals
-                                  (c:decl:declarator-type c:decl:function-declarator))])
-          (for/list ([arg unprocessed-args]
-                    [idx (in-range (length unprocessed-args))])
-            (define ty (c:decl:declarator-type (c:decl:formal-declarator arg)))
-            ; add to array context for pointer and array arguments in function declarations
-            (cond
-              [(c:type:pointer? ty) (handle-pointer-as-array ty arg idx unprocessed-args)]
-              [(c:type:array? ty)
-                (begin
-                  (define array-dim-info-list (get-array-dim ty))
-                  (hash-set!
-                    array-ctx
-                    (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))
-                    (quasiquote (unquote array-dim-info-list))))])
-            (translate (c:decl:declarator-id (c:decl:formal-declarator arg))))))
-      (define fn-body (translate c:decl:function-body))
+
+      (let ([unprocessed-args (c:type:function-formals
+                              (c:decl:declarator-type c:decl:function-declarator))])
+        (for/list ([arg unprocessed-args]
+                  [idx (in-range (length unprocessed-args))])
+          (define ty (c:decl:declarator-type (c:decl:formal-declarator arg)))
+          ; Add to array context for pointer and array arguments in function declarations
+          (cond
+            [(c:type:pointer? ty) (handle-pointer-as-array ty arg idx unprocessed-args)]
+            [(c:type:array? ty)
+              (begin
+                (define array-dim-info-list (get-array-dim ty))
+                (hash-set!
+                  array-ctx
+                  (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))
+                  (quasiquote (unquote array-dim-info-list))))])
+          (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))))
+
+      (define fn-body
+        `(call/cc (lambda (return)
+          (unquote (translate c:decl:function-body)))))
       (quasiquote
         (define
           (unquote
@@ -380,7 +382,6 @@
               (for/list ([arg (c:type:function-formals
                                 (c:decl:declarator-type c:decl:function-declarator))])
                 (translate (c:decl:declarator-id (c:decl:formal-declarator arg))))))
-               ; TODO: handle early returns
               (unquote fn-body)))]
     [else (src-error "Can't translate function" fn-decl)]))
 
