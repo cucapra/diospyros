@@ -51,6 +51,7 @@ void naive_quaternion_product(float a_q_in[QUATERNION_DIM], float a_t_in[3],
     r_q_out[2] = a_q_in[3] * b_q_in[2] + a_q_in[2] * b_q_in[3] +
                  a_q_in[0] * b_q_in[1] - a_q_in[1] * b_q_in[0];
 
+    // 2D Matrix Multiplication for Quaternion Calculation
     // float A_matrix[QUATERNION_DIM][QUATERNION_DIM];
     // A_matrix[0][0] = a_q_in[0];
     // A_matrix[0][1] = a_q_in[1];
@@ -74,8 +75,8 @@ void naive_quaternion_product(float a_q_in[QUATERNION_DIM], float a_t_in[3],
 
     // quaternion_matrix_vec_mult(A_matrix, b_q_in, r_q_out);
 
-    // naive_point_product(a_q_in, b_t_in, r_t_out);
-    // for (int i = 0; i < 3; i++) {
-    //     r_t_out[i] += a_t_in[i];
-    // }
+    naive_point_product(a_q_in, b_t_in, r_t_out);
+    for (int i = 0; i < 3; i++) {
+        r_t_out[i] += a_t_in[i];
+    }
 }
