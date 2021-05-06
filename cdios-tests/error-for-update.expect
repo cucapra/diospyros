@@ -1,7 +1,10 @@
 CDIOS: Compiling C->Racket failed
 Can't handle for loop update:
-error-for-update-out/preprocessed.c:4:25:i*=2
+build/error-for-update-out/preprocessed.c:4:25:i*=2
 If this is unexpected, please file a bug for Diospyros: https://github.com/cucapra/diospyros/issues/new
 
 ---CODE---
 1
+---STDERR---
+Standard C compilation successful
+Writing intermediate files to: build/error-for-update-out

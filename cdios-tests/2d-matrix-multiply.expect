@@ -51,4 +51,4 @@ void kernel(float *a_in, float *b_in, float *c_out) {
 }
 ---STDERR---
 Standard C compilation successful
-Writing intermediate files to: build/matrix-multiply-out
+Writing intermediate files to: build/2d-matrix-multiply-out

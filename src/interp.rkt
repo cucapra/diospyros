@@ -7,7 +7,6 @@
          "configuration.rkt"
          racket/trace
          rosette/lib/match
-         rosette/lib/lift
          (only-in racket [hash-ref racket/hash-ref]))
 
 (provide (all-defined-out))

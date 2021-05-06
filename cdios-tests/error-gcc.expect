@@ -1,0 +1,8 @@
+Standard C compilation failed
+/Users/avh/research/diospyros/cdios-tests/error-gcc.c:3:1: error: expected expression
+}
+^
+1 error generated.
+
+---CODE---
+1

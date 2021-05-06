@@ -1364,4 +1364,4 @@ void kernel(float *mat_in, float *f_in, float *mat_out) {
 }
 ---STDERR---
 Standard C compilation successful
-Writing intermediate files to: build/2d-conv-out
+Writing intermediate files to: build/2d-2d-conv-out

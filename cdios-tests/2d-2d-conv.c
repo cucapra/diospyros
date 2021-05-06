@@ -5,8 +5,8 @@
 #define O_ROWS ((I_ROWS + F_ROWS) - 1)
 #define O_COLS ((I_COLS + F_COLS) - 1)
 
-void convolution(float mat_in[I_ROWS * I_COLS], float f_in[F_ROWS * F_COLS],
-  float mat_out[O_ROWS * O_COLS]) {
+void convolution(float mat_in[I_ROWS][I_COLS], float f_in[F_ROWS][F_COLS],
+  float mat_out[O_ROWS][O_COLS]) {
 
   for (int outRow = 0; outRow < O_ROWS; outRow++) {
     for (int outCol = 0; outCol < O_COLS; outCol++) {
@@ -18,8 +18,8 @@ void convolution(float mat_in[I_ROWS * I_COLS], float f_in[F_ROWS * F_COLS],
           int iCol = outCol -fColTrans;
 
           if (iRow >= 0 && iRow < I_ROWS && iCol >= 0 && iCol < I_COLS) {
-            float v = mat_in[iRow*I_COLS + iCol] * f_in[fRowTrans*F_COLS + fColTrans];
-            mat_out[outRow*O_COLS + outCol] += v;
+            float v = mat_in[iRow][iCol] * f_in[fRowTrans][fColTrans];
+            mat_out[outRow][outCol] += v;
           }
         }
       }

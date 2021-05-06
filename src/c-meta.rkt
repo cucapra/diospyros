@@ -17,7 +17,7 @@
 (print-syntax-width +inf.0)
 (pretty-print-depth #f)
 
-(define debug #t)
+(define debug #f)
 (define c-path (box ""))
 
 ; Returns tuple (<base type>, <total size across dimensions>)
@@ -25,10 +25,55 @@
   (define length (translate (c:type:array-length array-ty)))
   (define base (c:type:array-base array-ty))
   (cond
-    [(c:type:primitive? base) length]
+    [(c:type:primitive? base)
+      (when (not (eq? (c:type:primitive-name base) 'float))
+        (src-error "Can't handle array type" array-ty))
+      length]
     [(eq? base #f) length]
-    [(c:type:array? base) (* length (multi-array-length base))]
-    [else (src-error "Can't handle array type ~a" array-ty)]))
+    [(c:type:array? base) `(* (unquote length) (unquote (multi-array-length base)))]
+    [else (src-error "Can't handle array type" array-ty)]))
+
+(define (get-array-dim array-ty)
+  (define (get-array-dim-rec array-ty dim size-list)
+    (define length (translate (c:type:array-length array-ty)))
+    (define base (c:type:array-base array-ty))
+    (cond
+      [(c:type:primitive? base)
+        (quasiquote
+          ((unquote (+ dim 1))
+          (unquote-splicing size-list)
+          (unquote length)))]
+      [(eq? base #f)
+        (quasiquote
+          ((unquote (+ dim 1))
+          (unquote-splicing size-list)
+          (unquote length)))]
+      [(c:type:array? base)
+        (get-array-dim-rec
+          base
+          (+ dim 1)
+          (quasiquote
+            ((unquote-splicing size-list)
+              (unquote length))))]
+      [else (src-error "Can't handle array type" array-ty)]))
+  (get-array-dim-rec array-ty 0 '()))
+
+(define (translate-array-offset translated-stmt translated-offset)
+  (if (pair? translated-stmt)
+    (let* ([arr-name (car (cdr translated-stmt))]
+          [row (car (cdr (cdr translated-stmt)))]
+          [nrows (car (cdr (hash-ref array-ctx arr-name)))]
+          [col translated-offset])
+      `(+ (unquote col) (* (unquote row) (unquote nrows))))
+    translated-offset))
+
+(define (translate-array-name translated-stmt)
+  (if (pair? translated-stmt)
+    (let* ([arr-name (car (cdr translated-stmt))])
+      arr-name)
+    translated-stmt))
+
+(define array-ctx (make-hash))
 
 (define (translate stmt)
   (cond
@@ -42,10 +87,12 @@
         [(c:expr:assign? stmt)
           (if (c:expr:array-ref? (c:expr:assign-left stmt))
             ; Array update
-            (let* ([left (translate (c:expr:array-ref-expr (c:expr:assign-left stmt)))]
-                   [offset (translate (c:expr:array-ref-offset (c:expr:assign-left stmt)))]
-                   [right (translate (c:expr:assign-right stmt))]
-                   [op (translate (c:expr:assign-op stmt))])
+            (let* ([translated-stmt (translate (c:expr:array-ref-expr (c:expr:assign-left stmt)))]
+                  [translated-offset (translate (c:expr:array-ref-offset (c:expr:assign-left stmt)))]
+                  [offset (translate-array-offset translated-stmt translated-offset)]
+                  [left (translate-array-name translated-stmt)]
+                  [right (translate (c:expr:assign-right stmt))]
+                  [op (translate (c:expr:assign-op stmt))])
               (quasiquote
                 (v-list-set!
                   (unquote left)
@@ -54,18 +101,19 @@
                     (match op
                       [`= right]
                       [`+= (quasiquote (+
-                                       (v-list-get (unquote left) (unquote offset))
-                                       (unquote right)))]
+                                      (v-list-get (unquote left) (unquote offset))
+                                      (unquote right)))]
                       [`-= (quasiquote (-
-                                       (v-list-get (unquote left) (unquote offset))
-                                       (unquote right)))]
+                                      (v-list-get (unquote left) (unquote offset))
+                                      (unquote right)))]
                       [`*= (quasiquote (*
-                                       (v-list-get (unquote left) (unquote offset))
-                                       (unquote right)))]
+                                      (v-list-get (unquote left) (unquote offset))
+                                      (unquote right)))]
                       [`>>= (quasiquote (arithmetic-shift
                                         (v-list-get (unquote left) (unquote offset))
                                         (- (unquote right))))]
                       [else (src-error  "Can't handle assign op" op)])))))
+
             ; Variable update
             (let* ([left (translate (c:expr:assign-left stmt))]
                    [right (translate (c:expr:assign-right stmt))]
@@ -102,10 +150,14 @@
             (translate (c:expr:prefix-expr stmt)))]
         [(c:expr:ref? stmt) (translate (c:expr:ref-id stmt))]
         [(c:expr:array-ref? stmt)
-          (quasiquote
-            (v-list-get
-              (unquote (translate (c:expr:array-ref-expr stmt)))
-              (unquote (translate (c:expr:array-ref-offset stmt)))))]
+          (let* ([translated-stmt (translate (c:expr:array-ref-expr stmt))]
+                [translated-offset (translate (c:expr:array-ref-offset stmt))]
+                [left (translate-array-name translated-stmt)]
+                [offset (translate-array-offset translated-stmt translated-offset)])
+            (quasiquote
+                (v-list-get
+                  (unquote left)
+                  (unquote offset))))]
         [(c:expr:if? stmt)
           (quasiquote
             (if
@@ -133,34 +185,33 @@
               (let* ([init (c:decl:declarator-initializer decl)]
                      [type (c:decl:declarator-type decl)])
                 ; Assumes this is float or float array
-                (if (c:init:compound? init)
-                  (begin
-                    (define arr-name (translate (c:decl:declarator-id decl)))
-                    (define translated-values
-                      (map
-                        (lambda (expr)
-                          (translate (c:init:expr-expr expr)))
-                        (c:init:compound-elements init)))
-                    (define boxed-list
-                      (map
-                        (lambda (v)
-                          (quasiquote (box (unquote v))))
-                        translated-values))
-                    (quasiquote
-                      (define (unquote arr-name) (list unquote boxed-list))))
-                  (begin
-                    (define initializer
-                      (cond
-                        [init
-                          (translate (c:init:expr-expr init))]
-                        [(c:type:array? type)
-                          `(make-v-list-zeros (unquote (multi-array-length type)))]
-                        [(c:type:primitive? type) 0]
-                        [else (src-error "Unexpected initializer in declaration" stmt)]))
-                    (quasiquote
-                      (define
-                        (unquote (translate (c:decl:declarator-id decl)))
-                        (unquote initializer))))))))
+                (define initializer
+                  (cond
+                    [(c:init:compound? init)
+                      (define translated-values
+                        (map
+                          (lambda (expr) (translate (c:init:expr-expr expr)))
+                          (c:init:compound-elements init)))
+                      (define boxed-list
+                        (map
+                          (lambda (v) (quasiquote (box (unquote v))))
+                          translated-values))
+                      (quasiquote (list unquote boxed-list))]
+                    [init
+                      (translate (c:init:expr-expr init))]
+                    [(c:type:array? type)
+                      (define array-dim-info-list (get-array-dim type))
+                      (hash-set!
+                        array-ctx
+                        (translate (c:decl:declarator-id decl))
+                        (quasiquote (unquote array-dim-info-list)))
+                      `(make-v-list-zeros (unquote (multi-array-length type)))]
+                    [(c:type:primitive? type) 0]
+                    [else (src-error "Unexpected initializer in declaration" stmt)]))
+                (quasiquote
+                  (define
+                    (unquote (translate (c:decl:declarator-id decl)))
+                    (unquote initializer))))))
           (cond
             [(empty? stmts) `void]
             [(equal? 1 (length stmts)) (first stmts)]
@@ -260,6 +311,39 @@
       `void]
     [else (src-error "Can't handle statement" stmt)]))
 
+; Extracts the number of nested holes the base type of the pointer is in
+; ex: *int = 1, **int = 2, ***int = 3...
+(define (extract-pointer-dimension ty)
+  (cond
+    [(eq? ty #f) 0]
+    [else (+ 1 (extract-pointer-dimension (c:type:pointer-base ty)))]))
+
+; Extracts n arguments from args beginning at idx as a list, if possible,
+; otherwise empty list
+(define (extract-next-args n idx args)
+  (cond
+    [(>= idx (length args)) '()]
+    [(eq? n 0) '()]
+    [else
+      (define nth-arg (list-ref args idx))
+      (define nth-ty (c:decl:declarator-type (c:decl:formal-declarator nth-arg)))
+      (define nth-arg-processed (translate (c:decl:declarator-id (c:decl:formal-declarator nth-arg))))
+      (if (c:type:pointer? nth-ty)
+        '()
+        (cons nth-arg-processed (extract-next-args (- n 1) (+ idx 1) args)))]))
+
+; Marks however many arguments immediately after pointer as array dimensions
+(define (handle-pointer-as-array ty arg idx unprocessed-args)
+  (when (< (+ idx 1) (length unprocessed-args))
+    (let* ([pointer-depth (extract-pointer-dimension ty)]
+           [n-args (extract-next-args pointer-depth (+ idx 1) unprocessed-args)])
+      (if (eq? n-args '())
+        array-ctx
+        (hash-set!
+          array-ctx
+          (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))
+          (quasiquote (unquote n-args)))))))
+
 (define (translate-fn-decl fn-decl)
   (match fn-decl
     [(c:decl:function decl-stmt
@@ -270,8 +354,8 @@
                     c:decl:function-preamble
                     c:decl:function-body)
 
-      (define fn-body 
-        `(call/cc (lambda (return) 
+      (define fn-body
+        `(call/cc (lambda (return)
           (unquote (translate c:decl:function-body)))))
       (quasiquote
         (define
@@ -348,9 +432,14 @@
 
 (module+ main
 
+  (define fn (make-parameter #f))
   (define input-path
     (command-line
       #:program "Diospyros C-metaprogramming"
+      #:once-each
+      [("-f" "--function") n
+                           "Name for function to be optimized"
+                           (fn n)]
       #:args (path)
       path))
 
@@ -358,9 +447,19 @@
   (set-box! c-path path)
   (define program (c:parse-program path))
 
-  (define outer-function (last program))
+  (define (get-fn-name f)
+     (symbol->string (translate (c:decl:declarator-id (c:decl:function-declarator f)))))
+
+  (define outer-function
+    (cond
+      [(fn) (let ([found (findf (lambda (x) (equal? (fn) (get-fn-name x))) program)])
+        (if found
+            found
+            (raise-user-error "Can't find provided function: " (fn))))]
+      [else (last program)]))
+
   (define (program-to-c program)
-    (define helper-functions (drop-right program 1))
+    (define helper-functions (remove outer-function program))
     (if (empty? helper-functions)
       (translate-fn-decl outer-function)
       (begin
