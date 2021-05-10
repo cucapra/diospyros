@@ -185,7 +185,7 @@ Finally, replace the source definitions in `diosypros/demo/Makefile` to the foll
 SRCS := src/example.c src/transpose_and_multiply.c
 ```
 
-And run again with `make` to see the results. You should see a similar result as before with the naice kernel taking around 200 cycles and the optimized kernel being faster.
+And run again with `make` to see the results. You should see a similar result as before with the naive kernel taking around 200 cycles and the optimized kernel being faster.
 
 To see a completed version of this demonstration, you can also look at the `diospyros/demo/src-completed` folder for reference.
 
