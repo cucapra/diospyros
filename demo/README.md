@@ -18,8 +18,8 @@ export XTENSA_CORE=XRC_FUSIONG3_MAX_BM
 ```
 
 To install `cdios`, follow the instructions in the top-level README under the sections
-**Prerequisites** and **(Work in progress) Compiling from C: `cdios` minimal
- C frontend**. Note that these instructions have been tested on MacOS and Linux;
+[**Prerequisites**][prereqs] and [**(Work in progress) Compiling from C: `cdios` minimal
+ C frontend**][cdios]. Note that these instructions have been tested on MacOS and Linux;
  we suggest using [Windows Subsystem for Linux][wsl] if running on Windows.
 
 # Scope
@@ -219,6 +219,8 @@ Thanks for taking the time to read this example, and please [file bugs][issue] i
 
 You can find the full ASPLOS 2021 paper describing the Diospyros system (but not the `cdios` frontend, which is new) [here][paper]. We also have [5 minute][short] and [17 minute][long] talks describing the paper results.
 
+[prereqs]: https://github.com/cucapra/diospyros#prerequisites
+[cdios]: https://github.com/cucapra/diospyros#work-in-progress-compiling-from-c-cdios-minimal-c-frontend
 [issue]: https://github.com/cucapra/diospyros/issues/new
 [wsl]: https://docs.microsoft.com/en-us/windows/wsl/install-win10
 [paper]: https://www.cs.cornell.edu/~avh/diospyros-asplos-2021-preprint.pdf
