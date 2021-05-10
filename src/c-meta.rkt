@@ -513,7 +513,8 @@
           (if (c:type:array? ty) (multi-array-length ty) #f))
         (list
           array-len
-          (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))))]))
+          (translate (c:decl:declarator-id (c:decl:formal-declarator arg)))
+          arg))]))
 
   (when debug
     (pretty-print args))
@@ -538,6 +539,7 @@
     (define arg-name (second arg))
     (define arg-name-str (symbol->string (second arg)))
     (define arg-len (first arg))
+    (define arg-src (third arg))
     (cond
       ; Input
       [(string-suffix? arg-name-str "_in")
@@ -555,14 +557,14 @@
       ; Output
       [(string-suffix? arg-name-str "_out")
         (when (not arg-len)
-          (raise-user-error "Scalar output arguments (tagged _out) unsupported " arg-name-str))
+          (src-error "Type of output arguments (tagged _out) unsupported " arg-src))
         (define defn-output
           `(define (unquote arg-name)
                      (make-v-list-zeros (unquote (first arg)))))
         (when debug (pretty-print defn-output))
         (eval defn-output ns)
         ]
-      [else (raise-user-error "Arguments should be tagged _in or _out, got " arg-name-str)])
+      [else (src-error "Arguments should be tagged _in or _out, got " arg-src)])
     arg-name))
 
   (define racket-prog-with-args `(unquote (append (list fn-name) arg-names)))
