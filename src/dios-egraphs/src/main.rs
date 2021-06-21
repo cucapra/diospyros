@@ -10,6 +10,8 @@ pub mod veclang;
 
 extern crate clap;
 use clap::{App, Arg};
+// use veclang::VecLang;
+// use egg::*;
 
 fn main() {
     let matches = App::new("Diospyros Rewriter")
@@ -47,6 +49,7 @@ fn main() {
 
     // Rewrite a list of expressions to a concatenation of vectors
     let concats = rewriteconcats::list_to_concats(&converted);
+    // println!("{:?}", concats);
     let prog = concats.unwrap().parse().unwrap();
 
     // Rules to disable flags
@@ -55,7 +58,8 @@ fn main() {
 
     // Run rewriter
     eprintln!(
-        "Running egg with timeout {:?}s, width: {:?}",
+        "Running egg on {:?} with timeout {:?}s, width: {:?}",
+        &prog,
         timeout,
         config::vector_width()
     );
@@ -68,7 +72,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use super::{rules::*, veclang::VecLang};
+    use super::{rules::*, veclang::{VecLang}};
     use assert_approx_eq::assert_approx_eq;
     use egg::*;
 
@@ -97,6 +101,65 @@ mod tests {
             );
         }
         assert_approx_eq!(best_cost, exp_best_cost, 0.000001);
+    }
+
+    #[test]
+    fn direct_recexpr() {
+      // let re = RecExpr::from([VecLang::Symbol(egg::Symbol::from("A")), 
+      // VecLang::Num(0), VecLang::Get([egg::Id::from(0), egg::Id::from(1)]), VecLang::Symbol(egg::Symbol::from("B")), 
+      // VecLang::Num(0), VecLang::Get([egg::Id::from(3), egg::Id::from(4)]), VecLang::Add([egg::Id::from(2), egg::Id::from(5)]), VecLang::Symbol(egg::Symbol::from("A")), 
+      // VecLang::Num(1), VecLang::Get([egg::Id::from(7), egg::Id::from(8)]), VecLang::Symbol(egg::Symbol::from("B")),
+      // VecLang::Num(1), VecLang::Get([egg::Id::from(10), egg::Id::from(11)]), VecLang::Add([egg::Id::from(9), egg::Id::from(12)]), VecLang::Num(0), VecLang::Num(0), 
+      // VecLang::Vec(Box::new([egg::Id::from(6), egg::Id::from(13), egg::Id::from(14), egg::Id::from(15)]))].to_vec());
+          
+      let expr = RecExpr::from(
+        [VecLang::Symbol(Symbol::from("A")), 
+        VecLang::Num(0), 
+        VecLang::Get([Id::from(0), Id::from(1)]), 
+        VecLang::Symbol(Symbol::from("B")), 
+        VecLang::Get([Id::from(3), Id::from(1)]), 
+        VecLang::Add([Id::from(2), Id::from(4)]), 
+        VecLang::Num(1), 
+        VecLang::Get([Id::from(0), Id::from(6)]),
+        VecLang::Get([Id::from(3), Id::from(6)]), 
+        VecLang::Add([Id::from(7), Id::from(8)]),  
+        VecLang::Vec(Box::new([Id::from(5), Id::from(9), Id::from(1), Id::from(1)]))].to_vec()
+      );
+
+      let (cost, best) = super::rules::run(&expr, 180, false, false);
+      println!("{}", best.pretty(80)); /* Pretty print with width 80 */
+      assert_approx_eq!(cost, 1.018, 0.000001);
+    }
+
+    #[test]
+    fn test_2() {
+      let expr = RecExpr::from(
+        [
+          VecLang::Symbol(Symbol::from("scalar_in")),
+          VecLang::Num(0),
+          VecLang::Get([Id::from(0), Id::from(1)]),
+          VecLang::Vec(Box::new([Id::from(2), Id::from(1), Id::from(1), Id::from(1)])),
+          VecLang::Symbol(Symbol::from("a_in")),
+          VecLang::Num(4),
+          VecLang::Num(5),
+          VecLang::Num(6),
+          VecLang::Num(7),
+          VecLang::Get([Id::from(4), Id::from(5)]),
+          VecLang::Get([Id::from(4), Id::from(6)]),
+          VecLang::Get([Id::from(4), Id::from(7)]),
+          VecLang::Get([Id::from(4), Id::from(8)]),
+          VecLang::Mul([Id::from(9), Id::from(2)]),
+          VecLang::Mul([Id::from(10), Id::from(2)]),
+          VecLang::Mul([Id::from(11), Id::from(2)]),
+          VecLang::Mul([Id::from(12), Id::from(2)]),
+          VecLang::Vec(Box::new([Id::from(13), Id::from(14), Id::from(15), Id::from(16)])),
+          VecLang::Concat([Id::from(3), Id::from(17)])
+        ].to_vec()
+      );
+
+      let (cost, best) = super::rules::run(&expr, 180, false, false);
+      println!("{}", best.pretty(80)); /* Pretty print with width 80 */
+      assert_approx_eq!(cost, 1.133, 0.000001);
     }
 
     #[test]
