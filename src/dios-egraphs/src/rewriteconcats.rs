@@ -31,6 +31,9 @@ pub fn list_to_concats(input: &String) -> io::Result<String> {
         let expr = concats.into_iter().fold(init, |acc, x| {
             lexpr::Value::list(vec![lexpr::Value::symbol("Concat"), x, acc])
         });
+        
+        println!("bruh: {}", &expr);
+        
         lexpr::to_string(&expr)
     } else {
         panic!("Cannot rewrite non-list s-expression.")
