@@ -23,7 +23,16 @@ To build the LLVM pass:
 
 ## Build the Diospyros (Rust) Library
 
-Build the library with:
+If you're on macOS, you will need an annoying hack to make the library build (in these [Rust](https://github.com/rust-lang/rust/issues/62874) [bugs](https://github.com/rust-lang/cargo/issues/8628)).
+Add a file `.cargo/config` here, in this directory, with these [contents](https://pyo3.rs/v0.5.2/):
+
+    [target.x86_64-apple-darwin]
+    rustflags = [
+      "-C", "link-arg=-undefined",
+      "-C", "link-arg=dynamic_lookup",
+    ]
+
+Then, build the library with:
 
     $ cargo build
 
