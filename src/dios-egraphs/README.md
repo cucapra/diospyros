@@ -30,7 +30,7 @@ Then, build the library with:
 
 You'll need this ridiculously long [Clang][] invocation to run the optimization on a C source file:
 
-      $ clang -Xclang -load -Xclang build/skeleton/libSkeletonPass.* -Xclang -load -Xclang target/debug/libllvm_pass_skeleton.so a.c
+      $ clang -Xclang -load -Xclang build/Diospyros/libDiospyrosPass.* -Xclang -load -Xclang target/debug/libllvmlib.so a.c
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
