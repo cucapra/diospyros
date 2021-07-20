@@ -18,7 +18,7 @@ To build the LLVM pass:
 ## Build the Diospyros (Rust) Library
 
 Because our library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
-To use a [Homebrew][]-installed (Cask-only) LLVM, for example, you may need something like this:
+To use a [Homebrew][homebrew]-installed (Cask-only) LLVM, for example, you may need something like this:
 
     $ export PATH=$PATH:`brew --prefix llvm`/bin
 
