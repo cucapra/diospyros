@@ -30,8 +30,6 @@ Then, build the library with:
 
 You'll need this ridiculously long [Clang][] invocation to run the optimization on a C source file:
 
-To run the LLVM pass on a C file (`a.c` in our example):
-
       $ clang -Xclang -load -Xclang build/skeleton/libSkeletonPass.* -Xclang -load -Xclang target/debug/libllvm_pass_skeleton.so a.c
 
 [llvm]: https://llvm.org
