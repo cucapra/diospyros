@@ -5,6 +5,12 @@ This directory contains an experimental [LLVM][] pass that optimizes programs us
 There are two components here: the LLVM pass and the Diospyros library.
 They need to be built separately (for now).
 
+To get started, you will need **LLVM 12.0**.
+Because our Rust library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
+To use a [Homebrew][homebrew]-installed (Cask-only) LLVM, for example, you may need something like this:
+
+    $ export PATH=$PATH:`brew --prefix llvm`/bin
+
 ## Build the LLVM Pass
 
 To build the LLVM pass:
@@ -17,12 +23,7 @@ To build the LLVM pass:
 
 ## Build the Diospyros (Rust) Library
 
-Because our library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
-To use a [Homebrew][homebrew]-installed (Cask-only) LLVM, for example, you may need something like this:
-
-    $ export PATH=$PATH:`brew --prefix llvm`/bin
-
-Then, build the library with:
+Build the library with:
 
     $ cargo build
 
