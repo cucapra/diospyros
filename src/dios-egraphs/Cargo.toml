@@ -8,7 +8,7 @@ edition = "2018"
 
 [lib]
 name = "llvmlib"
-crate-type = ["rlib", "dylib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 egg =  "0.6.0"
