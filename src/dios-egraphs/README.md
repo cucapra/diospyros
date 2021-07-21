@@ -5,15 +5,21 @@ This directory contains an experimental [LLVM][] pass that optimizes programs us
 There are two components here: the LLVM pass and the Diospyros library.
 They need to be built separately (for now).
 
-To get started, you will need **LLVM 12.0**.
-Because our Rust library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
-To use a [Homebrew][homebrew]-installed (Cask-only) LLVM, for example, you may need something like this:
+To get started, you will need **LLVM 11.x.x**.
+Using [Homebrew][] on macOS, for example, try `brew install llvm@11` to get the right version.
 
-    $ export PATH=$PATH:`brew --prefix llvm`/bin
+Because our Rust library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
+To use a Homebrew-installed LLVM, for example, you may need something like this:
+
+    $ export PATH=`brew --prefix llvm@11`/bin:$PATH
 
 ## Build the LLVM Pass
 
-To build the LLVM pass:
+Using Homebrew, you may need to set something like this to let CMake find the appropriate LLVM build files:
+
+    $ export LLVM_DIR=`brew --prefix llvm@11`/lib/cmake/llvm
+
+Then, to build the LLVM pass:
 
     $ mkdir build
     $ cd build
@@ -40,7 +46,11 @@ Then, build the library with:
 
 You'll need this ridiculously long [Clang][] invocation to run the optimization on a C source file:
 
-      $ clang -Xclang -load -Xclang build/Diospyros/libDiospyrosPass.* -Xclang -load -Xclang target/debug/libllvmlib.so a.c
+    $ clang -Xclang -load -Xclang build/Diospyros/libDiospyrosPass.so -Xclang -load -Xclang target/debug/libllvmlib.so a.c
+
+…except that you may need to change `.so` (one or both occurrences) to `.dylib` on macOS. (Check which file extension actually exists.)
+
+As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
