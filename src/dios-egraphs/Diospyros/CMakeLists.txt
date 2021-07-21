@@ -19,3 +19,8 @@ if(APPLE)
         LINK_FLAGS "-undefined dynamic_lookup"
     )
 endif(APPLE)
+
+# Link in our Rust library.
+target_link_libraries(DiospyrosPass
+    debug "${CMAKE_SOURCE_DIR}/target/debug/libllvmlib.a"
+    optimized "${CMAKE_SOURCE_DIR}/target/release/libllvmlib.a")
