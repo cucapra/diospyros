@@ -6,16 +6,18 @@ There are two components here: the LLVM pass and the Diospyros library.
 They need to be built separately (for now).
 
 To get started, you will need **LLVM 11.x.x**.
-Because our Rust library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
-To use a [Homebrew][homebrew]-installed (Cask-only) LLVM, for example, you may need something like this:
+Using [Homebrew][] on macOS, for example, try `brew install llvm@11` to get the right version.
 
-    $ export PATH=`brew --prefix llvm`/bin:$PATH
+Because our Rust library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
+To use a Homebrew-installed LLVM, for example, you may need something like this:
+
+    $ export PATH=`brew --prefix llvm@11`/bin:$PATH
 
 ## Build the LLVM Pass
 
 Using Homebrew, you may need to set something like this to let CMake find the appropriate LLVM build files:
 
-    $ export LLVM_DIR=`brew --prefix llvm`/lib/cmake/llvm
+    $ export LLVM_DIR=`brew --prefix llvm@11`/lib/cmake/llvm
 
 Then, to build the LLVM pass:
 
