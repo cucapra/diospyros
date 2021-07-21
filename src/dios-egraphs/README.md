@@ -9,11 +9,15 @@ To get started, you will need **LLVM 11.x.x**.
 Because our Rust library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
 To use a [Homebrew][homebrew]-installed (Cask-only) LLVM, for example, you may need something like this:
 
-    $ export PATH=$PATH:`brew --prefix llvm`/bin
+    $ export PATH=`brew --prefix llvm`/bin:$PATH
 
 ## Build the LLVM Pass
 
-To build the LLVM pass:
+Using Homebrew, you may need to set something like this to let CMake find the appropriate LLVM build files:
+
+    $ export LLVM_DIR=`brew --prefix llvm`/lib/cmake/llvm
+
+Then, to build the LLVM pass:
 
     $ mkdir build
     $ cd build
@@ -40,7 +44,9 @@ Then, build the library with:
 
 You'll need this ridiculously long [Clang][] invocation to run the optimization on a C source file:
 
-      $ clang -Xclang -load -Xclang build/Diospyros/libDiospyrosPass.* -Xclang -load -Xclang target/debug/libllvmlib.so a.c
+    $ clang -Xclang -load -Xclang build/Diospyros/libDiospyrosPass.* -Xclang -load -Xclang target/debug/libllvmlib.so a.c
+
+As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
