@@ -110,7 +110,63 @@ unsafe fn translate(
         b"geps\0".as_ptr() as *const _,
       )
     }
-    VecLang::Add(ids) => panic!("Unimplemented"),
+    VecLang::Add(ids) => {
+      let left = usize::from(ids[0]);
+      let left_enode = &vec[left];
+      let left_vref = translate(left_enode, vec, builder, context);
+      let right = usize::from(ids[1]);
+      let right_enode = &vec[right];
+      let right_vref = translate(right_enode, vec, builder, context);
+      LLVMBuildAdd(
+        builder,
+        left_vref,
+        right_vref,
+        b"add\0".as_ptr() as *const _,
+      )
+    }
+    VecLang::LitVec(ids) => panic!("Unimplemented"),
+    VecLang::VecAdd(ids) => {
+      let left = usize::from(ids[0]);
+      let left_enode = &vec[left];
+      let left_vref = translate(left_enode, vec, builder, context);
+      let right = usize::from(ids[1]);
+      let right_enode = &vec[right];
+      let right_vref = translate(right_enode, vec, builder, context);
+      LLVMBuildAdd(
+        builder,
+        left_vref,
+        right_vref,
+        b"add\0".as_ptr() as *const _,
+      )
+    }
+    VecLang::VecMul(ids) => {
+      let left = usize::from(ids[0]);
+      let left_enode = &vec[left];
+      let left_vref = translate(left_enode, vec, builder, context);
+      let right = usize::from(ids[1]);
+      let right_enode = &vec[right];
+      let right_vref = translate(right_enode, vec, builder, context);
+      LLVMBuildMul(
+        builder,
+        left_vref,
+        right_vref,
+        b"add\0".as_ptr() as *const _,
+      )
+    }
+    VecLang::VecMinus(ids) => {
+      let left = usize::from(ids[0]);
+      let left_enode = &vec[left];
+      let left_vref = translate(left_enode, vec, builder, context);
+      let right = usize::from(ids[1]);
+      let right_enode = &vec[right];
+      let right_vref = translate(right_enode, vec, builder, context);
+      LLVMBuildSub(
+        builder,
+        left_vref,
+        right_vref,
+        b"add\0".as_ptr() as *const _,
+      )
+    }
     _ => panic!("Unimplemented"),
   }
 }
