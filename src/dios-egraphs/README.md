@@ -46,7 +46,9 @@ Then, build the library with:
 
 You'll need this ridiculously long [Clang][] invocation to run the optimization on a C source file:
 
-    $ clang -Xclang -load -Xclang build/Diospyros/libDiospyrosPass.* -Xclang -load -Xclang target/debug/libllvmlib.so a.c
+    $ clang -Xclang -load -Xclang build/Diospyros/libDiospyrosPass.so -Xclang -load -Xclang target/debug/libllvmlib.so a.c
+
+…except that you may need to change `.so` (one or both occurrences) to `.dylib` on macOS. (Check which file extension actually exists.)
 
 As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
 
