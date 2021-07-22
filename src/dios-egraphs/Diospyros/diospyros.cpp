@@ -13,7 +13,7 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" void optimize(LLVMValueRef const *bb, std::size_t size);
+extern "C" LLVMValueRef optimize(LLVMValueRef const *bb, std::size_t size);
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
     Value *v = unwrap(val);
@@ -26,11 +26,22 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
 
 extern "C" int llvm_index(LLVMValueRef val) {
     Value *v = unwrap(val);
-    auto *num = dyn_cast<GEPOperator>(v);
-    if (auto *i = dyn_cast<ConstantInt>(num->getOperand(2))) {
-        return i->getSExtValue();
+    if (auto *num = dyn_cast<GEPOperator>(v)) {
+        if (auto *i = dyn_cast<ConstantInt>(num->getOperand(2))) {
+            return i->getSExtValue();
+        }
     }
     return -1;
+}
+
+extern "C" LLVMValueRef llvm_operand(LLVMValueRef val) {
+    Value *v = unwrap(val);
+    if (auto *gep = dyn_cast<GEPOperator>(v)) {
+        auto pointer_operand = gep->getPointerOperand();
+        return wrap(pointer_operand);
+    }
+    // bad case - should not return NULL, but if it does, need to handle
+    return NULL;
 }
 
 // clang -Xclang -load -Xclang build/skeleton/libSkeletonPass.* -Xclang -load
