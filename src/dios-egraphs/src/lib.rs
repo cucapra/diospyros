@@ -124,7 +124,10 @@ unsafe fn translate(
         b"add\0".as_ptr() as *const _,
       )
     }
-    VecLang::LitVec(ids) => panic!("Unimplemented"),
+    VecLang::LitVec(boxed_ids) => {
+      // let ids = *boxed_ids.to_vec();
+      panic!("Unimplemented")
+    }
     VecLang::VecAdd(ids) => {
       let left = usize::from(ids[0]);
       let left_enode = &vec[left];
