@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 extern crate llvm_sys as llvm;
 pub mod binopsearcher;
 pub mod config;
@@ -9,20 +11,11 @@ pub mod searchutils;
 pub mod stringconversion;
 pub mod veclang;
 
-use llvm::core::*;
-use llvm::prelude::*;
-use llvm::LLVMOpcode::*;
-
-// use crate::rules::*;
-// use veclang::{VecLang};
-
+use llvm::{core::*, prelude::*, LLVMOpcode::*};
 use libc::size_t;
-// use std::ffi::{OsString, OsStr};
 use egg::*;
-use std::ffi::CStr;
-use std::os::raw::c_char;
 use veclang::VecLang;
-// use std::convert::TryInto;
+use std::{ffi::CStr, os::raw::c_char};
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef) -> i32;
@@ -82,10 +75,27 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> RecExpr<VecLang> {
   return RecExpr::from(vec);
 }
 
-// #[no_mangle]
-// pub fn to_llvm(expr : RecExpr<VecLang>) -> LLVMValueRef {
-//   let vec = expr.as_ref();
-// }
+#[no_mangle]
+pub fn to_llvm(expr : RecExpr<VecLang>, inst : LLVMValueRef) -> LLVMValueRef {
+  let exprs = RecExpr::as_ref(&expr);
+  let last = expr.as_ref().last().unwrap();
+  let _llvm_inst = eval_expr(last, exprs, inst);
+  return inst;
+}
+
+#[no_mangle]
+pub fn eval_expr(expr : &VecLang, exprs : &[VecLang], inst : LLVMValueRef) -> LLVMValueRef {
+  match expr {
+    VecLang::VecAdd([l, r]) => {
+      ()
+    },
+    VecLang::LitVec(v) | VecLang::Vec(v) => (),
+    VecLang::Symbol(s) => (),
+    VecLang::Num(i) => (),
+    _ => ()
+  }
+  return inst;
+}
 
 #[no_mangle]
 pub fn optimize(bb: *const LLVMValueRef, size: size_t) -> () {
@@ -99,5 +109,6 @@ pub fn optimize(bb: *const LLVMValueRef, size: size_t) -> () {
     println!("{:?}", best);
 
     // TODO: egg to llvm
+    let _lexpr = to_llvm(best, *bb);
   }
 }

@@ -47,6 +47,7 @@ namespace {
             vec.push_back(wrap(op));
           }
         }
+        // IRBuilder<> builder(vec.back());
         optimize(vec.data(), vec.size());
       }
       return false;
