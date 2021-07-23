@@ -1,8 +1,6 @@
 extern crate clap;
 use clap::{App, Arg};
 use llvmlib::*;
-// use veclang::VecLang;
-// use egg::*;
 
 fn main() {
     let matches = App::new("Diospyros Rewriter")

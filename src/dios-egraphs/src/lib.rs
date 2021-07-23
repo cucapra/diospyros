@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 extern crate llvm_sys as llvm;
 pub mod binopsearcher;
 pub mod config;
@@ -9,20 +11,11 @@ pub mod searchutils;
 pub mod stringconversion;
 pub mod veclang;
 
-use llvm::core::*;
-use llvm::prelude::*;
-use llvm::LLVMOpcode::*;
-
-// use crate::rules::*;
-// use veclang::{VecLang};
-
-use libc::size_t;
-// use std::ffi::{OsString, OsStr};
 use egg::*;
-use std::ffi::CStr;
-use std::os::raw::c_char;
+use libc::size_t;
+use llvm::{core::*, prelude::*, LLVMOpcode::*};
+use std::{ffi::CStr, os::raw::c_char};
 use veclang::VecLang;
-// use std::convert::TryInto;
 
 use std::collections::HashMap;
 
