@@ -88,23 +88,14 @@ fn to_egg(expr: lexpr::Value, erase: bool, rewrites: &HashMap<&str, &str>) -> le
 pub fn convert_string(input: &String) -> io::Result<String> {
     // Parse the given S-expr
     // Remove residual Racket syntax markers
-    
-    println!("input: {}", input);
-    
     let input = input.replace("#&", "");
     let input = input.replace("'(", "(list ");
     let input = input.replace("||", "or");
     let input = input.replace("'", "");
     let v = lexpr::from_str(&input)?;
-    
-    println!("v: {}", v);
-    
     // Rewrite specifications
     let mut rewrites = HashMap::new();
     rewrites.insert("list", "List");
     let egg = to_egg(v, false, &rewrites);
-    
-    println!("egg: {}", egg);
-    
     lexpr::to_string(&egg)
 }
