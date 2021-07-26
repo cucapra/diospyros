@@ -1,5 +1,5 @@
 [package]
-name = "Diospyros"
+name = "dios-llvm"
 version = "0.1.0"
 authors = ["Jasper Liang <jxl8@cornell.edu>", "Jonathan Tran <jdt98@cornell.edu>"]
 edition = "2018"
