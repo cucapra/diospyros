@@ -7,8 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "llvmlib"
-crate-type = ["rlib", "cdylib"]
+name = "dioslib"
 
 [dependencies]
 egg =  "0.6.0"

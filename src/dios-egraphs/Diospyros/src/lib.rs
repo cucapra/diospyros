@@ -3,7 +3,7 @@ extern crate llvm_sys as llvm;
 use llvm::{core::*, prelude::*, LLVMOpcode::*};
 use libc::size_t;
 use egg::*;
-use veclang::VecLang;
+use dioslib::veclang::VecLang;
 use std::{ffi::CStr, os::raw::c_char};
 
 extern "C" {
@@ -94,7 +94,7 @@ pub fn optimize(bb: *const LLVMValueRef, size: size_t) -> () {
 
     // optimization pass
     println!("{:?}", expr);
-    let (_, best) = rules::run(&expr, 180, false, false);
+    let (_, best) = dioslib::rules::run(&expr, 180, false, false);
     println!("{:?}", best);
 
     // TODO: egg to llvm
