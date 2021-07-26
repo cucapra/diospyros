@@ -31,8 +31,6 @@ extern "C" int llvm_index(LLVMValueRef val) {
   return -1;
 }
 
-// clang -Xclang -load -Xclang build/skeleton/libSkeletonPass.* -Xclang -load -Xclang target/debug/libllvm_pass_skeleton.so -emit-llvm -S -o - a.c
-
 namespace {
   struct DiospyrosPass : public FunctionPass {
     static char ID;
@@ -47,7 +45,6 @@ namespace {
             vec.push_back(wrap(op));
           }
         }
-        // IRBuilder<> builder(vec.back());
         optimize(vec.data(), vec.size());
       }
       return false;

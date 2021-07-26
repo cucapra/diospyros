@@ -38,7 +38,6 @@ fn main() {
 
     // Rewrite a list of expressions to a concatenation of vectors
     let concats = rewriteconcats::list_to_concats(&converted);
-    // println!("{:?}", concats);
     let prog = concats.unwrap().parse().unwrap();
 
     // Rules to disable flags
