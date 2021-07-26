@@ -1,6 +1,6 @@
 extern crate clap;
 use clap::{App, Arg};
-use llvmlib::*;
+use dioslib::*;
 
 fn main() {
     let matches = App::new("Diospyros Rewriter")
