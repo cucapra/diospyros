@@ -13,7 +13,9 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" LLVMValueRef optimize(LLVMValueRef const *bb, std::size_t size);
+extern "C" LLVMBasicBlockRef optimize(LLVMContextRef contextRef,
+                                      LLVMBasicBlockRef basicBlock,
+                                      LLVMValueRef const *bb, std::size_t size);
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
     Value *v = unwrap(val);
@@ -61,7 +63,14 @@ struct DiospyrosPass : public FunctionPass {
                     vec.push_back(wrap(op));
                 }
             }
-            optimize(vec.data(), vec.size());
+            auto *bb = dyn_cast<BasicBlock>(&B);
+            LLVMBasicBlockRef basicBlock = wrap(bb);
+            LLVMContext &context = F.getContext();
+            auto *c = dyn_cast<LLVMContext>(&context);
+            LLVMContextRef contextRef = wrap(c);
+            LLVMBasicBlockRef opt =
+                optimize(contextRef, basicBlock, vec.data(), vec.size());
+            errs() << *unwrap(opt) << "\n";
         }
         return false;
     };

@@ -115,7 +115,9 @@ unsafe fn translate_binop(
   let right_enode = &vec[right];
   let right_vref = translate(right_enode, vec, symbol_map, builder, bb, context);
   let val = constructor(builder, left_vref, right_vref, name);
-  LLVMAppendExistingBasicBlock(val, bb);
+  // LLVMAppendExistingBasicBlock(val, bb);
+  LLVMDumpValue(val);
+  println!("\n");
   val
 }
 
@@ -135,7 +137,10 @@ unsafe fn translate(
     },
     VecLang::Num(n) => {
       let i64t = LLVMInt64TypeInContext(context);
-      LLVMConstInt(i64t, *n as u64, 0)
+      let i = LLVMConstInt(i64t, *n as u64, 0);
+      LLVMDumpValue(i);
+      println!("\n");
+      i
     }
     VecLang::Get(ids) => {
       let name = usize::from(ids[0]);
@@ -152,14 +157,38 @@ unsafe fn translate(
         1,
         b"geps\0".as_ptr() as *const _,
       );
-      LLVMAppendExistingBasicBlock(gep_val, bb);
+      LLVMDumpValue(gep_val);
+      println!("\n");
+      // LLVMAppendExistingBasicBlock(gep_val, bb);
       gep_val
     }
-    VecLang::LitVec(boxed_ids) => {
-      panic!("Unimplemented")
-    }
-    VecLang::Vec(boxed_ids) => {
-      panic!("Unimplemented")
+    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
+      let idvec = boxed_ids.to_vec();
+      let length = idvec.len();
+      let i64t = LLVMInt64TypeInContext(context);
+      // let zero = &mut LLVMConstInt(i64t, 0 as u64, 0);
+      let mut array: [LLVMValueRef; config::vector_width()] =
+        [LLVMConstInt(i64t, 0 as u64, 0); config::vector_width()];
+      let array_ptr = array.as_mut_ptr();
+      let mut vector = LLVMConstVector(array_ptr, length as u32);
+      for idx in 0..length {
+        let eggid = idvec[idx];
+        let eggindex = usize::from(eggid);
+        let elt = &vec[eggindex];
+        let elt_val = translate(elt, vec, symbol_map, builder, bb, context);
+        LLVMDumpValue(elt_val);
+        println!("\n");
+        vector = LLVMBuildInsertElement(
+          builder,
+          vector,
+          elt_val,
+          LLVMConstInt(i64t, idx as u64, 0),
+          b"vec insert\0".as_ptr() as *const _,
+        );
+      }
+      LLVMDumpValue(vector);
+      println!("\n");
+      vector
     }
     VecLang::Add(ids) | VecLang::VecAdd(ids) => translate_binop(
       ids,
@@ -199,35 +228,47 @@ unsafe fn translate(
 pub unsafe fn to_llvm(
   expr: RecExpr<VecLang>,
   symbol_map: &HashMap<egg::Symbol, LLVMValueRef>,
-) -> LLVMValueRef {
+  basic_block: LLVMBasicBlockRef,
+  context: LLVMContextRef,
+) -> LLVMBasicBlockRef {
   let vec = expr.as_ref();
-  let context = LLVMContextCreate();
-  let module = LLVMModuleCreateWithNameInContext(b"sum\0".as_ptr() as *const _, context);
-  let builder = LLVMCreateBuilderInContext(context);
-
-  // get a type for sum function
-  let i64t = LLVMInt64TypeInContext(context);
-  let mut argts = [i64t, i64t, i64t];
-  let function_type = LLVMFunctionType(i64t, argts.as_mut_ptr(), argts.len() as u32, 0);
-
-  // add it to our module
-  let function = LLVMAddFunction(module, b"sum\0".as_ptr() as *const _, function_type);
-
-  // Create a basic block in the function and set our builder to generate
-  // code in it.
-  let bb = LLVMAppendBasicBlockInContext(context, function, b"entry\0".as_ptr() as *const _);
-
   let last = match vec.last() {
     None => panic!("No match for last element of vector of Egg Terms."),
     Some(term) => term,
   };
-  translate(last, vec, symbol_map, builder, bb, context);
 
-  return LLVMBasicBlockAsValue(bb);
+  // let context = LLVMContextCreate();
+  // let mut module = LLVMModuleCreateWithNameInContext(b"sum\0".as_ptr() as *const _, context);
+  // let builder = LLVMCreateBuilderInContext(context);
+
+  // get a type for sum function
+  // let i64t = LLVMInt64TypeInContext(context);
+  // let mut argts = [i64t, i64t, i64t];
+  // let function_type = LLVMFunctionType(i64t, argts.as_mut_ptr(), argts.len() as u32, 0);
+
+  // add it to our module
+  // let function = LLVMAddFunction(module, b"sum\0".as_ptr() as *const _, function_type);
+
+  // Create a basic block in the function and set our builder to generate
+  // code in it.
+  // let bb = LLVMAppendBasicBlockInContext(context, function, b"entry\0".as_ptr() as *const _);
+
+  let builder = LLVMCreateBuilderInContext(context);
+  LLVMPositionBuilderAtEnd(builder, basic_block);
+  let _ = translate(last, vec, symbol_map, builder, basic_block, context);
+  // LLVMDumpModule(module);
+  // println!("\n");
+
+  return basic_block;
 }
 
 #[no_mangle]
-pub fn optimize(bb: *const LLVMValueRef, size: size_t) -> LLVMValueRef {
+pub fn optimize(
+  context: LLVMContextRef,
+  basic_block: LLVMBasicBlockRef,
+  bb: *const LLVMValueRef,
+  size: size_t,
+) -> LLVMBasicBlockRef {
   unsafe {
     // llvm to egg
     let (expr, symbol_operand_map) = to_expr(std::slice::from_raw_parts(bb, size));
@@ -238,6 +279,7 @@ pub fn optimize(bb: *const LLVMValueRef, size: size_t) -> LLVMValueRef {
     println!("{:?}", best.as_ref());
 
     // TODO: egg to llvm
-    to_llvm(expr, &symbol_operand_map)
+    let result = to_llvm(best, &symbol_operand_map, basic_block, context);
+    return result;
   }
 }
