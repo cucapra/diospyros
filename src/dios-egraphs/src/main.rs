@@ -1,15 +1,6 @@
-pub mod binopsearcher;
-pub mod config;
-pub mod cost;
-pub mod macsearcher;
-pub mod rewriteconcats;
-pub mod rules;
-pub mod searchutils;
-pub mod stringconversion;
-pub mod veclang;
-
 extern crate clap;
 use clap::{App, Arg};
+use dioslib::*;
 
 fn main() {
     let matches = App::new("Diospyros Rewriter")
@@ -97,6 +88,63 @@ mod tests {
             );
         }
         assert_approx_eq!(best_cost, exp_best_cost, 0.000001);
+    }
+
+    #[test]
+    fn direct_recexpr() {          
+      let expr = RecExpr::from(
+        [VecLang::Symbol(Symbol::from("a_in")), 
+        VecLang::Symbol(Symbol::from("b_in")), 
+        VecLang::Num(0),
+        VecLang::Num(1),
+        VecLang::Num(2),
+        VecLang::Num(3),
+        VecLang::Get([Id::from(0), Id::from(2)]), 
+        VecLang::Get([Id::from(1), Id::from(2)]), 
+        VecLang::Add([Id::from(6), Id::from(7)]), 
+        VecLang::Get([Id::from(0), Id::from(3)]),
+        VecLang::Get([Id::from(1), Id::from(3)]), 
+        VecLang::Add([Id::from(9), Id::from(10)]),
+        VecLang::Get([Id::from(0), Id::from(4)]),
+        VecLang::Get([Id::from(1), Id::from(4)]), 
+        VecLang::Add([Id::from(12), Id::from(13)]),  
+        VecLang::Get([Id::from(0), Id::from(5)]),
+        VecLang::Get([Id::from(1), Id::from(5)]), 
+        VecLang::Add([Id::from(15), Id::from(16)]),  
+        VecLang::Vec(Box::new([Id::from(8), Id::from(11), Id::from(14), Id::from(17)]))].to_vec()
+      );
+      let (cost, _) = super::rules::run(&expr, 180, false, false);
+      assert_approx_eq!(cost, 1.026, 0.000001);
+    }
+
+    #[test]
+    fn direct_recexpr_2() {
+      let expr = RecExpr::from(
+        [
+          VecLang::Symbol(Symbol::from("scalar_in")),
+          VecLang::Num(0),
+          VecLang::Get([Id::from(0), Id::from(1)]),
+          VecLang::Vec(Box::new([Id::from(2), Id::from(1), Id::from(1), Id::from(1)])),
+          VecLang::Symbol(Symbol::from("a_in")),
+          VecLang::Num(4),
+          VecLang::Num(5),
+          VecLang::Num(6),
+          VecLang::Num(7),
+          VecLang::Get([Id::from(4), Id::from(5)]),
+          VecLang::Get([Id::from(4), Id::from(6)]),
+          VecLang::Get([Id::from(4), Id::from(7)]),
+          VecLang::Get([Id::from(4), Id::from(8)]),
+          VecLang::Mul([Id::from(9), Id::from(2)]),
+          VecLang::Mul([Id::from(10), Id::from(2)]),
+          VecLang::Mul([Id::from(11), Id::from(2)]),
+          VecLang::Mul([Id::from(12), Id::from(2)]),
+          VecLang::Vec(Box::new([Id::from(13), Id::from(14), Id::from(15), Id::from(16)])),
+          VecLang::Concat([Id::from(3), Id::from(17)])
+        ].to_vec()
+      );
+
+      let (cost, _) = super::rules::run(&expr, 180, false, false);
+      assert_approx_eq!(cost, 1.133, 0.000001);
     }
 
     #[test]
