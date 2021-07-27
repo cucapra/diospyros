@@ -1,6 +1,6 @@
 extern crate clap;
 use clap::{App, Arg};
-use llvmlib::*;
+use dioslib::*;
 
 fn main() {
     let matches = App::new("Diospyros Rewriter")
@@ -38,7 +38,6 @@ fn main() {
 
     // Rewrite a list of expressions to a concatenation of vectors
     let concats = rewriteconcats::list_to_concats(&converted);
-    // println!("{:?}", concats);
     let prog = concats.unwrap().parse().unwrap();
 
     // Rules to disable flags
@@ -47,8 +46,7 @@ fn main() {
 
     // Run rewriter
     eprintln!(
-        "Running egg on {:?} with timeout {:?}s, width: {:?}",
-        &prog,
+        "Running egg with timeout {:?}s, width: {:?}",
         timeout,
         config::vector_width()
     );
@@ -61,7 +59,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use super::{rules::*, veclang::{VecLang}};
+    use super::{rules::*, veclang::VecLang};
     use assert_approx_eq::assert_approx_eq;
     use egg::*;
 
@@ -93,16 +91,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_recexpr() {
-      // let re = RecExpr::from([VecLang::Symbol(egg::Symbol::from("A")), 
-      // VecLang::Num(0), VecLang::Get([egg::Id::from(0), egg::Id::from(1)]), VecLang::Symbol(egg::Symbol::from("B")), 
-      // VecLang::Num(0), VecLang::Get([egg::Id::from(3), egg::Id::from(4)]), VecLang::Add([egg::Id::from(2), egg::Id::from(5)]), VecLang::Symbol(egg::Symbol::from("A")), 
-      // VecLang::Num(1), VecLang::Get([egg::Id::from(7), egg::Id::from(8)]), VecLang::Symbol(egg::Symbol::from("B")),
-      // VecLang::Num(1), VecLang::Get([egg::Id::from(10), egg::Id::from(11)]), VecLang::Add([egg::Id::from(9), egg::Id::from(12)]), VecLang::Num(0), VecLang::Num(0), 
-      // VecLang::Vec(Box::new([egg::Id::from(6), egg::Id::from(13), egg::Id::from(14), egg::Id::from(15)]))].to_vec());
-
-      // (+ (Get a_in 0) (Get b_in 0))
-          
+    fn direct_recexpr() {          
       let expr = RecExpr::from(
         [VecLang::Symbol(Symbol::from("a_in")), 
         VecLang::Symbol(Symbol::from("b_in")), 
@@ -124,15 +113,12 @@ mod tests {
         VecLang::Add([Id::from(15), Id::from(16)]),  
         VecLang::Vec(Box::new([Id::from(8), Id::from(11), Id::from(14), Id::from(17)]))].to_vec()
       );
-      
-      println!("{:?}", expr);
-      let (cost, best) = super::rules::run(&expr, 180, false, false);
-      println!("{:?}", best); 
+      let (cost, _) = super::rules::run(&expr, 180, false, false);
       assert_approx_eq!(cost, 1.026, 0.000001);
     }
 
     #[test]
-    fn test_2() {
+    fn direct_recexpr_2() {
       let expr = RecExpr::from(
         [
           VecLang::Symbol(Symbol::from("scalar_in")),
@@ -157,8 +143,7 @@ mod tests {
         ].to_vec()
       );
 
-      let (cost, best) = super::rules::run(&expr, 180, false, false);
-      println!("{}", best.pretty(80)); /* Pretty print with width 80 */
+      let (cost, _) = super::rules::run(&expr, 180, false, false);
       assert_approx_eq!(cost, 1.133, 0.000001);
     }
 

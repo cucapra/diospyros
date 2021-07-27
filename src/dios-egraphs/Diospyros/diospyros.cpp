@@ -37,19 +37,6 @@ extern "C" int llvm_index(LLVMValueRef val) {
     return -1;
 }
 
-// extern "C" LLVMValueRef llvm_operand(LLVMValueRef val) {
-//     Value *v = unwrap(val);
-//     if (auto *gep = dyn_cast<GEPOperator>(v)) {
-//         auto pointer_operand = gep->getPointerOperand();
-//         return wrap(pointer_operand);
-//     }
-//     // bad case - should not return NULL, but if it does, need to handle
-//     return NULL;
-// }
-
-// clang -Xclang -load -Xclang build/skeleton/libSkeletonPass.* -Xclang -load
-// -Xclang target/debug/libllvm_pass_skeleton.so -emit-llvm -S -o - a.c
-
 namespace {
 struct DiospyrosPass : public FunctionPass {
     static char ID;
