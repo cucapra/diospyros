@@ -132,15 +132,13 @@ unsafe fn translate(
     },
     VecLang::Num(n) => {
       let i64t = LLVMInt64TypeInContext(context);
-      let i = LLVMConstInt(i64t, *n as u64, 0);
-      i
+      LLVMConstInt(i64t, *n as u64, 0)
     }
     VecLang::Get(ids) => {
       let name = usize::from(ids[0]);
       let name_enode = &vec[name];
       let gep_value = translate(name_enode, vec, symbol_map, builder, bb, context);
-      let load = LLVMBuildLoad(builder, gep_value, b"load\0".as_ptr() as *const _);
-      load
+      LLVMBuildLoad(builder, gep_value, b"load\0".as_ptr() as *const _)
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
       let idvec = boxed_ids.to_vec();

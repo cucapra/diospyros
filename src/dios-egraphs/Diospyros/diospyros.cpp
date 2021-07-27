@@ -57,24 +57,38 @@ struct DiospyrosPass : public FunctionPass {
 
     virtual bool runOnFunction(Function &F) {
         for (auto &B : F) {
-            Value *ret_instr;
             std::vector<LLVMValueRef> vec;
+            Value *ret_instr;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<BinaryOperator>(&I)) {
-                    // errs() << *op << "\n";
                     vec.push_back(wrap(op));
                 } else if (auto *op = dyn_cast<ReturnInst>(&I)) {
                     ret_instr = op;
                 }
             }
+            // choose first call instruction to insert before
+            Value *call_instr = NULL;
+            for (auto &I : B) {
+                if (auto *op = dyn_cast<CallInst>(&I)) {
+                    call_instr = op;
+                    break;
+                }
+            }
+            // if there are no calls, just insert before return
+            if (call_instr == NULL) {
+                call_instr = ret_instr;
+            }
+
             auto *bb = dyn_cast<BasicBlock>(&B);
             LLVMBasicBlockRef basicBlock = wrap(bb);
             LLVMContext &context = F.getContext();
             auto *c = dyn_cast<LLVMContext>(&context);
             LLVMContextRef contextRef = wrap(c);
+
             LLVMBasicBlockRef opt =
-                optimize(contextRef, basicBlock, wrap(ret_instr), vec.data(),
+                optimize(contextRef, basicBlock, wrap(call_instr), vec.data(),
                          vec.size());
+
             errs() << *unwrap(opt) << "\n";
         }
         return true;
