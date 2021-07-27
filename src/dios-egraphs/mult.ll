@@ -41,19 +41,19 @@ define i32 @main(i32 %0, i8** %1) #0 {
   store i32 %21, i32* %22, align 4
   %23 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 0
   %24 = load i32, i32* %23, align 16
-  %25 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %25 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 0), align 4
   %26 = insertelement <4 x i64> zeroinitializer, i32 %25, i64 0
-  %27 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %27 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 1), align 4
   %28 = insertelement <4 x i64> %26, i32 %27, i64 1
-  %29 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %29 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 2), align 4
   %30 = insertelement <4 x i64> %28, i32 %29, i64 2
   %31 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
   %32 = insertelement <4 x i64> %30, i32 %31, i64 3
-  %33 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %33 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 0), align 4
   %34 = insertelement <4 x i64> zeroinitializer, i32 %33, i64 0
-  %35 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %35 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 1), align 4
   %36 = insertelement <4 x i64> %34, i32 %35, i64 1
-  %37 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %37 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 2), align 4
   %38 = insertelement <4 x i64> %36, i32 %37, i64 2
   %39 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
   %40 = insertelement <4 x i64> %38, i32 %39, i64 3

@@ -36,14 +36,11 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [egg::Id; 2]) -> VecLang {
   }
 }
 
+type GEPMap = HashMap<(egg::Symbol, i32), *mut llvm::LLVMValue>;
+
 #[no_mangle]
-pub fn to_expr(
-  bb_vec: &[LLVMValueRef],
-) -> (
-  RecExpr<VecLang>,
-  std::collections::HashMap<egg::Symbol, *mut llvm::LLVMValue>,
-) {
-  let mut symbol_operand_map = HashMap::new();
+pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap) {
+  let mut gep_map = HashMap::new();
   let (mut vec, mut adds) = (Vec::new(), Vec::new());
   let (mut var, mut num);
   let mut ids = [Id::from(0); 2];
@@ -64,7 +61,7 @@ pub fn to_expr(
       ids[0] = Id::from(vec.len() - 1);
 
       let symbol1 = Symbol::from(name1);
-      symbol_operand_map.insert(symbol1, lhs);
+      gep_map.insert((symbol1, ind1), lhs);
 
       // rhs
       let name2 = CStr::from_ptr(llvm_name(rhs)).to_str().unwrap();
@@ -79,7 +76,7 @@ pub fn to_expr(
       ids[1] = Id::from(vec.len() - 1);
 
       let symbol2 = Symbol::from(name2);
-      symbol_operand_map.insert(symbol2, rhs);
+      gep_map.insert((symbol2, ind2), rhs);
 
       // lhs + rhs
       vec.push(choose_binop(bop, ids));
@@ -87,14 +84,14 @@ pub fn to_expr(
     }
   }
   vec.push(VecLang::Vec(adds.into_boxed_slice()));
-  return (RecExpr::from(vec), symbol_operand_map);
+  return (RecExpr::from(vec), gep_map);
 }
 
 #[no_mangle]
 unsafe fn translate_binop(
   ids: &[egg::Id; 2],
   vec: &[VecLang],
-  symbol_map: &HashMap<egg::Symbol, LLVMValueRef>,
+  gep_map: &GEPMap,
   builder: *mut llvm::LLVMBuilder,
   bb: *mut llvm::LLVMBasicBlock,
   context: *mut llvm::LLVMContext,
@@ -108,10 +105,10 @@ unsafe fn translate_binop(
 ) -> LLVMValueRef {
   let left = usize::from(ids[0]);
   let left_enode = &vec[left];
-  let left_vref = translate(left_enode, vec, symbol_map, builder, bb, context);
+  let left_vref = translate(left_enode, vec, gep_map, builder, bb, context);
   let right = usize::from(ids[1]);
   let right_enode = &vec[right];
-  let right_vref = translate(right_enode, vec, symbol_map, builder, bb, context);
+  let right_vref = translate(right_enode, vec, gep_map, builder, bb, context);
   let val = constructor(builder, left_vref, right_vref, name);
   val
 }
@@ -120,16 +117,17 @@ unsafe fn translate_binop(
 unsafe fn translate(
   enode: &VecLang,
   vec: &[VecLang],
-  symbol_map: &HashMap<egg::Symbol, LLVMValueRef>,
+  gep_map: &GEPMap,
   builder: *mut llvm::LLVMBuilder,
   bb: *mut llvm::LLVMBasicBlock,
   context: *mut llvm::LLVMContext,
 ) -> LLVMValueRef {
   match enode {
-    VecLang::Symbol(s) => match symbol_map.get(s) {
-      None => panic!("{} not found in symbol map", s),
-      Some(val) => *val,
-    },
+    VecLang::Symbol(s) => panic!("Symbols are never supposed to be evaluated"),
+    // VecLang::Symbol(s) => match gep_map.get(s) {
+    //   None => panic!("{} not found in symbol map", s),
+    //   Some(val) => *val,
+    // },
     VecLang::Num(n) => {
       let i64t = LLVMInt64TypeInContext(context);
       LLVMConstInt(i64t, *n as u64, 0)
@@ -137,7 +135,22 @@ unsafe fn translate(
     VecLang::Get(ids) => {
       let name = usize::from(ids[0]);
       let name_enode = &vec[name];
-      let gep_value = translate(name_enode, vec, symbol_map, builder, bb, context);
+      let array_name = match name_enode {
+        VecLang::Symbol(s) => *s,
+        _ => panic!("Match error in get enode: Expected Symbol."),
+      };
+      let offset = usize::from(ids[1]);
+      let offset_enode = &vec[offset];
+      let offset_num = match offset_enode {
+        VecLang::Num(n) => *n,
+        _ => panic!("Match error in get enode: Expected Num."),
+      };
+      let key = &(array_name, offset_num);
+      let gep_value = match gep_map.get(key) {
+        None => panic!("{:?} not found in symbol map", key),
+        Some(val) => *val,
+      };
+      // let gep_value = translate(name_enode, vec, gep_map, builder, bb, context);
       LLVMBuildLoad(builder, gep_value, b"load\0".as_ptr() as *const _)
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
@@ -152,7 +165,7 @@ unsafe fn translate(
         let eggid = idvec[idx];
         let eggindex = usize::from(eggid);
         let elt = &vec[eggindex];
-        let elt_val = translate(elt, vec, symbol_map, builder, bb, context);
+        let elt_val = translate(elt, vec, gep_map, builder, bb, context);
         vector = LLVMBuildInsertElement(
           builder,
           vector,
@@ -166,7 +179,7 @@ unsafe fn translate(
     VecLang::Add(ids) | VecLang::VecAdd(ids) => translate_binop(
       ids,
       vec,
-      symbol_map,
+      gep_map,
       builder,
       bb,
       context,
@@ -176,7 +189,7 @@ unsafe fn translate(
     VecLang::VecMul(ids) => translate_binop(
       ids,
       vec,
-      symbol_map,
+      gep_map,
       builder,
       bb,
       context,
@@ -186,7 +199,7 @@ unsafe fn translate(
     VecLang::VecMinus(ids) => translate_binop(
       ids,
       vec,
-      symbol_map,
+      gep_map,
       builder,
       bb,
       context,
@@ -200,7 +213,7 @@ unsafe fn translate(
 #[no_mangle]
 pub unsafe fn to_llvm(
   expr: RecExpr<VecLang>,
-  symbol_map: &HashMap<egg::Symbol, LLVMValueRef>,
+  gep_map: &GEPMap,
   basic_block: LLVMBasicBlockRef,
   insert_inst: LLVMValueRef,
   context: LLVMContextRef,
@@ -213,7 +226,7 @@ pub unsafe fn to_llvm(
 
   let builder = LLVMCreateBuilderInContext(context);
   LLVMPositionBuilderBefore(builder, insert_inst);
-  let value = translate(last, vec, symbol_map, builder, basic_block, context);
+  let value = translate(last, vec, gep_map, builder, basic_block, context);
 
   return basic_block;
 }
@@ -228,7 +241,7 @@ pub fn optimize(
 ) -> LLVMBasicBlockRef {
   unsafe {
     // llvm to egg
-    let (expr, symbol_operand_map) = to_expr(std::slice::from_raw_parts(bb, size));
+    let (expr, gep_map) = to_expr(std::slice::from_raw_parts(bb, size));
 
     // optimization pass
     println!("{:?}", expr);
@@ -236,7 +249,7 @@ pub fn optimize(
     println!("{:?}", best.as_ref());
 
     // TODO: egg to llvm
-    let result = to_llvm(best, &symbol_operand_map, basic_block, insert_inst, context);
+    let result = to_llvm(best, &gep_map, basic_block, insert_inst, context);
     return result;
   }
 }
