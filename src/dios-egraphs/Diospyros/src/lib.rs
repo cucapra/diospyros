@@ -226,16 +226,25 @@ pub unsafe fn to_llvm(
   };
 
   let builder = LLVMCreateBuilderInContext(context);
-  LLVMPositionBuilderBefore(builder, insert_instr);
+  let one_before = LLVMGetPreviousInstruction(insert_instr);
+  let two_before = LLVMGetPreviousInstruction(one_before);
+  let three_before = LLVMGetPreviousInstruction(two_before);
+  LLVMPositionBuilderBefore(builder, two_before);
   let vector = translate(last, vec, gep_map, builder, basic_block, context);
 
   for i in 0..ops_to_replace.len() {
-    let i64t = LLVMInt64TypeInContext(context);
+    let i64t = LLVMInt32TypeInContext(context);
     let index = LLVMConstInt(i64t, i as u64, 0);
     let extracted_value =
       LLVMBuildExtractElement(builder, vector, index, b"extract\0".as_ptr() as *const _);
     let op = ops_to_replace[i];
-    LLVMReplaceAllUsesWith(op, extracted_value);
+    let gep_instr = LLVMGetNextInstruction(op);
+    let store_instr = LLVMGetNextInstruction(gep_instr);
+    let cloned_store = LLVMInstructionClone(store_instr);
+    LLVMSetOperand(cloned_store, 0, extracted_value);
+    LLVMDumpValue(cloned_store);
+    println!();
+    LLVMInsertIntoBuilder(builder, cloned_store);
   }
 
   // delete_insts(del_instrs);
