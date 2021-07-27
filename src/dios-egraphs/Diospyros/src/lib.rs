@@ -121,7 +121,7 @@ unsafe fn translate(
   match enode {
     VecLang::Symbol(s) => panic!("Symbols are never supposed to be evaluated"),
     VecLang::Num(n) => {
-      let i64t = LLVMInt64TypeInContext(context);
+      let i64t = LLVMInt32TypeInContext(context);
       LLVMConstInt(i64t, *n as u64, 0)
     }
     VecLang::Get(ids) => {
@@ -148,7 +148,7 @@ unsafe fn translate(
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
       let idvec = boxed_ids.to_vec();
       let length = idvec.len();
-      let i64t = LLVMInt64TypeInContext(context);
+      let i64t = LLVMInt32TypeInContext(context);
       let mut array: [LLVMValueRef; config::vector_width()] =
         [LLVMConstInt(i64t, 0 as u64, 0); config::vector_width()];
       let array_ptr = array.as_mut_ptr();
