@@ -51,7 +51,23 @@ define i32 @main(i32 %0, i8** %1) #0 {
   %32 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 3
   %33 = load i32, i32* %32, align 4
   %34 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.3, i64 0, i64 0), i32 %33)
-  ret <3 x i64> <i64 0, i64 2, i64 4>
+  %35 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %36 = insertelement <4 x i64> zeroinitializer, i32 %35, i64 0
+  %37 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %38 = insertelement <4 x i64> %36, i32 %37, i64 1
+  %39 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %40 = insertelement <4 x i64> %38, i32 %39, i64 2
+  %41 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %42 = insertelement <4 x i64> %40, i32 %41, i64 3
+  %43 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %44 = insertelement <4 x i64> zeroinitializer, i32 %43, i64 0
+  %45 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %46 = insertelement <4 x i64> %44, i32 %45, i64 1
+  %47 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %48 = insertelement <4 x i64> %46, i32 %47, i64 2
+  %49 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %50 = insertelement <4 x i64> %48, i32 %49, i64 3
+  %51 = mul <4 x i64> %42, %50
   ret i32 0
 }
 
