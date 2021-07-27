@@ -39,8 +39,8 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, DelInstrs,
     unsafe {
       let lhs = LLVMGetOperand(LLVMGetOperand(*bop, 0), 0);
       let rhs = LLVMGetOperand(LLVMGetOperand(*bop, 1), 0);
-      delete_instrs.push(lhs);
-      delete_instrs.push(rhs);
+      // delete_instrs.push(lhs);
+      // delete_instrs.push(rhs);
       delete_instrs.push(*bop);
 
       // lhs
@@ -242,12 +242,10 @@ pub unsafe fn to_llvm(
     let store_instr = LLVMGetNextInstruction(gep_instr);
     let cloned_store = LLVMInstructionClone(store_instr);
     LLVMSetOperand(cloned_store, 0, extracted_value);
-    LLVMDumpValue(cloned_store);
-    println!();
     LLVMInsertIntoBuilder(builder, cloned_store);
   }
 
-  // delete_insts(del_instrs);
+  delete_insts(del_instrs);
 
   return basic_block;
 }
