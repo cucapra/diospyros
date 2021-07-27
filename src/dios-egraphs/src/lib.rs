@@ -116,6 +116,7 @@ unsafe fn translate_binop(
   let right_vref = translate(right_enode, vec, symbol_map, builder, bb, context);
   let val = constructor(builder, left_vref, right_vref, name);
   // LLVMAppendExistingBasicBlock(val, bb);
+  // LLVMBuildRet(builder, val);
   LLVMDumpValue(val);
   println!("\n");
   val
@@ -229,6 +230,7 @@ pub unsafe fn to_llvm(
   expr: RecExpr<VecLang>,
   symbol_map: &HashMap<egg::Symbol, LLVMValueRef>,
   basic_block: LLVMBasicBlockRef,
+  insert_inst: LLVMValueRef,
   context: LLVMContextRef,
 ) -> LLVMBasicBlockRef {
   let vec = expr.as_ref();
@@ -254,10 +256,38 @@ pub unsafe fn to_llvm(
   // let bb = LLVMAppendBasicBlockInContext(context, function, b"entry\0".as_ptr() as *const _);
 
   let builder = LLVMCreateBuilderInContext(context);
-  LLVMPositionBuilderAtEnd(builder, basic_block);
+  LLVMPositionBuilderBefore(builder, insert_inst);
   let _ = translate(last, vec, symbol_map, builder, basic_block, context);
   // LLVMDumpModule(module);
   // println!("\n");
+
+  let arr = [1, 2, 3];
+  let idvec = arr.to_vec();
+  let length = idvec.len();
+  let i64t = LLVMInt64TypeInContext(context);
+  // let zero = &mut LLVMConstInt(i64t, 0 as u64, 0);
+  let mut array: [LLVMValueRef; config::vector_width()] =
+    [LLVMConstInt(i64t, 0 as u64, 0); config::vector_width()];
+  let array_ptr = array.as_mut_ptr();
+  let mut vector = LLVMConstVector(array_ptr, length as u32);
+  for i in 0..length {
+    let val = LLVMConstInt(i64t, i as u64, 0);
+    let idx = LLVMConstInt(i64t, i as u64, 0);
+    vector = LLVMBuildInsertElement(builder, vector, val, idx, b"insert\0".as_ptr() as *const _);
+  }
+  let add = LLVMBuildAdd(
+    builder,
+    vector,
+    vector,
+    b"vector add\0".as_ptr() as *const _,
+  );
+  let result = LLVMBuildExtractElement(
+    builder,
+    vector,
+    LLVMConstInt(i64t, 0 as u64, 0),
+    b"extract\0".as_ptr() as *const _,
+  );
+  LLVMBuildRet(builder, add);
 
   return basic_block;
 }
@@ -266,6 +296,7 @@ pub unsafe fn to_llvm(
 pub fn optimize(
   context: LLVMContextRef,
   basic_block: LLVMBasicBlockRef,
+  insert_inst: LLVMValueRef,
   bb: *const LLVMValueRef,
   size: size_t,
 ) -> LLVMBasicBlockRef {
@@ -279,7 +310,7 @@ pub fn optimize(
     println!("{:?}", best.as_ref());
 
     // TODO: egg to llvm
-    let result = to_llvm(best, &symbol_operand_map, basic_block, context);
+    let result = to_llvm(best, &symbol_operand_map, basic_block, insert_inst, context);
     return result;
   }
 }

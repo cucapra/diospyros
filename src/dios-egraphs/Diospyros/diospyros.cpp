@@ -15,6 +15,7 @@ using namespace std;
 
 extern "C" LLVMBasicBlockRef optimize(LLVMContextRef contextRef,
                                       LLVMBasicBlockRef basicBlock,
+                                      LLVMValueRef insertInst,
                                       LLVMValueRef const *bb, std::size_t size);
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
@@ -56,11 +57,14 @@ struct DiospyrosPass : public FunctionPass {
 
     virtual bool runOnFunction(Function &F) {
         for (auto &B : F) {
+            Value *ret_instr;
             std::vector<LLVMValueRef> vec;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<BinaryOperator>(&I)) {
                     // errs() << *op << "\n";
                     vec.push_back(wrap(op));
+                } else if (auto *op = dyn_cast<ReturnInst>(&I)) {
+                    ret_instr = op;
                 }
             }
             auto *bb = dyn_cast<BasicBlock>(&B);
@@ -69,10 +73,11 @@ struct DiospyrosPass : public FunctionPass {
             auto *c = dyn_cast<LLVMContext>(&context);
             LLVMContextRef contextRef = wrap(c);
             LLVMBasicBlockRef opt =
-                optimize(contextRef, basicBlock, vec.data(), vec.size());
+                optimize(contextRef, basicBlock, wrap(ret_instr), vec.data(),
+                         vec.size());
             errs() << *unwrap(opt) << "\n";
         }
-        return false;
+        return true;
     };
 };
 }  // namespace
