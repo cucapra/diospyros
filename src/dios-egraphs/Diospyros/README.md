@@ -25,13 +25,6 @@ Then, build the pass library with:
 
     $ cargo build
 
-
-You may need to run 
-
-    $ LLVM_SYS_110_PREFIX=/usr/local/opt/llvm/ cargo build
-
-when building for the first time.
-
 ## Run the Pass
 
 Use this [Clang][] invocation to run the optimization on a C source file:
