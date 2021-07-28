@@ -13,10 +13,7 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" LLVMBasicBlockRef optimize(LLVMContextRef contextRef,
-                                      LLVMBasicBlockRef basicBlock,
-                                      LLVMValueRef insertInst,
-                                      LLVMValueRef const *bb, std::size_t size);
+extern "C" void optimize(LLVMBuilderRef builder, LLVMValueRef const *bb, std::size_t size);
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
     Value *v = unwrap(val);
@@ -38,49 +35,27 @@ extern "C" int llvm_index(LLVMValueRef val) {
 }
 
 namespace {
-struct DiospyrosPass : public FunctionPass {
+  struct DiospyrosPass : public FunctionPass {
     static char ID;
     DiospyrosPass() : FunctionPass(ID) {}
 
     virtual bool runOnFunction(Function &F) {
-        for (auto &B : F) {
-            std::vector<LLVMValueRef> vec;
-            Value *ret_instr;
-            for (auto &I : B) {
-                if (auto *op = dyn_cast<BinaryOperator>(&I)) {
-                    vec.push_back(wrap(op));
-                } else if (auto *op = dyn_cast<ReturnInst>(&I)) {
-                    ret_instr = op;
-                }
-            }
-            // choose first call instruction to insert before
-            Value *call_instr = NULL;
-            for (auto &I : B) {
-                if (auto *op = dyn_cast<CallInst>(&I)) {
-                    call_instr = op;
-                    break;
-                }
-            }
-            // if there are no calls, just insert before return
-            if (call_instr == NULL) {
-                call_instr = ret_instr;
-            }
-
-            auto *bb = dyn_cast<BasicBlock>(&B);
-            LLVMBasicBlockRef basicBlock = wrap(bb);
-            LLVMContext &context = F.getContext();
-            auto *c = dyn_cast<LLVMContext>(&context);
-            LLVMContextRef contextRef = wrap(c);
-
-            LLVMBasicBlockRef opt =
-                optimize(contextRef, basicBlock, wrap(call_instr), vec.data(),
-                         vec.size());
-
-            errs() << *unwrap(opt) << "\n";
+      for (auto &B : F) {
+        std::vector<LLVMValueRef> vec;
+        for (auto &I : B) {
+          if (auto *op = dyn_cast<BinaryOperator>(&I)) {
+            vec.push_back(wrap(op));
+          }
         }
-        return true;
+        IRBuilder<> builder(dyn_cast<Instruction>(unwrap(vec.back())));
+        builder.SetInsertPoint(&B, ++++++builder.GetInsertPoint());
+
+        optimize(wrap(&builder), vec.data(),vec.size());
+        // errs() << *unwrap(opt) << "\n";
+      }
+      return true;
     };
-};
+  };
 }  // namespace
 
 char DiospyrosPass::ID = 0;
