@@ -241,6 +241,7 @@ pub unsafe fn to_llvm(
     let gep_instr = LLVMGetNextInstruction(op);
     let store_instr = LLVMGetNextInstruction(gep_instr);
     let cloned_store = LLVMInstructionClone(store_instr);
+    LLVMInstructionEraseFromParent(store_instr);
     LLVMSetOperand(cloned_store, 0, extracted_value);
     LLVMInsertIntoBuilder(builder, cloned_store);
   }
