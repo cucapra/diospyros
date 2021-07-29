@@ -31,7 +31,15 @@ Use this [Clang][] invocation to run the optimization on a C source file:
 
     $ clang -Xclang -load -Xclang target/debug/libllvmlib.so a.c
 
-…except that you may need to change `.so` to `.dylib` on macOS. (Check which file extension actually exists.)
+To see the generated LLVM IR, you'll need the `-emit-llvm` flag, among a few others:
+
+    $ clang -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - a.c
+
+You can also pass the `-O2` flag to see the optimized LLVM IR:
+
+    $ clang -O2 -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - a.c
+
+Note that you may need to change `.so` to `.dylib` on macOS. (Check which file extension actually exists.)
 
 As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
 

@@ -11,7 +11,7 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" void optimize(LLVMValueRef const *bb, std::size_t size);
+extern "C" void optimize(LLVMBuilderRef builder, LLVMValueRef const *bb, std::size_t size);
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
   Value *v = unwrap(val);
@@ -23,10 +23,11 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
 }
 
 extern "C" int llvm_index(LLVMValueRef val) {
-  Value* v = unwrap(val);
-  auto *num = dyn_cast<GEPOperator>(v);
-  if (auto *i = dyn_cast<ConstantInt>(num->getOperand(2))){
-    return i->getSExtValue();
+  Value *v = unwrap(val);
+  if (auto *num = dyn_cast<GEPOperator>(v)) {
+    if (auto *i = dyn_cast<ConstantInt>(num->getOperand(2))) {
+      return i->getSExtValue();
+    }
   }
   return -1;
 }
@@ -41,13 +42,16 @@ namespace {
         std::vector<LLVMValueRef> vec;
         for (auto &I : B) {
           if (auto *op = dyn_cast<BinaryOperator>(&I)) {
-            // errs() << *op << "\n";
             vec.push_back(wrap(op));
           }
         }
-        optimize(vec.data(), vec.size());
+        IRBuilder<> builder(dyn_cast<Instruction>(unwrap(vec.back())));
+        builder.SetInsertPoint(&B, ++++++builder.GetInsertPoint());
+
+        optimize(wrap(&builder), vec.data(),vec.size());
+        // errs() << *unwrap(opt) << "\n";
       }
-      return false;
+      return true;
     };
   };
 }
