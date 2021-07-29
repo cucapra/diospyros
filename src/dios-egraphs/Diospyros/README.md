@@ -43,7 +43,18 @@ Note that you may need to change `.so` to `.dylib` on macOS. (Check which file e
 
 As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
 
+## Testing
+
+Test files provided in the llvm-tests/ folder can be run with [Runt][]:
+
+    $ runt
+
+If Runt was not installed during the Diospyros installation process, it can be installed with 
+
+    $ cargo install runt
+
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
 [llvm-sys]: https://crates.io/crates/llvm-sys
 [homebrew]: https://brew.sh
+[runt]: https://github.com/rachitnigam/runt

@@ -1,0 +1,59 @@
+---CODE---
+254
+---STDERR---
+RecExpr { nodes: [Symbol("b_in"), Num(0), Get([0, 1]), Symbol("c_in"), Num(0), Get([3, 4]), Mul([2, 5]), Symbol("a_in"), Num(0), Get([7, 8]), Symbol(""), Num(-1), Get([10, 11]), Add([9, 12]), Symbol("b_in"), Num(1), Get([14, 15]), Symbol("c_in"), Num(1), Get([17, 18]), Mul([16, 19]), Symbol("a_in"), Num(1), Get([21, 22]), Symbol(""), Num(-1), Get([24, 25]), Add([23, 26]), Symbol("b_in"), Num(2), Get([28, 29]), Symbol("c_in"), Num(2), Get([31, 32]), Mul([30, 33]), Symbol("a_in"), Num(2), Get([35, 36]), Symbol(""), Num(-1), Get([38, 39]), Add([37, 40]), Symbol("b_in"), Num(3), Get([42, 43]), Symbol("c_in"), Num(3), Get([45, 46]), Mul([44, 47]), Symbol("a_in"), Num(3), Get([49, 50]), Symbol(""), Num(-1), Get([52, 53]), Add([51, 54]), Vec([6, 13, 20, 27, 34, 41, 48, 55])] }
+Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
+Stopped after 4 iterations, reason: Some(Saturated)
+[Symbol("b_in"), Num(0), Get([0, 1]), Symbol("c_in"), Num(0), Get([3, 4]), Mul([2, 5]), Symbol("a_in"), Num(0), Get([7, 8]), Symbol(""), Num(-1), Get([10, 11]), Add([9, 12]), Symbol("b_in"), Num(1), Get([14, 15]), Symbol("c_in"), Num(1), Get([17, 18]), Mul([16, 19]), Symbol(""), Num(-1), Get([21, 22]), Symbol("a_in"), Num(1), Get([24, 25]), Add([23, 26]), Symbol("b_in"), Num(2), Get([28, 29]), Symbol("c_in"), Num(2), Get([31, 32]), Mul([30, 33]), Symbol(""), Num(-1), Get([35, 36]), Symbol("a_in"), Num(2), Get([38, 39]), Add([37, 40]), Symbol("b_in"), Num(3), Get([42, 43]), Symbol("c_in"), Num(3), Get([45, 46]), Mul([44, 47]), Symbol(""), Num(-1), Get([49, 50]), Symbol("a_in"), Num(3), Get([52, 53]), Add([51, 54]), Vec([6, 13, 20, 27, 34, 41, 48, 55])]
+PLEASE submit a bug report to https://bugs.llvm.org/ and include the crash backtrace, preprocessed source, and associated run script.
+Stack dump:
+0.	Program arguments: clang -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - llvm-tests/mac.c 
+1.	<eof> parser at end of file
+2.	Per-function optimization
+3.	Running pass 'Unnamed pass: implement Pass::getPassName()' on function '@main'
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm3sys15PrintStackTraceERNS_11raw_ostreamE+0x1f)[0x7fbc31ac651f]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm3sys17RunSignalHandlersEv+0x50)[0x7fbc31ac4880]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm3sys15CleanupOnSignalEm+0xdd)[0x7fbc31ac5c6d]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(+0x9edd70)[0x7fbc31a0dd70]
+/lib/x86_64-linux-gnu/libpthread.so.0(+0x153c0)[0x7fbc38b983c0]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(+0xb2431b)[0x7fbc31b4431b]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(+0xb18dd1)[0x7fbc31b38dd1]
+target/debug/libllvmlib.so(translate+0x455)[0x7fbc307daca5]
+target/debug/libllvmlib.so(to_llvm+0x13f)[0x7fbc307db37f]
+target/debug/libllvmlib.so(optimize+0x2ca)[0x7fbc307db8da]
+target/debug/libllvmlib.so(+0x2f6bd)[0x7fbc307dd6bd]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm13FPPassManager13runOnFunctionERNS_8FunctionE+0x3b9)[0x7fbc31bd5689]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm6legacy23FunctionPassManagerImpl3runERNS_8FunctionE+0x4e)[0x7fbc31bd4cfe]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm6legacy19FunctionPassManager3runERNS_8FunctionE+0x148)[0x7fbc31bdaae8]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang17EmitBackendOutputERNS_17DiagnosticsEngineERKNS_19HeaderSearchOptionsERKNS_14CodeGenOptionsERKNS_13TargetOptionsERKNS_11LangOptionsERKN4llvm10DataLayoutEPNSE_6ModuleENS_13BackendActionESt10unique_ptrINSE_17raw_pwrite_streamESt14default_deleteISM_EE+0x31fb)[0x7fbc37551c2b]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(+0x183fb36)[0x7fbc3780fb36]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang8ParseASTERNS_4SemaEbb+0x273)[0x7fbc368da453]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang14FrontendAction7ExecuteEv+0x48)[0x7fbc37ea62c8]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang16CompilerInstance13ExecuteActionERNS_14FrontendActionE+0x861)[0x7fbc37e5c5c1]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang25ExecuteCompilerInvocationEPNS_16CompilerInstanceE+0x5e0)[0x7fbc37f0bc50]
+clang(_Z8cc1_mainN4llvm8ArrayRefIPKcEES2_Pv+0x94f)[0x4125ff]
+clang[0x410a3e]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(+0x1bbf482)[0x7fbc37b8f482]
+/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm20CrashRecoveryContext9RunSafelyENS_12function_refIFvvEEE+0xdd)[0x7fbc31a0db7d]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZNK5clang6driver10CC1Command7ExecuteEN4llvm8ArrayRefINS2_8OptionalINS2_9StringRefEEEEEPNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPb+0x13f)[0x7fbc37b8e9af]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZNK5clang6driver11Compilation14ExecuteCommandERKNS0_7CommandERPS3_+0x2df)[0x7fbc37b667bf]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZNK5clang6driver11Compilation11ExecuteJobsERKNS0_7JobListERN4llvm15SmallVectorImplISt4pairIiPKNS0_7CommandEEEE+0x77)[0x7fbc37b66967]
+/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang6driver6Driver18ExecuteCompilationERNS0_11CompilationERN4llvm15SmallVectorImplISt4pairIiPKNS0_7CommandEEEE+0xdc)[0x7fbc37b7a4bc]
+clang(main+0x2533)[0x4104e3]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xf3)[0x7fbc30ae70b3]
+clang(_start+0x2e)[0x40dcde]
+clang: error: clang frontend command failed due to signal (use -v to see invocation)
+Ubuntu clang version 11.1.0-++20210622113418+1fdec59bffc1-1~exp1~20210622214037.167
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+clang: note: diagnostic msg: 
+********************
+
+PLEASE ATTACH THE FOLLOWING FILES TO THE BUG REPORT:
+Preprocessed source(s) and associated run script(s) are located at:
+clang: note: diagnostic msg: /tmp/mac-58f8f7.c
+clang: note: diagnostic msg: /tmp/mac-58f8f7.sh
+clang: note: diagnostic msg: 
+
+********************
