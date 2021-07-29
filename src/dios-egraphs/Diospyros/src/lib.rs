@@ -1,8 +1,8 @@
 extern crate llvm_sys as llvm;
-use llvm::{core::*, prelude::*, LLVMOpcode::*};
-use libc::size_t;
-use egg::*;
 use dioslib::{config, rules, veclang::VecLang};
+use egg::*;
+use libc::size_t;
+use llvm::{core::*, prelude::*, LLVMOpcode::*};
 use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
@@ -80,15 +80,11 @@ unsafe fn translate_binop(
   name: *const c_char,
 ) -> LLVMValueRef {
   match enode {
-    VecLang::VecAdd(_) => 
-      LLVMBuildAdd(builder, left, right, name),
-    VecLang::VecMul(_) => 
-      LLVMBuildMul(builder, left, right, name),
-    VecLang::VecMinus(_) => 
-      LLVMBuildSub(builder, left, right, name),
-    VecLang::VecDiv(_) =>
-      LLVMBuildSDiv(builder, left, right, name),
-    _ => panic!("not a binop")
+    VecLang::VecAdd(_) => LLVMBuildAdd(builder, left, right, name),
+    VecLang::VecMul(_) => LLVMBuildMul(builder, left, right, name),
+    VecLang::VecMinus(_) => LLVMBuildSub(builder, left, right, name),
+    VecLang::VecDiv(_) => LLVMBuildSDiv(builder, left, right, name),
+    _ => panic!("not a binop"),
   }
 }
 
@@ -100,9 +96,7 @@ unsafe fn translate(
 ) -> LLVMValueRef {
   match enode {
     VecLang::Symbol(_) => panic!("Symbols are never supposed to be evaluated"),
-    VecLang::Num(n) => {
-      LLVMConstInt(LLVMInt32Type(), *n as u64, 0)
-    }
+    VecLang::Num(n) => LLVMConstInt(LLVMInt32Type(), *n as u64, 0),
     VecLang::Get([sym, i]) => {
       let array_name = match &vec[usize::from(*sym)] {
         VecLang::Symbol(s) => *s,
@@ -112,7 +106,9 @@ unsafe fn translate(
         VecLang::Num(n) => *n,
         _ => panic!("Match error in get enode: Expected Num."),
       };
-      let gep_value = gep_map.get(&(array_name, offset_num)).expect("Symbol map lookup error");
+      let gep_value = gep_map
+        .get(&(array_name, offset_num))
+        .expect("Symbol map lookup error");
       LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
@@ -132,11 +128,22 @@ unsafe fn translate(
       }
       vector
     }
-    VecLang::VecAdd(ids) | VecLang::VecMinus(ids) | VecLang::VecMul(ids) | VecLang::VecDiv(ids) => {
-      let left = translate(&vec[usize::from(ids[0])], vec, gep_map, builder);
-      let right = translate(&vec[usize::from(ids[1])], vec, gep_map, builder);
+    VecLang::VecAdd([l, r])
+    | VecLang::VecMinus([l, r])
+    | VecLang::VecMul([l, r])
+    | VecLang::VecDiv([l, r]) => {
+      let left = translate(&vec[usize::from(*l)], vec, gep_map, builder);
+      let right = translate(&vec[usize::from(*r)], vec, gep_map, builder);
       translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
-    },
+    }
+    // TODO: Decide how to get fused mul-add instr, and whether to use intrinsic for it
+    VecLang::VecMAC([acc, v1, v2]) => {
+      let trans_acc = translate(&vec[usize::from(*acc)], vec, gep_map, builder);
+      let trans_v1 = translate(&vec[usize::from(*v1)], vec, gep_map, builder);
+      let trans_v2 = translate(&vec[usize::from(*v2)], vec, gep_map, builder);
+      let mul_instr = LLVMBuildMul(builder, trans_v1, trans_v2, b"\0".as_ptr() as *const _);
+      LLVMBuildAdd(builder, trans_acc, mul_instr, b"\0".as_ptr() as *const _)
+    }
     _ => panic!("Unimplemented"),
   }
 }
@@ -148,7 +155,9 @@ unsafe fn to_llvm(
   builder: LLVMBuilderRef,
 ) -> () {
   let vec = expr.as_ref();
-  let last = vec.last().expect("No match for last element of vector of Egg Terms.");
+  let last = vec
+    .last()
+    .expect("No match for last element of vector of Egg Terms.");
 
   let vector = translate(last, vec, gep_map, builder);
 
@@ -164,11 +173,7 @@ unsafe fn to_llvm(
 }
 
 #[no_mangle]
-pub fn optimize(
-  builder: LLVMBuilderRef,
-  bb: *const LLVMValueRef,
-  size: size_t,
-) -> () {
+pub fn optimize(builder: LLVMBuilderRef, bb: *const LLVMValueRef, size: size_t) -> () {
   unsafe {
     // llvm to egg
     let (expr, gep_map, ops_to_replace) = to_expr(from_raw_parts(bb, size));
