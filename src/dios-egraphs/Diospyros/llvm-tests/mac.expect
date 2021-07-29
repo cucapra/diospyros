@@ -7,53 +7,58 @@ Stopped after 4 iterations, reason: Some(Saturated)
 [Symbol("b_in"), Num(0), Get([0, 1]), Symbol("c_in"), Num(0), Get([3, 4]), Mul([2, 5]), Symbol("a_in"), Num(0), Get([7, 8]), Symbol(""), Num(-1), Get([10, 11]), Add([9, 12]), Symbol("b_in"), Num(1), Get([14, 15]), Symbol("c_in"), Num(1), Get([17, 18]), Mul([16, 19]), Symbol(""), Num(-1), Get([21, 22]), Symbol("a_in"), Num(1), Get([24, 25]), Add([23, 26]), Symbol("b_in"), Num(2), Get([28, 29]), Symbol("c_in"), Num(2), Get([31, 32]), Mul([30, 33]), Symbol(""), Num(-1), Get([35, 36]), Symbol("a_in"), Num(2), Get([38, 39]), Add([37, 40]), Symbol("b_in"), Num(3), Get([42, 43]), Symbol("c_in"), Num(3), Get([45, 46]), Mul([44, 47]), Symbol(""), Num(-1), Get([49, 50]), Symbol("a_in"), Num(3), Get([52, 53]), Add([51, 54]), Vec([6, 13, 20, 27, 34, 41, 48, 55])]
 PLEASE submit a bug report to https://bugs.llvm.org/ and include the crash backtrace, preprocessed source, and associated run script.
 Stack dump:
-0.	Program arguments: clang -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - llvm-tests/mac.c 
+0.	Program arguments: /usr/local/opt/llvm/bin/clang -Xclang -load -Xclang target/debug/libllvmlib.dylib -emit-llvm -S -o - llvm-tests/mac.c 
 1.	<eof> parser at end of file
 2.	Per-function optimization
 3.	Running pass 'Unnamed pass: implement Pass::getPassName()' on function '@main'
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm3sys15PrintStackTraceERNS_11raw_ostreamE+0x1f)[0x7fbc31ac651f]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm3sys17RunSignalHandlersEv+0x50)[0x7fbc31ac4880]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm3sys15CleanupOnSignalEm+0xdd)[0x7fbc31ac5c6d]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(+0x9edd70)[0x7fbc31a0dd70]
-/lib/x86_64-linux-gnu/libpthread.so.0(+0x153c0)[0x7fbc38b983c0]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(+0xb2431b)[0x7fbc31b4431b]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(+0xb18dd1)[0x7fbc31b38dd1]
-target/debug/libllvmlib.so(translate+0x455)[0x7fbc307daca5]
-target/debug/libllvmlib.so(to_llvm+0x13f)[0x7fbc307db37f]
-target/debug/libllvmlib.so(optimize+0x2ca)[0x7fbc307db8da]
-target/debug/libllvmlib.so(+0x2f6bd)[0x7fbc307dd6bd]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm13FPPassManager13runOnFunctionERNS_8FunctionE+0x3b9)[0x7fbc31bd5689]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm6legacy23FunctionPassManagerImpl3runERNS_8FunctionE+0x4e)[0x7fbc31bd4cfe]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm6legacy19FunctionPassManager3runERNS_8FunctionE+0x148)[0x7fbc31bdaae8]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang17EmitBackendOutputERNS_17DiagnosticsEngineERKNS_19HeaderSearchOptionsERKNS_14CodeGenOptionsERKNS_13TargetOptionsERKNS_11LangOptionsERKN4llvm10DataLayoutEPNSE_6ModuleENS_13BackendActionESt10unique_ptrINSE_17raw_pwrite_streamESt14default_deleteISM_EE+0x31fb)[0x7fbc37551c2b]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(+0x183fb36)[0x7fbc3780fb36]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang8ParseASTERNS_4SemaEbb+0x273)[0x7fbc368da453]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang14FrontendAction7ExecuteEv+0x48)[0x7fbc37ea62c8]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang16CompilerInstance13ExecuteActionERNS_14FrontendActionE+0x861)[0x7fbc37e5c5c1]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang25ExecuteCompilerInvocationEPNS_16CompilerInstanceE+0x5e0)[0x7fbc37f0bc50]
-clang(_Z8cc1_mainN4llvm8ArrayRefIPKcEES2_Pv+0x94f)[0x4125ff]
-clang[0x410a3e]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(+0x1bbf482)[0x7fbc37b8f482]
-/lib/x86_64-linux-gnu/libLLVM-11.so.1(_ZN4llvm20CrashRecoveryContext9RunSafelyENS_12function_refIFvvEEE+0xdd)[0x7fbc31a0db7d]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZNK5clang6driver10CC1Command7ExecuteEN4llvm8ArrayRefINS2_8OptionalINS2_9StringRefEEEEEPNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPb+0x13f)[0x7fbc37b8e9af]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZNK5clang6driver11Compilation14ExecuteCommandERKNS0_7CommandERPS3_+0x2df)[0x7fbc37b667bf]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZNK5clang6driver11Compilation11ExecuteJobsERKNS0_7JobListERN4llvm15SmallVectorImplISt4pairIiPKNS0_7CommandEEEE+0x77)[0x7fbc37b66967]
-/lib/x86_64-linux-gnu/libclang-cpp.so.11(_ZN5clang6driver6Driver18ExecuteCompilationERNS0_11CompilationERN4llvm15SmallVectorImplISt4pairIiPKNS0_7CommandEEEE+0xdc)[0x7fbc37b7a4bc]
-clang(main+0x2533)[0x4104e3]
-/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xf3)[0x7fbc30ae70b3]
-clang(_start+0x2e)[0x40dcde]
-clang: error: clang frontend command failed due to signal (use -v to see invocation)
-Ubuntu clang version 11.1.0-++20210622113418+1fdec59bffc1-1~exp1~20210622214037.167
-Target: x86_64-pc-linux-gnu
+0  libLLVM.dylib            0x000000010e4846d4 llvm::sys::PrintStackTrace(llvm::raw_ostream&) + 40
+1  libLLVM.dylib            0x000000010e484151 llvm::sys::CleanupOnSignal(unsigned long) + 184
+2  libLLVM.dylib            0x000000010e3f0e21 (anonymous namespace)::CrashRecoveryContextImpl::HandleCrash(int, unsigned long) + 97
+3  libLLVM.dylib            0x000000010e3f0f8a CrashRecoverySignalHandler(int) + 135
+4  libsystem_platform.dylib 0x00007fff7ba2cb5d _sigtramp + 29
+5  libsystem_platform.dylib 0x00007ffee4ba31a0 _sigtramp + 18446744071177725536
+6  libLLVM.dylib            0x000000010e4d6ea2 llvm::ConstantAggregate::ConstantAggregate(llvm::Type*, llvm::Value::ValueTy, llvm::ArrayRef<llvm::Constant*>) + 74
+7  libLLVM.dylib            0x000000010e4deee7 llvm::ConstantAggrKeyType<llvm::ConstantVector>::create(llvm::VectorType*) const + 55
+8  libLLVM.dylib            0x000000010e4d83d1 llvm::ConstantUniqueMap<llvm::ConstantVector>::getOrCreate(llvm::VectorType*, llvm::ConstantAggrKeyType<llvm::ConstantVector>) + 141
+9  libllvmlib.dylib         0x000000010d88d455 llvmlib::translate::h0910cb4319d9beee + 917
+10 libllvmlib.dylib         0x000000010d88da99 llvmlib::to_llvm::h5cb2b4589c2c5cbb + 233
+11 libllvmlib.dylib         0x000000010d88dff8 optimize + 744
+12 libllvmlib.dylib         0x000000010d89200c (anonymous namespace)::DiospyrosPass::runOnFunction(llvm::Function&) + 796
+13 libLLVM.dylib            0x000000010e54a965 llvm::FPPassManager::runOnFunction(llvm::Function&) + 517
+14 libLLVM.dylib            0x000000010e54a566 llvm::legacy::FunctionPassManagerImpl::run(llvm::Function&) + 78
+15 libLLVM.dylib            0x000000010e54e047 llvm::legacy::FunctionPassManager::run(llvm::Function&) + 351
+16 libclang-cpp.dylib       0x000000010bad4cc5 clang::EmitBackendOutput(clang::DiagnosticsEngine&, clang::HeaderSearchOptions const&, clang::CodeGenOptions const&, clang::TargetOptions const&, clang::LangOptions const&, llvm::DataLayout const&, llvm::Module*, clang::BackendAction, std::__1::unique_ptr<llvm::raw_pwrite_stream, std::__1::default_delete<llvm::raw_pwrite_stream> >) + 10411
+17 libclang-cpp.dylib       0x000000010bcfbe39 clang::BackendConsumer::HandleTranslationUnit(clang::ASTContext&) + 1041
+18 libclang-cpp.dylib       0x000000010b15e128 clang::ParseAST(clang::Sema&, bool, bool) + 507
+19 libclang-cpp.dylib       0x000000010c1fbf9b clang::FrontendAction::Execute() + 77
+20 libclang-cpp.dylib       0x000000010c1c3fc1 clang::CompilerInstance::ExecuteAction(clang::FrontendAction&) + 1287
+21 libclang-cpp.dylib       0x000000010c2497db clang::ExecuteCompilerInvocation(clang::CompilerInstance*) + 1059
+22 clang                    0x000000010b05e0b8 cc1_main(llvm::ArrayRef<char const*>, char const*, void*) + 1880
+23 clang                    0x000000010b05c9c6 ExecuteCC1Tool(llvm::SmallVectorImpl<char const*>&) + 270
+24 libclang-cpp.dylib       0x000000010bfc1301 void llvm::function_ref<void ()>::callback_fn<clang::driver::CC1Command::Execute(llvm::ArrayRef<llvm::Optional<llvm::StringRef> >, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >*, bool*) const::$_1>(long) + 23
+25 libLLVM.dylib            0x000000010e3f0d9c llvm::CrashRecoveryContext::RunSafely(llvm::function_ref<void ()>) + 218
+26 libclang-cpp.dylib       0x000000010bfc09bf clang::driver::CC1Command::Execute(llvm::ArrayRef<llvm::Optional<llvm::StringRef> >, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >*, bool*) const + 233
+27 libclang-cpp.dylib       0x000000010bfa1796 clang::driver::Compilation::ExecuteCommand(clang::driver::Command const&, clang::driver::Command const*&) const + 526
+28 libclang-cpp.dylib       0x000000010bfa1985 clang::driver::Compilation::ExecuteJobs(clang::driver::JobList const&, llvm::SmallVectorImpl<std::__1::pair<int, clang::driver::Command const*> >&) const + 95
+29 libclang-cpp.dylib       0x000000010bfb05ca clang::driver::Driver::ExecuteCompilation(clang::driver::Compilation&, llvm::SmallVectorImpl<std::__1::pair<int, clang::driver::Command const*> >&) + 210
+30 clang                    0x000000010b05c202 main + 7204
+31 libdyld.dylib            0x00007fff7b8413d5 start + 1
+32 libdyld.dylib            0x000000000000000a start + 18446603338443910198
+clang-11: error: clang frontend command failed due to signal (use -v to see invocation)
+clang version 11.0.1
+Target: x86_64-apple-darwin18.7.0
 Thread model: posix
-InstalledDir: /usr/bin
-clang: note: diagnostic msg: 
+InstalledDir: /usr/local/opt/llvm/bin
+clang-11: note: diagnostic msg: 
 ********************
 
 PLEASE ATTACH THE FOLLOWING FILES TO THE BUG REPORT:
 Preprocessed source(s) and associated run script(s) are located at:
-clang: note: diagnostic msg: /tmp/mac-58f8f7.c
-clang: note: diagnostic msg: /tmp/mac-58f8f7.sh
-clang: note: diagnostic msg: 
+clang-11: note: diagnostic msg: /var/folders/tg/kzpv8c212xq0bvczjcp20vx80000gn/T/mac-3348ab.c
+clang-11: note: diagnostic msg: /var/folders/tg/kzpv8c212xq0bvczjcp20vx80000gn/T/mac-3348ab.sh
+clang-11: note: diagnostic msg: Crash backtrace is located in
+clang-11: note: diagnostic msg: /Users/wandang/Library/Logs/DiagnosticReports/clang-11_<YYYY-MM-DD-HHMMSS>_<hostname>.crash
+clang-11: note: diagnostic msg: (choose the .crash file that corresponds to your crash)
+clang-11: note: diagnostic msg: 
 
 ********************
