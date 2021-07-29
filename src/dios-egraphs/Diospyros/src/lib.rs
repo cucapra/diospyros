@@ -3,12 +3,7 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*};
-use std::{
-  collections::{HashMap, HashSet},
-  ffi::CStr,
-  os::raw::c_char,
-  slice::from_raw_parts,
-};
+use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef) -> i32;

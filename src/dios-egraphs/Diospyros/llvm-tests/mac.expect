@@ -1,64 +1,87 @@
----CODE---
-254
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i8**, align 8
+  %6 = alloca [4 x i32], align 16
+  store i32 0, i32* %3, align 4
+  store i32 %0, i32* %4, align 4
+  store i8** %1, i8*** %5, align 8
+  %7 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 0), align 16
+  %8 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 0), align 16
+  %9 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 0), align 16
+  %10 = mul nsw i32 %8, %9
+  %11 = add nsw i32 %7, %10
+  %12 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 0
+  store i32 %11, i32* %12, align 16
+  %13 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 1), align 4
+  %14 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 1), align 4
+  %15 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 1), align 4
+  %16 = mul nsw i32 %14, %15
+  %17 = add nsw i32 %13, %16
+  %18 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 1
+  store i32 %17, i32* %18, align 4
+  %19 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 2), align 8
+  %20 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 2), align 8
+  %21 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 2), align 8
+  %22 = mul nsw i32 %20, %21
+  %23 = add nsw i32 %19, %22
+  %24 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 2
+  store i32 %23, i32* %24, align 8
+  %25 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %26 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %27 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 3), align 4
+  %28 = mul nsw i32 %26, %27
+  %29 = add nsw i32 %25, %28
+  %30 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 3
+  store i32 %29, i32* %30, align 4
+  %31 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 0), align 4
+  %32 = insertelement <4 x i32> zeroinitializer, i32 %31, i32 0
+  %33 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 1), align 4
+  %34 = insertelement <4 x i32> %32, i32 %33, i32 1
+  %35 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 2), align 4
+  %36 = insertelement <4 x i32> %34, i32 %35, i32 2
+  %37 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @a_in, i64 0, i64 3), align 4
+  %38 = insertelement <4 x i32> %36, i32 %37, i32 3
+  %39 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 0), align 4
+  %40 = insertelement <4 x i32> zeroinitializer, i32 %39, i32 0
+  %41 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 1), align 4
+  %42 = insertelement <4 x i32> %40, i32 %41, i32 1
+  %43 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 2), align 4
+  %44 = insertelement <4 x i32> %42, i32 %43, i32 2
+  %45 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @b_in, i64 0, i64 3), align 4
+  %46 = insertelement <4 x i32> %44, i32 %45, i32 3
+  %47 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 0), align 4
+  %48 = insertelement <4 x i32> zeroinitializer, i32 %47, i32 0
+  %49 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 1), align 4
+  %50 = insertelement <4 x i32> %48, i32 %49, i32 1
+  %51 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 2), align 4
+  %52 = insertelement <4 x i32> %50, i32 %51, i32 2
+  %53 = load i32, i32* getelementptr inbounds ([4 x i32], [4 x i32]* @c_in, i64 0, i64 3), align 4
+  %54 = insertelement <4 x i32> %52, i32 %53, i32 3
+  %55 = mul <4 x i32> %46, %54
+  %56 = add <4 x i32> %38, %55
+  %57 = extractelement <4 x i32> %56, i32 0
+  store i32 %57, i32* %12, align 16
+  %58 = extractelement <4 x i32> %56, i32 1
+  store i32 %58, i32* %18, align 4
+  %59 = extractelement <4 x i32> %56, i32 2
+  store i32 %59, i32* %24, align 8
+  %60 = extractelement <4 x i32> %56, i32 3
+  store i32 %60, i32* %30, align 4
+  %61 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 0
+  %62 = load i32, i32* %61, align 16
+  %63 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i64 0, i64 0), i32 %62)
+  %64 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 1
+  %65 = load i32, i32* %64, align 4
+  %66 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.1, i64 0, i64 0), i32 %65)
+  %67 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 2
+  %68 = load i32, i32* %67, align 8
+  %69 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.2, i64 0, i64 0), i32 %68)
+  %70 = getelementptr inbounds [4 x i32], [4 x i32]* %6, i64 0, i64 3
+  %71 = load i32, i32* %70, align 4
+  %72 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.3, i64 0, i64 0), i32 %71)
+  ret i32 0
 ---STDERR---
-RecExpr { nodes: [Symbol("b_in"), Num(0), Get([0, 1]), Symbol("c_in"), Num(0), Get([3, 4]), Mul([2, 5]), Symbol("a_in"), Num(0), Get([7, 8]), Symbol(""), Num(-1), Get([10, 11]), Add([9, 12]), Symbol("b_in"), Num(1), Get([14, 15]), Symbol("c_in"), Num(1), Get([17, 18]), Mul([16, 19]), Symbol("a_in"), Num(1), Get([21, 22]), Symbol(""), Num(-1), Get([24, 25]), Add([23, 26]), Symbol("b_in"), Num(2), Get([28, 29]), Symbol("c_in"), Num(2), Get([31, 32]), Mul([30, 33]), Symbol("a_in"), Num(2), Get([35, 36]), Symbol(""), Num(-1), Get([38, 39]), Add([37, 40]), Symbol("b_in"), Num(3), Get([42, 43]), Symbol("c_in"), Num(3), Get([45, 46]), Mul([44, 47]), Symbol("a_in"), Num(3), Get([49, 50]), Symbol(""), Num(-1), Get([52, 53]), Add([51, 54]), Vec([6, 13, 20, 27, 34, 41, 48, 55])] }
+RecExpr { nodes: [Symbol("b_in"), Num(0), Get([0, 1]), Symbol("c_in"), Num(0), Get([3, 4]), Mul([2, 5]), Symbol("a_in"), Num(0), Get([7, 8]), Add([9, 6]), Symbol("b_in"), Num(1), Get([11, 12]), Symbol("c_in"), Num(1), Get([14, 15]), Mul([13, 16]), Symbol("a_in"), Num(1), Get([18, 19]), Add([20, 17]), Symbol("b_in"), Num(2), Get([22, 23]), Symbol("c_in"), Num(2), Get([25, 26]), Mul([24, 27]), Symbol("a_in"), Num(2), Get([29, 30]), Add([31, 28]), Symbol("b_in"), Num(3), Get([33, 34]), Symbol("c_in"), Num(3), Get([36, 37]), Mul([35, 38]), Symbol("a_in"), Num(3), Get([40, 41]), Add([42, 39]), Vec([10, 21, 32, 43])] }
 Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
-Stopped after 4 iterations, reason: Some(Saturated)
-[Symbol("b_in"), Num(0), Get([0, 1]), Symbol("c_in"), Num(0), Get([3, 4]), Mul([2, 5]), Symbol("a_in"), Num(0), Get([7, 8]), Symbol(""), Num(-1), Get([10, 11]), Add([9, 12]), Symbol("b_in"), Num(1), Get([14, 15]), Symbol("c_in"), Num(1), Get([17, 18]), Mul([16, 19]), Symbol(""), Num(-1), Get([21, 22]), Symbol("a_in"), Num(1), Get([24, 25]), Add([23, 26]), Symbol("b_in"), Num(2), Get([28, 29]), Symbol("c_in"), Num(2), Get([31, 32]), Mul([30, 33]), Symbol(""), Num(-1), Get([35, 36]), Symbol("a_in"), Num(2), Get([38, 39]), Add([37, 40]), Symbol("b_in"), Num(3), Get([42, 43]), Symbol("c_in"), Num(3), Get([45, 46]), Mul([44, 47]), Symbol(""), Num(-1), Get([49, 50]), Symbol("a_in"), Num(3), Get([52, 53]), Add([51, 54]), Vec([6, 13, 20, 27, 34, 41, 48, 55])]
-PLEASE submit a bug report to https://bugs.llvm.org/ and include the crash backtrace, preprocessed source, and associated run script.
-Stack dump:
-0.	Program arguments: /usr/local/opt/llvm/bin/clang -Xclang -load -Xclang target/debug/libllvmlib.dylib -emit-llvm -S -o - llvm-tests/mac.c 
-1.	<eof> parser at end of file
-2.	Per-function optimization
-3.	Running pass 'Unnamed pass: implement Pass::getPassName()' on function '@main'
-0  libLLVM.dylib            0x000000010e4846d4 llvm::sys::PrintStackTrace(llvm::raw_ostream&) + 40
-1  libLLVM.dylib            0x000000010e484151 llvm::sys::CleanupOnSignal(unsigned long) + 184
-2  libLLVM.dylib            0x000000010e3f0e21 (anonymous namespace)::CrashRecoveryContextImpl::HandleCrash(int, unsigned long) + 97
-3  libLLVM.dylib            0x000000010e3f0f8a CrashRecoverySignalHandler(int) + 135
-4  libsystem_platform.dylib 0x00007fff7ba2cb5d _sigtramp + 29
-5  libsystem_platform.dylib 0x00007ffee4ba31a0 _sigtramp + 18446744071177725536
-6  libLLVM.dylib            0x000000010e4d6ea2 llvm::ConstantAggregate::ConstantAggregate(llvm::Type*, llvm::Value::ValueTy, llvm::ArrayRef<llvm::Constant*>) + 74
-7  libLLVM.dylib            0x000000010e4deee7 llvm::ConstantAggrKeyType<llvm::ConstantVector>::create(llvm::VectorType*) const + 55
-8  libLLVM.dylib            0x000000010e4d83d1 llvm::ConstantUniqueMap<llvm::ConstantVector>::getOrCreate(llvm::VectorType*, llvm::ConstantAggrKeyType<llvm::ConstantVector>) + 141
-9  libllvmlib.dylib         0x000000010d88d455 llvmlib::translate::h0910cb4319d9beee + 917
-10 libllvmlib.dylib         0x000000010d88da99 llvmlib::to_llvm::h5cb2b4589c2c5cbb + 233
-11 libllvmlib.dylib         0x000000010d88dff8 optimize + 744
-12 libllvmlib.dylib         0x000000010d89200c (anonymous namespace)::DiospyrosPass::runOnFunction(llvm::Function&) + 796
-13 libLLVM.dylib            0x000000010e54a965 llvm::FPPassManager::runOnFunction(llvm::Function&) + 517
-14 libLLVM.dylib            0x000000010e54a566 llvm::legacy::FunctionPassManagerImpl::run(llvm::Function&) + 78
-15 libLLVM.dylib            0x000000010e54e047 llvm::legacy::FunctionPassManager::run(llvm::Function&) + 351
-16 libclang-cpp.dylib       0x000000010bad4cc5 clang::EmitBackendOutput(clang::DiagnosticsEngine&, clang::HeaderSearchOptions const&, clang::CodeGenOptions const&, clang::TargetOptions const&, clang::LangOptions const&, llvm::DataLayout const&, llvm::Module*, clang::BackendAction, std::__1::unique_ptr<llvm::raw_pwrite_stream, std::__1::default_delete<llvm::raw_pwrite_stream> >) + 10411
-17 libclang-cpp.dylib       0x000000010bcfbe39 clang::BackendConsumer::HandleTranslationUnit(clang::ASTContext&) + 1041
-18 libclang-cpp.dylib       0x000000010b15e128 clang::ParseAST(clang::Sema&, bool, bool) + 507
-19 libclang-cpp.dylib       0x000000010c1fbf9b clang::FrontendAction::Execute() + 77
-20 libclang-cpp.dylib       0x000000010c1c3fc1 clang::CompilerInstance::ExecuteAction(clang::FrontendAction&) + 1287
-21 libclang-cpp.dylib       0x000000010c2497db clang::ExecuteCompilerInvocation(clang::CompilerInstance*) + 1059
-22 clang                    0x000000010b05e0b8 cc1_main(llvm::ArrayRef<char const*>, char const*, void*) + 1880
-23 clang                    0x000000010b05c9c6 ExecuteCC1Tool(llvm::SmallVectorImpl<char const*>&) + 270
-24 libclang-cpp.dylib       0x000000010bfc1301 void llvm::function_ref<void ()>::callback_fn<clang::driver::CC1Command::Execute(llvm::ArrayRef<llvm::Optional<llvm::StringRef> >, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >*, bool*) const::$_1>(long) + 23
-25 libLLVM.dylib            0x000000010e3f0d9c llvm::CrashRecoveryContext::RunSafely(llvm::function_ref<void ()>) + 218
-26 libclang-cpp.dylib       0x000000010bfc09bf clang::driver::CC1Command::Execute(llvm::ArrayRef<llvm::Optional<llvm::StringRef> >, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >*, bool*) const + 233
-27 libclang-cpp.dylib       0x000000010bfa1796 clang::driver::Compilation::ExecuteCommand(clang::driver::Command const&, clang::driver::Command const*&) const + 526
-28 libclang-cpp.dylib       0x000000010bfa1985 clang::driver::Compilation::ExecuteJobs(clang::driver::JobList const&, llvm::SmallVectorImpl<std::__1::pair<int, clang::driver::Command const*> >&) const + 95
-29 libclang-cpp.dylib       0x000000010bfb05ca clang::driver::Driver::ExecuteCompilation(clang::driver::Compilation&, llvm::SmallVectorImpl<std::__1::pair<int, clang::driver::Command const*> >&) + 210
-30 clang                    0x000000010b05c202 main + 7204
-31 libdyld.dylib            0x00007fff7b8413d5 start + 1
-32 libdyld.dylib            0x000000000000000a start + 18446603338443910198
-clang-11: error: clang frontend command failed due to signal (use -v to see invocation)
-clang version 11.0.1
-Target: x86_64-apple-darwin18.7.0
-Thread model: posix
-InstalledDir: /usr/local/opt/llvm/bin
-clang-11: note: diagnostic msg: 
-********************
-
-PLEASE ATTACH THE FOLLOWING FILES TO THE BUG REPORT:
-Preprocessed source(s) and associated run script(s) are located at:
-clang-11: note: diagnostic msg: /var/folders/tg/kzpv8c212xq0bvczjcp20vx80000gn/T/mac-3348ab.c
-clang-11: note: diagnostic msg: /var/folders/tg/kzpv8c212xq0bvczjcp20vx80000gn/T/mac-3348ab.sh
-clang-11: note: diagnostic msg: Crash backtrace is located in
-clang-11: note: diagnostic msg: /Users/wandang/Library/Logs/DiagnosticReports/clang-11_<YYYY-MM-DD-HHMMSS>_<hostname>.crash
-clang-11: note: diagnostic msg: (choose the .crash file that corresponds to your crash)
-clang-11: note: diagnostic msg: 
-
-********************
+Stopped after 39 iterations, reason: Some(TimeLimit(212.431801394))
+[Symbol("a_in"), Num(0), Get([0, 1]), Symbol("a_in"), Num(1), Get([3, 4]), Symbol("a_in"), Num(2), Get([6, 7]), Symbol("a_in"), Num(3), Get([9, 10]), LitVec([2, 5, 8, 11]), Symbol("b_in"), Num(0), Get([13, 14]), Symbol("b_in"), Num(1), Get([16, 17]), Symbol("b_in"), Num(2), Get([19, 20]), Symbol("b_in"), Num(3), Get([22, 23]), LitVec([15, 18, 21, 24]), Symbol("c_in"), Num(0), Get([26, 27]), Symbol("c_in"), Num(1), Get([29, 30]), Symbol("c_in"), Num(2), Get([32, 33]), Symbol("c_in"), Num(3), Get([35, 36]), LitVec([28, 31, 34, 37]), VecMAC([12, 25, 38])]
