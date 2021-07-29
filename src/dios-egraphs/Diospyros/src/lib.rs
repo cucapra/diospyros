@@ -1,9 +1,8 @@
 extern crate llvm_sys as llvm;
-
-use dioslib::{config, rules, veclang::VecLang};
-use egg::*;
-use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*};
+use libc::size_t;
+use egg::*;
+use dioslib::{config, rules, veclang::VecLang};
 use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
@@ -11,7 +10,9 @@ extern "C" {
   fn llvm_name(val: LLVMValueRef) -> *const c_char;
 }
 
-#[no_mangle]
+type GEPMap = HashMap<(Symbol, i32), LLVMValueRef>;
+type ValueVec = Vec<LLVMValueRef>;
+
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   match LLVMGetInstructionOpcode(*bop) {
     LLVMAdd => VecLang::Add(ids),
@@ -22,14 +23,10 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   }
 }
 
-type GEPMap = HashMap<(Symbol, i32), LLVMValueRef>;
-type ValueVec = Vec<LLVMValueRef>;
-
-#[no_mangle]
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) {
-  let mut gep_map = HashMap::new();
   let (mut vec, mut adds, mut ops_to_replace) = (Vec::new(), Vec::new(), Vec::new());
   let (mut var, mut num);
+  let mut gep_map = HashMap::new();
   let mut ids = [Id::from(0); 2];
   for bop in bb_vec.iter() {
     ops_to_replace.push(*bop);
@@ -75,7 +72,6 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
   return (RecExpr::from(vec), gep_map, ops_to_replace);
 }
 
-#[no_mangle]
 unsafe fn translate_binop(
   enode: &VecLang,
   left: LLVMValueRef,
@@ -96,7 +92,6 @@ unsafe fn translate_binop(
   }
 }
 
-#[no_mangle]
 unsafe fn translate(
   enode: &VecLang,
   vec: &[VecLang],
@@ -146,9 +141,7 @@ unsafe fn translate(
   }
 }
 
-
-#[no_mangle]
-pub unsafe fn to_llvm(
+unsafe fn to_llvm(
   expr: RecExpr<VecLang>,
   gep_map: &GEPMap,
   ops_to_replace: &ValueVec,
