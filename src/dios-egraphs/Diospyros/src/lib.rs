@@ -100,6 +100,7 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
   }
   vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
 
+  // remove binary ops that were used, and thus not the ones we want to replace directly
   let mut final_ops_to_replace = Vec::new();
   for (bop, id) in ops_to_replace.iter() {
     if !used_bop_ids.contains(id) {
@@ -181,6 +182,11 @@ unsafe fn translate(
       let trans_v2 = translate(&vec[usize::from(*v2)], vec, gep_map, builder);
       let mul_instr = LLVMBuildMul(builder, trans_v1, trans_v2, b"\0".as_ptr() as *const _);
       LLVMBuildAdd(builder, trans_acc, mul_instr, b"\0".as_ptr() as *const _)
+    }
+    // TODO: Consider changing to floating point operations to allow for Unary fneg llvm instruction
+    VecLang::VecNeg([v]) => {
+      let _ = translate(&vec[usize::from(*v)], vec, gep_map, builder);
+      panic!("Unimplemented")
     }
     _ => panic!("Unimplemented"),
   }
