@@ -49,7 +49,6 @@ namespace {
         builder.SetInsertPoint(&B, ++++++builder.GetInsertPoint());
 
         optimize(wrap(&builder), vec.data(),vec.size());
-        // errs() << *unwrap(opt) << "\n";
       }
       return true;
     };

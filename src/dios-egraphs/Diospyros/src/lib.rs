@@ -3,7 +3,12 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*};
-use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
+use std::{
+  collections::{HashMap, HashSet},
+  ffi::CStr,
+  os::raw::c_char,
+  slice::from_raw_parts,
+};
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef) -> i32;
@@ -24,52 +29,90 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
 }
 
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) {
-  let (mut vec, mut adds, mut ops_to_replace) = (Vec::new(), Vec::new(), Vec::new());
+  let (mut vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
+    (Vec::new(), Vec::new(), Vec::new(), Vec::new());
   let (mut var, mut num);
-  let mut gep_map = HashMap::new();
+  let (mut gep_map, mut bop_map) = (HashMap::new(), HashMap::new());
   let mut ids = [Id::from(0); 2];
   for bop in bb_vec.iter() {
-    ops_to_replace.push(*bop);
     unsafe {
-      let lhs = LLVMGetOperand(LLVMGetOperand(*bop, 0), 0);
-      let rhs = LLVMGetOperand(LLVMGetOperand(*bop, 1), 0);
+      let left_operand = LLVMGetOperand(*bop, 0);
+      let right_operand = LLVMGetOperand(*bop, 1);
+      let lhs = LLVMGetOperand(left_operand, 0);
+      let rhs = LLVMGetOperand(right_operand, 0);
 
       // lhs
-      let name1 = CStr::from_ptr(llvm_name(lhs)).to_str().unwrap();
-      vec.push(VecLang::Symbol(Symbol::from(name1)));
-      var = vec.len() - 1;
+      if bop_map.contains_key(&left_operand) {
+        let used_id = *bop_map.get(&left_operand).expect("Expected key in map");
+        ids[0] = used_id;
+        used_bop_ids.push(used_id);
+      } else {
+        let name1 = CStr::from_ptr(llvm_name(lhs)).to_str().unwrap();
+        vec.push(VecLang::Symbol(Symbol::from(name1)));
+        var = vec.len() - 1;
 
-      let ind1 = llvm_index(lhs);
-      vec.push(VecLang::Num(ind1));
-      num = vec.len() - 1;
-      vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
-      ids[0] = Id::from(vec.len() - 1);
+        let ind1 = llvm_index(lhs);
+        vec.push(VecLang::Num(ind1));
+        num = vec.len() - 1;
+        vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
+        ids[0] = Id::from(vec.len() - 1);
 
-      let symbol1 = Symbol::from(name1);
-      gep_map.insert((symbol1, ind1), lhs);
+        let symbol1 = Symbol::from(name1);
+        gep_map.insert((symbol1, ind1), lhs);
+      }
 
       // rhs
-      let name2 = CStr::from_ptr(llvm_name(rhs)).to_str().unwrap();
-      vec.push(VecLang::Symbol(Symbol::from(name2)));
-      var = vec.len() - 1;
+      if bop_map.contains_key(&right_operand) {
+        let used_id = *bop_map.get(&right_operand).expect("Expected key in map");
+        ids[1] = used_id;
+        used_bop_ids.push(used_id);
+      } else {
+        let name2 = CStr::from_ptr(llvm_name(rhs)).to_str().unwrap();
+        vec.push(VecLang::Symbol(Symbol::from(name2)));
+        var = vec.len() - 1;
 
-      let ind2 = llvm_index(rhs);
-      vec.push(VecLang::Num(ind2));
-      num = vec.len() - 1;
+        let ind2 = llvm_index(rhs);
+        vec.push(VecLang::Num(ind2));
+        num = vec.len() - 1;
 
-      vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
-      ids[1] = Id::from(vec.len() - 1);
+        vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
+        ids[1] = Id::from(vec.len() - 1);
 
-      let symbol2 = Symbol::from(name2);
-      gep_map.insert((symbol2, ind2), rhs);
+        let symbol2 = Symbol::from(name2);
+        gep_map.insert((symbol2, ind2), rhs);
+      }
 
-      // lhs + rhs
+      // lhs bop rhs
       vec.push(choose_binop(bop, ids));
-      adds.push(Id::from(vec.len() - 1));
+      let id = Id::from(vec.len() - 1);
+      bops_vec.push(id);
+
+      ops_to_replace.push((*bop, id));
+
+      // remove binops that are used as part of another binop
+      for used_id in used_bop_ids.iter() {
+        if bops_vec.contains(used_id) {
+          let index = bops_vec
+            .iter()
+            .position(|&_id| _id == *used_id)
+            .expect("Require used_id in vector");
+          bops_vec.remove(index);
+        }
+      }
+
+      bop_map.insert(*bop, id);
     }
   }
-  vec.push(VecLang::Vec(adds.into_boxed_slice()));
-  return (RecExpr::from(vec), gep_map, ops_to_replace);
+  vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
+
+  let mut final_ops_to_replace = Vec::new();
+  for (bop, id) in ops_to_replace.iter() {
+    if !used_bop_ids.contains(id) {
+      final_ops_to_replace.push(*bop);
+    }
+  }
+
+  return (RecExpr::from(vec), gep_map, final_ops_to_replace);
 }
 
 unsafe fn translate_binop(
