@@ -2,10 +2,6 @@ compiled/
 *.rkt~
 dios
 dios-example-gen
-src/dios-egraphs/Diospyros/target
-src/dios-egraphs/Diospyros/Cargo.lock
-src/dios-egraphs/target/
-src/dios-egraphs/Cargo.lock
 src/dios-egraphs/**/*.rs.bk
 __pycache__
 *.egg-info/
@@ -13,3 +9,7 @@ __pycache__
 *.pyo
 *-out/
 build
+target
+Cargo.lock
+*.out
+.clang-format*
