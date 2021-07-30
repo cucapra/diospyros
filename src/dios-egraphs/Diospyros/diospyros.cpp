@@ -11,7 +11,7 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" void optimize(LLVMBuilderRef builder, LLVMValueRef const *bb, std::size_t size);
+extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder, LLVMValueRef const *bb, std::size_t size);
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
   Value *v = unwrap(val);
@@ -48,7 +48,11 @@ namespace {
         IRBuilder<> builder(dyn_cast<Instruction>(unwrap(vec.back())));
         builder.SetInsertPoint(&B, ++++++builder.GetInsertPoint());
 
-        optimize(wrap(&builder), vec.data(),vec.size());
+        Module* mod = F.getParent();
+
+        optimize(wrap(mod), wrap(&builder), vec.data(),vec.size());
+
+        errs() << B << "\n";
       }
       return true;
     };

@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-int a_in[] = {1, 2, 3, 4};
-int b_in[] = {2, 3, 4, 5};
-int c_in[] = {3, 4, 5, 6};
+float a_in[] = {1, 2, 3, 4};
+float b_in[] = {2, 3, 4, 5};
+float c_in[] = {3, 4, 5, 6};
 
 int main(int argc, char **argv) {
     int d_out[4];
