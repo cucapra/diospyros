@@ -123,7 +123,7 @@ unsafe fn translate_binop(
     VecLang::VecMul(_) => LLVMBuildFMul(builder, left, right, name),
     VecLang::VecMinus(_) => LLVMBuildFSub(builder, left, right, name),
     VecLang::VecDiv(_) => LLVMBuildFDiv(builder, left, right, name),
-    _ => panic!("not a binop"),
+    _ => panic!("not a vector binop"),
   }
 }
 
@@ -176,7 +176,28 @@ unsafe fn translate(
       let right = translate(&vec[usize::from(*r)], vec, gep_map, builder, module);
       translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
     }
-    // TODO: Decide how to get fused mul-add instr, and whether to use intrinsic for it
+    VecLang::Concat([v1, v2]) => {
+      let trans_v1 = translate(&vec[usize::from(*v1)], vec, gep_map, builder, module);
+      let trans_v2 = translate(&vec[usize::from(*v2)], vec, gep_map, builder, module);
+      let v1_type = LLVMTypeOf(trans_v1);
+      let v1_size = LLVMGetVectorSize(v1_type);
+      let v2_type = LLVMTypeOf(trans_v2);
+      let v2_size = LLVMGetVectorSize(v2_type);
+      let size = v1_size + v2_size;
+      let mut indices = Vec::new();
+      for i in 0..size {
+        indices.push(LLVMConstInt(LLVMInt32Type(), i as u64, 0));
+      }
+      let mask = indices.as_mut_ptr();
+      let mask_vector = LLVMConstVector(mask, size);
+      LLVMBuildShuffleVector(
+        builder,
+        trans_v1,
+        trans_v2,
+        mask_vector,
+        b"\0".as_ptr() as *const _,
+      )
+    }
     VecLang::VecMAC([acc, v1, v2]) => {
       let trans_acc = translate(&vec[usize::from(*acc)], vec, gep_map, builder, module);
       let trans_v1 = translate(&vec[usize::from(*v1)], vec, gep_map, builder, module);
@@ -191,8 +212,34 @@ unsafe fn translate(
     }
     // TODO: Consider changing to floating point operations to allow for Unary fneg llvm instruction
     VecLang::VecNeg([v]) => {
-      let _ = translate(&vec[usize::from(*v)], vec, gep_map, builder, module);
-      panic!("Unimplemented")
+      let neg_vector = translate(&vec[usize::from(*v)], vec, gep_map, builder, module);
+      LLVMBuildFNeg(builder, neg_vector, b"\0".as_ptr() as *const _)
+    }
+    VecLang::VecSqrt([v]) => {
+      let sqrt_vec = translate(&vec[usize::from(*v)], vec, gep_map, builder, module);
+      let vec_type = LLVMTypeOf(sqrt_vec);
+      let param_types = [vec_type].as_mut_ptr();
+      let fn_type = LLVMFunctionType(vec_type, param_types, 1, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+      let args = [sqrt_vec].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 1, b"\0".as_ptr() as *const _)
+    }
+    // compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
+    VecLang::VecSgn([v]) => {
+      let sgn_vec = translate(&vec[usize::from(*v)], vec, gep_map, builder, module);
+      let vec_type = LLVMTypeOf(sgn_vec);
+      let vec_size = LLVMGetVectorSize(vec_type);
+      let mut ones = Vec::new();
+      for _ in 0..vec_size {
+        ones.push(LLVMConstReal(LLVMFloatType(), 1 as f64));
+      }
+      let ones_ptr = ones.as_mut_ptr();
+      let ones_vector = LLVMConstVector(ones_ptr, vec_size);
+      let param_types = [vec_type, vec_type].as_mut_ptr();
+      let fn_type = LLVMFunctionType(vec_type, param_types, 2, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+      let args = [ones_vector, sgn_vec].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
     }
     _ => panic!("Unimplemented"),
   }
