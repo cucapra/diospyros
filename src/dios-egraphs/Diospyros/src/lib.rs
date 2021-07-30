@@ -1,5 +1,5 @@
 extern crate llvm_sys as llvm;
-use dioslib::{config, rules, veclang::VecLang};
+use dioslib::{rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*};
@@ -153,8 +153,14 @@ unsafe fn translate(
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
       let idvec = boxed_ids.to_vec();
-      let array = [LLVMConstReal(LLVMFloatType(), 0 as f64); config::vector_width()].as_mut_ptr();
-      let mut vector = LLVMConstVector(array, idvec.len() as u32);
+      let idvec_len = idvec.len();
+      let mut zeros = Vec::new();
+      for _ in 0..idvec_len {
+        zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
+      }
+      let zeros_ptr = zeros.as_mut_ptr();
+      // let array = [LLVMConstReal(LLVMFloatType(), 0 as f64); config::vector_width()].as_mut_ptr();
+      let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
       for (idx, &eggid) in idvec.iter().enumerate() {
         let elt = &vec[usize::from(eggid)];
         let elt_val = translate(elt, vec, gep_map, builder, module);
