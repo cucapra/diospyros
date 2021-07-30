@@ -9,7 +9,7 @@ endif
 .PHONY: target/debug/libllvmlib.$(EXT)
 
 mac: target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) llvm-tests/mac.c
+	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) llvm-tests/mixed.c
 
 run: target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(var)

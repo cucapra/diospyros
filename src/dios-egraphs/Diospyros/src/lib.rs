@@ -8,6 +8,8 @@ use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_part
 extern "C" {
   fn llvm_index(val: LLVMValueRef) -> i32;
   fn llvm_name(val: LLVMValueRef) -> *const c_char;
+  fn isa_constant(val: LLVMValueRef) -> bool;
+  fn get_constant_float(val: LLVMValueRef) -> f32;
 }
 
 type GEPMap = HashMap<(Symbol, i32), LLVMValueRef>;
@@ -33,48 +35,62 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
     unsafe {
       let left_operand = LLVMGetOperand(*bop, 0);
       let right_operand = LLVMGetOperand(*bop, 1);
-      let lhs = LLVMGetOperand(left_operand, 0);
-      let rhs = LLVMGetOperand(right_operand, 0);
 
-      // lhs
-      if bop_map.contains_key(&left_operand) {
-        let used_id = *bop_map.get(&left_operand).expect("Expected key in map");
-        ids[0] = used_id;
-        used_bop_ids.push(used_id);
-      } else {
-        let name1 = CStr::from_ptr(llvm_name(lhs)).to_str().unwrap();
-        vec.push(VecLang::Symbol(Symbol::from(name1)));
-        var = vec.len() - 1;
-
-        let ind1 = llvm_index(lhs);
-        vec.push(VecLang::Num(ind1));
-        num = vec.len() - 1;
-        vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
+      if isa_constant(left_operand) {
+        let value = get_constant_float(left_operand);
+        vec.push(VecLang::Num(value as i32));
         ids[0] = Id::from(vec.len() - 1);
+      } else {
+        let lhs = LLVMGetOperand(left_operand, 0);
 
-        let symbol1 = Symbol::from(name1);
-        gep_map.insert((symbol1, ind1), lhs);
+        // lhs
+        if bop_map.contains_key(&left_operand) {
+          let used_id = *bop_map.get(&left_operand).expect("Expected key in map");
+          ids[0] = used_id;
+          used_bop_ids.push(used_id);
+        } else {
+          let name1 = CStr::from_ptr(llvm_name(lhs)).to_str().unwrap();
+          vec.push(VecLang::Symbol(Symbol::from(name1)));
+          var = vec.len() - 1;
+
+          let ind1 = llvm_index(lhs);
+          vec.push(VecLang::Num(ind1));
+          num = vec.len() - 1;
+          vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
+          ids[0] = Id::from(vec.len() - 1);
+
+          let symbol1 = Symbol::from(name1);
+          gep_map.insert((symbol1, ind1), lhs);
+        }
       }
 
-      // rhs
-      if bop_map.contains_key(&right_operand) {
-        let used_id = *bop_map.get(&right_operand).expect("Expected key in map");
-        ids[1] = used_id;
-        used_bop_ids.push(used_id);
-      } else {
-        let name2 = CStr::from_ptr(llvm_name(rhs)).to_str().unwrap();
-        vec.push(VecLang::Symbol(Symbol::from(name2)));
-        var = vec.len() - 1;
-
-        let ind2 = llvm_index(rhs);
-        vec.push(VecLang::Num(ind2));
-        num = vec.len() - 1;
-
-        vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
+      if isa_constant(right_operand) {
+        let value = get_constant_float(right_operand);
+        vec.push(VecLang::Num(value as i32));
         ids[1] = Id::from(vec.len() - 1);
+      } else {
+        let rhs = LLVMGetOperand(right_operand, 0);
 
-        let symbol2 = Symbol::from(name2);
-        gep_map.insert((symbol2, ind2), rhs);
+        // rhs
+        if bop_map.contains_key(&right_operand) {
+          let used_id = *bop_map.get(&right_operand).expect("Expected key in map");
+          ids[1] = used_id;
+          used_bop_ids.push(used_id);
+        } else {
+          let name2 = CStr::from_ptr(llvm_name(rhs)).to_str().unwrap();
+          vec.push(VecLang::Symbol(Symbol::from(name2)));
+          var = vec.len() - 1;
+
+          let ind2 = llvm_index(rhs);
+          vec.push(VecLang::Num(ind2));
+          num = vec.len() - 1;
+
+          vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
+          ids[1] = Id::from(vec.len() - 1);
+
+          let symbol2 = Symbol::from(name2);
+          gep_map.insert((symbol2, ind2), rhs);
+        }
       }
 
       // lhs bop rhs
@@ -213,7 +229,7 @@ unsafe fn translate(
       let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
       let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
       let func = LLVMAddFunction(module, b"llvm.fma.f32\0".as_ptr() as *const _, fn_type);
-      let args = [trans_acc, trans_v1, trans_v2].as_mut_ptr();
+      let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 3, b"\0".as_ptr() as *const _)
     }
     // TODO: Consider changing to floating point operations to allow for Unary fneg llvm instruction

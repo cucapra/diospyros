@@ -75,7 +75,7 @@
   %70 = insertelement <4 x float> %68, float %69, i32 2
   %71 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 3), align 4
   %72 = insertelement <4 x float> %70, float %71, i32 3
-  %73 = call <4 x float> @llvm.fma.f32(<4 x float> %56, <4 x float> %64, <4 x float> %72)
+  %73 = call <4 x float> @llvm.fma.f32(<4 x float> %64, <4 x float> %72, <4 x float> %56)
   %74 = extractelement <4 x float> %73, i32 0
   %75 = getelementptr inbounds float, float %74, i64 1
   %76 = extractelement <4 x float> %73, i32 1
