@@ -10,9 +10,9 @@ int main(int argc, char **argv) {
     d_out[1] = a_in[1] + (b_in[1] * c_in[1]);
     d_out[2] = a_in[2] + (b_in[2] * c_in[2]);
     d_out[3] = a_in[3] + (b_in[3] * c_in[3]);
-    printf("first: %i\n", d_out[0]);
-    printf("second: %i\n", d_out[1]);
-    printf("third: %i\n", d_out[2]);
-    printf("fourth: %i\n", d_out[3]);
+    printf("first: %d\n", d_out[0]);
+    printf("second: %d\n", d_out[1]);
+    printf("third: %d\n", d_out[2]);
+    printf("fourth: %d\n", d_out[3]);
     return 0;
 }

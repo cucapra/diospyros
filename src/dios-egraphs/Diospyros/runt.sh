@@ -12,4 +12,4 @@ else
   CLANG=clang
 fi 
 
-$CLANG -Xclang -load -Xclang $FILE -emit-llvm -S -o - ${args[0]} | awk '/define/{flag=1; next} /}/{flag=0} flag'   # .so file
+$CLANG -Xclang -load -Xclang $FILE -emit-llvm -S -o - ${args[0]} | awk '/define/{flag=1; next} /}/{flag=0} flag'

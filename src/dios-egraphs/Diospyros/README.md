@@ -45,13 +45,16 @@ As usual, make sure that the `clang` you invoke here is from the same LLVM insta
 
 ## Testing
 
-Test files provided in the llvm-tests/ folder can be run with [Runt][]:
+Test files provided in the llvm-tests/ folder can be run with [Runt][]. To install or update Runt: 
+
+    $ cargo install runt
+
+Then, ensure that the test files produce the right output with:
 
     $ runt
 
-If Runt was not installed during the Diospyros installation process, it can be installed with 
+You can also pass the `--diff` flag to compare your output with the `.expect` files.
 
-    $ cargo install runt
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
