@@ -52,7 +52,7 @@ namespace {
 
         optimize(wrap(mod), wrap(&builder), vec.data(),vec.size());
 
-        errs() << B << "\n";
+        // errs() << B << "\n";
       }
       return true;
     };

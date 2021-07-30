@@ -9,9 +9,9 @@ int main(int argc, char **argv) {
     c_out[1] = a_in[1] * b_in[1];
     c_out[2] = a_in[2] * b_in[2];
     c_out[3] = a_in[3] * b_in[3];
-    printf("first: %d\n", c_out[0]);
-    printf("second: %d\n", c_out[1]);
-    printf("third: %d\n", c_out[2]);
-    printf("fourth: %d\n", c_out[3]);
+    printf("first: %f\n", c_out[0]);
+    printf("second: %f\n", c_out[1]);
+    printf("third: %f\n", c_out[2]);
+    printf("fourth: %f\n", c_out[3]);
     return 0;
 }
