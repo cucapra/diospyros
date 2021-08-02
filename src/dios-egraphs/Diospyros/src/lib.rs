@@ -259,7 +259,7 @@ unsafe fn translate(
       let ones_vector = LLVMConstVector(ones_ptr, vec_size);
       let param_types = [vec_type, vec_type].as_mut_ptr();
       let fn_type = LLVMFunctionType(vec_type, param_types, 2, 0 as i32);
-      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+      let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
       let args = [ones_vector, sgn_vec].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
     }
