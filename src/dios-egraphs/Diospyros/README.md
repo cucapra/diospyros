@@ -47,6 +47,10 @@ To run all the tests, run:
 
     $ make test
 
+To set up macOS settings, run:
+
+    $ make set-up-mac
+
 To clean the repository of build files, run:
 
     $ make clean
