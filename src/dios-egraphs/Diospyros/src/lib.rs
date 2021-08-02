@@ -12,7 +12,7 @@ extern "C" {
   fn get_constant_float(val: LLVMValueRef) -> f32;
 }
 
-type GEPMap = HashMap<(Symbol, String), LLVMValueRef>;
+type GEPMap = HashMap<(Symbol, Symbol), LLVMValueRef>;
 type ValueVec = Vec<LLVMValueRef>;
 
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
@@ -53,35 +53,28 @@ unsafe fn to_expr_gep(
   } else {
     let array_var_name = CStr::from_ptr(llvm_name(gep_operand)).to_str().unwrap();
     enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
-    let mut array_var_idx = enode_vec.len() - 1;
-    //---
+    let array_var_idx = enode_vec.len() - 1;
+    // --- get offsets for multidimensional arrays ----
     let num_gep_operands = LLVMGetNumOperands(gep_operand);
     let mut indices = Vec::new();
     for operand_idx in 2..num_gep_operands {
       let array_offset = llvm_index(gep_operand, operand_idx);
       indices.push(array_offset);
-      enode_vec.push(VecLang::Num(array_offset));
-      let array_offset_idx = enode_vec.len() - 1;
-      enode_vec.push(VecLang::Get([
-        Id::from(array_var_idx),
-        Id::from(array_offset_idx),
-      ]));
-      ids[id_index] = Id::from(enode_vec.len() - 1);
-      array_var_idx = enode_vec.len() - 1;
     }
-    let offsets_string = indices.into_iter().map(|i| i.to_string()).collect();
-    //---
-    // let array_offset = llvm_index(gep_operand, 2);
-    // enode_vec.push(VecLang::Num(array_offset));
-    // let array_offset_idx = enode_vec.len() - 1;
-    // enode_vec.push(VecLang::Get([
-    //   Id::from(array_var_idx),
-    //   Id::from(array_offset_idx),
-    // ]));
-    // ids[id_index] = Id::from(enode_vec.len() - 1);
+    let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
+    let offsets_symbol = Symbol::from(&offsets_string);
+    enode_vec.push(VecLang::Symbol(offsets_symbol));
+    let array_offset_idx = enode_vec.len() - 1;
 
-    let symbol = Symbol::from(array_var_name);
-    gep_map.insert((symbol, offsets_string), gep_operand);
+    enode_vec.push(VecLang::Get([
+      Id::from(array_var_idx),
+      Id::from(array_offset_idx),
+    ]));
+
+    ids[id_index] = Id::from(enode_vec.len() - 1);
+
+    let array_name_symbol = Symbol::from(array_var_name);
+    gep_map.insert((array_name_symbol, offsets_symbol), gep_operand);
   }
 }
 
@@ -171,20 +164,13 @@ unsafe fn translate_binop(
   }
 }
 
-unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Vec<i32>) {
-  let mut array_offsets = Vec::new();
+unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol) {
   match get {
     VecLang::Get([sym, i]) => match (&enode_vec[usize::from(*sym)], &enode_vec[usize::from(*i)]) {
-      (VecLang::Symbol(s), VecLang::Num(n)) => {
-        array_offsets.push(*n);
-        return (*s, array_offsets);
+      (VecLang::Symbol(name), VecLang::Symbol(offset)) => {
+        return (*name, *offset);
       }
-      (nested_get, VecLang::Num(n)) => {
-        let (symbol, mut array_offset_vec) = translate_get(nested_get, enode_vec);
-        array_offset_vec.push(*n);
-        return (symbol, array_offset_vec);
-      }
-      _ => panic!("Match Error: Expects Pair of Symbol, Num or Pair of Get, Num."),
+      _ => panic!("Match Error: Expects Pair of Symbol, Symbol."),
     },
     _ => panic!("Match Error in Translate Get: Expects Get Enode."),
   }
@@ -202,9 +188,8 @@ unsafe fn translate(
     VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
     VecLang::Get(..) => {
       let (array_name, array_offsets) = translate_get(enode, vec);
-      let offsets_string = array_offsets.into_iter().map(|i| i.to_string()).collect();
       let gep_value = gep_map
-        .get(&(array_name, offsets_string))
+        .get(&(array_name, array_offsets))
         .expect("Symbol map lookup error");
       LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
     }
