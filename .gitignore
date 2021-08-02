@@ -13,3 +13,4 @@ target
 Cargo.lock
 *.out
 .clang-format*
+.cargo

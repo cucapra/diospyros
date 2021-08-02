@@ -1,8 +1,15 @@
 #! /bin/sh
 args=("$@")
 FILE=target/debug/libllvmlib.so
-if [ -f $FILE ]; then
-  clang -Xclang -load -Xclang $FILE -emit-llvm -S -o - ${args[0]}    # .so file
-else
-  clang -Xclang -load -Xclang target/debug/libllvmlib.dylib -emit-llvm -S -o - ${args[0]}    # .dylib file
+
+if ! [ -f $FILE ]; then
+  FILE=target/debug/libllvmlib.dylib
 fi
+
+if [[ "$OSTYPE" == "darwin"* ]]; then 
+  CLANG=/usr/local/opt/llvm/bin/clang
+else
+  CLANG=clang
+fi 
+
+$CLANG -Xclang -load -Xclang $FILE -emit-llvm -S -o - ${args[0]} | awk '/define/{flag=1; next} /}/{flag=0} flag'

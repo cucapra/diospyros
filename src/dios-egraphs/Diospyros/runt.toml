@@ -1,4 +1,4 @@
-ver = "0.2.8"
+ver = "0.3.1"
 
 [[tests]]
 name = "llvm-diospyros tests"

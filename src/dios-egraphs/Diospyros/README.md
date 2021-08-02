@@ -27,31 +27,33 @@ Then, build the pass library with:
 
 ## Run the Pass
 
-Use this [Clang][] invocation to run the optimization on a C source file:
+To build and run the [Clang][] pass on a test file, use this Makefile command:
 
-    $ clang -Xclang -load -Xclang target/debug/libllvmlib.so a.c
+    $ make run test=llvm-tests/a.c
 
-To see the generated LLVM IR, you'll need the `-emit-llvm` flag, among a few others:
+where `llvm-tests/a.c` is the path to any test file.
 
-    $ clang -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - a.c
+To emit the generated LLVM IR code, either unoptimized or optimized:
 
-You can also pass the `-O2` flag to see the optimized LLVM IR:
+    $ make emit test=llvm-tests/a.c
+    $ make emit-o2 test=llvm-tests/a.c
 
-    $ clang -O2 -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - a.c
+To clean the repository of build files, run:
 
-Note that you may need to change `.so` to `.dylib` on macOS. (Check which file extension actually exists.)
-
-As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
+    $ make clean
 
 ## Testing
 
-Test files provided in the llvm-tests/ folder can be run with [Runt][]:
+Test files provided in the llvm-tests/ folder can be run with [Runt][]. To install or update Runt: 
+
+    $ cargo install runt
+
+Then, ensure that the test files produce the right output with:
 
     $ runt
 
-If Runt was not installed during the Diospyros installation process, it can be installed with 
+You can also pass the `--diff` flag to compare your output with the `.expect` files.
 
-    $ cargo install runt
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
