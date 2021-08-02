@@ -2,7 +2,7 @@ extern crate llvm_sys as llvm;
 use dioslib::{rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
-use llvm::{core::*, prelude::*, LLVMOpcode::*};
+use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
@@ -156,11 +156,43 @@ unsafe fn translate_binop(
   name: *const c_char,
 ) -> LLVMValueRef {
   match enode {
-    VecLang::VecAdd(_) => LLVMBuildFAdd(builder, left, right, name),
-    VecLang::VecMul(_) => LLVMBuildFMul(builder, left, right, name),
-    VecLang::VecMinus(_) => LLVMBuildFSub(builder, left, right, name),
-    VecLang::VecDiv(_) => LLVMBuildFDiv(builder, left, right, name),
-    _ => panic!("not a vector binop"),
+    VecLang::VecAdd(_) | VecLang::Add(_) => LLVMBuildFAdd(builder, left, right, name),
+    VecLang::VecMul(_) | VecLang::Mul(_) => LLVMBuildFMul(builder, left, right, name),
+    VecLang::VecMinus(_) | VecLang::Minus(_) => LLVMBuildFSub(builder, left, right, name),
+    VecLang::VecDiv(_) | VecLang::Div(_) => LLVMBuildFDiv(builder, left, right, name),
+    // use binary bitwise operators for or / and
+    VecLang::Or(_) => LLVMBuildOr(builder, left, right, name),
+    VecLang::And(_) => LLVMBuildAnd(builder, left, right, name),
+    VecLang::Lt(_) => LLVMBuildFCmp(builder, LLVMRealPredicate::LLVMRealOLT, left, right, name),
+    _ => panic!("Not a vector or scalar binop."),
+  }
+}
+
+unsafe fn translate_unop(
+  enode: &VecLang,
+  n: LLVMValueRef,
+  builder: LLVMBuilderRef,
+  module: LLVMModuleRef,
+  name: *const c_char,
+) -> LLVMValueRef {
+  match enode {
+    VecLang::Sgn(_) => {
+      let one = LLVMConstReal(LLVMFloatType(), 1 as f64);
+      let param_types = [LLVMFloatType(), LLVMFloatType()].as_mut_ptr();
+      let fn_type = LLVMFunctionType(LLVMFloatType(), param_types, 2, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
+      let args = [one, n].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 2, name)
+    }
+    VecLang::Sqrt(_) => {
+      let param_types = [LLVMFloatType()].as_mut_ptr();
+      let fn_type = LLVMFunctionType(LLVMFloatType(), param_types, 1, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+      let args = [n].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 1, name)
+    }
+    VecLang::Neg(_) => LLVMBuildFNeg(builder, n, name),
+    _ => panic!("Not a scalar unop."),
   }
 }
 
@@ -193,7 +225,7 @@ unsafe fn translate(
         .expect("Symbol map lookup error");
       LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
     }
-    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
+    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
       let idvec = boxed_ids.to_vec();
       let idvec_len = idvec.len();
       let mut zeros = Vec::new();
@@ -219,7 +251,14 @@ unsafe fn translate(
     VecLang::VecAdd([l, r])
     | VecLang::VecMinus([l, r])
     | VecLang::VecMul([l, r])
-    | VecLang::VecDiv([l, r]) => {
+    | VecLang::VecDiv([l, r])
+    | VecLang::Add([l, r])
+    | VecLang::Minus([l, r])
+    | VecLang::Mul([l, r])
+    | VecLang::Div([l, r])
+    | VecLang::Or([l, r])
+    | VecLang::And([l, r])
+    | VecLang::Lt([l, r]) => {
       let left = translate(&vec[usize::from(*l)], vec, gep_map, builder, module);
       let right = translate(&vec[usize::from(*r)], vec, gep_map, builder, module);
       translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
@@ -289,7 +328,11 @@ unsafe fn translate(
       let args = [ones_vector, sgn_vec].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
     }
-    _ => panic!("Unimplemented"),
+    VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) => {
+      let number = translate(&vec[usize::from(*n)], vec, gep_map, builder, module);
+      translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
+    }
+    VecLang::Ite(..) => panic!("Ite is not handled."),
   }
 }
 
