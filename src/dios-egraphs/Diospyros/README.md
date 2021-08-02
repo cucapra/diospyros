@@ -43,6 +43,26 @@ Note that you may need to change `.so` to `.dylib` on macOS. (Check which file e
 
 As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
 
+## Makefile
+
+To build and run on a test case, use this Makefile command:
+
+    $ make run test=<test_file_path>
+
+where `<test_file_path>` is the path to a test file name. For example, you could run:
+
+    $ make run test=llvm-tests/a.c
+
+to run the `a.c` test. 
+
+To emit LLVM IR Code, you can similarly run the command:
+
+    $ make emit test=<test_file_path>
+
+To clean the repository of build files, run:
+
+    $ make clean
+
 ## Testing
 
 Test files provided in the llvm-tests/ folder can be run with [Runt][]. To install or update Runt: 

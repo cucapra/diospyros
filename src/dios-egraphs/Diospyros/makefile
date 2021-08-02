@@ -8,14 +8,11 @@ endif
 
 .PHONY: target/debug/libllvmlib.$(EXT)
 
-mac: target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) llvm-tests/mixed.c
-
 run: target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(var)
+	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
 
 emit: target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -S -emit-llvm -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(var)
+	$(CLANG) -S -emit-llvm -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
 
 runt: runt.sh runt.toml 
 	runt
