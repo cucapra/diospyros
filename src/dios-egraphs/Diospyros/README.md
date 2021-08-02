@@ -38,6 +38,15 @@ To emit the generated LLVM IR code, either unoptimized or optimized:
     $ make emit test=llvm-tests/a.c
     $ make emit-o2 test=llvm-tests/a.c
 
+
+To build, run the [Clang][] pass, and the run the associated program `./a.out`, run:
+
+    $ make run-out test=llvm-tests/a.c
+
+To run all the tests, run:
+
+    $ make test
+
 To clean the repository of build files, run:
 
     $ make clean

@@ -6,13 +6,13 @@ use llvm::{core::*, prelude::*, LLVMOpcode::*};
 use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
-  fn llvm_index(val: LLVMValueRef) -> i32;
+  fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
   fn llvm_name(val: LLVMValueRef) -> *const c_char;
   fn isa_constant(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
 }
 
-type GEPMap = HashMap<(Symbol, i32), LLVMValueRef>;
+type GEPMap = HashMap<(Symbol, String), LLVMValueRef>;
 type ValueVec = Vec<LLVMValueRef>;
 
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
@@ -25,77 +25,105 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   }
 }
 
+unsafe fn to_expr_constant(
+  operand: &LLVMValueRef,
+  vec: &mut Vec<VecLang>,
+  ids: &mut [egg::Id; 2],
+  id_index: usize,
+) -> () {
+  let value = get_constant_float(*operand);
+  vec.push(VecLang::Num(value as i32));
+  ids[id_index] = Id::from(vec.len() - 1);
+}
+
+unsafe fn to_expr_gep(
+  operand: &LLVMValueRef,
+  bop_map: &mut HashMap<LLVMValueRef, Id>,
+  ids: &mut [egg::Id; 2],
+  id_index: usize,
+  used_bop_ids: &mut Vec<Id>,
+  enode_vec: &mut Vec<VecLang>,
+  gep_map: &mut GEPMap,
+) -> () {
+  let gep_operand = LLVMGetOperand(*operand, 0);
+  if bop_map.contains_key(&operand) {
+    let used_id = *bop_map.get(&operand).expect("Expected key in map");
+    ids[id_index] = used_id;
+    used_bop_ids.push(used_id);
+  } else {
+    let array_var_name = CStr::from_ptr(llvm_name(gep_operand)).to_str().unwrap();
+    enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
+    let mut array_var_idx = enode_vec.len() - 1;
+    //---
+    let num_gep_operands = LLVMGetNumOperands(gep_operand);
+    let mut indices = Vec::new();
+    for operand_idx in 2..num_gep_operands {
+      let array_offset = llvm_index(gep_operand, operand_idx);
+      indices.push(array_offset);
+      enode_vec.push(VecLang::Num(array_offset));
+      let array_offset_idx = enode_vec.len() - 1;
+      enode_vec.push(VecLang::Get([
+        Id::from(array_var_idx),
+        Id::from(array_offset_idx),
+      ]));
+      ids[id_index] = Id::from(enode_vec.len() - 1);
+      array_var_idx = enode_vec.len() - 1;
+    }
+    let offsets_string = indices.into_iter().map(|i| i.to_string()).collect();
+    //---
+    // let array_offset = llvm_index(gep_operand, 2);
+    // enode_vec.push(VecLang::Num(array_offset));
+    // let array_offset_idx = enode_vec.len() - 1;
+    // enode_vec.push(VecLang::Get([
+    //   Id::from(array_var_idx),
+    //   Id::from(array_offset_idx),
+    // ]));
+    // ids[id_index] = Id::from(enode_vec.len() - 1);
+
+    let symbol = Symbol::from(array_var_name);
+    gep_map.insert((symbol, offsets_string), gep_operand);
+  }
+}
+
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) {
-  let (mut vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
+  let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-  let (mut var, mut num);
   let (mut gep_map, mut bop_map) = (HashMap::new(), HashMap::new());
   let mut ids = [Id::from(0); 2];
   for bop in bb_vec.iter() {
     unsafe {
       let left_operand = LLVMGetOperand(*bop, 0);
       let right_operand = LLVMGetOperand(*bop, 1);
-
       if isa_constant(left_operand) {
-        let value = get_constant_float(left_operand);
-        vec.push(VecLang::Num(value as i32));
-        ids[0] = Id::from(vec.len() - 1);
+        to_expr_constant(&left_operand, &mut enode_vec, &mut ids, 0);
       } else {
-        let lhs = LLVMGetOperand(left_operand, 0);
-
-        // lhs
-        if bop_map.contains_key(&left_operand) {
-          let used_id = *bop_map.get(&left_operand).expect("Expected key in map");
-          ids[0] = used_id;
-          used_bop_ids.push(used_id);
-        } else {
-          let name1 = CStr::from_ptr(llvm_name(lhs)).to_str().unwrap();
-          vec.push(VecLang::Symbol(Symbol::from(name1)));
-          var = vec.len() - 1;
-
-          let ind1 = llvm_index(lhs);
-          vec.push(VecLang::Num(ind1));
-          num = vec.len() - 1;
-          vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
-          ids[0] = Id::from(vec.len() - 1);
-
-          let symbol1 = Symbol::from(name1);
-          gep_map.insert((symbol1, ind1), lhs);
-        }
+        to_expr_gep(
+          &left_operand,
+          &mut bop_map,
+          &mut ids,
+          0,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+        );
       }
-
       if isa_constant(right_operand) {
-        let value = get_constant_float(right_operand);
-        vec.push(VecLang::Num(value as i32));
-        ids[1] = Id::from(vec.len() - 1);
+        to_expr_constant(&right_operand, &mut enode_vec, &mut ids, 1);
       } else {
-        let rhs = LLVMGetOperand(right_operand, 0);
-
-        // rhs
-        if bop_map.contains_key(&right_operand) {
-          let used_id = *bop_map.get(&right_operand).expect("Expected key in map");
-          ids[1] = used_id;
-          used_bop_ids.push(used_id);
-        } else {
-          let name2 = CStr::from_ptr(llvm_name(rhs)).to_str().unwrap();
-          vec.push(VecLang::Symbol(Symbol::from(name2)));
-          var = vec.len() - 1;
-
-          let ind2 = llvm_index(rhs);
-          vec.push(VecLang::Num(ind2));
-          num = vec.len() - 1;
-
-          vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
-          ids[1] = Id::from(vec.len() - 1);
-
-          let symbol2 = Symbol::from(name2);
-          gep_map.insert((symbol2, ind2), rhs);
-        }
+        to_expr_gep(
+          &right_operand,
+          &mut bop_map,
+          &mut ids,
+          1,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+        );
       }
 
       // lhs bop rhs
-      vec.push(choose_binop(bop, ids));
-      let id = Id::from(vec.len() - 1);
+      enode_vec.push(choose_binop(bop, ids));
+      let id = Id::from(enode_vec.len() - 1);
       bops_vec.push(id);
 
       ops_to_replace.push((*bop, id));
@@ -114,7 +142,7 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
       bop_map.insert(*bop, id);
     }
   }
-  vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
+  enode_vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
 
   // remove binary ops that were used, and thus not the ones we want to replace directly
   let mut final_ops_to_replace = Vec::new();
@@ -124,7 +152,7 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
     }
   }
 
-  return (RecExpr::from(vec), gep_map, final_ops_to_replace);
+  return (RecExpr::from(enode_vec), gep_map, final_ops_to_replace);
 }
 
 unsafe fn translate_binop(
@@ -143,6 +171,25 @@ unsafe fn translate_binop(
   }
 }
 
+unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Vec<i32>) {
+  let mut array_offsets = Vec::new();
+  match get {
+    VecLang::Get([sym, i]) => match (&enode_vec[usize::from(*sym)], &enode_vec[usize::from(*i)]) {
+      (VecLang::Symbol(s), VecLang::Num(n)) => {
+        array_offsets.push(*n);
+        return (*s, array_offsets);
+      }
+      (nested_get, VecLang::Num(n)) => {
+        let (symbol, mut array_offset_vec) = translate_get(nested_get, enode_vec);
+        array_offset_vec.push(*n);
+        return (symbol, array_offset_vec);
+      }
+      _ => panic!("Match Error: Expects Pair of Symbol, Num or Pair of Get, Num."),
+    },
+    _ => panic!("Match Error in Translate Get: Expects Get Enode."),
+  }
+}
+
 unsafe fn translate(
   enode: &VecLang,
   vec: &[VecLang],
@@ -153,17 +200,11 @@ unsafe fn translate(
   match enode {
     VecLang::Symbol(_) => panic!("Symbols are never supposed to be evaluated"),
     VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
-    VecLang::Get([sym, i]) => {
-      let array_name = match &vec[usize::from(*sym)] {
-        VecLang::Symbol(s) => *s,
-        _ => panic!("Match error in get enode: Expected Symbol."),
-      };
-      let offset_num = match &vec[usize::from(*i)] {
-        VecLang::Num(n) => *n,
-        _ => panic!("Match error in get enode: Expected Num."),
-      };
+    VecLang::Get(..) => {
+      let (array_name, array_offsets) = translate_get(enode, vec);
+      let offsets_string = array_offsets.into_iter().map(|i| i.to_string()).collect();
       let gep_value = gep_map
-        .get(&(array_name, offset_num))
+        .get(&(array_name, offsets_string))
         .expect("Symbol map lookup error");
       LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
     }
