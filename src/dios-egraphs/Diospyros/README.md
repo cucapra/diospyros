@@ -27,37 +27,16 @@ Then, build the pass library with:
 
 ## Run the Pass
 
-Use this [Clang][] invocation to run the optimization on a C source file:
-
-    $ clang -Xclang -load -Xclang target/debug/libllvmlib.so a.c
-
-To see the generated LLVM IR, you'll need the `-emit-llvm` flag, among a few others:
-
-    $ clang -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - a.c
-
-You can also pass the `-O2` flag to see the optimized LLVM IR:
-
-    $ clang -O2 -Xclang -load -Xclang target/debug/libllvmlib.so -emit-llvm -S -o - a.c
-
-Note that you may need to change `.so` to `.dylib` on macOS. (Check which file extension actually exists.)
-
-As usual, make sure that the `clang` you invoke here is from the same LLVM installation against which you built the pass above.
-
-## Makefile
-
-To build and run on a test case, use this Makefile command:
-
-    $ make run test=<test_file_path>
-
-where `<test_file_path>` is the path to a test file name. For example, you could run:
+To build and run the [Clang][] pass on a test file, use this Makefile command:
 
     $ make run test=llvm-tests/a.c
 
-to run the `a.c` test. 
+where `llvm-tests/a.c` is the path to any test file.
 
-To emit LLVM IR Code, you can similarly run the command:
+To emit the generated LLVM IR code, either unoptimized or optimized:
 
-    $ make emit test=<test_file_path>
+    $ make emit test=llvm-tests/a.c
+    $ make emit-o2 test=llvm-tests/a.c
 
 To clean the repository of build files, run:
 
