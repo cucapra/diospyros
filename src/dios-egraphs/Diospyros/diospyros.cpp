@@ -21,6 +21,9 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
     if (auto *gep = dyn_cast<GEPOperator>(v)) {
         auto name = gep->getOperand(0)->getName();
         return name.data();
+    } else if (auto *load = dyn_cast<LoadInst>(v)) {
+        auto name = load->getOperand(0)->getName();
+        return name.data();
     }
     return "";
 }
@@ -37,6 +40,14 @@ extern "C" int llvm_index(LLVMValueRef val, int index) {
 
 extern "C" bool isa_constant(LLVMValueRef val) {
     return isa<Constant>(unwrap(val));
+}
+
+extern "C" bool isa_gep(LLVMValueRef val) {
+    return isa<GEPOperator>(unwrap(val));
+}
+
+extern "C" bool isa_load(LLVMValueRef val) {
+    return isa<LoadInst>(unwrap(val));
 }
 
 extern "C" float get_constant_float(LLVMValueRef val) {
