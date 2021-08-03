@@ -61,7 +61,7 @@
   %52 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.3, i64 0, i64 0), double %51)
   ret i32 0
 ---STDERR---
-RecExpr { nodes: [Symbol("a_in"), Num(0), Get([0, 1]), Num(3), Add([2, 3]), Num(5), Symbol("b_in"), Num(1), Get([6, 7]), Add([5, 8]), Num(3), Symbol("b_in"), Num(2), Get([11, 12]), Add([10, 13]), Symbol("a_in"), Num(3), Get([15, 16]), Symbol("b_in"), Num(3), Get([18, 19]), Add([17, 20]), Vec([4, 9, 14, 21])] }
+RecExpr { nodes: [Symbol("a_in"), Symbol("0,"), Get([0, 1]), Num(3), Add([2, 3]), Num(5), Symbol("b_in"), Symbol("1,"), Get([6, 7]), Add([5, 8]), Num(3), Symbol("b_in"), Symbol("2,"), Get([11, 12]), Add([10, 13]), Symbol("a_in"), Symbol("3,"), Get([15, 16]), Symbol("b_in"), Symbol("3,"), Get([18, 19]), Add([17, 20]), Vec([4, 9, 14, 21])] }
 Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
 Stopped after 5 iterations, reason: Some(Saturated)
-[Symbol("a_in"), Num(0), Get([0, 1]), Num(5), Num(3), Symbol("a_in"), Num(3), Get([5, 6]), Vec([2, 3, 4, 7]), Num(3), Symbol("b_in"), Num(1), Get([10, 11]), Symbol("b_in"), Num(2), Get([13, 14]), Symbol("b_in"), Num(3), Get([16, 17]), Vec([9, 12, 15, 18]), VecAdd([8, 19])]
+[Symbol("a_in"), Symbol("0,"), Get([0, 1]), Num(5), Num(3), Symbol("a_in"), Symbol("3,"), Get([5, 6]), Vec([2, 3, 4, 7]), Num(3), Symbol("b_in"), Symbol("1,"), Get([10, 11]), Symbol("b_in"), Symbol("2,"), Get([13, 14]), Symbol("b_in"), Symbol("3,"), Get([16, 17]), Vec([9, 12, 15, 18]), VecAdd([8, 19])]

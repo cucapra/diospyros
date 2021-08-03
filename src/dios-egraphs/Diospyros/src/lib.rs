@@ -1,18 +1,18 @@
 extern crate llvm_sys as llvm;
-use dioslib::{rules, veclang::VecLang};
+use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
-use llvm::{core::*, prelude::*, LLVMOpcode::*};
+use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
-  fn llvm_index(val: LLVMValueRef) -> i32;
+  fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
   fn llvm_name(val: LLVMValueRef) -> *const c_char;
   fn isa_constant(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
 }
 
-type GEPMap = HashMap<(Symbol, i32), LLVMValueRef>;
+type GEPMap = HashMap<(Symbol, Symbol), LLVMValueRef>;
 type ValueVec = Vec<LLVMValueRef>;
 
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
@@ -25,77 +25,144 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   }
 }
 
+unsafe fn to_expr_constant(
+  operand: &LLVMValueRef,
+  vec: &mut Vec<VecLang>,
+  ids: &mut [egg::Id; 2],
+  id_index: usize,
+) -> () {
+  let value = get_constant_float(*operand);
+  vec.push(VecLang::Num(value as i32));
+  ids[id_index] = Id::from(vec.len() - 1);
+}
+
+unsafe fn to_expr_gep(
+  operand: &LLVMValueRef,
+  bop_map: &mut HashMap<LLVMValueRef, Id>,
+  ids: &mut [egg::Id; 2],
+  id_index: usize,
+  used_bop_ids: &mut Vec<Id>,
+  enode_vec: &mut Vec<VecLang>,
+  gep_map: &mut GEPMap,
+) -> () {
+  let gep_operand = LLVMGetOperand(*operand, 0);
+  if bop_map.contains_key(&operand) {
+    let used_id = *bop_map.get(&operand).expect("Expected key in map");
+    ids[id_index] = used_id;
+    used_bop_ids.push(used_id);
+  } else {
+    let array_var_name = CStr::from_ptr(llvm_name(gep_operand)).to_str().unwrap();
+    enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
+    let array_var_idx = enode_vec.len() - 1;
+    // --- get offsets for multidimensional arrays ----
+    let num_gep_operands = LLVMGetNumOperands(gep_operand);
+    let mut indices = Vec::new();
+    for operand_idx in 2..num_gep_operands {
+      let array_offset = llvm_index(gep_operand, operand_idx);
+      indices.push(array_offset);
+    }
+    let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
+    let offsets_symbol = Symbol::from(&offsets_string);
+    enode_vec.push(VecLang::Symbol(offsets_symbol));
+    let array_offset_idx = enode_vec.len() - 1;
+
+    enode_vec.push(VecLang::Get([
+      Id::from(array_var_idx),
+      Id::from(array_offset_idx),
+    ]));
+
+    ids[id_index] = Id::from(enode_vec.len() - 1);
+
+    let array_name_symbol = Symbol::from(array_var_name);
+    gep_map.insert((array_name_symbol, offsets_symbol), gep_operand);
+  }
+}
+
+fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
+  let width = config::vector_width();
+  let mut length = binop_vec.len();
+  let mut vec_indices = Vec::new();
+  let mut idx = 0;
+  while length > width {
+    let mut width_vec = Vec::new();
+    for _ in 0..width {
+      width_vec.push(binop_vec[idx]);
+      idx += 1;
+      length -= 1;
+    }
+    enode_vec.push(VecLang::Vec(width_vec.into_boxed_slice()));
+    vec_indices.push(enode_vec.len() - 1);
+  }
+  // wrap up extras at end
+  let diff = width - length;
+  let mut extras = Vec::new();
+  for _ in 0..diff {
+    enode_vec.push(VecLang::Num(0));
+    extras.push(enode_vec.len() - 1);
+  }
+  let mut final_vec = Vec::new();
+  let original_length = binop_vec.len();
+  for i in idx..original_length {
+    final_vec.push(binop_vec[i]);
+  }
+  for id in extras.iter() {
+    final_vec.push(Id::from(*id));
+  }
+  enode_vec.push(VecLang::Vec(final_vec.into_boxed_slice()));
+  vec_indices.push(enode_vec.len() - 1);
+  // create concats
+  let mut num_concats = vec_indices.len() - 1;
+  let mut idx = 0;
+  let mut prev_id = Id::from(vec_indices[idx]);
+  idx += 1;
+  while num_concats > 0 {
+    let concat = VecLang::Concat([prev_id, Id::from(vec_indices[idx])]);
+    enode_vec.push(concat);
+    prev_id = Id::from(enode_vec.len() - 1);
+    idx += 1;
+    num_concats -= 1;
+  }
+}
+
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) {
-  let (mut vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
+  let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-  let (mut var, mut num);
   let (mut gep_map, mut bop_map) = (HashMap::new(), HashMap::new());
   let mut ids = [Id::from(0); 2];
   for bop in bb_vec.iter() {
     unsafe {
       let left_operand = LLVMGetOperand(*bop, 0);
       let right_operand = LLVMGetOperand(*bop, 1);
-
       if isa_constant(left_operand) {
-        let value = get_constant_float(left_operand);
-        vec.push(VecLang::Num(value as i32));
-        ids[0] = Id::from(vec.len() - 1);
+        to_expr_constant(&left_operand, &mut enode_vec, &mut ids, 0);
       } else {
-        let lhs = LLVMGetOperand(left_operand, 0);
-
-        // lhs
-        if bop_map.contains_key(&left_operand) {
-          let used_id = *bop_map.get(&left_operand).expect("Expected key in map");
-          ids[0] = used_id;
-          used_bop_ids.push(used_id);
-        } else {
-          let name1 = CStr::from_ptr(llvm_name(lhs)).to_str().unwrap();
-          vec.push(VecLang::Symbol(Symbol::from(name1)));
-          var = vec.len() - 1;
-
-          let ind1 = llvm_index(lhs);
-          vec.push(VecLang::Num(ind1));
-          num = vec.len() - 1;
-          vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
-          ids[0] = Id::from(vec.len() - 1);
-
-          let symbol1 = Symbol::from(name1);
-          gep_map.insert((symbol1, ind1), lhs);
-        }
+        to_expr_gep(
+          &left_operand,
+          &mut bop_map,
+          &mut ids,
+          0,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+        );
       }
-
       if isa_constant(right_operand) {
-        let value = get_constant_float(right_operand);
-        vec.push(VecLang::Num(value as i32));
-        ids[1] = Id::from(vec.len() - 1);
+        to_expr_constant(&right_operand, &mut enode_vec, &mut ids, 1);
       } else {
-        let rhs = LLVMGetOperand(right_operand, 0);
-
-        // rhs
-        if bop_map.contains_key(&right_operand) {
-          let used_id = *bop_map.get(&right_operand).expect("Expected key in map");
-          ids[1] = used_id;
-          used_bop_ids.push(used_id);
-        } else {
-          let name2 = CStr::from_ptr(llvm_name(rhs)).to_str().unwrap();
-          vec.push(VecLang::Symbol(Symbol::from(name2)));
-          var = vec.len() - 1;
-
-          let ind2 = llvm_index(rhs);
-          vec.push(VecLang::Num(ind2));
-          num = vec.len() - 1;
-
-          vec.push(VecLang::Get([Id::from(var), Id::from(num)]));
-          ids[1] = Id::from(vec.len() - 1);
-
-          let symbol2 = Symbol::from(name2);
-          gep_map.insert((symbol2, ind2), rhs);
-        }
+        to_expr_gep(
+          &right_operand,
+          &mut bop_map,
+          &mut ids,
+          1,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+        );
       }
 
       // lhs bop rhs
-      vec.push(choose_binop(bop, ids));
-      let id = Id::from(vec.len() - 1);
+      enode_vec.push(choose_binop(bop, ids));
+      let id = Id::from(enode_vec.len() - 1);
       bops_vec.push(id);
 
       ops_to_replace.push((*bop, id));
@@ -114,7 +181,9 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
       bop_map.insert(*bop, id);
     }
   }
-  vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
+  // decompose bops_vec into width number of binops
+  pad_vector(&bops_vec, &mut enode_vec);
+  // enode_vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
 
   // remove binary ops that were used, and thus not the ones we want to replace directly
   let mut final_ops_to_replace = Vec::new();
@@ -124,7 +193,7 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
     }
   }
 
-  return (RecExpr::from(vec), gep_map, final_ops_to_replace);
+  return (RecExpr::from(enode_vec), gep_map, final_ops_to_replace);
 }
 
 unsafe fn translate_binop(
@@ -135,11 +204,55 @@ unsafe fn translate_binop(
   name: *const c_char,
 ) -> LLVMValueRef {
   match enode {
-    VecLang::VecAdd(_) => LLVMBuildFAdd(builder, left, right, name),
-    VecLang::VecMul(_) => LLVMBuildFMul(builder, left, right, name),
-    VecLang::VecMinus(_) => LLVMBuildFSub(builder, left, right, name),
-    VecLang::VecDiv(_) => LLVMBuildFDiv(builder, left, right, name),
-    _ => panic!("not a vector binop"),
+    VecLang::VecAdd(_) | VecLang::Add(_) => LLVMBuildFAdd(builder, left, right, name),
+    VecLang::VecMul(_) | VecLang::Mul(_) => LLVMBuildFMul(builder, left, right, name),
+    VecLang::VecMinus(_) | VecLang::Minus(_) => LLVMBuildFSub(builder, left, right, name),
+    VecLang::VecDiv(_) | VecLang::Div(_) => LLVMBuildFDiv(builder, left, right, name),
+    // use binary bitwise operators for or / and
+    VecLang::Or(_) => LLVMBuildOr(builder, left, right, name),
+    VecLang::And(_) => LLVMBuildAnd(builder, left, right, name),
+    VecLang::Lt(_) => LLVMBuildFCmp(builder, LLVMRealPredicate::LLVMRealOLT, left, right, name),
+    _ => panic!("Not a vector or scalar binop."),
+  }
+}
+
+unsafe fn translate_unop(
+  enode: &VecLang,
+  n: LLVMValueRef,
+  builder: LLVMBuilderRef,
+  module: LLVMModuleRef,
+  name: *const c_char,
+) -> LLVMValueRef {
+  match enode {
+    VecLang::Sgn(_) => {
+      let one = LLVMConstReal(LLVMFloatType(), 1 as f64);
+      let param_types = [LLVMFloatType(), LLVMFloatType()].as_mut_ptr();
+      let fn_type = LLVMFunctionType(LLVMFloatType(), param_types, 2, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
+      let args = [one, n].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 2, name)
+    }
+    VecLang::Sqrt(_) => {
+      let param_types = [LLVMFloatType()].as_mut_ptr();
+      let fn_type = LLVMFunctionType(LLVMFloatType(), param_types, 1, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+      let args = [n].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 1, name)
+    }
+    VecLang::Neg(_) => LLVMBuildFNeg(builder, n, name),
+    _ => panic!("Not a scalar unop."),
+  }
+}
+
+unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol) {
+  match get {
+    VecLang::Get([sym, i]) => match (&enode_vec[usize::from(*sym)], &enode_vec[usize::from(*i)]) {
+      (VecLang::Symbol(name), VecLang::Symbol(offset)) => {
+        return (*name, *offset);
+      }
+      _ => panic!("Match Error: Expects Pair of Symbol, Symbol."),
+    },
+    _ => panic!("Match Error in Translate Get: Expects Get Enode."),
   }
 }
 
@@ -153,21 +266,14 @@ unsafe fn translate(
   match enode {
     VecLang::Symbol(_) => panic!("Symbols are never supposed to be evaluated"),
     VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
-    VecLang::Get([sym, i]) => {
-      let array_name = match &vec[usize::from(*sym)] {
-        VecLang::Symbol(s) => *s,
-        _ => panic!("Match error in get enode: Expected Symbol."),
-      };
-      let offset_num = match &vec[usize::from(*i)] {
-        VecLang::Num(n) => *n,
-        _ => panic!("Match error in get enode: Expected Num."),
-      };
+    VecLang::Get(..) => {
+      let (array_name, array_offsets) = translate_get(enode, vec);
       let gep_value = gep_map
-        .get(&(array_name, offset_num))
+        .get(&(array_name, array_offsets))
         .expect("Symbol map lookup error");
       LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
     }
-    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) => {
+    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
       let idvec = boxed_ids.to_vec();
       let idvec_len = idvec.len();
       let mut zeros = Vec::new();
@@ -193,7 +299,14 @@ unsafe fn translate(
     VecLang::VecAdd([l, r])
     | VecLang::VecMinus([l, r])
     | VecLang::VecMul([l, r])
-    | VecLang::VecDiv([l, r]) => {
+    | VecLang::VecDiv([l, r])
+    | VecLang::Add([l, r])
+    | VecLang::Minus([l, r])
+    | VecLang::Mul([l, r])
+    | VecLang::Div([l, r])
+    | VecLang::Or([l, r])
+    | VecLang::And([l, r])
+    | VecLang::Lt([l, r]) => {
       let left = translate(&vec[usize::from(*l)], vec, gep_map, builder, module);
       let right = translate(&vec[usize::from(*r)], vec, gep_map, builder, module);
       translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
@@ -263,7 +376,11 @@ unsafe fn translate(
       let args = [ones_vector, sgn_vec].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
     }
-    _ => panic!("Unimplemented"),
+    VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) => {
+      let number = translate(&vec[usize::from(*n)], vec, gep_map, builder, module);
+      translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
+    }
+    VecLang::Ite(..) => panic!("Ite is not handled."),
   }
 }
 

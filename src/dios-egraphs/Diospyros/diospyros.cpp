@@ -25,10 +25,10 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
     return "";
 }
 
-extern "C" int llvm_index(LLVMValueRef val) {
+extern "C" int llvm_index(LLVMValueRef val, int index) {
     Value *v = unwrap(val);
     if (auto *num = dyn_cast<GEPOperator>(v)) {
-        if (auto *i = dyn_cast<ConstantInt>(num->getOperand(2))) {
+        if (auto *i = dyn_cast<ConstantInt>(num->getOperand(index))) {
             return i->getSExtValue();
         }
     }
