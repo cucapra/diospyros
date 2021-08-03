@@ -1,5 +1,5 @@
 extern crate llvm_sys as llvm;
-use dioslib::{rules, veclang::VecLang};
+use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
@@ -78,6 +78,52 @@ unsafe fn to_expr_gep(
   }
 }
 
+fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
+  let width = config::vector_width();
+  let mut length = binop_vec.len();
+  let mut vec_indices = Vec::new();
+  let mut idx = 0;
+  while length > width {
+    let mut width_vec = Vec::new();
+    for _ in 0..width {
+      width_vec.push(binop_vec[idx]);
+      idx += 1;
+      length -= 1;
+    }
+    enode_vec.push(VecLang::Vec(width_vec.into_boxed_slice()));
+    vec_indices.push(enode_vec.len() - 1);
+  }
+  // wrap up extras at end
+  let diff = width - length;
+  let mut extras = Vec::new();
+  for _ in 0..diff {
+    enode_vec.push(VecLang::Num(0));
+    extras.push(enode_vec.len() - 1);
+  }
+  let mut final_vec = Vec::new();
+  let original_length = binop_vec.len();
+  for i in idx..original_length {
+    final_vec.push(binop_vec[i]);
+  }
+  for id in extras.iter() {
+    final_vec.push(Id::from(*id));
+  }
+  enode_vec.push(VecLang::Vec(final_vec.into_boxed_slice()));
+  vec_indices.push(enode_vec.len() - 1);
+  // create concats
+  let mut num_concats = vec_indices.len() - 1;
+  let mut idx = 0;
+  let mut prev_id = Id::from(vec_indices[idx]);
+  idx += 1;
+  while num_concats > 0 {
+    let concat = VecLang::Concat([prev_id, Id::from(vec_indices[idx])]);
+    enode_vec.push(concat);
+    prev_id = Id::from(enode_vec.len() - 1);
+    idx += 1;
+    num_concats -= 1;
+  }
+}
+
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) {
   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
@@ -135,7 +181,9 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
       bop_map.insert(*bop, id);
     }
   }
-  enode_vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
+  // decompose bops_vec into width number of binops
+  pad_vector(&bops_vec, &mut enode_vec);
+  // enode_vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
 
   // remove binary ops that were used, and thus not the ones we want to replace directly
   let mut final_ops_to_replace = Vec::new();
