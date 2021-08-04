@@ -13,5 +13,6 @@ int main(int argc, char **argv) {
     printf("second: %f\n", c_out[1]);
     printf("third: %f\n", c_out[2]);
     printf("fourth: %f\n", c_out[3]);
+    // 6, 8, 10, 12
     return 0;
 }

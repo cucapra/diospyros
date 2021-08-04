@@ -6,7 +6,6 @@ float t1 = 10;
 float t2 = 20;
 
 int main(int argc, char **argv) {
-    //  return argc + 5;
     float c_out[4];
     c_out[0] = a_in[0] + b_in[0];
     c_out[1] = t1 + b_in[1];
@@ -16,5 +15,6 @@ int main(int argc, char **argv) {
     printf("second: %f\n", c_out[1]);
     printf("third: %f\n", c_out[2]);
     printf("fourth: %f\n", c_out[3]);
+    // expected: 6, 16, 23, 30
     return 0;
 }

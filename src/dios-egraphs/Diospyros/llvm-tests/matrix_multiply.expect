@@ -1,0 +1,128 @@
+  %1 = alloca i32, align 4
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 0, i32* %1, align 4
+  br label %4
+
+4:                                                ; preds = %71, %0
+  %5 = load i32, i32* %1, align 4
+  %6 = icmp slt i32 %5, 2
+  br i1 %6, label %7, label %74
+
+7:                                                ; preds = %4
+  store i32 0, i32* %2, align 4
+  br label %8
+
+8:                                                ; preds = %67, %7
+  %9 = load i32, i32* %2, align 4
+  %10 = icmp slt i32 %9, 2
+  br i1 %10, label %11, label %70
+
+11:                                               ; preds = %8
+  %12 = load i32, i32* %1, align 4
+  %13 = mul nsw i32 2, %12
+  %14 = load i32, i32* %2, align 4
+  %15 = add nsw i32 %13, %14
+  %16 = sext i32 %15 to i64
+  %17 = getelementptr inbounds [4 x float], [4 x float]* @c_out, i64 0, i64 %16
+  store float 0.000000e+00, float* %17, align 4
+  store i32 0, i32* %3, align 4
+  br label %18
+
+18:                                               ; preds = %63, %11
+  %19 = load i32, i32* %3, align 4
+  %20 = icmp slt i32 %19, 2
+  br i1 %20, label %21, label %66
+
+21:                                               ; preds = %18
+  %22 = load i32, i32* %1, align 4
+  %23 = mul nsw i32 2, %22
+  %24 = load i32, i32* %3, align 4
+  %25 = add nsw i32 %23, %24
+  %26 = sext i32 %25 to i64
+  %27 = getelementptr inbounds [4 x float], [4 x float]* @a_in, i64 0, i64 %26
+  %28 = load float, float* %27, align 4
+  %29 = load i32, i32* %3, align 4
+  %30 = mul nsw i32 2, %29
+  %31 = load i32, i32* %2, align 4
+  %32 = add nsw i32 %30, %31
+  %33 = sext i32 %32 to i64
+  %34 = getelementptr inbounds [4 x float], [4 x float]* @b_in, i64 0, i64 %33
+  %35 = load float, float* %34, align 4
+  %36 = fmul float %28, %35
+  %37 = load i32, i32* %1, align 4
+  %38 = mul nsw i32 2, %37
+  %39 = load i32, i32* %2, align 4
+  %40 = add nsw i32 %38, %39
+  %41 = sext i32 %40 to i64
+  %42 = getelementptr inbounds [4 x float], [4 x float]* @c_out, i64 0, i64 %41
+  %43 = load float, float* %42, align 4
+  %44 = fadd float %43, %36
+  %45 = load float, float* %42, align 4
+  %46 = insertelement <4 x float> zeroinitializer, float %45, i32 0
+  %47 = insertelement <4 x float> %46, float 0.000000e+00, i32 1
+  %48 = insertelement <4 x float> %47, float 0.000000e+00, i32 2
+  %49 = insertelement <4 x float> %48, float 0.000000e+00, i32 3
+  %50 = load float, float* %27, align 4
+  %51 = insertelement <4 x float> zeroinitializer, float %50, i32 0
+  %52 = insertelement <4 x float> %51, float 0.000000e+00, i32 1
+  %53 = insertelement <4 x float> %52, float 0.000000e+00, i32 2
+  %54 = insertelement <4 x float> %53, float 0.000000e+00, i32 3
+  %55 = load float, float* %34, align 4
+  %56 = insertelement <4 x float> zeroinitializer, float %55, i32 0
+  %57 = insertelement <4 x float> %56, float 0.000000e+00, i32 1
+  %58 = insertelement <4 x float> %57, float 0.000000e+00, i32 2
+  %59 = insertelement <4 x float> %58, float 0.000000e+00, i32 3
+  %60 = call <4 x float> @llvm.fma.f32(<4 x float> %54, <4 x float> %59, <4 x float> %49)
+  %61 = extractelement <4 x float> %60, i32 0
+  %62 = insertelement float %61, float %45, i32 0
+  store float %44, float* %42, align 4
+  br label %63
+
+63:                                               ; preds = %21
+  %64 = load i32, i32* %3, align 4
+  %65 = add nsw i32 %64, 1
+  store i32 %65, i32* %3, align 4
+  br label %18
+
+66:                                               ; preds = %18
+  br label %67
+
+67:                                               ; preds = %66
+  %68 = load i32, i32* %2, align 4
+  %69 = add nsw i32 %68, 1
+  store i32 %69, i32* %2, align 4
+  br label %8
+
+70:                                               ; preds = %8
+  br label %71
+
+71:                                               ; preds = %70
+  %72 = load i32, i32* %1, align 4
+  %73 = add nsw i32 %72, 1
+  store i32 %73, i32* %1, align 4
+  br label %4
+
+74:                                               ; preds = %4
+  ret void
+  %1 = alloca i32, align 4
+  store i32 0, i32* %1, align 4
+  call void @matrix_multiply()
+  %2 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @c_out, i64 0, i64 0), align 16
+  %3 = fpext float %2 to double
+  %4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i64 0, i64 0), double %3)
+  %5 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @c_out, i64 0, i64 1), align 4
+  %6 = fpext float %5 to double
+  %7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.1, i64 0, i64 0), double %6)
+  %8 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @c_out, i64 0, i64 2), align 8
+  %9 = fpext float %8 to double
+  %10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.2, i64 0, i64 0), double %9)
+  %11 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @c_out, i64 0, i64 3), align 4
+  %12 = fpext float %11 to double
+  %13 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.3, i64 0, i64 0), double %12)
+  ret i32 0
+---STDERR---
+RecExpr { nodes: [Symbol("a_in"), Symbol("-1,"), Get([0, 1]), Symbol("b_in"), Symbol("-2,"), Get([3, 4]), Mul([2, 5]), Symbol("c_out"), Symbol("-3,"), Get([7, 8]), Add([9, 6]), Num(0), Num(0), Num(0), Vec([10, 11, 12, 13])] }
+Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
+Stopped after 5 iterations, reason: Some(Saturated)
+[Symbol("c_out"), Symbol("-3,"), Get([0, 1]), Num(0), Num(0), Num(0), LitVec([2, 3, 4, 5]), Symbol("a_in"), Symbol("-1,"), Get([7, 8]), Num(0), Num(0), Num(0), LitVec([9, 10, 11, 12]), Symbol("b_in"), Symbol("-2,"), Get([14, 15]), Num(0), Num(0), Num(0), LitVec([16, 17, 18, 19]), VecMAC([6, 13, 20])]

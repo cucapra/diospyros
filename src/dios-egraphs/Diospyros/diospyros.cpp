@@ -1,5 +1,6 @@
 #include <llvm-c/Core.h>
 
+#include <string>
 #include <vector>
 
 #include "llvm/IR/Function.h"
@@ -13,8 +14,25 @@
 using namespace llvm;
 using namespace std;
 
+int NAME_FRESH_COUNTER = 0;
+const string NAME_FRESH_PREFIX = "fresh_name";
+
+int FRESH_INT_COUNTER = 0;
+
 extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder,
                          LLVMValueRef const *bb, std::size_t size);
+
+const char *gen_fresh_name() {
+    ++NAME_FRESH_COUNTER;
+    string str = NAME_FRESH_PREFIX + to_string(NAME_FRESH_COUNTER);
+    errs() << str << "\n";
+    return str.c_str();
+}
+
+int gen_fresh_index() {
+    --FRESH_INT_COUNTER;
+    return FRESH_INT_COUNTER;
+}
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
     Value *v = unwrap(val);
@@ -25,7 +43,7 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
         auto name = load->getOperand(0)->getName();
         return name.data();
     }
-    return "";
+    return gen_fresh_name();
 }
 
 extern "C" int llvm_index(LLVMValueRef val, int index) {
@@ -35,7 +53,7 @@ extern "C" int llvm_index(LLVMValueRef val, int index) {
             return i->getSExtValue();
         }
     }
-    return -1;
+    return gen_fresh_index();
 }
 
 extern "C" bool isa_constant(LLVMValueRef val) {
@@ -58,27 +76,42 @@ extern "C" float get_constant_float(LLVMValueRef val) {
     return -1;
 }
 
+bool check_binop_is_float(BinaryOperator *op) {
+    auto *lhs = op->getOperand(0);
+    auto *rhs = op->getOperand(1);
+    return lhs->getType()->isFloatTy() && rhs->getType()->isFloatTy();
+}
+
 namespace {
 struct DiospyrosPass : public FunctionPass {
     static char ID;
     DiospyrosPass() : FunctionPass(ID) {}
 
     virtual bool runOnFunction(Function &F) {
+        bool has_changes = false;
         for (auto &B : F) {
             std::vector<LLVMValueRef> vec;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<BinaryOperator>(&I)) {
-                    vec.push_back(wrap(op));
+                    // only include floating point operations
+                    if (check_binop_is_float(op)) {
+                        vec.push_back(wrap(op));
+                    }
                 }
             }
-            IRBuilder<> builder(dyn_cast<Instruction>(unwrap(vec.back())));
-            builder.SetInsertPoint(&B, ++++++builder.GetInsertPoint());
 
-            Module *mod = F.getParent();
+            if (not vec.empty()) {
+                has_changes = has_changes || true;
+                IRBuilder<> builder(dyn_cast<Instruction>(unwrap(vec.back())));
+                // builder.SetInsertPoint(&B, ++++++builder.GetInsertPoint());
+                builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
 
-            optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
+                Module *mod = F.getParent();
+
+                optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
+            }
         }
-        return true;
+        return has_changes;
     };
 };
 }  // namespace
