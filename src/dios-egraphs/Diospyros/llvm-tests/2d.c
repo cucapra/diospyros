@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 
 float a_in[4][4] = {

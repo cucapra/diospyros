@@ -14,20 +14,14 @@
 using namespace llvm;
 using namespace std;
 
-int NAME_FRESH_COUNTER = 0;
-const string NAME_FRESH_PREFIX = "fresh_name";
+const char *NAME_FRESH_PREFIX = "no-array-name";
 
 int FRESH_INT_COUNTER = 0;
 
 extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder,
                          LLVMValueRef const *bb, std::size_t size);
 
-const char *gen_fresh_name() {
-    ++NAME_FRESH_COUNTER;
-    string str = NAME_FRESH_PREFIX + to_string(NAME_FRESH_COUNTER);
-    errs() << str << "\n";
-    return str.c_str();
-}
+const char *gen_fresh_name() { return NAME_FRESH_PREFIX; }
 
 int gen_fresh_index() {
     --FRESH_INT_COUNTER;
@@ -38,6 +32,9 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
     Value *v = unwrap(val);
     if (auto *gep = dyn_cast<GEPOperator>(v)) {
         auto name = gep->getOperand(0)->getName();
+        if (name.empty()) {
+            return gen_fresh_name();
+        }
         return name.data();
     } else if (auto *load = dyn_cast<LoadInst>(v)) {
         auto name = load->getOperand(0)->getName();

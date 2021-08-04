@@ -47,6 +47,10 @@ To run all the tests, run:
 
     $ make test
 
+To run all tests and get output, run:
+
+    $ make run-all
+
 To set up macOS settings, run:
 
     $ make set-up-mac

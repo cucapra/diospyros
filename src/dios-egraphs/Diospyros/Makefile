@@ -19,6 +19,9 @@ run-out: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
 	./a.out
 
+run-all: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	bash run_all.sh
+
 emit: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -emit-llvm -S -o - $(test)
 

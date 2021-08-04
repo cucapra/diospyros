@@ -67,7 +67,7 @@ unsafe fn to_expr_gep(
   // --- get offsets for multidimensional arrays ----
   let num_gep_operands = LLVMGetNumOperands(*gep_operand);
   let mut indices = Vec::new();
-  for operand_idx in 2..num_gep_operands {
+  for operand_idx in 1..num_gep_operands {
     let array_offset = llvm_index(*gep_operand, operand_idx);
     indices.push(array_offset);
   }
