@@ -14,3 +14,4 @@ Cargo.lock
 *.out
 .clang-format*
 .cargo
+.vscode

@@ -4,7 +4,6 @@ float a_in[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 float b_in[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 int main(int argc, char **argv) {
-    //  return argc + 5;
     float c_out[9];
     c_out[0] = a_in[0] + b_in[0];
     c_out[1] = a_in[1] + b_in[1];
@@ -24,5 +23,6 @@ int main(int argc, char **argv) {
     printf("seventh: %f\n", c_out[6]);
     printf("eight: %f\n", c_out[7]);
     printf("ninth: %f\n", c_out[8]);
+    // expected: 2, 4, 6, 8, 10, 12, 14, 16, 18
     return 0;
 }

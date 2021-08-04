@@ -9,10 +9,13 @@ extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
   fn llvm_name(val: LLVMValueRef) -> *const c_char;
   fn isa_constant(val: LLVMValueRef) -> bool;
+  fn isa_gep(val: LLVMValueRef) -> bool;
+  fn isa_load(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
 }
 
 type GEPMap = HashMap<(Symbol, Symbol), LLVMValueRef>;
+type VarMap = HashMap<Symbol, LLVMValueRef>;
 type ValueVec = Vec<LLVMValueRef>;
 
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
@@ -36,7 +39,55 @@ unsafe fn to_expr_constant(
   ids[id_index] = Id::from(vec.len() - 1);
 }
 
+unsafe fn to_expr_var(
+  var_operand: &LLVMValueRef,
+  enode_vec: &mut Vec<VecLang>,
+  ids: &mut [egg::Id; 2],
+  id_index: usize,
+  var_map: &mut VarMap,
+) -> () {
+  let var_name = CStr::from_ptr(llvm_name(*var_operand)).to_str().unwrap();
+  let symbol = Symbol::from(var_name);
+  enode_vec.push(VecLang::Symbol(symbol));
+  ids[id_index] = Id::from(enode_vec.len() - 1);
+  (*var_map).insert(symbol, *var_operand);
+}
+
 unsafe fn to_expr_gep(
+  gep_operand: &LLVMValueRef,
+  ids: &mut [egg::Id; 2],
+  id_index: usize,
+  enode_vec: &mut Vec<VecLang>,
+  gep_map: &mut GEPMap,
+) -> () {
+  // let gep_operand = LLVMGetOperand(*operand, 0);
+  let array_var_name = CStr::from_ptr(llvm_name(*gep_operand)).to_str().unwrap();
+  enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
+  let array_var_idx = enode_vec.len() - 1;
+  // --- get offsets for multidimensional arrays ----
+  let num_gep_operands = LLVMGetNumOperands(*gep_operand);
+  let mut indices = Vec::new();
+  for operand_idx in 1..num_gep_operands {
+    let array_offset = llvm_index(*gep_operand, operand_idx);
+    indices.push(array_offset);
+  }
+  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
+  let offsets_symbol = Symbol::from(&offsets_string);
+  enode_vec.push(VecLang::Symbol(offsets_symbol));
+  let array_offset_idx = enode_vec.len() - 1;
+
+  enode_vec.push(VecLang::Get([
+    Id::from(array_var_idx),
+    Id::from(array_offset_idx),
+  ]));
+
+  ids[id_index] = Id::from(enode_vec.len() - 1);
+
+  let array_name_symbol = Symbol::from(array_var_name);
+  gep_map.insert((array_name_symbol, offsets_symbol), *gep_operand);
+}
+
+unsafe fn to_expr_operand(
   operand: &LLVMValueRef,
   bop_map: &mut HashMap<LLVMValueRef, Id>,
   ids: &mut [egg::Id; 2],
@@ -44,37 +95,24 @@ unsafe fn to_expr_gep(
   used_bop_ids: &mut Vec<Id>,
   enode_vec: &mut Vec<VecLang>,
   gep_map: &mut GEPMap,
+  var_map: &mut VarMap,
 ) -> () {
-  let gep_operand = LLVMGetOperand(*operand, 0);
   if bop_map.contains_key(&operand) {
     let used_id = *bop_map.get(&operand).expect("Expected key in map");
     ids[id_index] = used_id;
     used_bop_ids.push(used_id);
-  } else {
-    let array_var_name = CStr::from_ptr(llvm_name(gep_operand)).to_str().unwrap();
-    enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
-    let array_var_idx = enode_vec.len() - 1;
-    // --- get offsets for multidimensional arrays ----
-    let num_gep_operands = LLVMGetNumOperands(gep_operand);
-    let mut indices = Vec::new();
-    for operand_idx in 2..num_gep_operands {
-      let array_offset = llvm_index(gep_operand, operand_idx);
-      indices.push(array_offset);
+  } else if isa_constant(*operand) {
+    to_expr_constant(&operand, enode_vec, ids, id_index);
+  } else if isa_load(*operand) {
+    let inner_operand = LLVMGetOperand(*operand, 0);
+    if isa_gep(inner_operand) {
+      to_expr_gep(&inner_operand, ids, id_index, enode_vec, gep_map);
+    } else {
+      // assume load of some temporary/global variable
+      to_expr_var(operand, enode_vec, ids, id_index, var_map);
     }
-    let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
-    let offsets_symbol = Symbol::from(&offsets_string);
-    enode_vec.push(VecLang::Symbol(offsets_symbol));
-    let array_offset_idx = enode_vec.len() - 1;
-
-    enode_vec.push(VecLang::Get([
-      Id::from(array_var_idx),
-      Id::from(array_offset_idx),
-    ]));
-
-    ids[id_index] = Id::from(enode_vec.len() - 1);
-
-    let array_name_symbol = Symbol::from(array_var_name);
-    gep_map.insert((array_name_symbol, offsets_symbol), gep_operand);
+  } else {
+    panic!("Cannot handle LLVM IR Operand.")
   }
 }
 
@@ -124,42 +162,34 @@ fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
   }
 }
 
-pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) {
+pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-  let (mut gep_map, mut bop_map) = (HashMap::new(), HashMap::new());
+  let (mut gep_map, mut var_map, mut bop_map) = (HashMap::new(), HashMap::new(), HashMap::new());
   let mut ids = [Id::from(0); 2];
   for bop in bb_vec.iter() {
     unsafe {
-      let left_operand = LLVMGetOperand(*bop, 0);
-      let right_operand = LLVMGetOperand(*bop, 1);
-      if isa_constant(left_operand) {
-        to_expr_constant(&left_operand, &mut enode_vec, &mut ids, 0);
-      } else {
-        to_expr_gep(
-          &left_operand,
-          &mut bop_map,
-          &mut ids,
-          0,
-          &mut used_bop_ids,
-          &mut enode_vec,
-          &mut gep_map,
-        );
-      }
-      if isa_constant(right_operand) {
-        to_expr_constant(&right_operand, &mut enode_vec, &mut ids, 1);
-      } else {
-        to_expr_gep(
-          &right_operand,
-          &mut bop_map,
-          &mut ids,
-          1,
-          &mut used_bop_ids,
-          &mut enode_vec,
-          &mut gep_map,
-        );
-      }
-
+      // to_expr on left and then right operands
+      to_expr_operand(
+        &LLVMGetOperand(*bop, 0),
+        &mut bop_map,
+        &mut ids,
+        0,
+        &mut used_bop_ids,
+        &mut enode_vec,
+        &mut gep_map,
+        &mut var_map,
+      );
+      to_expr_operand(
+        &LLVMGetOperand(*bop, 1),
+        &mut bop_map,
+        &mut ids,
+        1,
+        &mut used_bop_ids,
+        &mut enode_vec,
+        &mut gep_map,
+        &mut var_map,
+      );
       // lhs bop rhs
       enode_vec.push(choose_binop(bop, ids));
       let id = Id::from(enode_vec.len() - 1);
@@ -193,7 +223,12 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, ValueVec) 
     }
   }
 
-  return (RecExpr::from(enode_vec), gep_map, final_ops_to_replace);
+  return (
+    RecExpr::from(enode_vec),
+    gep_map,
+    var_map,
+    final_ops_to_replace,
+  );
 }
 
 unsafe fn translate_binop(
@@ -260,11 +295,12 @@ unsafe fn translate(
   enode: &VecLang,
   vec: &[VecLang],
   gep_map: &GEPMap,
+  var_map: &VarMap,
   builder: LLVMBuilderRef,
   module: LLVMModuleRef,
 ) -> LLVMValueRef {
   match enode {
-    VecLang::Symbol(_) => panic!("Symbols are never supposed to be evaluated"),
+    VecLang::Symbol(s) => *var_map.get(s).expect("Var map lookup error"),
     VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
     VecLang::Get(..) => {
       let (array_name, array_offsets) = translate_get(enode, vec);
@@ -285,7 +321,7 @@ unsafe fn translate(
       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
       for (idx, &eggid) in idvec.iter().enumerate() {
         let elt = &vec[usize::from(eggid)];
-        let elt_val = translate(elt, vec, gep_map, builder, module);
+        let elt_val = translate(elt, vec, gep_map, var_map, builder, module);
         vector = LLVMBuildInsertElement(
           builder,
           vector,
@@ -307,13 +343,41 @@ unsafe fn translate(
     | VecLang::Or([l, r])
     | VecLang::And([l, r])
     | VecLang::Lt([l, r]) => {
-      let left = translate(&vec[usize::from(*l)], vec, gep_map, builder, module);
-      let right = translate(&vec[usize::from(*r)], vec, gep_map, builder, module);
+      let left = translate(
+        &vec[usize::from(*l)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
+      let right = translate(
+        &vec[usize::from(*r)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
       translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
     }
     VecLang::Concat([v1, v2]) => {
-      let trans_v1 = translate(&vec[usize::from(*v1)], vec, gep_map, builder, module);
-      let trans_v2 = translate(&vec[usize::from(*v2)], vec, gep_map, builder, module);
+      let trans_v1 = translate(
+        &vec[usize::from(*v1)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
+      let trans_v2 = translate(
+        &vec[usize::from(*v2)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
       let v1_type = LLVMTypeOf(trans_v1);
       let v1_size = LLVMGetVectorSize(v1_type);
       let v2_type = LLVMTypeOf(trans_v2);
@@ -334,9 +398,30 @@ unsafe fn translate(
       )
     }
     VecLang::VecMAC([acc, v1, v2]) => {
-      let trans_acc = translate(&vec[usize::from(*acc)], vec, gep_map, builder, module);
-      let trans_v1 = translate(&vec[usize::from(*v1)], vec, gep_map, builder, module);
-      let trans_v2 = translate(&vec[usize::from(*v2)], vec, gep_map, builder, module);
+      let trans_acc = translate(
+        &vec[usize::from(*acc)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
+      let trans_v1 = translate(
+        &vec[usize::from(*v1)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
+      let trans_v2 = translate(
+        &vec[usize::from(*v2)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
       let vec_type = LLVMTypeOf(trans_acc);
 
       let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
@@ -347,11 +432,25 @@ unsafe fn translate(
     }
     // TODO: Consider changing to floating point operations to allow for Unary fneg llvm instruction
     VecLang::VecNeg([v]) => {
-      let neg_vector = translate(&vec[usize::from(*v)], vec, gep_map, builder, module);
+      let neg_vector = translate(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
       LLVMBuildFNeg(builder, neg_vector, b"\0".as_ptr() as *const _)
     }
     VecLang::VecSqrt([v]) => {
-      let sqrt_vec = translate(&vec[usize::from(*v)], vec, gep_map, builder, module);
+      let sqrt_vec = translate(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
       let vec_type = LLVMTypeOf(sqrt_vec);
       let param_types = [vec_type].as_mut_ptr();
       let fn_type = LLVMFunctionType(vec_type, param_types, 1, 0 as i32);
@@ -361,7 +460,14 @@ unsafe fn translate(
     }
     // compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
     VecLang::VecSgn([v]) => {
-      let sgn_vec = translate(&vec[usize::from(*v)], vec, gep_map, builder, module);
+      let sgn_vec = translate(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
       let vec_type = LLVMTypeOf(sgn_vec);
       let vec_size = LLVMGetVectorSize(vec_type);
       let mut ones = Vec::new();
@@ -377,7 +483,14 @@ unsafe fn translate(
       LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
     }
     VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) => {
-      let number = translate(&vec[usize::from(*n)], vec, gep_map, builder, module);
+      let number = translate(
+        &vec[usize::from(*n)],
+        vec,
+        gep_map,
+        var_map,
+        builder,
+        module,
+      );
       translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
     }
     VecLang::Ite(..) => panic!("Ite is not handled."),
@@ -388,6 +501,7 @@ unsafe fn to_llvm(
   module: LLVMModuleRef,
   expr: RecExpr<VecLang>,
   gep_map: &GEPMap,
+  var_map: &VarMap,
   ops_to_replace: &ValueVec,
   builder: LLVMBuilderRef,
 ) -> () {
@@ -396,7 +510,7 @@ unsafe fn to_llvm(
     .last()
     .expect("No match for last element of vector of Egg Terms.");
 
-  let vector = translate(last, vec, gep_map, builder, module);
+  let vector = translate(last, vec, gep_map, var_map, builder, module);
 
   for (i, op) in ops_to_replace.iter().enumerate() {
     let index = LLVMConstInt(LLVMInt32Type(), i as u64, 0);
@@ -418,7 +532,7 @@ pub fn optimize(
 ) -> () {
   unsafe {
     // llvm to egg
-    let (expr, gep_map, ops_to_replace) = to_expr(from_raw_parts(bb, size));
+    let (expr, gep_map, var_map, ops_to_replace) = to_expr(from_raw_parts(bb, size));
 
     // optimization pass
     eprintln!("{:?}", expr);
@@ -426,6 +540,6 @@ pub fn optimize(
     eprintln!("{:?}", best.as_ref());
 
     // egg to llvm
-    to_llvm(module, best, &gep_map, &ops_to_replace, builder);
+    to_llvm(module, best, &gep_map, &var_map, &ops_to_replace, builder);
   }
 }

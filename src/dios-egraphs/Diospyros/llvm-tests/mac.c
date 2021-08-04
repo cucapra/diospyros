@@ -14,5 +14,6 @@ int main(int argc, char **argv) {
     printf("second: %f\n", d_out[1]);
     printf("third: %f\n", d_out[2]);
     printf("fourth: %f\n", d_out[3]);
+    // expected: 7, 14, 23, 34
     return 0;
 }
