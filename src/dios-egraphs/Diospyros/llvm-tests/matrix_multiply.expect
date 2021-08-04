@@ -148,7 +148,7 @@
   %26 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.3, i64 0, i64 0), double %25)
   ret i32 0
 ---STDERR---
-RecExpr { nodes: [Symbol("no-array-name"), Symbol("-1,"), Get([0, 1]), Symbol("no-array-name"), Symbol("-2,"), Get([3, 4]), Mul([2, 5]), Symbol("no-array-name"), Symbol("-3,"), Get([7, 8]), Add([9, 6]), Num(0), Num(0), Num(0), Vec([10, 11, 12, 13])] }
+RecExpr { nodes: [Symbol("no-array-name1"), Symbol("-1,"), Get([0, 1]), Symbol("no-array-name2"), Symbol("-2,"), Get([3, 4]), Mul([2, 5]), Symbol("no-array-name3"), Symbol("-3,"), Get([7, 8]), Add([9, 6]), Num(0), Num(0), Num(0), Vec([10, 11, 12, 13])] }
 Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
 Stopped after 5 iterations, reason: Some(Saturated)
-[Symbol("no-array-name"), Symbol("-3,"), Get([0, 1]), Num(0), Num(0), Num(0), LitVec([2, 3, 4, 5]), Symbol("no-array-name"), Symbol("-1,"), Get([7, 8]), Num(0), Num(0), Num(0), LitVec([9, 10, 11, 12]), Symbol("no-array-name"), Symbol("-2,"), Get([14, 15]), Num(0), Num(0), Num(0), LitVec([16, 17, 18, 19]), VecMAC([6, 13, 20])]
+[Symbol("no-array-name3"), Symbol("-3,"), Get([0, 1]), Num(0), Num(0), Num(0), LitVec([2, 3, 4, 5]), Symbol("no-array-name1"), Symbol("-1,"), Get([7, 8]), Num(0), Num(0), Num(0), LitVec([9, 10, 11, 12]), Symbol("no-array-name2"), Symbol("-2,"), Get([14, 15]), Num(0), Num(0), Num(0), LitVec([16, 17, 18, 19]), VecMAC([6, 13, 20])]

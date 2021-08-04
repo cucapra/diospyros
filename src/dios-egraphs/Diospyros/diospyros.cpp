@@ -14,18 +14,35 @@
 using namespace llvm;
 using namespace std;
 
-const char *NAME_FRESH_PREFIX = "no-array-name";
-
-int FRESH_INT_COUNTER = 0;
-
 extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder,
                          LLVMValueRef const *bb, std::size_t size);
 
-const char *gen_fresh_name() { return NAME_FRESH_PREFIX; }
+const string ARRAY_NAME = "no-array-name";
+const string TEMP_NAME = "no-temp-name";
+
+int FRESH_INT_COUNTER = 0;
+int FRESH_ARRAY_COUNTER = 0;
+int FRESH_TEMP_COUNTER = 0;
 
 int gen_fresh_index() {
     --FRESH_INT_COUNTER;
     return FRESH_INT_COUNTER;
+}
+
+const char *gen_fresh_array() {
+    ++FRESH_ARRAY_COUNTER;
+    string array_str = ARRAY_NAME + to_string(FRESH_ARRAY_COUNTER);
+    char *cstr = new char[array_str.length() + 1];
+    std::strcpy(cstr, array_str.c_str());
+    return cstr;
+}
+
+const char *gen_fresh_temp() {
+    ++FRESH_TEMP_COUNTER;
+    string temp_str = TEMP_NAME + to_string(FRESH_TEMP_COUNTER);
+    char *cstr = new char[temp_str.length() + 1];
+    std::strcpy(cstr, temp_str.c_str());
+    return cstr;
 }
 
 extern "C" const char *llvm_name(LLVMValueRef val) {
@@ -33,14 +50,17 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
     if (auto *gep = dyn_cast<GEPOperator>(v)) {
         auto name = gep->getOperand(0)->getName();
         if (name.empty()) {
-            return gen_fresh_name();
+            return gen_fresh_array();
         }
         return name.data();
     } else if (auto *load = dyn_cast<LoadInst>(v)) {
         auto name = load->getOperand(0)->getName();
+        if (name.empty()) {
+            return gen_fresh_temp();
+        }
         return name.data();
     }
-    return gen_fresh_name();
+    return gen_fresh_array();
 }
 
 extern "C" int llvm_index(LLVMValueRef val, int index) {
