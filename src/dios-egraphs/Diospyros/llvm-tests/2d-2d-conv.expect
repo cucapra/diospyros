@@ -1,0 +1,177 @@
+  %4 = alloca [8 x float]*, align 8
+  %5 = alloca [3 x float]*, align 8
+  %6 = alloca [10 x float]*, align 8
+  %7 = alloca i32, align 4
+  %8 = alloca i32, align 4
+  %9 = alloca i32, align 4
+  %10 = alloca i32, align 4
+  %11 = alloca i32, align 4
+  %12 = alloca i32, align 4
+  %13 = alloca i32, align 4
+  %14 = alloca i32, align 4
+  %15 = alloca float, align 4
+  store [8 x float]* %0, [8 x float]** %4, align 8
+  store [3 x float]* %1, [3 x float]** %5, align 8
+  store [10 x float]* %2, [10 x float]** %6, align 8
+  store i32 0, i32* %7, align 4
+  br label %16
+
+16:                                               ; preds = %111, %3
+  %17 = load i32, i32* %7, align 4
+  %18 = icmp slt i32 %17, 10
+  br i1 %18, label %19, label %114
+
+19:                                               ; preds = %16
+  store i32 0, i32* %8, align 4
+  br label %20
+
+20:                                               ; preds = %107, %19
+  %21 = load i32, i32* %8, align 4
+  %22 = icmp slt i32 %21, 10
+  br i1 %22, label %23, label %110
+
+23:                                               ; preds = %20
+  store i32 0, i32* %9, align 4
+  br label %24
+
+24:                                               ; preds = %103, %23
+  %25 = load i32, i32* %9, align 4
+  %26 = icmp slt i32 %25, 3
+  br i1 %26, label %27, label %106
+
+27:                                               ; preds = %24
+  store i32 0, i32* %10, align 4
+  br label %28
+
+28:                                               ; preds = %99, %27
+  %29 = load i32, i32* %10, align 4
+  %30 = icmp slt i32 %29, 3
+  br i1 %30, label %31, label %102
+
+31:                                               ; preds = %28
+  %32 = load i32, i32* %9, align 4
+  %33 = sub nsw i32 2, %32
+  store i32 %33, i32* %11, align 4
+  %34 = load i32, i32* %10, align 4
+  %35 = sub nsw i32 2, %34
+  store i32 %35, i32* %12, align 4
+  %36 = load i32, i32* %7, align 4
+  %37 = load i32, i32* %11, align 4
+  %38 = sub nsw i32 %36, %37
+  store i32 %38, i32* %13, align 4
+  %39 = load i32, i32* %8, align 4
+  %40 = load i32, i32* %12, align 4
+  %41 = sub nsw i32 %39, %40
+  store i32 %41, i32* %14, align 4
+  %42 = load i32, i32* %13, align 4
+  %43 = icmp sge i32 %42, 0
+  br i1 %43, label %44, label %98
+
+44:                                               ; preds = %31
+  %45 = load i32, i32* %13, align 4
+  %46 = icmp slt i32 %45, 8
+  br i1 %46, label %47, label %98
+
+47:                                               ; preds = %44
+  %48 = load i32, i32* %14, align 4
+  %49 = icmp sge i32 %48, 0
+  br i1 %49, label %50, label %98
+
+50:                                               ; preds = %47
+  %51 = load i32, i32* %14, align 4
+  %52 = icmp slt i32 %51, 8
+  br i1 %52, label %53, label %98
+
+53:                                               ; preds = %50
+  %54 = load [8 x float]*, [8 x float]** %4, align 8
+  %55 = load i32, i32* %13, align 4
+  %56 = sext i32 %55 to i64
+  %57 = getelementptr inbounds [8 x float], [8 x float]* %54, i64 %56
+  %58 = load i32, i32* %14, align 4
+  %59 = sext i32 %58 to i64
+  %60 = getelementptr inbounds [8 x float], [8 x float]* %57, i64 0, i64 %59
+  %61 = load float, float* %60, align 4
+  %62 = load [3 x float]*, [3 x float]** %5, align 8
+  %63 = load i32, i32* %11, align 4
+  %64 = sext i32 %63 to i64
+  %65 = getelementptr inbounds [3 x float], [3 x float]* %62, i64 %64
+  %66 = load i32, i32* %12, align 4
+  %67 = sext i32 %66 to i64
+  %68 = getelementptr inbounds [3 x float], [3 x float]* %65, i64 0, i64 %67
+  %69 = load float, float* %68, align 4
+  %70 = fmul float %61, %69
+  %71 = load float, float* %15, align 4
+  %72 = load [10 x float]*, [10 x float]** %6, align 8
+  %73 = load i32, i32* %7, align 4
+  %74 = sext i32 %73 to i64
+  %75 = getelementptr inbounds [10 x float], [10 x float]* %72, i64 %74
+  %76 = load i32, i32* %8, align 4
+  %77 = sext i32 %76 to i64
+  %78 = getelementptr inbounds [10 x float], [10 x float]* %75, i64 0, i64 %77
+  %79 = load float, float* %78, align 4
+  %80 = fadd float %79, %71
+  %81 = load float, float* %78, align 4
+  %82 = insertelement <4 x float> zeroinitializer, float %81, i32 1
+  %83 = insertelement <4 x float> %82, float 0.000000e+00, i32 2
+  %84 = insertelement <4 x float> %83, float 0.000000e+00, i32 3
+  %85 = load float, float* %60, align 4
+  %86 = insertelement <4 x float> zeroinitializer, float %85, i32 0
+  %87 = insertelement <4 x float> %86, float 1.000000e+00, i32 1
+  %88 = insertelement <4 x float> %87, float 1.000000e+00, i32 2
+  %89 = insertelement <4 x float> %88, float 1.000000e+00, i32 3
+  %90 = load float, float* %68, align 4
+  %91 = insertelement <4 x float> zeroinitializer, float %90, i32 0
+  %92 = insertelement <4 x float> %91, float %71, i32 1
+  %93 = insertelement <4 x float> %92, float 0.000000e+00, i32 2
+  %94 = insertelement <4 x float> %93, float 0.000000e+00, i32 3
+  %95 = call <4 x float> @llvm.fma.f32(<4 x float> %89, <4 x float> %94, <4 x float> %84)
+  %96 = extractelement <4 x float> %95, i32 0
+  store float %96, float* %15, align 4
+  %97 = extractelement <4 x float> %95, i32 1
+  store float %97, float* %78, align 4
+  br label %98
+
+98:                                               ; preds = %53, %50, %47, %44, %31
+  br label %99
+
+99:                                               ; preds = %98
+  %100 = load i32, i32* %10, align 4
+  %101 = add nsw i32 %100, 1
+  store i32 %101, i32* %10, align 4
+  br label %28
+
+102:                                              ; preds = %28
+  br label %103
+
+103:                                              ; preds = %102
+  %104 = load i32, i32* %9, align 4
+  %105 = add nsw i32 %104, 1
+  store i32 %105, i32* %9, align 4
+  br label %24
+
+106:                                              ; preds = %24
+  br label %107
+
+107:                                              ; preds = %106
+  %108 = load i32, i32* %8, align 4
+  %109 = add nsw i32 %108, 1
+  store i32 %109, i32* %8, align 4
+  br label %20
+
+110:                                              ; preds = %20
+  br label %111
+
+111:                                              ; preds = %110
+  %112 = load i32, i32* %7, align 4
+  %113 = add nsw i32 %112, 1
+  store i32 %113, i32* %7, align 4
+  br label %16
+
+114:                                              ; preds = %16
+  ret void
+  ret i32 0
+---STDERR---
+RecExpr { nodes: [Symbol("no-array-name1"), Symbol("0,-1,"), Get([0, 1]), Symbol("no-array-name2"), Symbol("0,-2,"), Get([3, 4]), Mul([2, 5]), Symbol("no-array-name3"), Symbol("0,-3,"), Get([7, 8]), Symbol("no-temp-name1"), Add([9, 10]), Num(0), Num(0), Vec([6, 11, 12, 13])] }
+Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
+Stopped after 5 iterations, reason: Some(Saturated)
+[Num(0), Symbol("no-array-name3"), Symbol("0,-3,"), Get([1, 2]), Num(0), Num(0), LitVec([0, 3, 4, 5]), Symbol("no-array-name1"), Symbol("0,-1,"), Get([7, 8]), Num(1), Num(1), Num(1), Vec([9, 10, 11, 12]), Symbol("no-array-name2"), Symbol("0,-2,"), Get([14, 15]), Symbol("no-temp-name1"), Num(0), Num(0), Vec([16, 17, 18, 19]), VecMAC([6, 13, 20])]

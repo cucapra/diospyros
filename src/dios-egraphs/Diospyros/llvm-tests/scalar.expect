@@ -1,0 +1,55 @@
+  %4 = alloca float*, align 8
+  %5 = alloca float, align 4
+  %6 = alloca float*, align 8
+  %7 = alloca i32, align 4
+  store float* %0, float** %4, align 8
+  store float %1, float* %5, align 4
+  store float* %2, float** %6, align 8
+  store i32 0, i32* %7, align 4
+  br label %8
+
+8:                                                ; preds = %34, %3
+  %9 = load i32, i32* %7, align 4
+  %10 = icmp slt i32 %9, 8
+  br i1 %10, label %11, label %37
+
+11:                                               ; preds = %8
+  %12 = load float*, float** %4, align 8
+  %13 = load i32, i32* %7, align 4
+  %14 = sext i32 %13 to i64
+  %15 = getelementptr inbounds float, float* %12, i64 %14
+  %16 = load float, float* %15, align 4
+  %17 = load float, float* %5, align 4
+  %18 = fmul float %16, %17
+  %19 = load float*, float** %6, align 8
+  %20 = load i32, i32* %7, align 4
+  %21 = sext i32 %20 to i64
+  %22 = getelementptr inbounds float, float* %19, i64 %21
+  %23 = load float, float* %15, align 4
+  %24 = insertelement <4 x float> zeroinitializer, float %23, i32 0
+  %25 = insertelement <4 x float> %24, float 0.000000e+00, i32 1
+  %26 = insertelement <4 x float> %25, float 0.000000e+00, i32 2
+  %27 = insertelement <4 x float> %26, float 0.000000e+00, i32 3
+  %28 = insertelement <4 x float> zeroinitializer, float %17, i32 0
+  %29 = insertelement <4 x float> %28, float 0.000000e+00, i32 1
+  %30 = insertelement <4 x float> %29, float 0.000000e+00, i32 2
+  %31 = insertelement <4 x float> %30, float 0.000000e+00, i32 3
+  %32 = fmul <4 x float> %27, %31
+  %33 = extractelement <4 x float> %32, i32 0
+  store float %33, float* %22, align 4
+  br label %34
+
+34:                                               ; preds = %11
+  %35 = load i32, i32* %7, align 4
+  %36 = add nsw i32 %35, 1
+  store i32 %36, i32* %7, align 4
+  br label %8
+
+37:                                               ; preds = %8
+  ret void
+  ret i32 0
+---STDERR---
+RecExpr { nodes: [Symbol("no-array-name1"), Symbol("-1,"), Get([0, 1]), Symbol("no-temp-name1"), Mul([2, 3]), Num(0), Num(0), Num(0), Vec([4, 5, 6, 7])] }
+Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
+Stopped after 5 iterations, reason: Some(Saturated)
+[Symbol("no-array-name1"), Symbol("-1,"), Get([0, 1]), Num(0), Num(0), Num(0), LitVec([2, 3, 4, 5]), Symbol("no-temp-name1"), Num(0), Num(0), Num(0), Vec([7, 8, 9, 10]), VecMul([6, 11])]

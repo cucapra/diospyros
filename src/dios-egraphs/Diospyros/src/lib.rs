@@ -11,6 +11,7 @@ extern "C" {
   fn isa_constant(val: LLVMValueRef) -> bool;
   fn isa_gep(val: LLVMValueRef) -> bool;
   fn isa_load(val: LLVMValueRef) -> bool;
+  fn isa_store(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
 }
 
@@ -516,10 +517,18 @@ unsafe fn to_llvm(
     let index = LLVMConstInt(LLVMInt32Type(), i as u64, 0);
     let extracted_value =
       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
-    let store_instr = LLVMGetNextInstruction(LLVMGetNextInstruction(*op));
+    // figure out where the next store is located
+    let mut store_instr = *op;
+    // assumes there is a store next: could swegafault or loop forever if not.
+    while !isa_store(store_instr) {
+      store_instr = LLVMGetNextInstruction(store_instr);
+    }
     let cloned_store = LLVMInstructionClone(store_instr);
     LLVMSetOperand(cloned_store, 0, extracted_value);
     LLVMInsertIntoBuilder(builder, cloned_store);
+    // erase stores -> this was affecting a load and then a store to the same
+    // location in matrix multiply
+    LLVMInstructionEraseFromParent(store_instr);
   }
 }
 

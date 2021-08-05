@@ -85,6 +85,10 @@ extern "C" bool isa_load(LLVMValueRef val) {
     return isa<LoadInst>(unwrap(val));
 }
 
+extern "C" bool isa_store(LLVMValueRef val) {
+    return isa<StoreInst>(unwrap(val));
+}
+
 extern "C" float get_constant_float(LLVMValueRef val) {
     Value *v = unwrap(val);
     if (auto *num = dyn_cast<ConstantFP>(v)) {
@@ -119,8 +123,26 @@ struct DiospyrosPass : public FunctionPass {
 
             if (not vec.empty()) {
                 has_changes = has_changes || true;
-                IRBuilder<> builder(dyn_cast<Instruction>(unwrap(vec.back())));
-                // builder.SetInsertPoint(&B, ++++++builder.GetInsertPoint());
+                Value *last_val = unwrap(vec.back());
+                IRBuilder<> builder(dyn_cast<Instruction>(last_val));
+                Instruction *last_instr = dyn_cast<Instruction>(last_val);
+                // figure out where next store is located after the last binary
+                // operation
+                while (not isa<StoreInst>(last_instr)) {
+                    Instruction *next_instr =
+                        last_instr->getNextNonDebugInstruction();
+                    if (next_instr != NULL) {
+                        last_instr = next_instr;
+                        builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
+                    } else {
+                        // This is a problematic situation: we depend on knowing
+                        // the stored address to write back an extract element
+                        // to.
+                        // Should the code go here, the llvm pass will be
+                        // incorrect.
+                        break;
+                    }
+                }
                 builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
 
                 Module *mod = F.getParent();

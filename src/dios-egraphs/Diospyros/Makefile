@@ -15,8 +15,15 @@ endif
 run: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
 
+run-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	$(CLANG) -O2 -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
+
 run-out: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
+	./a.out
+
+run-out-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	$(CLANG) -O2 -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
 	./a.out
 
 run-all: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
