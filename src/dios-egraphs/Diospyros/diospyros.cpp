@@ -1,11 +1,14 @@
 #include <llvm-c/Core.h>
 
+#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "llvm/IR/Argument.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/User.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
@@ -103,6 +106,37 @@ bool check_binop_is_float(BinaryOperator *op) {
     return lhs->getType()->isFloatTy() && rhs->getType()->isFloatTy();
 }
 
+bool dfs_llvm_instrs(User *current_instr, User *match_instr) {
+    if (current_instr == match_instr) {
+        return true;
+    }
+    if (isa<AllocaInst>(current_instr) || isa<Argument>(current_instr) ||
+        isa<Constant>(current_instr)) {
+        return false;
+    }
+    bool result = false;
+    for (auto i = 0; i < current_instr->getNumOperands(); i++) {
+        Value *operand = current_instr->getOperand(i);
+        auto user_cast = dyn_cast<User>(operand);
+        if (user_cast == NULL) {
+            throw std::invalid_argument("Could not convert Value * to User *");
+        }
+        result |= dfs_llvm_instrs(user_cast, match_instr);
+    }
+
+    return result;
+}
+
+extern "C" bool dfs_llvm_value_ref(LLVMValueRef current_instr,
+                                   LLVMValueRef match_instr) {
+    auto current_user = dyn_cast<User>(unwrap(current_instr));
+    auto match_user = dyn_cast<User>(unwrap(match_instr));
+    if (current_user == NULL || match_user == NULL) {
+        throw std::invalid_argument("Could not convert Value * to User *");
+    }
+    return dfs_llvm_instrs(current_user, match_user);
+}
+
 namespace {
 struct DiospyrosPass : public FunctionPass {
     static char ID;
@@ -111,6 +145,7 @@ struct DiospyrosPass : public FunctionPass {
     virtual bool runOnFunction(Function &F) {
         bool has_changes = false;
         for (auto &B : F) {
+            // errs() << B << "\n";
             std::vector<LLVMValueRef> vec;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<BinaryOperator>(&I)) {
