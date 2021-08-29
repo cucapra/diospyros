@@ -1,0 +1,22 @@
+FFT is likely going to break, because the temps are ordered in a fashion that 
+they cannot be moved before vectorization; need an algorithm 
+to decide conservatively when vectorization can be done and on which sets of code.
+
+Likewise, loop unrolling will likely break most vectorization outputs, because the
+temps will straddle vector adds.
+
+E.g.
+temp  = 3 + 4;
+v += temp 
+
+temp = 5 + 6;
+v += temp
+might break when it is unrolled out.
+
+Another issue is that temporary variables cannot be used!
+some code like
+v = 3 + a;
+m[0][1] = v;
+
+breaks the code because it causes a chain of load/stores, for which we need
+to create  DFS algorithm to detect!
