@@ -47,7 +47,47 @@
 
 37:                                               ; preds = %8
   ret void
-  ret i32 0
+  %1 = alloca i32, align 4
+  %2 = alloca [8 x float], align 16
+  %3 = alloca float, align 4
+  %4 = alloca [8 x float], align 16
+  %5 = alloca i32, align 4
+  store i32 0, i32* %1, align 4
+  %6 = bitcast [8 x float]* %2 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %6, i8* align 16 bitcast ([8 x float]* @__const.main.a_in to i8*), i64 32, i1 false)
+  store float 1.000000e+01, float* %3, align 4
+  %7 = bitcast [8 x float]* %4 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %7, i8* align 16 bitcast ([8 x float]* @__const.main.b_in to i8*), i64 32, i1 false)
+  %8 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
+  %9 = load float, float* %3, align 4
+  %10 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 0
+  call void @matrix_multiply(float* %8, float %9, float* %10)
+  store i32 0, i32* %5, align 4
+  br label %11
+
+11:                                               ; preds = %21, %0
+  %12 = load i32, i32* %5, align 4
+  %13 = icmp slt i32 %12, 8
+  br i1 %13, label %14, label %24
+
+14:                                               ; preds = %11
+  %15 = load i32, i32* %5, align 4
+  %16 = sext i32 %15 to i64
+  %17 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 %16
+  %18 = load float, float* %17, align 4
+  %19 = fpext float %18 to double
+  %20 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %19)
+  br label %21
+
+21:                                               ; preds = %14
+  %22 = load i32, i32* %5, align 4
+  %23 = add nsw i32 %22, 1
+  store i32 %23, i32* %5, align 4
+  br label %11
+
+24:                                               ; preds = %11
+  %25 = load i32, i32* %1, align 4
+  ret i32 %25
 ---STDERR---
 RecExpr { nodes: [Symbol("no-array-name1"), Symbol("-1,"), Get([0, 1]), Symbol("no-temp-name1"), Mul([2, 3]), Num(0), Num(0), Num(0), Vec([4, 5, 6, 7])] }
 Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop

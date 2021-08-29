@@ -227,7 +227,48 @@
 
 106:                                              ; preds = %53
   ret void
-  ret i32 0
+  %1 = alloca i32, align 4
+  %2 = alloca [4 x float], align 16
+  %3 = alloca [4 x float], align 16
+  %4 = alloca [4 x float], align 16
+  %5 = alloca i32, align 4
+  store i32 0, i32* %1, align 4
+  %6 = bitcast [4 x float]* %2 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %6, i8* align 16 bitcast ([4 x float]* @__const.main.q_in to i8*), i64 16, i1 false)
+  %7 = bitcast [4 x float]* %3 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %7, i8* align 16 bitcast ([4 x float]* @__const.main.p_in to i8*), i64 16, i1 false)
+  %8 = bitcast [4 x float]* %4 to i8*
+  call void @llvm.memset.p0i8.i64(i8* align 16 %8, i8 0, i64 16, i1 false)
+  %9 = getelementptr inbounds [4 x float], [4 x float]* %2, i64 0, i64 0
+  %10 = getelementptr inbounds [4 x float], [4 x float]* %3, i64 0, i64 0
+  %11 = getelementptr inbounds [4 x float], [4 x float]* %4, i64 0, i64 0
+  call void @point_product(float* %9, float* %10, float* %11)
+  store i32 0, i32* %5, align 4
+  br label %12
+
+12:                                               ; preds = %22, %0
+  %13 = load i32, i32* %5, align 4
+  %14 = icmp slt i32 %13, 3
+  br i1 %14, label %15, label %25
+
+15:                                               ; preds = %12
+  %16 = load i32, i32* %5, align 4
+  %17 = sext i32 %16 to i64
+  %18 = getelementptr inbounds [4 x float], [4 x float]* %4, i64 0, i64 %17
+  %19 = load float, float* %18, align 4
+  %20 = fpext float %19 to double
+  %21 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %20)
+  br label %22
+
+22:                                               ; preds = %15
+  %23 = load i32, i32* %5, align 4
+  %24 = add nsw i32 %23, 1
+  store i32 %24, i32* %5, align 4
+  br label %12
+
+25:                                               ; preds = %12
+  %26 = load i32, i32* %1, align 4
+  ret i32 %26
 ---STDERR---
 RecExpr { nodes: [Symbol("no-array-name1"), Symbol("1,"), Get([0, 1]), Symbol("no-array-name2"), Symbol("2,"), Get([3, 4]), Mul([2, 5]), Symbol("no-array-name3"), Symbol("2,"), Get([7, 8]), Symbol("no-array-name4"), Symbol("1,"), Get([10, 11]), Mul([9, 12]), Minus([6, 13]), Symbol("no-array-name5"), Symbol("2,"), Get([15, 16]), Symbol("no-array-name6"), Symbol("0,"), Get([18, 19]), Mul([17, 20]), Symbol("no-array-name7"), Symbol("0,"), Get([22, 23]), Symbol("no-array-name8"), Symbol("2,"), Get([25, 26]), Mul([24, 27]), Minus([21, 28]), Symbol("no-array-name9"), Symbol("0,"), Get([30, 31]), Symbol("no-array-name10"), Symbol("1,"), Get([33, 34]), Mul([32, 35]), Symbol("no-array-name11"), Symbol("1,"), Get([37, 38]), Symbol("no-array-name12"), Symbol("0,"), Get([40, 41]), Mul([39, 42]), Minus([36, 43]), Num(0), Vec([14, 29, 44, 45])] }
 Dropping inapplicable rules: div-1 div-1-inv neg-neg neg-neg-rev neg-sgn neg-sgn-rev neg-zero-inv neg-zero-inv-rev neg-minus neg-minus-rev neg-minus-zero neg-minus-zero-rev sqrt-1-inv sqrt-1-inv-rev neg_unop sqrt_unop /_binop
