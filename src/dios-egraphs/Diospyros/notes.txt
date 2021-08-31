@@ -12,3 +12,9 @@ v += temp
 temp = 5 + 6;
 v += temp
 might break when it is unrolled out.
+
+ 
+Need to also select code to vectorize on; this can use the code from world's simplist pass
+for independent adds, to idnentify independent linear runs of binary operators.
+
+FFT - has not been tested whatsoever
