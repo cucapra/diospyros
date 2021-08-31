@@ -12,14 +12,3 @@ v += temp
 temp = 5 + 6;
 v += temp
 might break when it is unrolled out.
-
-Another issue is that temporary variables cannot be used!
-some code like
-v = 3 + a;
-m[0][1] = v;
-
-breaks the code because it causes a chain of load/stores, for which we need
-to create  DFS algorithm to detect!
-
-
-In particular, need to go back from binops used 

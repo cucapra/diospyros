@@ -3,7 +3,12 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
-use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
+use std::{
+  collections::{BTreeMap, HashMap},
+  ffi::CStr,
+  os::raw::c_char,
+  slice::from_raw_parts,
+};
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
@@ -19,6 +24,7 @@ extern "C" {
 type GEPMap = HashMap<(Symbol, Symbol), LLVMValueRef>;
 type VarMap = HashMap<Symbol, LLVMValueRef>;
 type ValueVec = Vec<LLVMValueRef>;
+type BopMap = BTreeMap<LLVMValueRef, Id>;
 
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   match LLVMGetInstructionOpcode(*bop) {
@@ -93,7 +99,7 @@ unsafe fn mark_used_bops(
   operand: &LLVMValueRef,
   ids: &mut [egg::Id; 2],
   id_index: usize,
-  bop_map: &mut HashMap<LLVMValueRef, Id>,
+  bop_map: &mut BopMap,
   used_bop_ids: &mut Vec<Id>,
 ) -> bool {
   let mut changed = false;
@@ -109,7 +115,7 @@ unsafe fn mark_used_bops(
 
 unsafe fn to_expr_operand(
   operand: &LLVMValueRef,
-  bop_map: &mut HashMap<LLVMValueRef, Id>,
+  bop_map: &mut BopMap,
   ids: &mut [egg::Id; 2],
   id_index: usize,
   used_bop_ids: &mut Vec<Id>,
@@ -189,7 +195,8 @@ fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-  let (mut gep_map, mut var_map, mut bop_map) = (HashMap::new(), HashMap::new(), HashMap::new());
+  let (mut gep_map, mut var_map) = (HashMap::new(), HashMap::new());
+  let mut bop_map = BTreeMap::new();
   let mut ids = [Id::from(0); 2];
   for bop in bb_vec.iter() {
     unsafe {
