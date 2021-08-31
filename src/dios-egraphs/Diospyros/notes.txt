@@ -17,4 +17,16 @@ might break when it is unrolled out.
 Need to also select code to vectorize on; this can use the code from world's simplist pass
 for independent adds, to idnentify independent linear runs of binary operators.
 
+Its worth porting over the code on vectorization of independent adds from 
+https://github.com/JonathanDLTran/Summer2021/blob/main/Learning-LLVM/llvm-pass-skeleton/skeleton/Skeleton.cpp
+
+Its also good to see what an example fft output looks like; and then the c program
+regular compiler could be used as the expected printed output.
+
+Also FFT makes use of xor, bitwise shift, bit and and bit or operations. These 
+are not implemented in diospyros pass, despite the fact that they are binary operators
+themselves. This means we should probably implement these as well.
+
+But this also means VecLang has to change!!! (for XOR and shifting).
+
 FFT - has not been tested whatsoever
