@@ -77,19 +77,35 @@ extern "C" int llvm_index(LLVMValueRef val, int index) {
 }
 
 extern "C" bool isa_constant(LLVMValueRef val) {
-    return isa<Constant>(unwrap(val));
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<Constant>(unwrapped);
 }
 
 extern "C" bool isa_gep(LLVMValueRef val) {
-    return isa<GEPOperator>(unwrap(val));
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<GEPOperator>(unwrapped);
 }
 
 extern "C" bool isa_load(LLVMValueRef val) {
-    return isa<LoadInst>(unwrap(val));
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<LoadInst>(unwrapped);
 }
 
 extern "C" bool isa_store(LLVMValueRef val) {
-    return isa<StoreInst>(unwrap(val));
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<StoreInst>(unwrapped);
 }
 
 extern "C" float get_constant_float(LLVMValueRef val) {
@@ -107,6 +123,9 @@ bool check_binop_is_float(BinaryOperator *op) {
 }
 
 bool dfs_llvm_instrs(User *current_instr, User *match_instr) {
+    if (current_instr == NULL) {
+        return false;
+    }
     if (current_instr == match_instr) {
         return true;
     }
@@ -115,6 +134,26 @@ bool dfs_llvm_instrs(User *current_instr, User *match_instr) {
         return false;
     }
     bool result = false;
+    // special case for loads: check if prev is store and continue
+    if (auto load_instr = dyn_cast<LoadInst>(current_instr)) {
+        if (auto prev_node = load_instr->getPrevNode()) {
+            if (auto store_instr = dyn_cast<StoreInst>(prev_node)) {
+                Value *load_pointer_operand = load_instr->getPointerOperand();
+                Value *store_pointer_operand = store_instr->getPointerOperand();
+                if (load_pointer_operand == store_pointer_operand) {
+                    Value *value_operand = store_instr->getValueOperand();
+
+                    auto user_cast = dyn_cast<User>(value_operand);
+                    result |= dfs_llvm_instrs(user_cast, match_instr);
+                    user_cast = dyn_cast<User>(store_pointer_operand);
+                    result |= dfs_llvm_instrs(user_cast, match_instr);
+                    return result;
+                }
+            }
+        }
+        // return false; ??
+    }
+    // remainder of instructions, besides stroes
     for (auto i = 0; i < current_instr->getNumOperands(); i++) {
         Value *operand = current_instr->getOperand(i);
         auto user_cast = dyn_cast<User>(operand);
@@ -123,7 +162,6 @@ bool dfs_llvm_instrs(User *current_instr, User *match_instr) {
         }
         result |= dfs_llvm_instrs(user_cast, match_instr);
     }
-
     return result;
 }
 

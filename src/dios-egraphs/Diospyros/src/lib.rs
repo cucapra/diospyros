@@ -101,15 +101,7 @@ unsafe fn mark_used_bops(
     if dfs_llvm_value_ref(*operand, prev_used_bop) {
       ids[id_index] = prev_used_id;
       used_bop_ids.push(prev_used_id);
-
       changed |= true;
-      println!("Operand");
-      LLVMDumpValue(*operand);
-      println!();
-      println!("Value");
-      LLVMDumpValue(prev_used_bop);
-      println!();
-      println!("Used");
     }
   }
   return changed;
@@ -125,10 +117,10 @@ unsafe fn to_expr_operand(
   gep_map: &mut GEPMap,
   var_map: &mut VarMap,
 ) -> () {
-  // let removed_bops = mark_used_bops(operand, ids, id_index, bop_map, used_bop_ids);
-  // if removed_bops {
-  //   return ();
-  // }
+  let removed_bops = mark_used_bops(operand, ids, id_index, bop_map, used_bop_ids);
+  if removed_bops {
+    return ();
+  }
   if bop_map.contains_key(&operand) {
     let used_id = *bop_map.get(&operand).expect("Expected key in map");
     ids[id_index] = used_id;

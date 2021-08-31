@@ -20,13 +20,13 @@ void convolution(float mat_in[I_ROWS * I_COLS], float f_in[F_ROWS * F_COLS],
 
                     if (iRow >= 0 && iRow < I_ROWS && iCol >= 0 &&
                         iCol < I_COLS) {
-                        // float v = mat_in[iRow * I_COLS + iCol] *
-                        //           f_in[fRowTrans * F_COLS + fColTrans];
-                        // mat_out[outRow * O_COLS + outCol] += v;
+                        float v = mat_in[iRow * I_COLS + iCol] *
+                                  f_in[fRowTrans * F_COLS + fColTrans];
+                        mat_out[outRow * O_COLS + outCol] += v;
 
-                        mat_out[outRow * O_COLS + outCol] +=
-                            mat_in[iRow * I_COLS + iCol] *
-                            f_in[fRowTrans * F_COLS + fColTrans];
+                        // mat_out[outRow * O_COLS + outCol] +=
+                        //     mat_in[iRow * I_COLS + iCol] *
+                        //     f_in[fRowTrans * F_COLS + fColTrans];
                     }
                 }
             }
@@ -35,21 +35,21 @@ void convolution(float mat_in[I_ROWS * I_COLS], float f_in[F_ROWS * F_COLS],
 }
 
 int main(void) {
-    // Example due to Song Ho Anh.
-    // http://www.songho.ca/dsp/convolution/convolution2d_example.html
     float mat_in[I_ROWS * I_COLS] = {1, 2, 3, 4};
-    // {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
     float f_in[F_ROWS * F_COLS] = {1, 1, 1, 1};
     float mat_out[O_ROWS * O_COLS] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-    // = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
     convolution(mat_in, f_in, mat_out);
     for (int i = 0; i < O_ROWS * O_COLS; i++) {
         printf("output: %f\n", mat_out[i]);
     }
-    // printf("first: %f\n", mat_out[0][0]);
-    // printf("second: %f\n", mat_out[0][1]);
-    // printf("third: %f\n", mat_out[0][2]);
-    // printf("fourth: %f\n", c_out[1][1]);
-    // expected (-13, -20, -17)
+    // output: 1.000000
+    // output: 3.000000
+    // output: 2.000000
+    // output: 4.000000
+    // output: 10.000000
+    // output: 6.000000
+    // output: 3.000000
+    // output: 7.000000
+    // output: 4.000000
     return 0;
 }

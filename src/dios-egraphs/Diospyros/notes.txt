@@ -20,3 +20,6 @@ m[0][1] = v;
 
 breaks the code because it causes a chain of load/stores, for which we need
 to create  DFS algorithm to detect!
+
+
+In particular, need to go back from binops used 
