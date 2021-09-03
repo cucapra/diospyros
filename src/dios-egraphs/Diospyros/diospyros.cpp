@@ -183,7 +183,7 @@ struct DiospyrosPass : public FunctionPass {
     virtual bool runOnFunction(Function &F) {
         bool has_changes = false;
         for (auto &B : F) {
-            // errs() << B << "\n";
+            errs() << B << "\n";
             std::vector<LLVMValueRef> vec;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<BinaryOperator>(&I)) {

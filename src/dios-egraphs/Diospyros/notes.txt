@@ -30,3 +30,19 @@ themselves. This means we should probably implement these as well.
 But this also means VecLang has to change!!! (for XOR and shifting).
 
 FFT - has not been tested whatsoever
+
+
+---------------- 9/03/2021 FFT ----------------
+store float %102, float* %18, align 4
+%103 = load float*, float** %12, align 8
+
+- store/load 
+- there's an issue with the store and load to %18. This might be influencing
+the issues with the wrong values; what's the issue with this? 
+- there's an issue with 
+- removing temporary variables removes issues; this is true on all test cases;
+- how to fix this issue?
+    + I was thinking about backtracking from the last load to a store to the same 
+    value, and checking if there was a shared llvm value.
+        * Might not work
+    + No idea?
