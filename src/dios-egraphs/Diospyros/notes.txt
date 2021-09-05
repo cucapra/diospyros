@@ -51,3 +51,12 @@ the issues with the wrong values; what's the issue with this?
 
 Running Copy Propagation might actually solve a bunch of problems with temps!
     - Highly suggest runnign copy propagation to remove temps.
+
+-------------- 9/04/2021 Next Steps with Jasper ----------------
+
+Next steps:
+- Copy Propagation Pass
+- Loop Unrolling Pass
+- Porting further benchmarks that are non-matrix based 
+- Debugging further benchmarks
+- Merge stuff onto LLVM branch/Main branch
