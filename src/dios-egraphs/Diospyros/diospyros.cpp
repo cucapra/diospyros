@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <llvm-c/Core.h>
 
 #include <set>
@@ -182,7 +183,7 @@ struct DiospyrosPass : public FunctionPass {
     virtual bool runOnFunction(Function &F) {
         bool has_changes = false;
         for (auto &B : F) {
-            // uncomment to see basic blocl: good for debugging.
+            // uncomment to see basic block: good for debugging.
             // errs() << B << "\n";
 
             // We need to identify sequences of stores and loads to the same
@@ -249,7 +250,7 @@ struct DiospyrosPass : public FunctionPass {
                             // knowing the stored address to write back an
                             // extract element to. Should the code go here, the
                             // llvm pass will be incorrect.
-                            break;
+                            assert(false);
                         }
                     }
                     builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
