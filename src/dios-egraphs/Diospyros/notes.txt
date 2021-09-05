@@ -46,3 +46,8 @@ the issues with the wrong values; what's the issue with this?
     value, and checking if there was a shared llvm value.
         * Might not work
     + No idea?
+
+- should see what happens when loop unrolling occurs. Does this break the implementation?
+
+Running Copy Propagation might actually solve a bunch of problems with temps!
+    - Highly suggest runnign copy propagation to remove temps.
