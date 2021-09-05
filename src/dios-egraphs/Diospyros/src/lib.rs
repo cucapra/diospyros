@@ -3,12 +3,7 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
-use std::{
-  collections::{BTreeMap, HashMap},
-  ffi::CStr,
-  os::raw::c_char,
-  slice::from_raw_parts,
-};
+use std::{collections::BTreeMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
@@ -21,10 +16,21 @@ extern "C" {
   fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
 }
 
-type GEPMap = HashMap<(Symbol, Symbol), LLVMValueRef>;
-type VarMap = HashMap<Symbol, LLVMValueRef>;
-type ValueVec = Vec<LLVMValueRef>;
+// Note: We use BTreeMaps to enforce ordering in the map
+// Without ordering, tests become flaky and start failing a lot more often
+// We do not use HashMaps for this reason as ordering is not enforced.
+// GEPMap : Maps the array name and array offset as symbols to the GEP
+// LLVM Value Ref that LLVM Generated
+type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
+// VarMap : Maps a symbol to a llvm value ref representing a variable
+type VarMap = BTreeMap<Symbol, LLVMValueRef>;
+// BopMap : Maps a binary oeprator llvm value ref to an ID, indicating a
+// binary operator has been seen. Binary Operators be ordered in the order
+// they were generated in LLVM, which is earliest to latest in code.
 type BopMap = BTreeMap<LLVMValueRef, Id>;
+// ValueVec : A vector of LLVM Value Refs for which we must do extract element
+// for after vectorization.
+type ValueVec = Vec<LLVMValueRef>;
 
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   match LLVMGetInstructionOpcode(*bop) {
@@ -195,8 +201,7 @@ fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-  let (mut gep_map, mut var_map) = (HashMap::new(), HashMap::new());
-  let mut bop_map = BTreeMap::new();
+  let (mut gep_map, mut var_map, mut bop_map) = (BTreeMap::new(), BTreeMap::new(), BTreeMap::new());
   let mut ids = [Id::from(0); 2];
   for bop in bb_vec.iter() {
     unsafe {
