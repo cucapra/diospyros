@@ -57,8 +57,8 @@ Running Copy Propagation might actually solve a bunch of problems with temps!
 Next steps:
 - Copy Propagation Pass
 - Loop Unrolling Pass
-- Porting further benchmarks that are non-matrix based 
-- Debugging further benchmarks
+- Porting further cdios tests that are non-matrix based / have additional features
+- Debugging further cdios tests
 - Merge stuff onto LLVM branch/Main branch
 - Flaky Test: five_binops.c failed about 1 in 20 times when using HashMaps in Rust.
 

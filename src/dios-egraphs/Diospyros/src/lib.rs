@@ -32,6 +32,17 @@ type BopMap = BTreeMap<LLVMValueRef, Id>;
 // for after vectorization.
 type ValueVec = Vec<LLVMValueRef>;
 
+const SQRT_OPERATOR: i32 = 3;
+const BINARY_OPERATOR: i32 = 2;
+static mut SYMBOL_IDX: i32 = 0;
+
+unsafe fn gen_symbol_name() -> String {
+  SYMBOL_IDX += 1;
+  let string = "SYMBOL".to_string();
+  let result = format!("{}\n{}", string, SYMBOL_IDX.to_string());
+  result
+}
+
 /// Converts LLVMValueRef binop to equivalent VecLang Binop node
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   match LLVMGetInstructionOpcode(*bop) {
@@ -41,6 +52,22 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
     LLVMFDiv => VecLang::Div(ids),
     _ => panic!("Choose_Binop: Opcode Match Error"),
   }
+}
+
+/// Convert the sqrt into a unique symbol, which maps to the sqet argument LLVMValueRef
+/// And then Make sqrt point to that unique symbol.
+/// On the other side, the symbol gets retranslted to the LLVMValueRef argument that came in
+/// and then the sqrt takes the square root of it.
+unsafe fn to_expr_sqrt(
+  sqrt_ref: &LLVMValueRef,
+  var_map: &mut VarMap,
+  enode_vec: &mut Vec<VecLang>,
+) -> () {
+  let symbol = Symbol::from("random");
+  enode_vec.push(VecLang::Symbol(symbol));
+  let symbol_idx = enode_vec.len() - 1;
+  var_map.insert(symbol, *sqrt_ref);
+  enode_vec.push(VecLang::Sqrt([Id::from(symbol_idx)]));
 }
 
 /// Converts LLVMValueRef constant to a VecLang Num.
@@ -216,53 +243,62 @@ fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
 /// and a symbol representing the array offset, a var map, which maps a symbol to the
 /// LLVMValueRef representing the variable, and a ValueVec, which reprsents
 /// the values we generate extract instructions on.
-pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
+pub fn to_expr(
+  bb_vec: &[LLVMValueRef],
+  operand_types: &[i32],
+) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
   let (mut gep_map, mut var_map, mut bop_map) = (BTreeMap::new(), BTreeMap::new(), BTreeMap::new());
   let mut ids = [Id::from(0); 2];
-  for bop in bb_vec.iter() {
-    unsafe {
-      // to_expr on left and then right operands
-      to_expr_operand(
-        &LLVMGetOperand(*bop, 0),
-        &mut bop_map,
-        &mut ids,
-        0,
-        &mut used_bop_ids,
-        &mut enode_vec,
-        &mut gep_map,
-        &mut var_map,
-      );
-      to_expr_operand(
-        &LLVMGetOperand(*bop, 1),
-        &mut bop_map,
-        &mut ids,
-        1,
-        &mut used_bop_ids,
-        &mut enode_vec,
-        &mut gep_map,
-        &mut var_map,
-      );
-      // lhs bop rhs
-      enode_vec.push(choose_binop(bop, ids));
-      let id = Id::from(enode_vec.len() - 1);
-      bops_vec.push(id);
+  for (i, bop) in bb_vec.iter().enumerate() {
+    if operand_types[i] == BINARY_OPERATOR {
+      unsafe {
+        // to_expr on left and then right operands
+        to_expr_operand(
+          &LLVMGetOperand(*bop, 0),
+          &mut bop_map,
+          &mut ids,
+          0,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+          &mut var_map,
+        );
+        to_expr_operand(
+          &LLVMGetOperand(*bop, 1),
+          &mut bop_map,
+          &mut ids,
+          1,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+          &mut var_map,
+        );
+        // lhs bop rhs
+        enode_vec.push(choose_binop(bop, ids));
+        let id = Id::from(enode_vec.len() - 1);
+        bops_vec.push(id);
 
-      ops_to_replace.push((*bop, id));
+        ops_to_replace.push((*bop, id));
 
-      // remove binops that are used as part of another binop
-      for used_id in used_bop_ids.iter() {
-        if bops_vec.contains(used_id) {
-          let index = bops_vec
-            .iter()
-            .position(|&_id| _id == *used_id)
-            .expect("Require used_id in vector");
-          bops_vec.remove(index);
+        // remove binops that are used as part of another binop
+        for used_id in used_bop_ids.iter() {
+          if bops_vec.contains(used_id) {
+            let index = bops_vec
+              .iter()
+              .position(|&_id| _id == *used_id)
+              .expect("Require used_id in vector");
+            bops_vec.remove(index);
+          }
         }
-      }
 
-      bop_map.insert(*bop, id);
+        bop_map.insert(*bop, id);
+      }
+    } else if operand_types[i] == SQRT_OPERATOR {
+      unsafe {
+        to_expr_sqrt(bop, &mut var_map, &mut enode_vec);
+      }
     }
   }
   // decompose bops_vec into width number of binops
@@ -604,11 +640,15 @@ pub fn optimize(
   module: LLVMModuleRef,
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
+  operand_types: *const i32,
   size: size_t,
 ) -> () {
   unsafe {
     // llvm to egg
-    let (expr, gep_map, var_map, ops_to_replace) = to_expr(from_raw_parts(bb, size));
+    let (expr, gep_map, var_map, ops_to_replace) = to_expr(
+      from_raw_parts(bb, size),
+      from_raw_parts(operand_types, size),
+    );
 
     // optimization pass
     eprintln!("{:?}", expr);

@@ -4,6 +4,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "llvm/IR/Argument.h"
@@ -20,10 +21,14 @@ using namespace llvm;
 using namespace std;
 
 extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder,
-                         LLVMValueRef const *bb, std::size_t size);
+                         LLVMValueRef const *bb, int const *operand_types,
+                         std::size_t size);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
+const string SQRT_FUNCTION_NAME = "llvm.sqrt.f64";
+const int SQRT_OPERATOR = 3;
+const int BINARY_OPERATOR = 2;
 
 /**
  * Fresh counters for temps and array generation
@@ -256,13 +261,16 @@ struct DiospyrosPass : public FunctionPass {
             // Order matters in each vector; we push back in the same order
             // binary operators are found.
             std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
+            std::vector<std::vector<int>> vectorization_type;
             std::vector<LLVMValueRef> inner_vector = {};
+            std::vector<int> operator_type = {};
             std::set<Value *> store_locations;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<BinaryOperator>(&I)) {
                     // only include floating point operations
                     if (op->getType()->isFloatTy()) {
                         inner_vector.push_back(wrap(op));
+                        operator_type.push_back(BINARY_OPERATOR);
                     }
                 } else if (auto *op = dyn_cast<StoreInst>(&I)) {
                     // get the store location (pointer)
@@ -275,22 +283,39 @@ struct DiospyrosPass : public FunctionPass {
                         store_locations.clear();
                         if (!inner_vector.empty()) {
                             vectorization_accumulator.push_back(inner_vector);
+                            vectorization_type.push_back(operator_type);
                         }
                         inner_vector = {};
+                        operator_type = {};
                     }
                 } else if (auto *op = dyn_cast<CallInst>(&I)) {
-                    store_locations.clear();
-                    if (!inner_vector.empty()) {
-                        vectorization_accumulator.push_back(inner_vector);
+                    // should handle calls to double @llvm.sqrt.f64(double)
+                    if (op->getCalledFunction()->getName() ==
+                        SQRT_FUNCTION_NAME) {
+                        Value *sqrt_arg = op->getArgOperand(0);
+                        inner_vector.push_back(wrap(sqrt_arg));
+                        operator_type.push_back(SQRT_OPERATOR);
+                    } else {
+                        store_locations.clear();
+                        if (!inner_vector.empty()) {
+                            vectorization_accumulator.push_back(inner_vector);
+                            vectorization_type.push_back(operator_type);
+                        }
+                        inner_vector = {};
+                        operator_type = {};
                     }
-                    inner_vector = {};
                 }
             }
             vectorization_accumulator.push_back(inner_vector);
+            vectorization_type.push_back(operator_type);
 
             // vectorize each sequence of binary operators extracted
             // and identified for vectorization.
-            for (auto vec : vectorization_accumulator) {
+            // auto vec : vectorization_accumulator)
+            for (auto &&pair :
+                 zip(vectorization_accumulator, vectorization_type)) {
+                auto vec = get<0>(pair);
+                auto operand_types = get<1>(pair);
                 if (not vec.empty()) {
                     has_changes = has_changes || true;
                     Value *last_val = unwrap(vec.back());
@@ -317,7 +342,8 @@ struct DiospyrosPass : public FunctionPass {
 
                     Module *mod = F.getParent();
 
-                    optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
+                    optimize(wrap(mod), wrap(&builder), vec.data(),
+                             operand_types.data(), vec.size());
                 }
             }
         }
