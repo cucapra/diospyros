@@ -39,7 +39,7 @@ static mut SYMBOL_IDX: i32 = 0;
 unsafe fn gen_symbol_name() -> String {
   SYMBOL_IDX += 1;
   let string = "SYMBOL".to_string();
-  let result = format!("{}\n{}", string, SYMBOL_IDX.to_string());
+  let result = format!("{}{}", string, SYMBOL_IDX.to_string());
   result
 }
 
@@ -252,8 +252,8 @@ pub fn to_expr(
   let (mut gep_map, mut var_map, mut bop_map) = (BTreeMap::new(), BTreeMap::new(), BTreeMap::new());
   let mut ids = [Id::from(0); 2];
   for (i, bop) in bb_vec.iter().enumerate() {
-    if operand_types[i] == BINARY_OPERATOR {
-      unsafe {
+    unsafe {
+      if operand_types[i] == BINARY_OPERATOR {
         // to_expr on left and then right operands
         to_expr_operand(
           &LLVMGetOperand(*bop, 0),
@@ -277,27 +277,24 @@ pub fn to_expr(
         );
         // lhs bop rhs
         enode_vec.push(choose_binop(bop, ids));
-        let id = Id::from(enode_vec.len() - 1);
-        bops_vec.push(id);
-
-        ops_to_replace.push((*bop, id));
-
-        // remove binops that are used as part of another binop
-        for used_id in used_bop_ids.iter() {
-          if bops_vec.contains(used_id) {
-            let index = bops_vec
-              .iter()
-              .position(|&_id| _id == *used_id)
-              .expect("Require used_id in vector");
-            bops_vec.remove(index);
-          }
-        }
-
-        bop_map.insert(*bop, id);
+      } else if operand_types[i] == SQRT_OPERATOR {
+        // currently fails to generate correct code or optimize.
+        // to_expr_sqrt(bop, &mut var_map, &mut enode_vec);
       }
-    } else if operand_types[i] == SQRT_OPERATOR {
-      unsafe {
-        to_expr_sqrt(bop, &mut var_map, &mut enode_vec);
+    }
+    // add in the binary/unary operator to the bops_vec list
+    let id = Id::from(enode_vec.len() - 1);
+    bops_vec.push(id);
+    ops_to_replace.push((*bop, id));
+    bop_map.insert(*bop, id);
+    // remove binops that are used as part of another binop
+    for used_id in used_bop_ids.iter() {
+      if bops_vec.contains(used_id) {
+        let index = bops_vec
+          .iter()
+          .position(|&_id| _id == *used_id)
+          .expect("Require used_id in vector");
+        bops_vec.remove(index);
       }
     }
   }
