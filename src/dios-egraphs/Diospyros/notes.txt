@@ -61,3 +61,9 @@ Next steps:
 - Debugging further benchmarks
 - Merge stuff onto LLVM branch/Main branch
 - Flaky Test: five_binops.c failed about 1 in 20 times when using HashMaps in Rust.
+
+-------------- 9/06/2021 Documentation ----------------
+Since stuff is starting to get difficult to remember why I wrote code,
+I've started documenting the code with comments/docstrings.
+
+Note: five_binops.c is still flaky: test failed twice in a row today.

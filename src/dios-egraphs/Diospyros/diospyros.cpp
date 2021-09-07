@@ -25,15 +25,24 @@ extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder,
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
 
+/**
+ * Fresh counters for temps and array generation
+ */
 int FRESH_INT_COUNTER = 0;
 int FRESH_ARRAY_COUNTER = 0;
 int FRESH_TEMP_COUNTER = 0;
 
+/**
+ * Generates a Fresh Index
+ */
 int gen_fresh_index() {
     --FRESH_INT_COUNTER;
     return FRESH_INT_COUNTER;
 }
 
+/**
+ * Generates a fresh name for an array name
+ */
 const char *gen_fresh_array() {
     ++FRESH_ARRAY_COUNTER;
     string array_str = ARRAY_NAME + to_string(FRESH_ARRAY_COUNTER);
@@ -42,6 +51,9 @@ const char *gen_fresh_array() {
     return cstr;
 }
 
+/**
+ * Generates a fresh name for a temporary variable that was taken from LLVM
+ */
 const char *gen_fresh_temp() {
     ++FRESH_TEMP_COUNTER;
     string temp_str = TEMP_NAME + to_string(FRESH_TEMP_COUNTER);
@@ -50,6 +62,15 @@ const char *gen_fresh_temp() {
     return cstr;
 }
 
+/* The following are convenience functions used on the Rust library code. The
+reason is that the functionality does not exist in the LLVM-C interface for
+Rust, so we must use the C++ LLVM interface to provide the Rust functionality.
+*/
+
+/**
+ * Finds name of an LLVM Array, if there is one. Otherwise, generates fresh name
+ * for array.
+ */
 extern "C" const char *llvm_name(LLVMValueRef val) {
     Value *v = unwrap(val);
     if (auto *gep = dyn_cast<GEPOperator>(v)) {
@@ -68,6 +89,10 @@ extern "C" const char *llvm_name(LLVMValueRef val) {
     return gen_fresh_array();
 }
 
+/**
+ * Finds name of an LLVM Array, if there is one. Otherwise, generates fresh name
+ * for array.
+ */
 extern "C" int llvm_index(LLVMValueRef val, int index) {
     Value *v = unwrap(val);
     if (auto *num = dyn_cast<GEPOperator>(v)) {
@@ -78,6 +103,9 @@ extern "C" int llvm_index(LLVMValueRef val, int index) {
     return gen_fresh_index();
 }
 
+/**
+ * True iff a value is an LLVM constant/LLVMValueRef Constant
+ */
 extern "C" bool isa_constant(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
     if (unwrapped == NULL) {
@@ -86,6 +114,9 @@ extern "C" bool isa_constant(LLVMValueRef val) {
     return isa<Constant>(unwrapped);
 }
 
+/**
+ * True iff a value is an LLVM GEP/LLVMValueRef GEP
+ */
 extern "C" bool isa_gep(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
     if (unwrapped == NULL) {
@@ -94,6 +125,9 @@ extern "C" bool isa_gep(LLVMValueRef val) {
     return isa<GEPOperator>(unwrapped);
 }
 
+/**
+ * True iff a value is an LLVM Load/LLVMValueRef Load
+ */
 extern "C" bool isa_load(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
     if (unwrapped == NULL) {
@@ -102,6 +136,9 @@ extern "C" bool isa_load(LLVMValueRef val) {
     return isa<LoadInst>(unwrapped);
 }
 
+/**
+ * True iff a value is an LLVM Store/LLVMValueRef Store
+ */
 extern "C" bool isa_store(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
     if (unwrapped == NULL) {
@@ -110,6 +147,9 @@ extern "C" bool isa_store(LLVMValueRef val) {
     return isa<StoreInst>(unwrapped);
 }
 
+/**
+ * Gets constant float from LLVMValueRef value
+ */
 extern "C" float get_constant_float(LLVMValueRef val) {
     Value *v = unwrap(val);
     if (auto *num = dyn_cast<ConstantFP>(v)) {
@@ -118,6 +158,16 @@ extern "C" float get_constant_float(LLVMValueRef val) {
     return -1;
 }
 
+/**
+ * DFS backwards from current instruction to see if any past insdtruction
+ * matches match_instr.
+ *
+ * Terminates when no more previous expressions, or reaches a
+ * cosntant/argument/alloca instruction in LLVM.
+ *
+ * Searches for consecutive load/store instructions to same addresses,
+ * which LLVM generates at -01 optimization.
+ */
 bool dfs_llvm_instrs(User *current_instr, User *match_instr) {
     if (current_instr == NULL) {
         return false;
@@ -165,6 +215,9 @@ bool dfs_llvm_instrs(User *current_instr, User *match_instr) {
     return result;
 }
 
+/**
+ * Main method to call dfs llvm_value
+ */
 extern "C" bool dfs_llvm_value_ref(LLVMValueRef current_instr,
                                    LLVMValueRef match_instr) {
     auto current_user = dyn_cast<User>(unwrap(current_instr));
@@ -174,6 +227,11 @@ extern "C" bool dfs_llvm_value_ref(LLVMValueRef current_instr,
     }
     return dfs_llvm_instrs(current_user, match_user);
 }
+
+/**
+ * Below is the main DiospyrosPass that activates the Rust lib.rs code,
+ * which calls the Egg vectorizer and rewrites the optimized code in place.
+ */
 
 namespace {
 struct DiospyrosPass : public FunctionPass {
@@ -230,6 +288,8 @@ struct DiospyrosPass : public FunctionPass {
             }
             vectorization_accumulator.push_back(inner_vector);
 
+            // vectorize each sequence of binary operators extracted
+            // and identified for vectorization.
             for (auto vec : vectorization_accumulator) {
                 if (not vec.empty()) {
                     has_changes = has_changes || true;

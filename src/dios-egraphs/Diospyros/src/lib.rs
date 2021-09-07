@@ -32,6 +32,7 @@ type BopMap = BTreeMap<LLVMValueRef, Id>;
 // for after vectorization.
 type ValueVec = Vec<LLVMValueRef>;
 
+/// Converts LLVMValueRef binop to equivalent VecLang Binop node
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   match LLVMGetInstructionOpcode(*bop) {
     LLVMFAdd => VecLang::Add(ids),
@@ -42,6 +43,7 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   }
 }
 
+/// Converts LLVMValueRef constant to a VecLang Num.
 unsafe fn to_expr_constant(
   operand: &LLVMValueRef,
   vec: &mut Vec<VecLang>,
@@ -53,6 +55,7 @@ unsafe fn to_expr_constant(
   ids[id_index] = Id::from(vec.len() - 1);
 }
 
+/// Converts LLVMValueRef GEP to a VecLang Symbol with variable name.
 unsafe fn to_expr_var(
   var_operand: &LLVMValueRef,
   enode_vec: &mut Vec<VecLang>,
@@ -67,6 +70,8 @@ unsafe fn to_expr_var(
   (*var_map).insert(symbol, *var_operand);
 }
 
+/// Converts LLVMValueRef GEP to a VecLang Get and VecLang Symbol for array
+/// and VecLang Symbol for offset.
 unsafe fn to_expr_gep(
   gep_operand: &LLVMValueRef,
   ids: &mut [egg::Id; 2],
@@ -74,7 +79,6 @@ unsafe fn to_expr_gep(
   enode_vec: &mut Vec<VecLang>,
   gep_map: &mut GEPMap,
 ) -> () {
-  // let gep_operand = LLVMGetOperand(*operand, 0);
   let array_var_name = CStr::from_ptr(llvm_name(*gep_operand)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
   let array_var_idx = enode_vec.len() - 1;
@@ -101,6 +105,13 @@ unsafe fn to_expr_gep(
   gep_map.insert((array_name_symbol, offsets_symbol), *gep_operand);
 }
 
+/// Makes binary operators as "used", which means that no extract is needed
+/// for these binary operators.
+///
+/// For example:
+/// x = (3 + z) + (2 + y)
+/// will record 3 + z, 2 + y as used in the final addition (3 + z) + (2 + y)/
+/// Only 1 extraction is needed (to assign to x's location). Not 3.
 unsafe fn mark_used_bops(
   operand: &LLVMValueRef,
   ids: &mut [egg::Id; 2],
@@ -119,6 +130,7 @@ unsafe fn mark_used_bops(
   return changed;
 }
 
+/// Converts LLVMValueRef operand to corresponding VecLang node
 unsafe fn to_expr_operand(
   operand: &LLVMValueRef,
   bop_map: &mut BopMap,
@@ -152,6 +164,7 @@ unsafe fn to_expr_operand(
   }
 }
 
+/// Pads a vector to be always the Vector Lane Width.
 fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
   let width = config::vector_width();
   let mut length = binop_vec.len();
@@ -198,6 +211,11 @@ fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
   }
 }
 
+/// Converts LLVMValueRef to a corresponding VecLang expression, as well as a GEPMap,
+/// which maps each LLVM gep expression to a symbol representing the array name
+/// and a symbol representing the array offset, a var map, which maps a symbol to the
+/// LLVMValueRef representing the variable, and a ValueVec, which reprsents
+/// the values we generate extract instructions on.
 pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
@@ -249,7 +267,6 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, Va
   }
   // decompose bops_vec into width number of binops
   pad_vector(&bops_vec, &mut enode_vec);
-  // enode_vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
 
   // remove binary ops that were used, and thus not the ones we want to replace directly
   let mut final_ops_to_replace = Vec::new();
@@ -267,6 +284,7 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, Va
   );
 }
 
+/// Translates VecLang binop expression node to the corresponding LLVMValueRef
 unsafe fn translate_binop(
   enode: &VecLang,
   left: LLVMValueRef,
@@ -287,6 +305,7 @@ unsafe fn translate_binop(
   }
 }
 
+/// Translates VecLang unop expression node to the corresponding LLVMValueRef
 unsafe fn translate_unop(
   enode: &VecLang,
   n: LLVMValueRef,
@@ -315,6 +334,8 @@ unsafe fn translate_unop(
   }
 }
 
+/// translate_get converts a VecLang Get Node to the corresponding LLVM Ir array name and
+/// LLVM IR offset, as symbols.
 unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol) {
   match get {
     VecLang::Get([sym, i]) => match (&enode_vec[usize::from(*sym)], &enode_vec[usize::from(*i)]) {
@@ -327,6 +348,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
   }
 }
 
+/// translate converts a VecLang expression to the corresponding LLVMValueRef.
 unsafe fn translate(
   enode: &VecLang,
   vec: &[VecLang],
@@ -353,7 +375,6 @@ unsafe fn translate(
         zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
       }
       let zeros_ptr = zeros.as_mut_ptr();
-      // let array = [LLVMConstReal(LLVMFloatType(), 0 as f64); config::vector_width()].as_mut_ptr();
       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
       for (idx, &eggid) in idvec.iter().enumerate() {
         let elt = &vec[usize::from(eggid)];
@@ -414,6 +435,7 @@ unsafe fn translate(
         builder,
         module,
       );
+      // manually concatenate 2 vectors by using a LLVM shuffle operation.
       let v1_type = LLVMTypeOf(trans_v1);
       let v1_size = LLVMGetVectorSize(v1_type);
       let v2_type = LLVMTypeOf(trans_v2);
@@ -466,7 +488,9 @@ unsafe fn translate(
       let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 3, b"\0".as_ptr() as *const _)
     }
-    // TODO: Consider changing to floating point operations to allow for Unary fneg llvm instruction
+    // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
+    // TODO: LLVM actually supports many more vector intrinsics, including
+    // vector sine/cosine instructions for floats.
     VecLang::VecNeg([v]) => {
       let neg_vector = translate(
         &vec[usize::from(*v)],
@@ -533,6 +557,7 @@ unsafe fn translate(
   }
 }
 
+/// Convert a Veclang `expr` to LLVM IR code in place, using an LLVM builder.
 unsafe fn to_llvm(
   module: LLVMModuleRef,
   expr: RecExpr<VecLang>,
@@ -546,15 +571,20 @@ unsafe fn to_llvm(
     .last()
     .expect("No match for last element of vector of Egg Terms.");
 
+  // create vectorized instructions.
   let vector = translate(last, vec, gep_map, var_map, builder, module);
 
+  // for each binary operation that has been vectorized AND requires replacement
+  // we extract the correct index from the vector and
+  // determine the store to that binary op, copy it and move it after the extraction
   for (i, op) in ops_to_replace.iter().enumerate() {
     let index = LLVMConstInt(LLVMInt32Type(), i as u64, 0);
     let extracted_value =
       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
-    // figure out where the next store is located
+    // figure out where the next store is located, after the binary operation to replace.
     let mut store_instr = *op;
-    // assumes there is a store next: could swegafault or loop forever if not.
+    // assumes there is a store next: could segfault or loop forever if not.
+    // WARNING: In particular, could infinitely loop under -02/-03 optimizations.
     while !isa_store(store_instr) {
       store_instr = LLVMGetNextInstruction(store_instr);
     }
@@ -567,6 +597,8 @@ unsafe fn to_llvm(
   }
 }
 
+/// Main function to optimize: Takes in a basic block of instructions,
+/// optimizes it, and then translates it to LLVM IR code, in place.
 #[no_mangle]
 pub fn optimize(
   module: LLVMModuleRef,
