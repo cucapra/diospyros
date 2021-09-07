@@ -63,7 +63,7 @@ unsafe fn to_expr_sqrt(
   var_map: &mut VarMap,
   enode_vec: &mut Vec<VecLang>,
 ) -> () {
-  let symbol = Symbol::from("random");
+  let symbol = Symbol::from(gen_symbol_name());
   enode_vec.push(VecLang::Symbol(symbol));
   let symbol_idx = enode_vec.len() - 1;
   var_map.insert(symbol, *sqrt_ref);
