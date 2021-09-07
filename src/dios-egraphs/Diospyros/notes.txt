@@ -67,3 +67,5 @@ Since stuff is starting to get difficult to remember why I wrote code,
 I've started documenting the code with comments/docstrings.
 
 Note: five_binops.c is still flaky: test failed twice in a row today.
+
+Next step: Port over ALL cdios tests.
