@@ -292,9 +292,9 @@ struct DiospyrosPass : public FunctionPass {
                     // should handle calls to double @llvm.sqrt.f64(double)
                     if (op->getCalledFunction()->getName() ==
                         SQRT_FUNCTION_NAME) {
-                        Value *sqrt_arg = op->getArgOperand(0);
-                        inner_vector.push_back(wrap(sqrt_arg));
-                        operator_type.push_back(SQRT_OPERATOR);
+                        // Value *sqrt_arg = op->getArgOperand(0);
+                        // inner_vector.push_back(wrap(sqrt_arg));
+                        // operator_type.push_back(SQRT_OPERATOR);
                     } else {
                         store_locations.clear();
                         if (!inner_vector.empty()) {
