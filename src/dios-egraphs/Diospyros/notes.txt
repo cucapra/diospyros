@@ -69,3 +69,18 @@ I've started documenting the code with comments/docstrings.
 Note: five_binops.c is still flaky: test failed twice in a row today.
 
 Next step: Port over ALL cdios tests.
+
+------ 9/09/2021 ----
+Port over benchmarks
+Issue with some null pointer, which is seen in qr-decomp in the pass.
+Not sure if that is because nothing has been placed into the arguments
+and they are null inside. 
+Need to fix this, by changing the arguments.
+
+Stuff that I remember from last time
+- Port over QR-Decomp and other benchmarks exactly as written, to avoid comparison issues later
+- Fix any debugging problems
+- Add passes for mem2reg, loopunroll, indvars, set up optimizations
+- Consider other problems in the area - VLA
+- Are there good papers to read?
+- Try to run the SLP vectorization.

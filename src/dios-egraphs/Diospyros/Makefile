@@ -35,6 +35,9 @@ emit: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 emit-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -O2 -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -emit-llvm -S -o - $(test)
 
+opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -emit-llvm -S -o - $(test)
+
 test: set-up-mac runt.sh runt.toml target/debug/libllvmlib.$(EXT)
 	runt
  

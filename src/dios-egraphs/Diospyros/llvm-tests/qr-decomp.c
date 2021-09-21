@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define SIZE 4
+
 float sgn(float v) { return (v > 0) - (v < 0); }
 
 // Naive implementation
@@ -114,4 +116,10 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
     naive_transpose(Q, n);
 }
 
-int main(void) {}
+int main(void) {
+    int n = SIZE;
+    float A[SIZE] = {1, 2, 3, 4};
+    float Q[SIZE] = {0, 0, 0, 0};
+    float R[SIZE] = {0, 0, 0, 0};
+    naive_qr_decomp(A, Q, R, n);
+}

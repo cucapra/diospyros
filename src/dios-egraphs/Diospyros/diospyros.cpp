@@ -15,6 +15,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/Scalar/LoopUnrollPass.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
@@ -266,7 +267,10 @@ struct DiospyrosPass : public FunctionPass {
             std::vector<int> operator_type = {};
             std::set<Value *> store_locations;
             for (auto &I : B) {
-                if (auto *op = dyn_cast<BinaryOperator>(&I)) {
+                if (auto *op = dyn_cast<UnaryOperator>(&I)) {
+                    // current bug: unary operators are included for some reason
+                    // but I have no idea where or how
+                } else if (auto *op = dyn_cast<BinaryOperator>(&I)) {
                     // only include floating point operations
                     if (op->getType()->isFloatTy()) {
                         inner_vector.push_back(wrap(op));

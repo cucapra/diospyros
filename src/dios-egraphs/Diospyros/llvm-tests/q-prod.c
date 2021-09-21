@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define SIZE 4
+
 __attribute__((always_inline)) void naive_cross_product(float *lhs, float *rhs,
                                                         float *result) {
     result[0] = lhs[1] * rhs[2] - lhs[2] * rhs[1];
@@ -48,4 +50,19 @@ void naive_quaternion_product(float *a_q, float *a_t, float *b_q, float *b_t,
     }
 }
 
-int main(void) {}
+int main(void) {
+    int n = SIZE;
+    float a_q[SIZE] = {1, 2, 3, 4};
+    float a_t[SIZE] = {1, 2, 3, 4};
+    float b_q[SIZE] = {0, 0, 0, 0};
+    float b_t[SIZE] = {1, 2, 3, 4};
+    float r_q[SIZE] = {0, 0, 0, 0};
+    float r_t[SIZE] = {0, 0, 0, 0};
+    naive_quaternion_product(a_q, a_t, b_q, b_t, r_q, r_t);
+    for (int i = 0; i < SIZE; i++) {
+        printf("%f\n", r_q[i]);
+    }
+    for (int i = 0; i < SIZE; i++) {
+        printf("%f\n", r_t[i]);
+    }
+}
