@@ -51,7 +51,6 @@ void naive_quaternion_product(float *a_q, float *a_t, float *b_q, float *b_t,
 }
 
 int main(void) {
-    int n = SIZE;
     float a_q[SIZE] = {1, 2, 3, 4};
     float a_t[SIZE] = {1, 2, 3, 4};
     float b_q[SIZE] = {0, 0, 0, 0};
