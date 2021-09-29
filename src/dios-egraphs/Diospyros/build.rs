@@ -10,11 +10,13 @@ fn main() {
 
     // Build the C++ file.
     let mut build = cc::Build::new();
-    build.cpp(true)
-        .warnings(false)  // LLVM headers have lots of spurious warnings.
+    build
+        .cpp(true)
+        .warnings(false) // LLVM headers have lots of spurious warnings.
         .file("diospyros.cpp");
     for flag in cxxflags.split_ascii_whitespace() {
         build.flag(&flag);
     }
+    build.flag("-fexceptions");
     build.compile("libdiospass.a");
 }
