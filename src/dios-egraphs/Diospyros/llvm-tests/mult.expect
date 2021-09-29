@@ -9,63 +9,59 @@
   %8 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 0), align 16
   %9 = fmul float %7, %8
   %10 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 0
-  store float %9, float* %10, align 16
   %11 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 1), align 4
   %12 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 1), align 4
   %13 = fmul float %11, %12
   %14 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 1
-  store float %13, float* %14, align 4
   %15 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 2), align 8
   %16 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 2), align 8
   %17 = fmul float %15, %16
   %18 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 2
-  store float %17, float* %18, align 8
   %19 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 3), align 4
   %20 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 3), align 4
   %21 = fmul float %19, %20
-  %22 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 0), align 4
-  %23 = insertelement <4 x float> zeroinitializer, float %22, i32 0
-  %24 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 1), align 4
-  %25 = insertelement <4 x float> %23, float %24, i32 1
-  %26 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 2), align 4
-  %27 = insertelement <4 x float> %25, float %26, i32 2
-  %28 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 3), align 4
-  %29 = insertelement <4 x float> %27, float %28, i32 3
-  %30 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 0), align 4
-  %31 = insertelement <4 x float> zeroinitializer, float %30, i32 0
-  %32 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 1), align 4
-  %33 = insertelement <4 x float> %31, float %32, i32 1
-  %34 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 2), align 4
-  %35 = insertelement <4 x float> %33, float %34, i32 2
-  %36 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 3), align 4
-  %37 = insertelement <4 x float> %35, float %36, i32 3
-  %38 = fmul <4 x float> %29, %37
-  %39 = extractelement <4 x float> %38, i32 0
-  store float %39, float* %10, align 16
-  %40 = extractelement <4 x float> %38, i32 1
-  store float %40, float* %14, align 4
-  %41 = extractelement <4 x float> %38, i32 2
-  store float %41, float* %18, align 8
-  %42 = extractelement <4 x float> %38, i32 3
-  %43 = insertelement float %42, float %22, i32 0
-  %44 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 3
-  store float %21, float* %44, align 4
-  %45 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 0
-  %46 = load float, float* %45, align 16
-  %47 = fpext float %46 to double
-  %48 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i64 0, i64 0), double %47)
-  %49 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 1
-  %50 = load float, float* %49, align 4
-  %51 = fpext float %50 to double
-  %52 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.1, i64 0, i64 0), double %51)
-  %53 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 2
-  %54 = load float, float* %53, align 8
-  %55 = fpext float %54 to double
-  %56 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.2, i64 0, i64 0), double %55)
-  %57 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 3
-  %58 = load float, float* %57, align 4
-  %59 = fpext float %58 to double
-  %60 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.3, i64 0, i64 0), double %59)
+  %22 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 3
+  %23 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 0), align 4
+  %24 = insertelement <4 x float> zeroinitializer, float %23, i32 0
+  %25 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 1), align 4
+  %26 = insertelement <4 x float> %24, float %25, i32 1
+  %27 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 2), align 4
+  %28 = insertelement <4 x float> %26, float %27, i32 2
+  %29 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @a_in, i64 0, i64 3), align 4
+  %30 = insertelement <4 x float> %28, float %29, i32 3
+  %31 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 0), align 4
+  %32 = insertelement <4 x float> zeroinitializer, float %31, i32 0
+  %33 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 1), align 4
+  %34 = insertelement <4 x float> %32, float %33, i32 1
+  %35 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 2), align 4
+  %36 = insertelement <4 x float> %34, float %35, i32 2
+  %37 = load float, float* getelementptr inbounds ([4 x float], [4 x float]* @b_in, i64 0, i64 3), align 4
+  %38 = insertelement <4 x float> %36, float %37, i32 3
+  %39 = fmul <4 x float> %30, %38
+  %40 = extractelement <4 x float> %39, i32 0
+  store float %40, float* %10, align 16
+  %41 = extractelement <4 x float> %39, i32 1
+  store float %41, float* %14, align 4
+  %42 = extractelement <4 x float> %39, i32 2
+  store float %42, float* %18, align 8
+  %43 = extractelement <4 x float> %39, i32 3
+  store float %43, float* %22, align 4
+  %44 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 0
+  %45 = load float, float* %44, align 16
+  %46 = fpext float %45 to double
+  %47 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i64 0, i64 0), double %46)
+  %48 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 1
+  %49 = load float, float* %48, align 4
+  %50 = fpext float %49 to double
+  %51 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.1, i64 0, i64 0), double %50)
+  %52 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 2
+  %53 = load float, float* %52, align 8
+  %54 = fpext float %53 to double
+  %55 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.2, i64 0, i64 0), double %54)
+  %56 = getelementptr inbounds [4 x float], [4 x float]* %6, i64 0, i64 3
+  %57 = load float, float* %56, align 4
+  %58 = fpext float %57 to double
+  %59 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.3, i64 0, i64 0), double %58)
   ret i32 0
 ---STDERR---
 RecExpr { nodes: [Symbol("a_in"), Symbol("0,0,"), Get([0, 1]), Symbol("b_in"), Symbol("0,0,"), Get([3, 4]), Mul([2, 5]), Symbol("a_in"), Symbol("0,1,"), Get([7, 8]), Symbol("b_in"), Symbol("0,1,"), Get([10, 11]), Mul([9, 12]), Symbol("a_in"), Symbol("0,2,"), Get([14, 15]), Symbol("b_in"), Symbol("0,2,"), Get([17, 18]), Mul([16, 19]), Symbol("a_in"), Symbol("0,3,"), Get([21, 22]), Symbol("b_in"), Symbol("0,3,"), Get([24, 25]), Mul([23, 26]), Vec([6, 13, 20, 27])] }

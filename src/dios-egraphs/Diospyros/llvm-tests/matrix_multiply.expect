@@ -10,19 +10,19 @@
   store i32 0, i32* %7, align 4
   br label %10
 
-10:                                               ; preds = %81, %3
+10:                                               ; preds = %80, %3
   %11 = load i32, i32* %7, align 4
   %12 = icmp slt i32 %11, 2
-  br i1 %12, label %13, label %84
+  br i1 %12, label %13, label %83
 
 13:                                               ; preds = %10
   store i32 0, i32* %8, align 4
   br label %14
 
-14:                                               ; preds = %77, %13
+14:                                               ; preds = %76, %13
   %15 = load i32, i32* %8, align 4
   %16 = icmp slt i32 %15, 2
-  br i1 %16, label %17, label %80
+  br i1 %16, label %17, label %79
 
 17:                                               ; preds = %14
   %18 = load float*, float** %6, align 8
@@ -36,10 +36,10 @@
   store i32 0, i32* %9, align 4
   br label %25
 
-25:                                               ; preds = %73, %17
+25:                                               ; preds = %72, %17
   %26 = load i32, i32* %9, align 4
   %27 = icmp slt i32 %26, 2
-  br i1 %27, label %28, label %76
+  br i1 %27, label %28, label %75
 
 28:                                               ; preds = %25
   %29 = load float*, float** %4, align 8
@@ -85,35 +85,34 @@
   %69 = insertelement <4 x float> %68, float 0.000000e+00, i32 3
   %70 = call <4 x float> @llvm.fma.f32(<4 x float> %64, <4 x float> %69, <4 x float> %59)
   %71 = extractelement <4 x float> %70, i32 0
-  %72 = insertelement float %71, float %55, i32 0
-  store float %54, float* %52, align 4
-  br label %73
+  store float %71, float* %52, align 4
+  br label %72
 
-73:                                               ; preds = %28
-  %74 = load i32, i32* %9, align 4
-  %75 = add nsw i32 %74, 1
-  store i32 %75, i32* %9, align 4
+72:                                               ; preds = %28
+  %73 = load i32, i32* %9, align 4
+  %74 = add nsw i32 %73, 1
+  store i32 %74, i32* %9, align 4
   br label %25
 
-76:                                               ; preds = %25
-  br label %77
+75:                                               ; preds = %25
+  br label %76
 
-77:                                               ; preds = %76
-  %78 = load i32, i32* %8, align 4
-  %79 = add nsw i32 %78, 1
-  store i32 %79, i32* %8, align 4
+76:                                               ; preds = %75
+  %77 = load i32, i32* %8, align 4
+  %78 = add nsw i32 %77, 1
+  store i32 %78, i32* %8, align 4
   br label %14
 
-80:                                               ; preds = %14
-  br label %81
+79:                                               ; preds = %14
+  br label %80
 
-81:                                               ; preds = %80
-  %82 = load i32, i32* %7, align 4
-  %83 = add nsw i32 %82, 1
-  store i32 %83, i32* %7, align 4
+80:                                               ; preds = %79
+  %81 = load i32, i32* %7, align 4
+  %82 = add nsw i32 %81, 1
+  store i32 %82, i32* %7, align 4
   br label %10
 
-84:                                               ; preds = %10
+83:                                               ; preds = %10
   ret void
   %1 = alloca i32, align 4
   %2 = alloca [4 x float], align 16

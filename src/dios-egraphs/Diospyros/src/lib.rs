@@ -3,7 +3,7 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
-use std::{collections::HashMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
+use std::{collections::BTreeMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
@@ -11,13 +11,39 @@ extern "C" {
   fn isa_constant(val: LLVMValueRef) -> bool;
   fn isa_gep(val: LLVMValueRef) -> bool;
   fn isa_load(val: LLVMValueRef) -> bool;
+  fn isa_store(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
+  fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
 }
 
-type GEPMap = HashMap<(Symbol, Symbol), LLVMValueRef>;
-type VarMap = HashMap<Symbol, LLVMValueRef>;
+// Note: We use BTreeMaps to enforce ordering in the map
+// Without ordering, tests become flaky and start failing a lot more often
+// We do not use HashMaps for this reason as ordering is not enforced.
+// GEPMap : Maps the array name and array offset as symbols to the GEP
+// LLVM Value Ref that LLVM Generated
+type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
+// VarMap : Maps a symbol to a llvm value ref representing a variable
+type VarMap = BTreeMap<Symbol, LLVMValueRef>;
+// BopMap : Maps a binary oeprator llvm value ref to an ID, indicating a
+// binary operator has been seen. Binary Operators be ordered in the order
+// they were generated in LLVM, which is earliest to latest in code.
+type BopMap = BTreeMap<LLVMValueRef, Id>;
+// ValueVec : A vector of LLVM Value Refs for which we must do extract element
+// for after vectorization.
 type ValueVec = Vec<LLVMValueRef>;
 
+const SQRT_OPERATOR: i32 = 3;
+const BINARY_OPERATOR: i32 = 2;
+static mut SYMBOL_IDX: i32 = 0;
+
+unsafe fn gen_symbol_name() -> String {
+  SYMBOL_IDX += 1;
+  let string = "SYMBOL".to_string();
+  let result = format!("{}{}", string, SYMBOL_IDX.to_string());
+  result
+}
+
+/// Converts LLVMValueRef binop to equivalent VecLang Binop node
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   match LLVMGetInstructionOpcode(*bop) {
     LLVMFAdd => VecLang::Add(ids),
@@ -28,6 +54,23 @@ unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   }
 }
 
+/// Convert the sqrt into a unique symbol, which maps to the sqet argument LLVMValueRef
+/// And then Make sqrt point to that unique symbol.
+/// On the other side, the symbol gets retranslted to the LLVMValueRef argument that came in
+/// and then the sqrt takes the square root of it.
+unsafe fn to_expr_sqrt(
+  sqrt_ref: &LLVMValueRef,
+  var_map: &mut VarMap,
+  enode_vec: &mut Vec<VecLang>,
+) -> () {
+  let symbol = Symbol::from(gen_symbol_name());
+  enode_vec.push(VecLang::Symbol(symbol));
+  let symbol_idx = enode_vec.len() - 1;
+  var_map.insert(symbol, *sqrt_ref);
+  enode_vec.push(VecLang::Sqrt([Id::from(symbol_idx)]));
+}
+
+/// Converts LLVMValueRef constant to a VecLang Num.
 unsafe fn to_expr_constant(
   operand: &LLVMValueRef,
   vec: &mut Vec<VecLang>,
@@ -39,6 +82,7 @@ unsafe fn to_expr_constant(
   ids[id_index] = Id::from(vec.len() - 1);
 }
 
+/// Converts LLVMValueRef GEP to a VecLang Symbol with variable name.
 unsafe fn to_expr_var(
   var_operand: &LLVMValueRef,
   enode_vec: &mut Vec<VecLang>,
@@ -53,6 +97,8 @@ unsafe fn to_expr_var(
   (*var_map).insert(symbol, *var_operand);
 }
 
+/// Converts LLVMValueRef GEP to a VecLang Get and VecLang Symbol for array
+/// and VecLang Symbol for offset.
 unsafe fn to_expr_gep(
   gep_operand: &LLVMValueRef,
   ids: &mut [egg::Id; 2],
@@ -60,7 +106,6 @@ unsafe fn to_expr_gep(
   enode_vec: &mut Vec<VecLang>,
   gep_map: &mut GEPMap,
 ) -> () {
-  // let gep_operand = LLVMGetOperand(*operand, 0);
   let array_var_name = CStr::from_ptr(llvm_name(*gep_operand)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
   let array_var_idx = enode_vec.len() - 1;
@@ -87,9 +132,35 @@ unsafe fn to_expr_gep(
   gep_map.insert((array_name_symbol, offsets_symbol), *gep_operand);
 }
 
+/// Makes binary operators as "used", which means that no extract is needed
+/// for these binary operators.
+///
+/// For example:
+/// x = (3 + z) + (2 + y)
+/// will record 3 + z, 2 + y as used in the final addition (3 + z) + (2 + y)/
+/// Only 1 extraction is needed (to assign to x's location). Not 3.
+unsafe fn mark_used_bops(
+  operand: &LLVMValueRef,
+  ids: &mut [egg::Id; 2],
+  id_index: usize,
+  bop_map: &mut BopMap,
+  used_bop_ids: &mut Vec<Id>,
+) -> bool {
+  let mut changed = false;
+  for (&prev_used_bop, &mut prev_used_id) in bop_map {
+    if dfs_llvm_value_ref(*operand, prev_used_bop) {
+      ids[id_index] = prev_used_id;
+      used_bop_ids.push(prev_used_id);
+      changed |= true;
+    }
+  }
+  return changed;
+}
+
+/// Converts LLVMValueRef operand to corresponding VecLang node
 unsafe fn to_expr_operand(
   operand: &LLVMValueRef,
-  bop_map: &mut HashMap<LLVMValueRef, Id>,
+  bop_map: &mut BopMap,
   ids: &mut [egg::Id; 2],
   id_index: usize,
   used_bop_ids: &mut Vec<Id>,
@@ -97,6 +168,10 @@ unsafe fn to_expr_operand(
   gep_map: &mut GEPMap,
   var_map: &mut VarMap,
 ) -> () {
+  let removed_bops = mark_used_bops(operand, ids, id_index, bop_map, used_bop_ids);
+  if removed_bops {
+    return ();
+  }
   if bop_map.contains_key(&operand) {
     let used_id = *bop_map.get(&operand).expect("Expected key in map");
     ids[id_index] = used_id;
@@ -116,6 +191,7 @@ unsafe fn to_expr_operand(
   }
 }
 
+/// Pads a vector to be always the Vector Lane Width.
 fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
   let width = config::vector_width();
   let mut length = binop_vec.len();
@@ -162,58 +238,68 @@ fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
   }
 }
 
-pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
+/// Converts LLVMValueRef to a corresponding VecLang expression, as well as a GEPMap,
+/// which maps each LLVM gep expression to a symbol representing the array name
+/// and a symbol representing the array offset, a var map, which maps a symbol to the
+/// LLVMValueRef representing the variable, and a ValueVec, which reprsents
+/// the values we generate extract instructions on.
+pub fn to_expr(
+  bb_vec: &[LLVMValueRef],
+  operand_types: &[i32],
+) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-  let (mut gep_map, mut var_map, mut bop_map) = (HashMap::new(), HashMap::new(), HashMap::new());
+  let (mut gep_map, mut var_map, mut bop_map) = (BTreeMap::new(), BTreeMap::new(), BTreeMap::new());
   let mut ids = [Id::from(0); 2];
-  for bop in bb_vec.iter() {
+  for (i, bop) in bb_vec.iter().enumerate() {
     unsafe {
-      // to_expr on left and then right operands
-      to_expr_operand(
-        &LLVMGetOperand(*bop, 0),
-        &mut bop_map,
-        &mut ids,
-        0,
-        &mut used_bop_ids,
-        &mut enode_vec,
-        &mut gep_map,
-        &mut var_map,
-      );
-      to_expr_operand(
-        &LLVMGetOperand(*bop, 1),
-        &mut bop_map,
-        &mut ids,
-        1,
-        &mut used_bop_ids,
-        &mut enode_vec,
-        &mut gep_map,
-        &mut var_map,
-      );
-      // lhs bop rhs
-      enode_vec.push(choose_binop(bop, ids));
-      let id = Id::from(enode_vec.len() - 1);
-      bops_vec.push(id);
-
-      ops_to_replace.push((*bop, id));
-
-      // remove binops that are used as part of another binop
-      for used_id in used_bop_ids.iter() {
-        if bops_vec.contains(used_id) {
-          let index = bops_vec
-            .iter()
-            .position(|&_id| _id == *used_id)
-            .expect("Require used_id in vector");
-          bops_vec.remove(index);
-        }
+      if operand_types[i] == BINARY_OPERATOR {
+        // to_expr on left and then right operands
+        to_expr_operand(
+          &LLVMGetOperand(*bop, 0),
+          &mut bop_map,
+          &mut ids,
+          0,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+          &mut var_map,
+        );
+        to_expr_operand(
+          &LLVMGetOperand(*bop, 1),
+          &mut bop_map,
+          &mut ids,
+          1,
+          &mut used_bop_ids,
+          &mut enode_vec,
+          &mut gep_map,
+          &mut var_map,
+        );
+        // lhs bop rhs
+        enode_vec.push(choose_binop(bop, ids));
+      } else if operand_types[i] == SQRT_OPERATOR {
+        // currently fails to generate correct code or optimize.
+        // to_expr_sqrt(bop, &mut var_map, &mut enode_vec);
       }
-
-      bop_map.insert(*bop, id);
+    }
+    // add in the binary/unary operator to the bops_vec list
+    let id = Id::from(enode_vec.len() - 1);
+    bops_vec.push(id);
+    ops_to_replace.push((*bop, id));
+    bop_map.insert(*bop, id);
+    // remove binops that are used as part of another binop
+    for used_id in used_bop_ids.iter() {
+      if bops_vec.contains(used_id) {
+        let index = bops_vec
+          .iter()
+          .position(|&_id| _id == *used_id)
+          .expect("Require used_id in vector");
+        bops_vec.remove(index);
+      }
     }
   }
   // decompose bops_vec into width number of binops
   pad_vector(&bops_vec, &mut enode_vec);
-  // enode_vec.push(VecLang::Vec(bops_vec.into_boxed_slice()));
 
   // remove binary ops that were used, and thus not the ones we want to replace directly
   let mut final_ops_to_replace = Vec::new();
@@ -231,6 +317,7 @@ pub fn to_expr(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, VarMap, Va
   );
 }
 
+/// Translates VecLang binop expression node to the corresponding LLVMValueRef
 unsafe fn translate_binop(
   enode: &VecLang,
   left: LLVMValueRef,
@@ -251,6 +338,7 @@ unsafe fn translate_binop(
   }
 }
 
+/// Translates VecLang unop expression node to the corresponding LLVMValueRef
 unsafe fn translate_unop(
   enode: &VecLang,
   n: LLVMValueRef,
@@ -279,6 +367,8 @@ unsafe fn translate_unop(
   }
 }
 
+/// translate_get converts a VecLang Get Node to the corresponding LLVM Ir array name and
+/// LLVM IR offset, as symbols.
 unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol) {
   match get {
     VecLang::Get([sym, i]) => match (&enode_vec[usize::from(*sym)], &enode_vec[usize::from(*i)]) {
@@ -291,6 +381,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
   }
 }
 
+/// translate converts a VecLang expression to the corresponding LLVMValueRef.
 unsafe fn translate(
   enode: &VecLang,
   vec: &[VecLang],
@@ -317,7 +408,6 @@ unsafe fn translate(
         zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
       }
       let zeros_ptr = zeros.as_mut_ptr();
-      // let array = [LLVMConstReal(LLVMFloatType(), 0 as f64); config::vector_width()].as_mut_ptr();
       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
       for (idx, &eggid) in idvec.iter().enumerate() {
         let elt = &vec[usize::from(eggid)];
@@ -378,6 +468,7 @@ unsafe fn translate(
         builder,
         module,
       );
+      // manually concatenate 2 vectors by using a LLVM shuffle operation.
       let v1_type = LLVMTypeOf(trans_v1);
       let v1_size = LLVMGetVectorSize(v1_type);
       let v2_type = LLVMTypeOf(trans_v2);
@@ -430,7 +521,9 @@ unsafe fn translate(
       let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 3, b"\0".as_ptr() as *const _)
     }
-    // TODO: Consider changing to floating point operations to allow for Unary fneg llvm instruction
+    // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
+    // TODO: LLVM actually supports many more vector intrinsics, including
+    // vector sine/cosine instructions for floats.
     VecLang::VecNeg([v]) => {
       let neg_vector = translate(
         &vec[usize::from(*v)],
@@ -497,6 +590,7 @@ unsafe fn translate(
   }
 }
 
+/// Convert a Veclang `expr` to LLVM IR code in place, using an LLVM builder.
 unsafe fn to_llvm(
   module: LLVMModuleRef,
   expr: RecExpr<VecLang>,
@@ -510,29 +604,48 @@ unsafe fn to_llvm(
     .last()
     .expect("No match for last element of vector of Egg Terms.");
 
+  // create vectorized instructions.
   let vector = translate(last, vec, gep_map, var_map, builder, module);
 
+  // for each binary operation that has been vectorized AND requires replacement
+  // we extract the correct index from the vector and
+  // determine the store to that binary op, copy it and move it after the extraction
   for (i, op) in ops_to_replace.iter().enumerate() {
     let index = LLVMConstInt(LLVMInt32Type(), i as u64, 0);
     let extracted_value =
       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
-    let store_instr = LLVMGetNextInstruction(LLVMGetNextInstruction(*op));
+    // figure out where the next store is located, after the binary operation to replace.
+    let mut store_instr = *op;
+    // assumes there is a store next: could segfault or loop forever if not.
+    // WARNING: In particular, could infinitely loop under -02/-03 optimizations.
+    while !isa_store(store_instr) {
+      store_instr = LLVMGetNextInstruction(store_instr);
+    }
     let cloned_store = LLVMInstructionClone(store_instr);
     LLVMSetOperand(cloned_store, 0, extracted_value);
     LLVMInsertIntoBuilder(builder, cloned_store);
+    // erase stores -> this was affecting a load and then a store to the same
+    // location in matrix multiply
+    LLVMInstructionEraseFromParent(store_instr);
   }
 }
 
+/// Main function to optimize: Takes in a basic block of instructions,
+/// optimizes it, and then translates it to LLVM IR code, in place.
 #[no_mangle]
 pub fn optimize(
   module: LLVMModuleRef,
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
+  operand_types: *const i32,
   size: size_t,
 ) -> () {
   unsafe {
     // llvm to egg
-    let (expr, gep_map, var_map, ops_to_replace) = to_expr(from_raw_parts(bb, size));
+    let (expr, gep_map, var_map, ops_to_replace) = to_expr(
+      from_raw_parts(bb, size),
+      from_raw_parts(operand_types, size),
+    );
 
     // optimization pass
     eprintln!("{:?}", expr);

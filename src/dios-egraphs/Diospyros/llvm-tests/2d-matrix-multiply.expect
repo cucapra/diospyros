@@ -11,29 +11,29 @@
   store i32 0, i32* %7, align 4
   br label %11
 
-11:                                               ; preds = %75, %3
+11:                                               ; preds = %74, %3
   %12 = load i32, i32* %7, align 4
   %13 = icmp slt i32 %12, 2
-  br i1 %13, label %14, label %78
+  br i1 %13, label %14, label %77
 
 14:                                               ; preds = %11
   store i32 0, i32* %8, align 4
   br label %15
 
-15:                                               ; preds = %71, %14
+15:                                               ; preds = %70, %14
   %16 = load i32, i32* %8, align 4
   %17 = icmp slt i32 %16, 2
-  br i1 %17, label %18, label %74
+  br i1 %17, label %18, label %73
 
 18:                                               ; preds = %15
   store float 0.000000e+00, float* %9, align 4
   store i32 0, i32* %10, align 4
   br label %19
 
-19:                                               ; preds = %59, %18
+19:                                               ; preds = %58, %18
   %20 = load i32, i32* %10, align 4
   %21 = icmp slt i32 %20, 2
-  br i1 %21, label %22, label %62
+  br i1 %21, label %22, label %61
 
 22:                                               ; preds = %19
   %23 = load [2 x float]*, [2 x float]** %4, align 8
@@ -71,44 +71,43 @@
   %55 = insertelement <4 x float> %54, float 0.000000e+00, i32 3
   %56 = call <4 x float> @llvm.fma.f32(<4 x float> %50, <4 x float> %55, <4 x float> %45)
   %57 = extractelement <4 x float> %56, i32 0
-  %58 = insertelement float %57, float 0.000000e+00, i32 1
-  store float %41, float* %9, align 4
-  br label %59
+  store float %57, float* %9, align 4
+  br label %58
 
-59:                                               ; preds = %22
-  %60 = load i32, i32* %10, align 4
-  %61 = add nsw i32 %60, 1
-  store i32 %61, i32* %10, align 4
+58:                                               ; preds = %22
+  %59 = load i32, i32* %10, align 4
+  %60 = add nsw i32 %59, 1
+  store i32 %60, i32* %10, align 4
   br label %19
 
-62:                                               ; preds = %19
-  %63 = load float, float* %9, align 4
-  %64 = load [2 x float]*, [2 x float]** %6, align 8
-  %65 = load i32, i32* %7, align 4
-  %66 = sext i32 %65 to i64
-  %67 = getelementptr inbounds [2 x float], [2 x float]* %64, i64 %66
-  %68 = load i32, i32* %8, align 4
-  %69 = sext i32 %68 to i64
-  %70 = getelementptr inbounds [2 x float], [2 x float]* %67, i64 0, i64 %69
-  store float %63, float* %70, align 4
-  br label %71
+61:                                               ; preds = %19
+  %62 = load float, float* %9, align 4
+  %63 = load [2 x float]*, [2 x float]** %6, align 8
+  %64 = load i32, i32* %7, align 4
+  %65 = sext i32 %64 to i64
+  %66 = getelementptr inbounds [2 x float], [2 x float]* %63, i64 %65
+  %67 = load i32, i32* %8, align 4
+  %68 = sext i32 %67 to i64
+  %69 = getelementptr inbounds [2 x float], [2 x float]* %66, i64 0, i64 %68
+  store float %62, float* %69, align 4
+  br label %70
 
-71:                                               ; preds = %62
-  %72 = load i32, i32* %8, align 4
-  %73 = add nsw i32 %72, 1
-  store i32 %73, i32* %8, align 4
+70:                                               ; preds = %61
+  %71 = load i32, i32* %8, align 4
+  %72 = add nsw i32 %71, 1
+  store i32 %72, i32* %8, align 4
   br label %15
 
-74:                                               ; preds = %15
-  br label %75
+73:                                               ; preds = %15
+  br label %74
 
-75:                                               ; preds = %74
-  %76 = load i32, i32* %7, align 4
-  %77 = add nsw i32 %76, 1
-  store i32 %77, i32* %7, align 4
+74:                                               ; preds = %73
+  %75 = load i32, i32* %7, align 4
+  %76 = add nsw i32 %75, 1
+  store i32 %76, i32* %7, align 4
   br label %11
 
-78:                                               ; preds = %11
+77:                                               ; preds = %11
   ret void
   %1 = alloca i32, align 4
   %2 = alloca [2 x [2 x float]], align 16

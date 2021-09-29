@@ -1,3 +1,4 @@
+#include <stdio.h>
 #define SIZE 8
 
 void fft(float real_in[SIZE], float img_in[SIZE], float real_twid_in[SIZE / 2],
@@ -44,4 +45,34 @@ void fft(float real_in[SIZE], float img_in[SIZE], float real_twid_in[SIZE / 2],
     }
 }
 
-int main(void) {}
+int main(void) {
+    float real_in[SIZE] = {1, 2, 3, 4, 5, 6, 7, 8};
+    float img_in[SIZE] = {0, 1, 2, 3, 4, 5, 6, 7};
+    float real_twid_in[SIZE / 2] = {4, 3, 2, 1};
+    float img_twid_in[SIZE / 2] = {8, 7, 6, 5};
+    float real_out[SIZE] = {1, 1, 1, 1, 1, 1, 1, 1};
+    float img_out[SIZE] = {2, 3, 4, 5, 6, 7, 8, 9};
+    fft(real_in, img_in, real_twid_in, img_twid_in, real_out, img_out);
+    for (int i = 0; i < SIZE; i++) {
+        printf("%f\n", real_out[i]);
+    }
+    for (int i = 0; i < SIZE; i++) {
+        printf("%f\n", img_out[i]);
+    }
+    // 36.000000
+    // -4.000000
+    // 12.000000
+    // -20.000000
+    // 44.000000
+    // -20.000000
+    // 76.000000
+    // -116.000000
+    // 28.000000
+    // -4.000000
+    // -36.000000
+    // 28.000000
+    // -100.000000
+    // 28.000000
+    // -4.000000
+    // 60.000000
+}
