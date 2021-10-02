@@ -8,6 +8,7 @@ use std::{collections::BTreeMap, ffi::CStr, os::raw::c_char, slice::from_raw_par
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
   fn llvm_name(val: LLVMValueRef) -> *const c_char;
+  fn isa_bop(val: LLVMValueRef) -> bool;
   fn isa_constant(val: LLVMValueRef) -> bool;
   fn isa_gep(val: LLVMValueRef) -> bool;
   fn isa_load(val: LLVMValueRef) -> bool;
@@ -176,6 +177,8 @@ unsafe fn to_expr_operand(
     let used_id = *bop_map.get(&operand).expect("Expected key in map");
     ids[id_index] = used_id;
     used_bop_ids.push(used_id);
+  } else if isa_bop(*operand) {
+    // println!("Here");
   } else if isa_constant(*operand) {
     to_expr_constant(&operand, enode_vec, ids, id_index);
   } else if isa_load(*operand) {
@@ -648,9 +651,9 @@ pub fn optimize(
     );
 
     // optimization pass
-    eprintln!("{:?}", expr);
+    eprintln!("{}", expr.pretty(10));
     let (_, best) = rules::run(&expr, 180, true, false);
-    eprintln!("{:?}", best.as_ref());
+    eprintln!("{}", best.pretty(10));
 
     // egg to llvm
     to_llvm(module, best, &gep_map, &var_map, &ops_to_replace, builder);
