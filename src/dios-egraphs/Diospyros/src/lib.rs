@@ -663,12 +663,20 @@ pub fn optimize(
 
 // ------------ NEW CONVERSION FROM LLVM IR TO EGG EXPRESSIONS -------
 
-unsafe fn bop_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+type store_map = BTreeMap<VecLang, LLVMValueRef>;
+type gep_map = BTreeMap<VecLang, LLVMValueRef>;
+
+unsafe fn bop_to_egg(
+  expr: LLVMValueRef,
+  next_idx: i32,
+  gep_map: &mut gep_map,
+  store_map: &mut store_map,
+) -> (Vec<VecLang>, i32) {
   let op = LLVMGetOperand(expr, 0);
   let left = LLVMGetOperand(expr, 1);
   let right = LLVMGetOperand(expr, 2);
-  let (v1, next_idx1) = ref_to_egg(left, next_idx);
-  let (v2, next_idx2) = ref_to_egg(right, next_idx1);
+  let (v1, next_idx1) = ref_to_egg(left, next_idx, gep_map, store_map);
+  let (v2, next_idx2) = ref_to_egg(right, next_idx1, gep_map, store_map);
   let mut concat = [&v1[..], &v2[..]].concat(); // https://users.rust-lang.org/t/how-to-concatenate-two-vectors/8324/3
   let ids = [
     Id::from((next_idx1 - 1) as usize),
@@ -678,25 +686,50 @@ unsafe fn bop_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
   (concat, next_idx2 + 1)
 }
 
-unsafe fn unop_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+unsafe fn unop_to_egg(
+  expr: LLVMValueRef,
+  next_idx: i32,
+  gep_map: &mut gep_map,
+  store_map: &mut store_map,
+) -> (Vec<VecLang>, i32) {
   panic!()
 }
 
-unsafe fn gep_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+unsafe fn gep_to_egg(
+  expr: LLVMValueRef,
+  next_idx: i32,
+  gep_map: &mut gep_map,
+  store_map: &mut store_map,
+) -> (Vec<VecLang>, i32) {
   panic!()
 }
 
-unsafe fn load_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+unsafe fn load_to_egg(
+  expr: LLVMValueRef,
+  next_idx: i32,
+  gep_map: &mut gep_map,
+  store_map: &mut store_map,
+) -> (Vec<VecLang>, i32) {
   panic!()
 }
 
-unsafe fn store_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+unsafe fn store_to_egg(
+  expr: LLVMValueRef,
+  next_idx: i32,
+  gep_map: &mut gep_map,
+  store_map: &mut store_map,
+) -> (Vec<VecLang>, i32) {
   panic!()
 }
 
-unsafe fn ref_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+unsafe fn ref_to_egg(
+  expr: LLVMValueRef,
+  next_idx: i32,
+  gep_map: &mut gep_map,
+  store_map: &mut store_map,
+) -> (Vec<VecLang>, i32) {
   if isa_bop(expr) {
-    return bop_to_egg(expr, next_idx);
+    return bop_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_unop(expr) {
   } else if isa_constant(expr) {
   } else if isa_gep(expr) {
