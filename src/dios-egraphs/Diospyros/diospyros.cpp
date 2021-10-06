@@ -110,6 +110,17 @@ extern "C" int llvm_index(LLVMValueRef val, int index) {
 }
 
 /**
+ * True iff a value is an LLVM Unary Operation
+ */
+extern "C" bool isa_unop(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<UnaryOperator>(unwrapped);
+}
+
+/**
  * True iff a value is an LLVM Binary Operation
  */
 extern "C" bool isa_bop(LLVMValueRef val) {

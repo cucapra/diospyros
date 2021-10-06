@@ -8,6 +8,7 @@ use std::{collections::BTreeMap, ffi::CStr, os::raw::c_char, slice::from_raw_par
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
   fn llvm_name(val: LLVMValueRef) -> *const c_char;
+  fn isa_unop(val: LLVMValueRef) -> bool;
   fn isa_bop(val: LLVMValueRef) -> bool;
   fn isa_constant(val: LLVMValueRef) -> bool;
   fn isa_gep(val: LLVMValueRef) -> bool;
@@ -658,4 +659,51 @@ pub fn optimize(
     // egg to llvm
     to_llvm(module, best, &gep_map, &var_map, &ops_to_replace, builder);
   }
+}
+
+// ------------ NEW CONVERSION FROM LLVM IR TO EGG EXPRESSIONS -------
+
+unsafe fn bop_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+  let op = LLVMGetOperand(expr, 0);
+  let left = LLVMGetOperand(expr, 1);
+  let right = LLVMGetOperand(expr, 2);
+  let (v1, next_idx1) = ref_to_egg(left, next_idx);
+  let (v2, next_idx2) = ref_to_egg(right, next_idx1);
+  let mut concat = [&v1[..], &v2[..]].concat(); // https://users.rust-lang.org/t/how-to-concatenate-two-vectors/8324/3
+  let ids = [
+    Id::from((next_idx1 - 1) as usize),
+    Id::from((next_idx2 - 1) as usize),
+  ];
+  concat.push(choose_binop(&op, ids));
+  (concat, next_idx2 + 1)
+}
+
+unsafe fn unop_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+  panic!()
+}
+
+unsafe fn gep_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+  panic!()
+}
+
+unsafe fn load_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+  panic!()
+}
+
+unsafe fn store_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+  panic!()
+}
+
+unsafe fn ref_to_egg(expr: LLVMValueRef, next_idx: i32) -> (Vec<VecLang>, i32) {
+  if isa_bop(expr) {
+    return bop_to_egg(expr, next_idx);
+  } else if isa_unop(expr) {
+  } else if isa_constant(expr) {
+  } else if isa_gep(expr) {
+  } else if isa_load(expr) {
+  } else if isa_store(expr) {
+  } else {
+    panic!("ref_to_egg: Unmatched case for LLVMValueRef {:?}", expr);
+  }
+  panic!();
 }
