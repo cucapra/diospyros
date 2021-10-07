@@ -666,6 +666,33 @@ pub fn optimize(
 type store_map = BTreeMap<VecLang, LLVMValueRef>;
 type gep_map = BTreeMap<VecLang, LLVMValueRef>;
 
+enum LLVMOpType {
+  Constant,
+  Store,
+  Load,
+  Gep,
+  Unop,
+  Bop,
+}
+
+unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
+  if isa_bop(*expr) {
+    return LLVMOpType::Bop;
+  } else if isa_unop(*expr) {
+    return LLVMOpType::Unop;
+  } else if isa_constant(*expr) {
+    return LLVMOpType::Constant;
+  } else if isa_gep(*expr) {
+    return LLVMOpType::Gep;
+  } else if isa_load(*expr) {
+    return LLVMOpType::Load;
+  } else if isa_store(*expr) {
+    return LLVMOpType::Store;
+  } else {
+    panic!("ref_to_egg: Unmatched case for LLVMValueRef {:?}", *expr);
+  }
+}
+
 unsafe fn choose_unop(unop: &LLVMValueRef, id: Id) -> VecLang {
   match LLVMGetInstructionOpcode(*unop) {
     LLVMFNeg => VecLang::Neg([id]),
@@ -781,19 +808,12 @@ unsafe fn ref_to_egg(
   gep_map: &mut gep_map,
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
-  if isa_bop(expr) {
-    return bop_to_egg(expr, next_idx, gep_map, store_map);
-  } else if isa_unop(expr) {
-    return unop_to_egg(expr, next_idx, gep_map, store_map);
-  } else if isa_constant(expr) {
-    return const_to_egg(expr, next_idx, gep_map, store_map);
-  } else if isa_gep(expr) {
-    return gep_to_egg(expr, next_idx, gep_map, store_map);
-  } else if isa_load(expr) {
-    return load_to_egg(expr, next_idx, gep_map, store_map);
-  } else if isa_store(expr) {
-    return store_to_egg(expr, next_idx, gep_map, store_map);
-  } else {
-    panic!("ref_to_egg: Unmatched case for LLVMValueRef {:?}", expr);
+  match match_llvm_op(&expr) {
+    LLVMOpType::Bop => bop_to_egg(expr, next_idx, gep_map, store_map),
+    LLVMOpType::Unop => unop_to_egg(expr, next_idx, gep_map, store_map),
+    LLVMOpType::Constant => const_to_egg(expr, next_idx, gep_map, store_map),
+    LLVMOpType::Gep => gep_to_egg(expr, next_idx, gep_map, store_map),
+    LLVMOpType::Load => load_to_egg(expr, next_idx, gep_map, store_map),
+    LLVMOpType::Store => store_to_egg(expr, next_idx, gep_map, store_map),
   }
 }
