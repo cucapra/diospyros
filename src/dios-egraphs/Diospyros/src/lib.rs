@@ -666,6 +666,13 @@ pub fn optimize(
 type store_map = BTreeMap<VecLang, LLVMValueRef>;
 type gep_map = BTreeMap<VecLang, LLVMValueRef>;
 
+unsafe fn choose_unop(unop: &LLVMValueRef, id: Id) -> VecLang {
+  match LLVMGetInstructionOpcode(*unop) {
+    LLVMFNeg => VecLang::Neg([id]),
+    _ => panic!("Choose_Unop: Opcode Match Error"),
+  }
+}
+
 unsafe fn bop_to_egg(
   expr: LLVMValueRef,
   next_idx: i32,
@@ -691,7 +698,11 @@ unsafe fn unop_to_egg(
   gep_map: &mut gep_map,
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
-  panic!("Unimplemented: Need to add support for Sqrt/Sgn/Negation")
+  let sub_expr = LLVMGetOperand(expr, 0);
+  let (mut v, next_idx1) = ref_to_egg(sub_expr, next_idx, gep_map, store_map);
+  let id = Id::from((next_idx1 - 1) as usize);
+  v.push(choose_unop(&expr, id));
+  (v, next_idx1 + 1)
 }
 
 unsafe fn gep_to_egg(
