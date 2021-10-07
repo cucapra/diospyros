@@ -763,7 +763,7 @@ unsafe fn ref_to_egg(
   } else if isa_unop(expr) {
     return unop_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_constant(expr) {
-    panic!()
+    panic!("Constant Should Not Occur while translating from LLVM to Egg")
   } else if isa_gep(expr) {
     return gep_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_load(expr) {
