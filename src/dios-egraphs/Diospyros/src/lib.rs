@@ -761,12 +761,16 @@ unsafe fn ref_to_egg(
   if isa_bop(expr) {
     return bop_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_unop(expr) {
+    return unop_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_constant(expr) {
+    panic!()
   } else if isa_gep(expr) {
+    return gep_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_load(expr) {
+    return load_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_store(expr) {
+    return store_to_egg(expr, next_idx, gep_map, store_map);
   } else {
     panic!("ref_to_egg: Unmatched case for LLVMValueRef {:?}", expr);
   }
-  panic!();
 }
