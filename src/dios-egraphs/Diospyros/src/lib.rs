@@ -672,9 +672,8 @@ unsafe fn bop_to_egg(
   gep_map: &mut gep_map,
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
-  let op = LLVMGetOperand(expr, 0);
-  let left = LLVMGetOperand(expr, 1);
-  let right = LLVMGetOperand(expr, 2);
+  let left = LLVMGetOperand(expr, 0);
+  let right = LLVMGetOperand(expr, 1);
   let (v1, next_idx1) = ref_to_egg(left, next_idx, gep_map, store_map);
   let (v2, next_idx2) = ref_to_egg(right, next_idx1, gep_map, store_map);
   let mut concat = [&v1[..], &v2[..]].concat(); // https://users.rust-lang.org/t/how-to-concatenate-two-vectors/8324/3
@@ -682,7 +681,7 @@ unsafe fn bop_to_egg(
     Id::from((next_idx1 - 1) as usize),
     Id::from((next_idx2 - 1) as usize),
   ];
-  concat.push(choose_binop(&op, ids));
+  concat.push(choose_binop(&expr, ids));
   (concat, next_idx2 + 1)
 }
 
@@ -701,7 +700,27 @@ unsafe fn gep_to_egg(
   gep_map: &mut gep_map,
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
-  panic!()
+  let mut enode_vec = Vec::new();
+
+  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
+  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
+
+  let num_gep_operands = LLVMGetNumOperands(expr);
+  let mut indices = Vec::new();
+  for operand_idx in 1..num_gep_operands {
+    let array_offset = llvm_index(expr, operand_idx);
+    indices.push(array_offset);
+  }
+  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
+  let offsets_symbol = Symbol::from(&offsets_string);
+  enode_vec.push(VecLang::Symbol(offsets_symbol));
+
+  enode_vec.push(VecLang::Get([
+    Id::from((next_idx + 1) as usize),
+    Id::from((next_idx + 2) as usize),
+  ]));
+
+  return (enode_vec, next_idx + 3);
 }
 
 unsafe fn load_to_egg(
@@ -710,7 +729,8 @@ unsafe fn load_to_egg(
   gep_map: &mut gep_map,
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
-  panic!()
+  let addr = LLVMGetOperand(expr, 0);
+  return ref_to_egg(addr, next_idx, gep_map, store_map);
 }
 
 unsafe fn store_to_egg(
