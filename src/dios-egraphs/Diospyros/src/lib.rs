@@ -763,6 +763,18 @@ unsafe fn store_to_egg(
   return (vec, next_idx1);
 }
 
+unsafe fn const_to_egg(
+  expr: LLVMValueRef,
+  next_idx: i32,
+  gep_map: &mut gep_map,
+  store_map: &mut store_map,
+) -> (Vec<VecLang>, i32) {
+  let value = get_constant_float(expr);
+  let mut vec = Vec::New();
+  vec.push(VecLang::Num(value as i32));
+  (vec, next_idx + 1)
+}
+
 unsafe fn ref_to_egg(
   expr: LLVMValueRef,
   next_idx: i32,
@@ -774,7 +786,7 @@ unsafe fn ref_to_egg(
   } else if isa_unop(expr) {
     return unop_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_constant(expr) {
-    panic!("Constant Should Not Occur while translating from LLVM to Egg")
+    return const_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_gep(expr) {
     return gep_to_egg(expr, next_idx, gep_map, store_map);
   } else if isa_load(expr) {
