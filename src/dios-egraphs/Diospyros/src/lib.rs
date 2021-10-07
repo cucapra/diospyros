@@ -691,7 +691,7 @@ unsafe fn unop_to_egg(
   gep_map: &mut gep_map,
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
-  panic!()
+  panic!("Unimplemented: Need to add support for Sqrt/Sgn/Negation")
 }
 
 unsafe fn gep_to_egg(
@@ -715,10 +715,12 @@ unsafe fn gep_to_egg(
   let offsets_symbol = Symbol::from(&offsets_string);
   enode_vec.push(VecLang::Symbol(offsets_symbol));
 
-  enode_vec.push(VecLang::Get([
+  let get_node = VecLang::Get([
     Id::from((next_idx + 1) as usize),
     Id::from((next_idx + 2) as usize),
-  ]));
+  ]);
+  (*gep_map).insert(get_node.clone(), expr);
+  enode_vec.push(get_node);
 
   return (enode_vec, next_idx + 3);
 }
@@ -739,7 +741,15 @@ unsafe fn store_to_egg(
   gep_map: &mut gep_map,
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
-  panic!()
+  let data = LLVMGetOperand(expr, 0);
+  let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator in LLVM
+  let (vec, next_idx1) = ref_to_egg(data, next_idx, gep_map, store_map);
+  let data_egg_node = vec
+    .get((next_idx1 - 1) as usize)
+    .expect("Vector should contain index.")
+    .clone();
+  (*store_map).insert(data_egg_node, addr);
+  return (vec, next_idx1);
 }
 
 unsafe fn ref_to_egg(
