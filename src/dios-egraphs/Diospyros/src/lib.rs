@@ -830,10 +830,231 @@ unsafe fn llvm_to_egg(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, gep_map, st
   (RecExpr::from(enode_vec), gep_map, store_map)
 }
 
+unsafe fn translate_egg(
+  enode: &VecLang,
+  vec: &[VecLang],
+  gep_map: &gep_map,
+  store_map: &store_map,
+  builder: LLVMBuilderRef,
+  module: LLVMModuleRef,
+) -> LLVMValueRef {
+  let llvm_instr = match enode {
+    VecLang::Symbol(s) => panic!("Symbol should never be translated alone from Egg to LLVM."),
+    VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
+    VecLang::Get(..) => {
+      let (array_name, array_offsets) = translate_get(enode, vec);
+      let gep_value = gep_map
+        .get(enode)
+        .expect("Symbol map lookup error: Cannot Find GEP");
+      LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
+    }
+    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
+      let idvec = boxed_ids.to_vec();
+      let idvec_len = idvec.len();
+      let mut zeros = Vec::new();
+      for _ in 0..idvec_len {
+        zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
+      }
+      let zeros_ptr = zeros.as_mut_ptr();
+      let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
+      for (idx, &eggid) in idvec.iter().enumerate() {
+        let elt = &vec[usize::from(eggid)];
+        let elt_val = translate_egg(elt, vec, gep_map, store_map, builder, module);
+        vector = LLVMBuildInsertElement(
+          builder,
+          vector,
+          elt_val,
+          LLVMConstInt(LLVMInt32Type(), idx as u64, 0),
+          b"\0".as_ptr() as *const _,
+        );
+      }
+      vector
+    }
+    VecLang::VecAdd([l, r])
+    | VecLang::VecMinus([l, r])
+    | VecLang::VecMul([l, r])
+    | VecLang::VecDiv([l, r])
+    | VecLang::Add([l, r])
+    | VecLang::Minus([l, r])
+    | VecLang::Mul([l, r])
+    | VecLang::Div([l, r])
+    | VecLang::Or([l, r])
+    | VecLang::And([l, r])
+    | VecLang::Lt([l, r]) => {
+      let left = translate_egg(
+        &vec[usize::from(*l)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      let right = translate_egg(
+        &vec[usize::from(*r)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
+    }
+    VecLang::Concat([v1, v2]) => {
+      let trans_v1 = translate_egg(
+        &vec[usize::from(*v1)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      let trans_v2 = translate_egg(
+        &vec[usize::from(*v2)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      // manually concatenate 2 vectors by using a LLVM shuffle operation.
+      let v1_type = LLVMTypeOf(trans_v1);
+      let v1_size = LLVMGetVectorSize(v1_type);
+      let v2_type = LLVMTypeOf(trans_v2);
+      let v2_size = LLVMGetVectorSize(v2_type);
+      let size = v1_size + v2_size;
+      let mut indices = Vec::new();
+      for i in 0..size {
+        indices.push(LLVMConstInt(LLVMInt32Type(), i as u64, 0));
+      }
+      let mask = indices.as_mut_ptr();
+      let mask_vector = LLVMConstVector(mask, size);
+      LLVMBuildShuffleVector(
+        builder,
+        trans_v1,
+        trans_v2,
+        mask_vector,
+        b"\0".as_ptr() as *const _,
+      )
+    }
+    VecLang::VecMAC([acc, v1, v2]) => {
+      let trans_acc = translate_egg(
+        &vec[usize::from(*acc)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      let trans_v1 = translate_egg(
+        &vec[usize::from(*v1)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      let trans_v2 = translate_egg(
+        &vec[usize::from(*v2)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      let vec_type = LLVMTypeOf(trans_acc);
+
+      let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
+      let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.fma.f32\0".as_ptr() as *const _, fn_type);
+      let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 3, b"\0".as_ptr() as *const _)
+    }
+    // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
+    // TODO: LLVM actually supports many more vector intrinsics, including
+    // vector sine/cosine instructions for floats.
+    VecLang::VecNeg([v]) => {
+      let neg_vector = translate_egg(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      LLVMBuildFNeg(builder, neg_vector, b"\0".as_ptr() as *const _)
+    }
+    VecLang::VecSqrt([v]) => {
+      let sqrt_vec = translate_egg(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      let vec_type = LLVMTypeOf(sqrt_vec);
+      let param_types = [vec_type].as_mut_ptr();
+      let fn_type = LLVMFunctionType(vec_type, param_types, 1, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+      let args = [sqrt_vec].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 1, b"\0".as_ptr() as *const _)
+    }
+    // compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
+    VecLang::VecSgn([v]) => {
+      let sgn_vec = translate_egg(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      let vec_type = LLVMTypeOf(sgn_vec);
+      let vec_size = LLVMGetVectorSize(vec_type);
+      let mut ones = Vec::new();
+      for _ in 0..vec_size {
+        ones.push(LLVMConstReal(LLVMFloatType(), 1 as f64));
+      }
+      let ones_ptr = ones.as_mut_ptr();
+      let ones_vector = LLVMConstVector(ones_ptr, vec_size);
+      let param_types = [vec_type, vec_type].as_mut_ptr();
+      let fn_type = LLVMFunctionType(vec_type, param_types, 2, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
+      let args = [ones_vector, sgn_vec].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
+    }
+    VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) => {
+      let number = translate_egg(
+        &vec[usize::from(*n)],
+        vec,
+        gep_map,
+        store_map,
+        builder,
+        module,
+      );
+      translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
+    }
+    VecLang::Ite(..) => panic!("Ite is not handled."),
+  };
+
+  // Add in Store Generation If Needed
+  let final_instr = if store_map.contains_key(enode) {
+    let prior_instr = LLVMGetPreviousInstruction(llvm_instr);
+    let addr = *store_map
+      .get(enode)
+      .expect("Enode should be within store_map.");
+    let store_instr = LLVMBuildStore(builder, prior_instr, addr);
+    store_instr
+  } else {
+    llvm_instr
+  };
+  final_instr
+}
+
 unsafe fn egg_to_llvm(
   expr: RecExpr<VecLang>,
-  gep_map: &GEPMap,   //TODO to change to gep_map
-  store_map: &VarMap, //TODO to change to store_map
+  gep_map: &gep_map,
+  store_map: &store_map,
   ops_to_replace: &[LLVMValueRef],
   module: LLVMModuleRef,
   builder: LLVMBuilderRef,
@@ -857,6 +1078,5 @@ unsafe fn egg_to_llvm(
   let last_enode = enode_vec
     .last()
     .expect("No match for last element of vector of Egg Terms.");
-  let _ = translate(last_enode, enode_vec, gep_map, store_map, builder, module);
-  // still need to handle stores/loads inside
+  let _ = translate_egg(last_enode, enode_vec, gep_map, store_map, builder, module);
 }
