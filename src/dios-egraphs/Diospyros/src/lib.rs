@@ -797,7 +797,7 @@ unsafe fn const_to_egg(
   store_map: &mut store_map,
 ) -> (Vec<VecLang>, i32) {
   let value = get_constant_float(expr);
-  let mut vec = Vec::New();
+  let mut vec = Vec::new();
   vec.push(VecLang::Num(value as i32));
   (vec, next_idx + 1)
 }
@@ -816,4 +816,47 @@ unsafe fn ref_to_egg(
     LLVMOpType::Load => load_to_egg(expr, next_idx, gep_map, store_map),
     LLVMOpType::Store => store_to_egg(expr, next_idx, gep_map, store_map),
   }
+}
+
+unsafe fn llvm_to_egg(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, gep_map, store_map) {
+  let mut enode_vec = Vec::new();
+  let (mut gep_map, mut store_map) = (BTreeMap::new(), BTreeMap::new());
+  for bop in bb_vec.iter() {
+    if isa_store(*bop) {
+      let (new_enode_vec, _) = ref_to_egg(*bop, 0, &mut gep_map, &mut store_map);
+      enode_vec = [&enode_vec[..], &new_enode_vec[..]].concat();
+    }
+  }
+  (RecExpr::from(enode_vec), gep_map, store_map)
+}
+
+unsafe fn egg_to_llvm(
+  expr: RecExpr<VecLang>,
+  gep_map: &GEPMap,   //TODO to change to gep_map
+  store_map: &VarMap, //TODO to change to store_map
+  ops_to_replace: &[LLVMValueRef],
+  module: LLVMModuleRef,
+  builder: LLVMBuilderRef,
+) -> () {
+  // in fact this will look rather similar to translation from egg to llvm
+  // the major differece is how we reconstruct loads and stores
+  // whenever we encounter a get instruction, we retranslate as a gep and then a load
+  // whenever we encounter an operand that is within the store map, we immediately build a store too.
+  // This should maintain the translation
+
+  // Note: You must include all instructions in the basic block, up to the final store
+  // The builder mount location must be immediately at the beginning of the basic block to start writing instrucitons
+
+  // Delete all ops to replace
+  for op in ops_to_replace.iter() {
+    LLVMInstructionEraseFromParent(*op);
+  }
+
+  // Walk the RecExpr and translate it in place to LLVM
+  let enode_vec = expr.as_ref();
+  let last_enode = enode_vec
+    .last()
+    .expect("No match for last element of vector of Egg Terms.");
+  let _ = translate(last_enode, enode_vec, gep_map, store_map, builder, module);
+  // still need to handle stores/loads inside
 }
