@@ -12,119 +12,145 @@ target triple = "x86_64-apple-macosx10.14.0"
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define void @matrix_multiply(float* %0, float* %1, float* %2) #0 {
+  store float 0.000000e+00, float* %2, align 4
   %4 = load float, float* %2, align 4
-  %5 = insertelement <4 x float> zeroinitializer, float %4, i32 1
-  %6 = load float, float* %2, align 4
-  %7 = insertelement <4 x float> %5, float %6, i32 2
-  %8 = getelementptr inbounds float, float* %2, i64 1
-  %9 = load float, float* %8, align 4
-  %10 = insertelement <4 x float> %7, float %9, i32 3
-  %11 = load float, float* %0, align 4
-  %12 = insertelement <4 x float> zeroinitializer, float %11, i32 1
-  %13 = getelementptr inbounds float, float* %0, i64 1
-  %14 = load float, float* %13, align 4
-  %15 = insertelement <4 x float> %12, float %14, i32 2
-  %16 = load float, float* %0, align 4
-  %17 = insertelement <4 x float> %15, float %16, i32 3
-  %18 = load float, float* %1, align 4
-  %19 = insertelement <4 x float> zeroinitializer, float %18, i32 1
-  %20 = getelementptr inbounds float, float* %1, i64 2
-  %21 = load float, float* %20, align 4
-  %22 = insertelement <4 x float> %19, float %21, i32 2
-  %23 = getelementptr inbounds float, float* %1, i64 1
-  %24 = load float, float* %23, align 4
-  %25 = insertelement <4 x float> %22, float %24, i32 3
-  %26 = call <4 x float> @llvm.fma.f32(<4 x float> %17, <4 x float> %25, <4 x float> %10)
-  %27 = getelementptr inbounds float, float* %2, i64 1
-  %28 = load float, float* %27, align 4
-  %29 = insertelement <4 x float> zeroinitializer, float %28, i32 0
-  %30 = getelementptr inbounds float, float* %2, i64 2
-  %31 = load float, float* %30, align 4
-  %32 = insertelement <4 x float> %29, float %31, i32 1
-  %33 = getelementptr inbounds float, float* %2, i64 2
-  %34 = load float, float* %33, align 4
-  %35 = insertelement <4 x float> %32, float %34, i32 2
-  %36 = getelementptr inbounds float, float* %2, i64 3
-  %37 = load float, float* %36, align 4
-  %38 = insertelement <4 x float> %35, float %37, i32 3
-  %39 = getelementptr inbounds float, float* %0, i64 1
+  %5 = insertelement <4 x float> zeroinitializer, float %4, i32 0
+  %6 = insertelement <4 x float> %5, float 0.000000e+00, i32 1
+  %7 = insertelement <4 x float> %6, float 0.000000e+00, i32 2
+  %8 = insertelement <4 x float> %7, float 0.000000e+00, i32 3
+  %9 = load float, float* %0, align 4
+  %10 = insertelement <4 x float> zeroinitializer, float %9, i32 0
+  %11 = insertelement <4 x float> %10, float 0.000000e+00, i32 1
+  %12 = insertelement <4 x float> %11, float 0.000000e+00, i32 2
+  %13 = insertelement <4 x float> %12, float 0.000000e+00, i32 3
+  %14 = load float, float* %1, align 4
+  %15 = insertelement <4 x float> zeroinitializer, float %14, i32 0
+  %16 = insertelement <4 x float> %15, float 0.000000e+00, i32 1
+  %17 = insertelement <4 x float> %16, float 0.000000e+00, i32 2
+  %18 = insertelement <4 x float> %17, float 0.000000e+00, i32 3
+  %19 = call <4 x float> @llvm.fma.f32(<4 x float> %13, <4 x float> %18, <4 x float> %8)
+  %20 = extractelement <4 x float> %19, i32 0
+  store float %20, float* %2, align 4
+  %21 = load float, float* %2, align 4
+  %22 = insertelement <4 x float> zeroinitializer, float %21, i32 0
+  %23 = insertelement <4 x float> %22, float 0.000000e+00, i32 1
+  %24 = getelementptr inbounds float, float* %2, i64 1
+  %25 = load float, float* %24, align 4
+  %26 = insertelement <4 x float> %23, float %25, i32 2
+  %27 = insertelement <4 x float> %26, float 0.000000e+00, i32 3
+  %28 = getelementptr inbounds float, float* %0, i64 1
+  %29 = load float, float* %28, align 4
+  %30 = insertelement <4 x float> zeroinitializer, float %29, i32 0
+  %31 = insertelement <4 x float> %30, float 0.000000e+00, i32 1
+  %32 = load float, float* %0, align 4
+  %33 = insertelement <4 x float> %31, float %32, i32 2
+  %34 = insertelement <4 x float> %33, float 0.000000e+00, i32 3
+  %35 = getelementptr inbounds float, float* %1, i64 2
+  %36 = load float, float* %35, align 4
+  %37 = insertelement <4 x float> zeroinitializer, float %36, i32 0
+  %38 = insertelement <4 x float> %37, float 0.000000e+00, i32 1
+  %39 = getelementptr inbounds float, float* %1, i64 1
   %40 = load float, float* %39, align 4
-  %41 = insertelement <4 x float> zeroinitializer, float %40, i32 0
-  %42 = getelementptr inbounds float, float* %0, i64 2
-  %43 = load float, float* %42, align 4
-  %44 = insertelement <4 x float> %41, float %43, i32 1
-  %45 = getelementptr inbounds float, float* %0, i64 3
-  %46 = load float, float* %45, align 4
-  %47 = insertelement <4 x float> %44, float %46, i32 2
-  %48 = getelementptr inbounds float, float* %0, i64 2
-  %49 = load float, float* %48, align 4
-  %50 = insertelement <4 x float> %47, float %49, i32 3
-  %51 = getelementptr inbounds float, float* %1, i64 3
-  %52 = load float, float* %51, align 4
-  %53 = insertelement <4 x float> zeroinitializer, float %52, i32 0
-  %54 = load float, float* %1, align 4
-  %55 = insertelement <4 x float> %53, float %54, i32 1
-  %56 = getelementptr inbounds float, float* %1, i64 2
-  %57 = load float, float* %56, align 4
-  %58 = insertelement <4 x float> %55, float %57, i32 2
-  %59 = getelementptr inbounds float, float* %1, i64 1
-  %60 = load float, float* %59, align 4
-  %61 = insertelement <4 x float> %58, float %60, i32 3
-  %62 = call <4 x float> @llvm.fma.f32.1(<4 x float> %50, <4 x float> %61, <4 x float> %38)
-  %63 = shufflevector <4 x float> %26, <4 x float> %62, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-  %64 = getelementptr inbounds float, float* %2, i64 3
-  %65 = load float, float* %64, align 4
-  %66 = insertelement <4 x float> zeroinitializer, float %65, i32 0
-  %67 = insertelement <4 x float> %66, float 0.000000e+00, i32 1
-  %68 = insertelement <4 x float> %67, float 0.000000e+00, i32 2
-  %69 = insertelement <4 x float> %68, float 0.000000e+00, i32 3
-  %70 = getelementptr inbounds float, float* %0, i64 3
-  %71 = load float, float* %70, align 4
-  %72 = insertelement <4 x float> zeroinitializer, float %71, i32 0
-  %73 = insertelement <4 x float> %72, float 0.000000e+00, i32 1
-  %74 = insertelement <4 x float> %73, float 0.000000e+00, i32 2
-  %75 = insertelement <4 x float> %74, float 0.000000e+00, i32 3
-  %76 = getelementptr inbounds float, float* %1, i64 3
-  %77 = load float, float* %76, align 4
-  %78 = insertelement <4 x float> zeroinitializer, float %77, i32 0
-  %79 = insertelement <4 x float> %78, float 0.000000e+00, i32 1
-  %80 = insertelement <4 x float> %79, float 0.000000e+00, i32 2
-  %81 = insertelement <4 x float> %80, float 0.000000e+00, i32 3
-  %82 = call <4 x float> @llvm.fma.f32.2(<4 x float> %75, <4 x float> %81, <4 x float> %69)
-  %83 = shufflevector <8 x float> %63, <4 x float> %82, <12 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11>
-  %84 = extractelement <12 x float> %83, i32 0
-  store float %84, float* %2, align 4
-  %85 = extractelement <12 x float> %83, i32 1
-  store float %85, float* %2, align 4
-  %86 = extractelement <12 x float> %83, i32 2
-  store float %86, float* %2, align 4
-  %87 = extractelement <12 x float> %83, i32 3
-  %88 = getelementptr inbounds float, float* %2, i64 1
-  store float %87, float* %88, align 4
-  %89 = extractelement <12 x float> %83, i32 4
-  %90 = getelementptr inbounds float, float* %2, i64 1
-  store float %89, float* %90, align 4
-  %91 = extractelement <12 x float> %83, i32 5
-  %92 = getelementptr inbounds float, float* %2, i64 1
-  store float %91, float* %92, align 4
-  %93 = extractelement <12 x float> %83, i32 6
-  %94 = getelementptr inbounds float, float* %2, i64 2
-  store float %93, float* %94, align 4
-  %95 = extractelement <12 x float> %83, i32 7
-  %96 = getelementptr inbounds float, float* %2, i64 2
-  store float %95, float* %96, align 4
-  %97 = extractelement <12 x float> %83, i32 8
-  %98 = getelementptr inbounds float, float* %2, i64 2
-  store float %97, float* %98, align 4
-  %99 = extractelement <12 x float> %83, i32 9
-  %100 = getelementptr inbounds float, float* %2, i64 3
-  store float %99, float* %100, align 4
-  %101 = extractelement <12 x float> %83, i32 10
-  %102 = getelementptr inbounds float, float* %2, i64 3
-  store float %101, float* %102, align 4
-  %103 = extractelement <12 x float> %83, i32 11
-  %104 = getelementptr inbounds float, float* %2, i64 3
-  store float %103, float* %104, align 4
+  %41 = insertelement <4 x float> %38, float %40, i32 2
+  %42 = insertelement <4 x float> %41, float 0.000000e+00, i32 3
+  %43 = call <4 x float> @llvm.fma.f32.1(<4 x float> %34, <4 x float> %42, <4 x float> %27)
+  %44 = extractelement <4 x float> %43, i32 0
+  store float %44, float* %2, align 4
+  %45 = extractelement <4 x float> %43, i32 1
+  %46 = getelementptr inbounds float, float* %2, i64 1
+  store float %45, float* %46, align 4
+  %47 = extractelement <4 x float> %43, i32 2
+  %48 = getelementptr inbounds float, float* %2, i64 1
+  store float %47, float* %48, align 4
+  %49 = getelementptr inbounds float, float* %2, i64 1
+  %50 = load float, float* %49, align 4
+  %51 = insertelement <4 x float> zeroinitializer, float %50, i32 0
+  %52 = insertelement <4 x float> %51, float 0.000000e+00, i32 1
+  %53 = getelementptr inbounds float, float* %2, i64 2
+  %54 = load float, float* %53, align 4
+  %55 = insertelement <4 x float> %52, float %54, i32 2
+  %56 = insertelement <4 x float> %55, float 0.000000e+00, i32 3
+  %57 = getelementptr inbounds float, float* %0, i64 1
+  %58 = load float, float* %57, align 4
+  %59 = insertelement <4 x float> zeroinitializer, float %58, i32 0
+  %60 = insertelement <4 x float> %59, float 0.000000e+00, i32 1
+  %61 = getelementptr inbounds float, float* %0, i64 2
+  %62 = load float, float* %61, align 4
+  %63 = insertelement <4 x float> %60, float %62, i32 2
+  %64 = insertelement <4 x float> %63, float 0.000000e+00, i32 3
+  %65 = getelementptr inbounds float, float* %1, i64 3
+  %66 = load float, float* %65, align 4
+  %67 = insertelement <4 x float> zeroinitializer, float %66, i32 0
+  %68 = insertelement <4 x float> %67, float 0.000000e+00, i32 1
+  %69 = load float, float* %1, align 4
+  %70 = insertelement <4 x float> %68, float %69, i32 2
+  %71 = insertelement <4 x float> %70, float 0.000000e+00, i32 3
+  %72 = call <4 x float> @llvm.fma.f32.2(<4 x float> %64, <4 x float> %71, <4 x float> %56)
+  %73 = extractelement <4 x float> %72, i32 0
+  %74 = getelementptr inbounds float, float* %2, i64 1
+  store float %73, float* %74, align 4
+  %75 = extractelement <4 x float> %72, i32 1
+  %76 = getelementptr inbounds float, float* %2, i64 2
+  store float %75, float* %76, align 4
+  %77 = extractelement <4 x float> %72, i32 2
+  %78 = getelementptr inbounds float, float* %2, i64 2
+  store float %77, float* %78, align 4
+  %79 = getelementptr inbounds float, float* %2, i64 2
+  %80 = load float, float* %79, align 4
+  %81 = insertelement <4 x float> zeroinitializer, float %80, i32 0
+  %82 = insertelement <4 x float> %81, float 0.000000e+00, i32 1
+  %83 = getelementptr inbounds float, float* %2, i64 3
+  %84 = load float, float* %83, align 4
+  %85 = insertelement <4 x float> %82, float %84, i32 2
+  %86 = insertelement <4 x float> %85, float 0.000000e+00, i32 3
+  %87 = getelementptr inbounds float, float* %0, i64 3
+  %88 = load float, float* %87, align 4
+  %89 = insertelement <4 x float> zeroinitializer, float %88, i32 0
+  %90 = insertelement <4 x float> %89, float 0.000000e+00, i32 1
+  %91 = getelementptr inbounds float, float* %0, i64 2
+  %92 = load float, float* %91, align 4
+  %93 = insertelement <4 x float> %90, float %92, i32 2
+  %94 = insertelement <4 x float> %93, float 0.000000e+00, i32 3
+  %95 = getelementptr inbounds float, float* %1, i64 2
+  %96 = load float, float* %95, align 4
+  %97 = insertelement <4 x float> zeroinitializer, float %96, i32 0
+  %98 = insertelement <4 x float> %97, float 0.000000e+00, i32 1
+  %99 = getelementptr inbounds float, float* %1, i64 1
+  %100 = load float, float* %99, align 4
+  %101 = insertelement <4 x float> %98, float %100, i32 2
+  %102 = insertelement <4 x float> %101, float 0.000000e+00, i32 3
+  %103 = call <4 x float> @llvm.fma.f32.3(<4 x float> %94, <4 x float> %102, <4 x float> %86)
+  %104 = extractelement <4 x float> %103, i32 0
+  %105 = getelementptr inbounds float, float* %2, i64 2
+  store float %104, float* %105, align 4
+  %106 = extractelement <4 x float> %103, i32 1
+  %107 = getelementptr inbounds float, float* %2, i64 3
+  store float %106, float* %107, align 4
+  %108 = extractelement <4 x float> %103, i32 2
+  %109 = getelementptr inbounds float, float* %2, i64 3
+  store float %108, float* %109, align 4
+  %110 = getelementptr inbounds float, float* %2, i64 3
+  %111 = load float, float* %110, align 4
+  %112 = insertelement <4 x float> zeroinitializer, float %111, i32 0
+  %113 = insertelement <4 x float> %112, float 0.000000e+00, i32 1
+  %114 = insertelement <4 x float> %113, float 0.000000e+00, i32 2
+  %115 = insertelement <4 x float> %114, float 0.000000e+00, i32 3
+  %116 = getelementptr inbounds float, float* %0, i64 3
+  %117 = load float, float* %116, align 4
+  %118 = insertelement <4 x float> zeroinitializer, float %117, i32 0
+  %119 = insertelement <4 x float> %118, float 0.000000e+00, i32 1
+  %120 = insertelement <4 x float> %119, float 0.000000e+00, i32 2
+  %121 = insertelement <4 x float> %120, float 0.000000e+00, i32 3
+  %122 = getelementptr inbounds float, float* %1, i64 3
+  %123 = load float, float* %122, align 4
+  %124 = insertelement <4 x float> zeroinitializer, float %123, i32 0
+  %125 = insertelement <4 x float> %124, float 0.000000e+00, i32 1
+  %126 = insertelement <4 x float> %125, float 0.000000e+00, i32 2
+  %127 = insertelement <4 x float> %126, float 0.000000e+00, i32 3
+  %128 = call <4 x float> @llvm.fma.f32.4(<4 x float> %121, <4 x float> %127, <4 x float> %115)
+  %129 = extractelement <4 x float> %128, i32 0
+  %130 = getelementptr inbounds float, float* %2, i64 3
+  store float %129, float* %130, align 4
 }
 
 ; Function Attrs: noinline nounwind ssp uwtable
@@ -177,6 +203,12 @@ declare <4 x float> @llvm.fma.f32.1(<4 x float>, <4 x float>, <4 x float>) #4
 
 ; Function Attrs: nounwind readnone speculatable willreturn
 declare <4 x float> @llvm.fma.f32.2(<4 x float>, <4 x float>, <4 x float>) #4
+
+; Function Attrs: nounwind readnone speculatable willreturn
+declare <4 x float> @llvm.fma.f32.3(<4 x float>, <4 x float>, <4 x float>) #4
+
+; Function Attrs: nounwind readnone speculatable willreturn
+declare <4 x float> @llvm.fma.f32.4(<4 x float>, <4 x float>, <4 x float>) #4
 
 attributes #0 = { noinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { argmemonly nounwind willreturn }

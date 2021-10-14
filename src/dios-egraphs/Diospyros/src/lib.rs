@@ -3,7 +3,12 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
-use std::{collections::BTreeMap, ffi::CStr, os::raw::c_char, slice::from_raw_parts};
+use std::{
+  collections::{BTreeMap, BTreeSet},
+  ffi::CStr,
+  os::raw::c_char,
+  slice::from_raw_parts,
+};
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
@@ -669,7 +674,7 @@ pub fn optimize(
 
 type store_map = BTreeMap<i32, LLVMValueRef>;
 type gep_map = BTreeMap<VecLang, LLVMValueRef>;
-type id_map = BTreeMap<VecLang, Id>;
+type id_map = BTreeSet<Id>;
 
 enum LLVMOpType {
   Argument,
@@ -810,7 +815,7 @@ unsafe fn store_to_egg(
     .expect("Vector should contain index.")
     .clone();
   (*store_map).insert(next_idx1 - 1, addr);
-  (*id_map).insert(data_egg_node.clone(), Id::from((next_idx1 - 1) as usize));
+  (*id_map).insert(Id::from((next_idx1 - 1) as usize));
   return (vec, next_idx1);
 }
 
@@ -887,7 +892,7 @@ unsafe fn ref_to_egg(
 unsafe fn llvm_to_egg(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, store_map) {
   let mut enode_vec = Vec::new();
   let (mut gep_map, mut store_map, mut id_map) =
-    (BTreeMap::new(), BTreeMap::new(), BTreeMap::new());
+    (BTreeMap::new(), BTreeMap::new(), BTreeSet::new());
   let mut next_idx = 0;
   for bop in bb_vec.iter() {
     if isa_store(*bop) {
@@ -905,7 +910,7 @@ unsafe fn llvm_to_egg(bb_vec: &[LLVMValueRef]) -> (RecExpr<VecLang>, GEPMap, sto
     }
   }
   let mut final_vec = Vec::new();
-  for (_, id) in id_map.iter() {
+  for id in id_map.iter() {
     final_vec.push(*id);
   }
   pad_vector(&final_vec, &mut enode_vec);
@@ -1267,8 +1272,6 @@ unsafe fn translate_egg(
   // final_instr
 }
 
-unsafe fn get_vec() {}
-
 unsafe fn egg_to_llvm(
   expr: RecExpr<VecLang>,
   gep_map: &GEPMap,
@@ -1308,7 +1311,7 @@ unsafe fn egg_to_llvm(
   }
 
   // Delete all ops to replace
-  for op in ops_to_replace.iter().rev() {
-    LLVMInstructionEraseFromParent(*op);
-  }
+  // for op in ops_to_replace.iter().rev() {
+  //   LLVMInstructionEraseFromParent(*op);
+  // }
 }

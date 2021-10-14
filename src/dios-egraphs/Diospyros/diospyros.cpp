@@ -277,30 +277,74 @@ struct DiospyrosPass : public FunctionPass {
     DiospyrosPass() : FunctionPass(ID) {}
 
     virtual bool runOnFunction(Function &F) {
-        // bool has_changes = false;
+        // for (auto &B : F) {
+        //     Instruction *first_instr = NULL;
+        //     for (auto &I : B) {
+        //         first_instr = dyn_cast<Instruction>(&I);
+        //         break;
+        //     }
+        //     if (first_instr == NULL) {
+        //         continue;
+        //     }
+        //     std::vector<LLVMValueRef> vec = {};
+        //     for (auto &I : B) {
+        //         // errs() << I << "\n";
+        //         vec.push_back(wrap(dyn_cast<Instruction>(&I)));
+        //     }
+        //     IRBuilder<> builder(first_instr);
+        //     builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
+        //     Module *mod = F.getParent();
+        //     optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
+        // }
+
         // do not optimize on main function.
         if (F.getName() == "main") {
             return false;
         }
+        bool has_changes = false;
         for (auto &B : F) {
-            Instruction *first_instr = NULL;
+            std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
+            std::vector<LLVMValueRef> inner_vector = {};
+            std::set<Value *> store_locations;
+            std::vector<Instruction *> bb_instrs = {};
             for (auto &I : B) {
-                first_instr = dyn_cast<Instruction>(&I);
-                break;
+                if (auto *op = dyn_cast<StoreInst>(&I)) {
+                    Value *store_loc = op->getOperand(1);
+                    store_locations.insert(store_loc);
+                    inner_vector.push_back(wrap(op));
+                } else if (auto *op = dyn_cast<LoadInst>(&I)) {
+                    Value *load_loc = op->getOperand(0);
+                    if (store_locations.find(load_loc) !=
+                        store_locations.end()) {
+                        if (!inner_vector.empty()) {
+                            vectorization_accumulator.push_back(inner_vector);
+                        }
+                        inner_vector = {};
+                    }
+                }
+                bb_instrs.push_back(dyn_cast<Instruction>(&I));
             }
-            if (first_instr == NULL) {
-                continue;
+            vectorization_accumulator.push_back(inner_vector);
+
+            for (auto &vec : vectorization_accumulator) {
+                if (not vec.empty()) {
+                    has_changes = has_changes || true;
+                    Value *last_store = unwrap(vec.back());
+                    IRBuilder<> builder(dyn_cast<Instruction>(last_store));
+                    Instruction *store_instr =
+                        dyn_cast<Instruction>(last_store);
+                    assert(isa<StoreInst>(store_instr));
+                    builder.SetInsertPoint(store_instr);
+                    Module *mod = F.getParent();
+                    optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
+                }
             }
-            std::vector<LLVMValueRef> vec = {};
-            for (auto &I : B) {
-                // errs() << I << "\n";
-                vec.push_back(wrap(dyn_cast<Instruction>(&I)));
+            std::reverse(bb_instrs.begin(), bb_instrs.end());
+            for (auto &I : bb_instrs) {
+                I->eraseFromParent();
             }
-            IRBuilder<> builder(first_instr);
-            builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
-            Module *mod = F.getParent();
-            optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
         }
+
         // for (auto &B : F) {
         //     // uncomment to see basic block: good for debugging.
         //     // errs() << B << "\n";
