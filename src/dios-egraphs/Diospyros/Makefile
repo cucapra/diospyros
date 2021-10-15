@@ -38,12 +38,15 @@ emit-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 test-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
 	opt -S --mem2reg --indvars --loop-simplify --loop-instsimplify --licm --loop-unroll --simplifycfg clang.ll -o opt.ll
-	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -o finish.ll opt.ll
+	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) opt.ll -o finish.ll
+	opt -S --adce finish.ll -o final.ll
 
 run-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
 	opt -S --mem2reg --indvars --loop-simplify --loop-instsimplify --licm --loop-unroll --simplifycfg clang.ll -o opt.ll
-	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) opt.ll
+	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) opt.ll -o finish.ll
+	opt -S --adce finish.ll -o final.ll
+	$(CLANG) final.ll
 	./a.out
 
 test: set-up-mac runt.sh runt.toml target/debug/libllvmlib.$(EXT)

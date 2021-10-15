@@ -335,13 +335,19 @@ struct DiospyrosPass : public FunctionPass {
                         dyn_cast<Instruction>(last_store);
                     assert(isa<StoreInst>(store_instr));
                     builder.SetInsertPoint(store_instr);
+                    builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
                     optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
                 }
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());
             for (auto &I : bb_instrs) {
-                I->eraseFromParent();
+                errs() << *I << "\n";
+                if (isa<ReturnInst>(I)) {
+                    I->eraseFromParent();
+                } else if (isa<StoreInst>(I)) {
+                    I->eraseFromParent();
+                }
             }
         }
 
