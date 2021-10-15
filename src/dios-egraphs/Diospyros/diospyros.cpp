@@ -342,7 +342,6 @@ struct DiospyrosPass : public FunctionPass {
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());
             for (auto &I : bb_instrs) {
-                errs() << *I << "\n";
                 if (isa<ReturnInst>(I)) {
                     I->eraseFromParent();
                 } else if (isa<StoreInst>(I)) {
