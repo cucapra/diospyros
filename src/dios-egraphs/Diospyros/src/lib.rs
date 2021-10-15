@@ -1310,6 +1310,9 @@ unsafe fn egg_to_llvm(
     }
   }
 
+  // Add in ret; assume void
+  LLVMBuildRetVoid(builder);
+
   // Delete all ops to replace
   // for op in ops_to_replace.iter().rev() {
   //   LLVMInstructionEraseFromParent(*op);
