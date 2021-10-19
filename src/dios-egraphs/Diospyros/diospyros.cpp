@@ -187,6 +187,17 @@ extern "C" bool isa_argument(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM CallInst/LLVMValueRef CallInst
+ */
+extern "C" bool isa_call(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<CallInst>(unwrapped);
+}
+
+/**
  * Gets constant float from LLVMValueRef value
  */
 extern "C" float get_constant_float(LLVMValueRef val) {

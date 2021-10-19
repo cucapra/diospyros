@@ -20,6 +20,7 @@ extern "C" {
   fn isa_load(val: LLVMValueRef) -> bool;
   fn isa_store(val: LLVMValueRef) -> bool;
   fn isa_argument(val: LLVMValueRef) -> bool;
+  fn isa_call(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
   fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
 }
@@ -43,11 +44,27 @@ type ValueVec = Vec<LLVMValueRef>;
 const SQRT_OPERATOR: i32 = 3;
 const BINARY_OPERATOR: i32 = 2;
 static mut SYMBOL_IDX: i32 = 0;
+static mut ARG_IDX: i32 = 0;
+static mut CALL_IDX: i32 = 0;
 
 unsafe fn gen_symbol_name() -> String {
   SYMBOL_IDX += 1;
   let string = "SYMBOL".to_string();
   let result = format!("{}{}", string, SYMBOL_IDX.to_string());
+  result
+}
+
+unsafe fn gen_arg_name() -> String {
+  ARG_IDX += 1;
+  let string = "ARGUMENT".to_string();
+  let result = format!("{}{}", string, ARG_IDX.to_string());
+  result
+}
+
+unsafe fn gen_call_name() -> String {
+  CALL_IDX += 1;
+  let string = "CALL".to_string();
+  let result = format!("{}{}", string, CALL_IDX.to_string());
   result
 }
 
@@ -693,6 +710,7 @@ enum LLVMOpType {
   Gep,
   Unop,
   Bop,
+  Call,
 }
 
 unsafe fn is_pow2(n: u32) -> bool {
@@ -758,6 +776,8 @@ unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
     return LLVMOpType::Store;
   } else if isa_argument(*expr) {
     return LLVMOpType::Argument;
+  } else if isa_call(*expr) {
+    return LLVMOpType::Call;
   } else {
     LLVMDumpValue(*expr);
     println!();
@@ -781,7 +801,7 @@ unsafe fn arg_to_egg(
   id_map: &mut id_map,
   symbol_map: &mut symbol_map,
 ) -> (Vec<VecLang>, i32) {
-  let sym_name = gen_symbol_name();
+  let sym_name = gen_arg_name();
   let symbol = VecLang::Symbol(Symbol::from(sym_name));
   symbol_map.insert(symbol.clone(), expr);
   enode_vec.push(symbol);
@@ -961,6 +981,22 @@ unsafe fn load_arg_to_egg(
   return (enode_vec, next_idx + 3);
 }
 
+unsafe fn load_call_to_egg(
+  expr: LLVMValueRef,
+  mut enode_vec: Vec<VecLang>,
+  next_idx: i32,
+  gep_map: &mut GEPMap,
+  store_map: &mut store_map,
+  id_map: &mut id_map,
+  symbol_map: &mut symbol_map,
+) -> (Vec<VecLang>, i32) {
+  let call_sym_name = gen_call_name();
+  let call_sym = VecLang::Symbol(Symbol::from(call_sym_name));
+  symbol_map.insert(call_sym.clone(), expr);
+  enode_vec.push(call_sym);
+  return (enode_vec, next_idx + 1);
+}
+
 unsafe fn ref_to_egg(
   expr: LLVMValueRef,
   mut enode_vec: Vec<VecLang>,
@@ -990,6 +1026,9 @@ unsafe fn ref_to_egg(
       expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
     ),
     LLVMOpType::Argument => arg_to_egg(
+      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    ),
+    LLVMOpType::Call => load_call_to_egg(
       expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
     ),
   }

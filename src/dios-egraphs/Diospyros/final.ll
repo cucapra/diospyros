@@ -1,83 +1,83 @@
 ; ModuleID = 'finish.ll'
-source_filename = "llvm-tests/scalar-new.c"
+source_filename = "llvm-tests/cube-new.c"
 target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.14.0"
 
-@__const.main.a_in = private unnamed_addr constant [8 x float] [float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 5.000000e+00, float 6.000000e+00, float 7.000000e+00, float 8.000000e+00], align 16
-@__const.main.b_in = private unnamed_addr constant [8 x float] [float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 5.000000e+00, float 6.000000e+00, float 7.000000e+00, float 8.000000e+00], align 16
+@__const.main.a_in = private unnamed_addr constant [8 x float] [float 9.000000e+00, float 8.000000e+00, float 7.000000e+00, float 6.000000e+00, float 5.000000e+00, float 4.000000e+00, float 3.000000e+00, float 2.000000e+00], align 16
 @.str = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
 @__func__.main = private unnamed_addr constant [5 x i8] c"main\00", align 1
-@.str.1 = private unnamed_addr constant [24 x i8] c"llvm-tests/scalar-new.c\00", align 1
-@.str.2 = private unnamed_addr constant [14 x i8] c"b_in[0] == 10\00", align 1
-@.str.3 = private unnamed_addr constant [14 x i8] c"b_in[1] == 20\00", align 1
-@.str.4 = private unnamed_addr constant [14 x i8] c"b_in[2] == 30\00", align 1
-@.str.5 = private unnamed_addr constant [14 x i8] c"b_in[3] == 40\00", align 1
-@.str.6 = private unnamed_addr constant [14 x i8] c"b_in[4] == 50\00", align 1
-@.str.7 = private unnamed_addr constant [14 x i8] c"b_in[5] == 60\00", align 1
-@.str.8 = private unnamed_addr constant [14 x i8] c"b_in[6] == 70\00", align 1
-@.str.9 = private unnamed_addr constant [14 x i8] c"b_in[7] == 80\00", align 1
+@.str.1 = private unnamed_addr constant [22 x i8] c"llvm-tests/cube-new.c\00", align 1
+@.str.2 = private unnamed_addr constant [16 x i8] c"b_out[0] == 729\00", align 1
+@.str.3 = private unnamed_addr constant [16 x i8] c"b_out[1] == 512\00", align 1
+@.str.4 = private unnamed_addr constant [16 x i8] c"b_out[2] == 343\00", align 1
+@.str.5 = private unnamed_addr constant [16 x i8] c"b_out[3] == 216\00", align 1
+@.str.6 = private unnamed_addr constant [16 x i8] c"b_out[4] == 125\00", align 1
+@.str.7 = private unnamed_addr constant [15 x i8] c"b_out[5] == 64\00", align 1
+@.str.8 = private unnamed_addr constant [15 x i8] c"b_out[6] == 27\00", align 1
+@.str.9 = private unnamed_addr constant [14 x i8] c"b_out[7] == 8\00", align 1
 
 ; Function Attrs: noinline nounwind ssp uwtable
-define void @matrix_multiply(float* %0, float %1, float* %2) #0 {
-  %4 = load float, float* %0, align 4
-  %5 = insertelement <4 x float> zeroinitializer, float %4, i32 0
-  %6 = getelementptr inbounds float, float* %0, i64 1
-  %7 = load float, float* %6, align 4
-  %8 = insertelement <4 x float> %5, float %7, i32 1
-  %9 = getelementptr inbounds float, float* %0, i64 2
-  %10 = load float, float* %9, align 4
-  %11 = insertelement <4 x float> %8, float %10, i32 2
-  %12 = getelementptr inbounds float, float* %0, i64 3
-  %13 = load float, float* %12, align 4
-  %14 = insertelement <4 x float> %11, float %13, i32 3
-  %15 = insertelement <4 x float> zeroinitializer, float %1, i32 0
-  %16 = insertelement <4 x float> %15, float %1, i32 1
-  %17 = insertelement <4 x float> %16, float %1, i32 2
-  %18 = insertelement <4 x float> %17, float %1, i32 3
-  %19 = fmul <4 x float> %14, %18
-  %20 = getelementptr inbounds float, float* %0, i64 4
+define void @cube(float* %0, float* %1) #0 {
+  %3 = load float, float* %0, align 4
+  %4 = call float @llvm.pow.f32(float %3, float 3.000000e+00)
+  %5 = getelementptr inbounds float, float* %0, i64 1
+  %6 = load float, float* %5, align 4
+  %7 = call float @llvm.pow.f32(float %6, float 3.000000e+00)
+  %8 = getelementptr inbounds float, float* %0, i64 2
+  %9 = load float, float* %8, align 4
+  %10 = call float @llvm.pow.f32(float %9, float 3.000000e+00)
+  %11 = getelementptr inbounds float, float* %0, i64 3
+  %12 = load float, float* %11, align 4
+  %13 = call float @llvm.pow.f32(float %12, float 3.000000e+00)
+  %14 = getelementptr inbounds float, float* %0, i64 4
+  %15 = load float, float* %14, align 4
+  %16 = call float @llvm.pow.f32(float %15, float 3.000000e+00)
+  %17 = getelementptr inbounds float, float* %0, i64 5
+  %18 = load float, float* %17, align 4
+  %19 = call float @llvm.pow.f32(float %18, float 3.000000e+00)
+  %20 = getelementptr inbounds float, float* %0, i64 6
   %21 = load float, float* %20, align 4
-  %22 = insertelement <4 x float> zeroinitializer, float %21, i32 0
-  %23 = getelementptr inbounds float, float* %0, i64 5
+  %22 = call float @llvm.pow.f32(float %21, float 3.000000e+00)
+  %23 = getelementptr inbounds float, float* %0, i64 7
   %24 = load float, float* %23, align 4
-  %25 = insertelement <4 x float> %22, float %24, i32 1
-  %26 = getelementptr inbounds float, float* %0, i64 6
-  %27 = load float, float* %26, align 4
-  %28 = insertelement <4 x float> %25, float %27, i32 2
-  %29 = getelementptr inbounds float, float* %0, i64 7
-  %30 = load float, float* %29, align 4
-  %31 = insertelement <4 x float> %28, float %30, i32 3
-  %32 = insertelement <4 x float> zeroinitializer, float %1, i32 0
-  %33 = insertelement <4 x float> %32, float %1, i32 1
-  %34 = insertelement <4 x float> %33, float %1, i32 2
-  %35 = insertelement <4 x float> %34, float %1, i32 3
-  %36 = fmul <4 x float> %31, %35
-  %37 = shufflevector <4 x float> %19, <4 x float> %36, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-  %38 = extractelement <8 x float> %37, i32 0
-  store float %38, float* %2, align 4
-  %39 = extractelement <8 x float> %37, i32 1
-  %40 = getelementptr inbounds float, float* %2, i64 1
-  store float %39, float* %40, align 4
-  %41 = extractelement <8 x float> %37, i32 2
-  %42 = getelementptr inbounds float, float* %2, i64 2
-  store float %41, float* %42, align 4
-  %43 = extractelement <8 x float> %37, i32 3
-  %44 = getelementptr inbounds float, float* %2, i64 3
-  store float %43, float* %44, align 4
-  %45 = extractelement <8 x float> %37, i32 4
-  %46 = getelementptr inbounds float, float* %2, i64 4
-  store float %45, float* %46, align 4
-  %47 = extractelement <8 x float> %37, i32 5
-  %48 = getelementptr inbounds float, float* %2, i64 5
-  store float %47, float* %48, align 4
-  %49 = extractelement <8 x float> %37, i32 6
-  %50 = getelementptr inbounds float, float* %2, i64 6
-  store float %49, float* %50, align 4
-  %51 = extractelement <8 x float> %37, i32 7
-  %52 = getelementptr inbounds float, float* %2, i64 7
-  store float %51, float* %52, align 4
+  %25 = call float @llvm.pow.f32(float %24, float 3.000000e+00)
+  %26 = insertelement <4 x float> zeroinitializer, float %4, i32 0
+  %27 = insertelement <4 x float> %26, float %7, i32 1
+  %28 = insertelement <4 x float> %27, float %10, i32 2
+  %29 = insertelement <4 x float> %28, float %13, i32 3
+  %30 = insertelement <4 x float> zeroinitializer, float %16, i32 0
+  %31 = insertelement <4 x float> %30, float %19, i32 1
+  %32 = insertelement <4 x float> %31, float %22, i32 2
+  %33 = insertelement <4 x float> %32, float %25, i32 3
+  %34 = shufflevector <4 x float> %29, <4 x float> %33, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+  %35 = extractelement <8 x float> %34, i32 0
+  store float %35, float* %1, align 4
+  %36 = extractelement <8 x float> %34, i32 1
+  %37 = getelementptr inbounds float, float* %1, i64 1
+  store float %36, float* %37, align 4
+  %38 = extractelement <8 x float> %34, i32 2
+  %39 = getelementptr inbounds float, float* %1, i64 2
+  store float %38, float* %39, align 4
+  %40 = extractelement <8 x float> %34, i32 3
+  %41 = getelementptr inbounds float, float* %1, i64 3
+  store float %40, float* %41, align 4
+  %42 = extractelement <8 x float> %34, i32 4
+  %43 = getelementptr inbounds float, float* %1, i64 4
+  store float %42, float* %43, align 4
+  %44 = extractelement <8 x float> %34, i32 5
+  %45 = getelementptr inbounds float, float* %1, i64 5
+  store float %44, float* %45, align 4
+  %46 = extractelement <8 x float> %34, i32 6
+  %47 = getelementptr inbounds float, float* %1, i64 6
+  store float %46, float* %47, align 4
+  %48 = extractelement <8 x float> %34, i32 7
+  %49 = getelementptr inbounds float, float* %1, i64 7
+  store float %48, float* %49, align 4
   ret void
 }
+
+; Function Attrs: nounwind readnone speculatable willreturn
+declare float @llvm.pow.f32(float, float) #1
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define i32 @main() #0 {
@@ -86,10 +86,10 @@ define i32 @main() #0 {
   %3 = bitcast [8 x float]* %1 to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %3, i8* align 16 bitcast ([8 x float]* @__const.main.a_in to i8*), i64 32, i1 false)
   %4 = bitcast [8 x float]* %2 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %4, i8* align 16 bitcast ([8 x float]* @__const.main.b_in to i8*), i64 32, i1 false)
+  call void @llvm.memset.p0i8.i64(i8* align 16 %4, i8 0, i64 32, i1 false)
   %5 = getelementptr inbounds [8 x float], [8 x float]* %1, i64 0, i64 0
   %6 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
-  call void @matrix_multiply(float* %5, float 1.000000e+01, float* %6)
+  call void @cube(float* %5, float* %6)
   %7 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
   %8 = load float, float* %7, align 4
   %9 = fpext float %8 to double
@@ -124,7 +124,7 @@ define i32 @main() #0 {
   %38 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %37)
   %39 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
   %40 = load float, float* %39, align 16
-  %41 = fcmp oeq float %40, 1.000000e+01
+  %41 = fcmp oeq float %40, 7.290000e+02
   %42 = xor i1 %41, true
   %43 = zext i1 %42 to i32
   %44 = sext i32 %43 to i64
@@ -132,13 +132,13 @@ define i32 @main() #0 {
   br i1 %45, label %46, label %47
 
 46:                                               ; preds = %0
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 19, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.2, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 18, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.2, i64 0, i64 0)) #6
   unreachable
 
 47:                                               ; preds = %0
   %48 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 1
   %49 = load float, float* %48, align 4
-  %50 = fcmp oeq float %49, 2.000000e+01
+  %50 = fcmp oeq float %49, 5.120000e+02
   %51 = xor i1 %50, true
   %52 = zext i1 %51 to i32
   %53 = sext i32 %52 to i64
@@ -146,13 +146,13 @@ define i32 @main() #0 {
   br i1 %54, label %55, label %56
 
 55:                                               ; preds = %47
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 20, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.3, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 19, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.3, i64 0, i64 0)) #6
   unreachable
 
 56:                                               ; preds = %47
   %57 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 2
   %58 = load float, float* %57, align 8
-  %59 = fcmp oeq float %58, 3.000000e+01
+  %59 = fcmp oeq float %58, 3.430000e+02
   %60 = xor i1 %59, true
   %61 = zext i1 %60 to i32
   %62 = sext i32 %61 to i64
@@ -160,13 +160,13 @@ define i32 @main() #0 {
   br i1 %63, label %64, label %65
 
 64:                                               ; preds = %56
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 21, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.4, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 20, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.4, i64 0, i64 0)) #6
   unreachable
 
 65:                                               ; preds = %56
   %66 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 3
   %67 = load float, float* %66, align 4
-  %68 = fcmp oeq float %67, 4.000000e+01
+  %68 = fcmp oeq float %67, 2.160000e+02
   %69 = xor i1 %68, true
   %70 = zext i1 %69 to i32
   %71 = sext i32 %70 to i64
@@ -174,13 +174,13 @@ define i32 @main() #0 {
   br i1 %72, label %73, label %74
 
 73:                                               ; preds = %65
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 22, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.5, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 21, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.5, i64 0, i64 0)) #6
   unreachable
 
 74:                                               ; preds = %65
   %75 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 4
   %76 = load float, float* %75, align 16
-  %77 = fcmp oeq float %76, 5.000000e+01
+  %77 = fcmp oeq float %76, 1.250000e+02
   %78 = xor i1 %77, true
   %79 = zext i1 %78 to i32
   %80 = sext i32 %79 to i64
@@ -188,13 +188,13 @@ define i32 @main() #0 {
   br i1 %81, label %82, label %83
 
 82:                                               ; preds = %74
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 23, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.6, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 22, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.6, i64 0, i64 0)) #6
   unreachable
 
 83:                                               ; preds = %74
   %84 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 5
   %85 = load float, float* %84, align 4
-  %86 = fcmp oeq float %85, 6.000000e+01
+  %86 = fcmp oeq float %85, 6.400000e+01
   %87 = xor i1 %86, true
   %88 = zext i1 %87 to i32
   %89 = sext i32 %88 to i64
@@ -202,13 +202,13 @@ define i32 @main() #0 {
   br i1 %90, label %91, label %92
 
 91:                                               ; preds = %83
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 24, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.7, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 23, i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str.7, i64 0, i64 0)) #6
   unreachable
 
 92:                                               ; preds = %83
   %93 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 6
   %94 = load float, float* %93, align 8
-  %95 = fcmp oeq float %94, 7.000000e+01
+  %95 = fcmp oeq float %94, 2.700000e+01
   %96 = xor i1 %95, true
   %97 = zext i1 %96 to i32
   %98 = sext i32 %97 to i64
@@ -216,13 +216,13 @@ define i32 @main() #0 {
   br i1 %99, label %100, label %101
 
 100:                                              ; preds = %92
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 25, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.8, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 24, i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str.8, i64 0, i64 0)) #6
   unreachable
 
 101:                                              ; preds = %92
   %102 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 7
   %103 = load float, float* %102, align 4
-  %104 = fcmp oeq float %103, 8.000000e+01
+  %104 = fcmp oeq float %103, 8.000000e+00
   %105 = xor i1 %104, true
   %106 = zext i1 %105 to i32
   %107 = sext i32 %106 to i64
@@ -230,7 +230,7 @@ define i32 @main() #0 {
   br i1 %108, label %109, label %110
 
 109:                                              ; preds = %101
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 26, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.9, i64 0, i64 0)) #4
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 25, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.9, i64 0, i64 0)) #6
   unreachable
 
 110:                                              ; preds = %101
@@ -238,18 +238,23 @@ define i32 @main() #0 {
 }
 
 ; Function Attrs: argmemonly nounwind willreturn
-declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #1
+declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #2
 
-declare i32 @printf(i8*, ...) #2
+; Function Attrs: argmemonly nounwind willreturn writeonly
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #3
+
+declare i32 @printf(i8*, ...) #4
 
 ; Function Attrs: noreturn
-declare void @__assert_rtn(i8*, i8*, i32, i8*) #3
+declare void @__assert_rtn(i8*, i8*, i32, i8*) #5
 
 attributes #0 = { noinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { argmemonly nounwind willreturn }
-attributes #2 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #3 = { noreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="true" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #4 = { noreturn }
+attributes #1 = { nounwind readnone speculatable willreturn }
+attributes #2 = { argmemonly nounwind willreturn }
+attributes #3 = { argmemonly nounwind willreturn writeonly }
+attributes #4 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #5 = { noreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="true" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #6 = { noreturn }
 
 !llvm.module.flags = !{!0, !1}
 !llvm.ident = !{!2}

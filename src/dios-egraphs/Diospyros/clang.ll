@@ -1,282 +1,283 @@
-; ModuleID = 'llvm-tests/scalar-new.c'
-source_filename = "llvm-tests/scalar-new.c"
+; ModuleID = 'llvm-tests/cube-new.c'
+source_filename = "llvm-tests/cube-new.c"
 target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.14.0"
 
-@__const.main.a_in = private unnamed_addr constant [8 x float] [float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 5.000000e+00, float 6.000000e+00, float 7.000000e+00, float 8.000000e+00], align 16
-@__const.main.b_in = private unnamed_addr constant [8 x float] [float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 5.000000e+00, float 6.000000e+00, float 7.000000e+00, float 8.000000e+00], align 16
+@__const.main.a_in = private unnamed_addr constant [8 x float] [float 9.000000e+00, float 8.000000e+00, float 7.000000e+00, float 6.000000e+00, float 5.000000e+00, float 4.000000e+00, float 3.000000e+00, float 2.000000e+00], align 16
 @.str = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
 @__func__.main = private unnamed_addr constant [5 x i8] c"main\00", align 1
-@.str.1 = private unnamed_addr constant [24 x i8] c"llvm-tests/scalar-new.c\00", align 1
-@.str.2 = private unnamed_addr constant [14 x i8] c"b_in[0] == 10\00", align 1
-@.str.3 = private unnamed_addr constant [14 x i8] c"b_in[1] == 20\00", align 1
-@.str.4 = private unnamed_addr constant [14 x i8] c"b_in[2] == 30\00", align 1
-@.str.5 = private unnamed_addr constant [14 x i8] c"b_in[3] == 40\00", align 1
-@.str.6 = private unnamed_addr constant [14 x i8] c"b_in[4] == 50\00", align 1
-@.str.7 = private unnamed_addr constant [14 x i8] c"b_in[5] == 60\00", align 1
-@.str.8 = private unnamed_addr constant [14 x i8] c"b_in[6] == 70\00", align 1
-@.str.9 = private unnamed_addr constant [14 x i8] c"b_in[7] == 80\00", align 1
+@.str.1 = private unnamed_addr constant [22 x i8] c"llvm-tests/cube-new.c\00", align 1
+@.str.2 = private unnamed_addr constant [16 x i8] c"b_out[0] == 729\00", align 1
+@.str.3 = private unnamed_addr constant [16 x i8] c"b_out[1] == 512\00", align 1
+@.str.4 = private unnamed_addr constant [16 x i8] c"b_out[2] == 343\00", align 1
+@.str.5 = private unnamed_addr constant [16 x i8] c"b_out[3] == 216\00", align 1
+@.str.6 = private unnamed_addr constant [16 x i8] c"b_out[4] == 125\00", align 1
+@.str.7 = private unnamed_addr constant [15 x i8] c"b_out[5] == 64\00", align 1
+@.str.8 = private unnamed_addr constant [15 x i8] c"b_out[6] == 27\00", align 1
+@.str.9 = private unnamed_addr constant [14 x i8] c"b_out[7] == 8\00", align 1
 
 ; Function Attrs: noinline nounwind ssp uwtable
-define void @matrix_multiply(float* %0, float %1, float* %2) #0 {
+define void @cube(float* %0, float* %1) #0 {
+  %3 = alloca float*, align 8
   %4 = alloca float*, align 8
-  %5 = alloca float, align 4
-  %6 = alloca float*, align 8
-  %7 = alloca i32, align 4
-  store float* %0, float** %4, align 8
-  store float %1, float* %5, align 4
-  store float* %2, float** %6, align 8
-  store i32 0, i32* %7, align 4
-  br label %8
+  %5 = alloca i32, align 4
+  store float* %0, float** %3, align 8
+  store float* %1, float** %4, align 8
+  store i32 0, i32* %5, align 4
+  br label %6
 
-8:                                                ; preds = %23, %3
-  %9 = load i32, i32* %7, align 4
-  %10 = icmp slt i32 %9, 8
-  br i1 %10, label %11, label %26
+6:                                                ; preds = %20, %2
+  %7 = load i32, i32* %5, align 4
+  %8 = icmp slt i32 %7, 8
+  br i1 %8, label %9, label %23
 
-11:                                               ; preds = %8
-  %12 = load float*, float** %4, align 8
-  %13 = load i32, i32* %7, align 4
-  %14 = sext i32 %13 to i64
-  %15 = getelementptr inbounds float, float* %12, i64 %14
-  %16 = load float, float* %15, align 4
-  %17 = load float, float* %5, align 4
-  %18 = fmul float %16, %17
-  %19 = load float*, float** %6, align 8
-  %20 = load i32, i32* %7, align 4
-  %21 = sext i32 %20 to i64
-  %22 = getelementptr inbounds float, float* %19, i64 %21
-  store float %18, float* %22, align 4
-  br label %23
+9:                                                ; preds = %6
+  %10 = load float*, float** %3, align 8
+  %11 = load i32, i32* %5, align 4
+  %12 = sext i32 %11 to i64
+  %13 = getelementptr inbounds float, float* %10, i64 %12
+  %14 = load float, float* %13, align 4
+  %15 = call float @llvm.pow.f32(float %14, float 3.000000e+00)
+  %16 = load float*, float** %4, align 8
+  %17 = load i32, i32* %5, align 4
+  %18 = sext i32 %17 to i64
+  %19 = getelementptr inbounds float, float* %16, i64 %18
+  store float %15, float* %19, align 4
+  br label %20
 
-23:                                               ; preds = %11
-  %24 = load i32, i32* %7, align 4
-  %25 = add nsw i32 %24, 1
-  store i32 %25, i32* %7, align 4
-  br label %8
+20:                                               ; preds = %9
+  %21 = load i32, i32* %5, align 4
+  %22 = add nsw i32 %21, 1
+  store i32 %22, i32* %5, align 4
+  br label %6
 
-26:                                               ; preds = %8
+23:                                               ; preds = %6
   ret void
 }
+
+; Function Attrs: nounwind readnone speculatable willreturn
+declare float @llvm.pow.f32(float, float) #1
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define i32 @main() #0 {
   %1 = alloca i32, align 4
   %2 = alloca [8 x float], align 16
-  %3 = alloca float, align 4
-  %4 = alloca [8 x float], align 16
-  %5 = alloca i32, align 4
+  %3 = alloca [8 x float], align 16
+  %4 = alloca i32, align 4
   store i32 0, i32* %1, align 4
-  %6 = bitcast [8 x float]* %2 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %6, i8* align 16 bitcast ([8 x float]* @__const.main.a_in to i8*), i64 32, i1 false)
-  store float 1.000000e+01, float* %3, align 4
-  %7 = bitcast [8 x float]* %4 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %7, i8* align 16 bitcast ([8 x float]* @__const.main.b_in to i8*), i64 32, i1 false)
-  %8 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
-  %9 = load float, float* %3, align 4
-  %10 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 0
-  call void @matrix_multiply(float* %8, float %9, float* %10)
-  store i32 0, i32* %5, align 4
-  br label %11
+  %5 = bitcast [8 x float]* %2 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %5, i8* align 16 bitcast ([8 x float]* @__const.main.a_in to i8*), i64 32, i1 false)
+  %6 = bitcast [8 x float]* %3 to i8*
+  call void @llvm.memset.p0i8.i64(i8* align 16 %6, i8 0, i64 32, i1 false)
+  %7 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
+  %8 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 0
+  call void @cube(float* %7, float* %8)
+  store i32 0, i32* %4, align 4
+  br label %9
 
-11:                                               ; preds = %21, %0
-  %12 = load i32, i32* %5, align 4
-  %13 = icmp slt i32 %12, 8
-  br i1 %13, label %14, label %24
+9:                                                ; preds = %19, %0
+  %10 = load i32, i32* %4, align 4
+  %11 = icmp slt i32 %10, 8
+  br i1 %11, label %12, label %22
 
-14:                                               ; preds = %11
-  %15 = load i32, i32* %5, align 4
-  %16 = sext i32 %15 to i64
-  %17 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 %16
-  %18 = load float, float* %17, align 4
-  %19 = fpext float %18 to double
-  %20 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %19)
-  br label %21
+12:                                               ; preds = %9
+  %13 = load i32, i32* %4, align 4
+  %14 = sext i32 %13 to i64
+  %15 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 %14
+  %16 = load float, float* %15, align 4
+  %17 = fpext float %16 to double
+  %18 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %17)
+  br label %19
 
-21:                                               ; preds = %14
-  %22 = load i32, i32* %5, align 4
-  %23 = add nsw i32 %22, 1
-  store i32 %23, i32* %5, align 4
-  br label %11
+19:                                               ; preds = %12
+  %20 = load i32, i32* %4, align 4
+  %21 = add nsw i32 %20, 1
+  store i32 %21, i32* %4, align 4
+  br label %9
 
-24:                                               ; preds = %11
-  %25 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 0
-  %26 = load float, float* %25, align 16
-  %27 = fcmp oeq float %26, 1.000000e+01
-  %28 = xor i1 %27, true
-  %29 = zext i1 %28 to i32
-  %30 = sext i32 %29 to i64
-  %31 = icmp ne i64 %30, 0
-  br i1 %31, label %32, label %34
+22:                                               ; preds = %9
+  %23 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 0
+  %24 = load float, float* %23, align 16
+  %25 = fcmp oeq float %24, 7.290000e+02
+  %26 = xor i1 %25, true
+  %27 = zext i1 %26 to i32
+  %28 = sext i32 %27 to i64
+  %29 = icmp ne i64 %28, 0
+  br i1 %29, label %30, label %32
 
-32:                                               ; preds = %24
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 19, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.2, i64 0, i64 0)) #4
+30:                                               ; preds = %22
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 18, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.2, i64 0, i64 0)) #6
   unreachable
 
-33:                                               ; No predecessors!
-  br label %35
+31:                                               ; No predecessors!
+  br label %33
 
-34:                                               ; preds = %24
-  br label %35
+32:                                               ; preds = %22
+  br label %33
 
-35:                                               ; preds = %34, %33
-  %36 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 1
-  %37 = load float, float* %36, align 4
-  %38 = fcmp oeq float %37, 2.000000e+01
-  %39 = xor i1 %38, true
-  %40 = zext i1 %39 to i32
-  %41 = sext i32 %40 to i64
-  %42 = icmp ne i64 %41, 0
-  br i1 %42, label %43, label %45
+33:                                               ; preds = %32, %31
+  %34 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 1
+  %35 = load float, float* %34, align 4
+  %36 = fcmp oeq float %35, 5.120000e+02
+  %37 = xor i1 %36, true
+  %38 = zext i1 %37 to i32
+  %39 = sext i32 %38 to i64
+  %40 = icmp ne i64 %39, 0
+  br i1 %40, label %41, label %43
 
-43:                                               ; preds = %35
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 20, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.3, i64 0, i64 0)) #4
+41:                                               ; preds = %33
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 19, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.3, i64 0, i64 0)) #6
   unreachable
 
-44:                                               ; No predecessors!
-  br label %46
+42:                                               ; No predecessors!
+  br label %44
 
-45:                                               ; preds = %35
-  br label %46
+43:                                               ; preds = %33
+  br label %44
 
-46:                                               ; preds = %45, %44
-  %47 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 2
-  %48 = load float, float* %47, align 8
-  %49 = fcmp oeq float %48, 3.000000e+01
-  %50 = xor i1 %49, true
-  %51 = zext i1 %50 to i32
-  %52 = sext i32 %51 to i64
-  %53 = icmp ne i64 %52, 0
-  br i1 %53, label %54, label %56
+44:                                               ; preds = %43, %42
+  %45 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 2
+  %46 = load float, float* %45, align 8
+  %47 = fcmp oeq float %46, 3.430000e+02
+  %48 = xor i1 %47, true
+  %49 = zext i1 %48 to i32
+  %50 = sext i32 %49 to i64
+  %51 = icmp ne i64 %50, 0
+  br i1 %51, label %52, label %54
 
-54:                                               ; preds = %46
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 21, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.4, i64 0, i64 0)) #4
+52:                                               ; preds = %44
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 20, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.4, i64 0, i64 0)) #6
   unreachable
 
-55:                                               ; No predecessors!
-  br label %57
+53:                                               ; No predecessors!
+  br label %55
 
-56:                                               ; preds = %46
-  br label %57
+54:                                               ; preds = %44
+  br label %55
 
-57:                                               ; preds = %56, %55
-  %58 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 3
-  %59 = load float, float* %58, align 4
-  %60 = fcmp oeq float %59, 4.000000e+01
-  %61 = xor i1 %60, true
-  %62 = zext i1 %61 to i32
-  %63 = sext i32 %62 to i64
-  %64 = icmp ne i64 %63, 0
-  br i1 %64, label %65, label %67
+55:                                               ; preds = %54, %53
+  %56 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 3
+  %57 = load float, float* %56, align 4
+  %58 = fcmp oeq float %57, 2.160000e+02
+  %59 = xor i1 %58, true
+  %60 = zext i1 %59 to i32
+  %61 = sext i32 %60 to i64
+  %62 = icmp ne i64 %61, 0
+  br i1 %62, label %63, label %65
 
-65:                                               ; preds = %57
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 22, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.5, i64 0, i64 0)) #4
+63:                                               ; preds = %55
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 21, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.5, i64 0, i64 0)) #6
   unreachable
 
-66:                                               ; No predecessors!
-  br label %68
+64:                                               ; No predecessors!
+  br label %66
 
-67:                                               ; preds = %57
-  br label %68
+65:                                               ; preds = %55
+  br label %66
 
-68:                                               ; preds = %67, %66
-  %69 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 4
-  %70 = load float, float* %69, align 16
-  %71 = fcmp oeq float %70, 5.000000e+01
-  %72 = xor i1 %71, true
-  %73 = zext i1 %72 to i32
-  %74 = sext i32 %73 to i64
-  %75 = icmp ne i64 %74, 0
-  br i1 %75, label %76, label %78
+66:                                               ; preds = %65, %64
+  %67 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 4
+  %68 = load float, float* %67, align 16
+  %69 = fcmp oeq float %68, 1.250000e+02
+  %70 = xor i1 %69, true
+  %71 = zext i1 %70 to i32
+  %72 = sext i32 %71 to i64
+  %73 = icmp ne i64 %72, 0
+  br i1 %73, label %74, label %76
 
-76:                                               ; preds = %68
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 23, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.6, i64 0, i64 0)) #4
+74:                                               ; preds = %66
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 22, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.6, i64 0, i64 0)) #6
   unreachable
 
-77:                                               ; No predecessors!
-  br label %79
+75:                                               ; No predecessors!
+  br label %77
 
-78:                                               ; preds = %68
-  br label %79
+76:                                               ; preds = %66
+  br label %77
 
-79:                                               ; preds = %78, %77
-  %80 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 5
-  %81 = load float, float* %80, align 4
-  %82 = fcmp oeq float %81, 6.000000e+01
-  %83 = xor i1 %82, true
-  %84 = zext i1 %83 to i32
-  %85 = sext i32 %84 to i64
-  %86 = icmp ne i64 %85, 0
-  br i1 %86, label %87, label %89
+77:                                               ; preds = %76, %75
+  %78 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 5
+  %79 = load float, float* %78, align 4
+  %80 = fcmp oeq float %79, 6.400000e+01
+  %81 = xor i1 %80, true
+  %82 = zext i1 %81 to i32
+  %83 = sext i32 %82 to i64
+  %84 = icmp ne i64 %83, 0
+  br i1 %84, label %85, label %87
 
-87:                                               ; preds = %79
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 24, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.7, i64 0, i64 0)) #4
+85:                                               ; preds = %77
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 23, i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str.7, i64 0, i64 0)) #6
   unreachable
 
-88:                                               ; No predecessors!
-  br label %90
+86:                                               ; No predecessors!
+  br label %88
 
-89:                                               ; preds = %79
-  br label %90
+87:                                               ; preds = %77
+  br label %88
 
-90:                                               ; preds = %89, %88
-  %91 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 6
-  %92 = load float, float* %91, align 8
-  %93 = fcmp oeq float %92, 7.000000e+01
-  %94 = xor i1 %93, true
-  %95 = zext i1 %94 to i32
-  %96 = sext i32 %95 to i64
-  %97 = icmp ne i64 %96, 0
-  br i1 %97, label %98, label %100
+88:                                               ; preds = %87, %86
+  %89 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 6
+  %90 = load float, float* %89, align 8
+  %91 = fcmp oeq float %90, 2.700000e+01
+  %92 = xor i1 %91, true
+  %93 = zext i1 %92 to i32
+  %94 = sext i32 %93 to i64
+  %95 = icmp ne i64 %94, 0
+  br i1 %95, label %96, label %98
 
-98:                                               ; preds = %90
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 25, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.8, i64 0, i64 0)) #4
+96:                                               ; preds = %88
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 24, i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str.8, i64 0, i64 0)) #6
   unreachable
 
-99:                                               ; No predecessors!
-  br label %101
+97:                                               ; No predecessors!
+  br label %99
 
-100:                                              ; preds = %90
-  br label %101
+98:                                               ; preds = %88
+  br label %99
 
-101:                                              ; preds = %100, %99
-  %102 = getelementptr inbounds [8 x float], [8 x float]* %4, i64 0, i64 7
-  %103 = load float, float* %102, align 4
-  %104 = fcmp oeq float %103, 8.000000e+01
-  %105 = xor i1 %104, true
-  %106 = zext i1 %105 to i32
-  %107 = sext i32 %106 to i64
-  %108 = icmp ne i64 %107, 0
-  br i1 %108, label %109, label %111
+99:                                               ; preds = %98, %97
+  %100 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 7
+  %101 = load float, float* %100, align 4
+  %102 = fcmp oeq float %101, 8.000000e+00
+  %103 = xor i1 %102, true
+  %104 = zext i1 %103 to i32
+  %105 = sext i32 %104 to i64
+  %106 = icmp ne i64 %105, 0
+  br i1 %106, label %107, label %109
 
-109:                                              ; preds = %101
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.1, i64 0, i64 0), i32 26, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.9, i64 0, i64 0)) #4
+107:                                              ; preds = %99
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 25, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.9, i64 0, i64 0)) #6
   unreachable
 
-110:                                              ; No predecessors!
-  br label %112
+108:                                              ; No predecessors!
+  br label %110
 
-111:                                              ; preds = %101
-  br label %112
+109:                                              ; preds = %99
+  br label %110
 
-112:                                              ; preds = %111, %110
-  %113 = load i32, i32* %1, align 4
-  ret i32 %113
+110:                                              ; preds = %109, %108
+  %111 = load i32, i32* %1, align 4
+  ret i32 %111
 }
 
 ; Function Attrs: argmemonly nounwind willreturn
-declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #1
+declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #2
 
-declare i32 @printf(i8*, ...) #2
+; Function Attrs: argmemonly nounwind willreturn writeonly
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #3
+
+declare i32 @printf(i8*, ...) #4
 
 ; Function Attrs: noreturn
-declare void @__assert_rtn(i8*, i8*, i32, i8*) #3
+declare void @__assert_rtn(i8*, i8*, i32, i8*) #5
 
 attributes #0 = { noinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { argmemonly nounwind willreturn }
-attributes #2 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #3 = { noreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="true" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #4 = { noreturn }
+attributes #1 = { nounwind readnone speculatable willreturn }
+attributes #2 = { argmemonly nounwind willreturn }
+attributes #3 = { argmemonly nounwind willreturn writeonly }
+attributes #4 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #5 = { noreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="true" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #6 = { noreturn }
 
 !llvm.module.flags = !{!0, !1}
 !llvm.ident = !{!2}
