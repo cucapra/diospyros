@@ -647,8 +647,8 @@ pub fn optimize(
   module: LLVMModuleRef,
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
-  // operand_types: *const i32,
   size: size_t,
+  last_bb: bool,
 ) -> () {
   unsafe {
     // llvm to egg
@@ -665,7 +665,7 @@ pub fn optimize(
     eprintln!("{}", best.pretty(10));
 
     // egg to llvm
-    egg_to_llvm(best, &gep_map, &store_map, llvm_instrs, module, builder);
+    egg_to_llvm(best, &gep_map, &store_map, module, builder, last_bb);
     // to_llvm(module, best, &GEPMap, &var_map, &ops_to_replace, builder);
   }
 }
@@ -694,6 +694,11 @@ unsafe fn is_pow2(n: u32) -> bool {
   return pow == n;
 }
 
+unsafe fn LLVMPrint(Inst: LLVMValueRef) -> () {
+  LLVMDumpValue(Inst);
+  println!();
+}
+
 unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMValueRef {
   if isa_argument(Inst) {
     return Inst;
@@ -703,10 +708,12 @@ unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMV
   let num_ops = LLVMGetNumOperands(Inst);
   for i in 0..num_ops {
     let operand = LLVMGetOperand(Inst, i as u32);
-    LLVMRecursiveAdd(Builder, operand);
+    let new_inst = LLVMRecursiveAdd(Builder, operand);
+    LLVMSetOperand(Inst, i as u32, new_inst);
   }
-  LLVMInsertIntoBuilder(Builder, Inst);
-  return Inst;
+  let cloned_inst = LLVMInstructionClone(Inst);
+  LLVMInsertIntoBuilder(Builder, cloned_inst);
+  return cloned_inst;
 }
 
 unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
@@ -819,6 +826,7 @@ unsafe fn load_to_egg(
   id_map: &mut id_map,
 ) -> (Vec<VecLang>, i32) {
   let addr = LLVMGetOperand(expr, 0);
+  LLVMPrint(addr);
   return ref_to_egg(addr, enode_vec, next_idx, gep_map, store_map, id_map);
 }
 
@@ -833,10 +841,10 @@ unsafe fn store_to_egg(
   let data = LLVMGetOperand(expr, 0);
   let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator or addr in LLVM
   let (vec, next_idx1) = ref_to_egg(data, enode_vec, next_idx, gep_map, store_map, id_map);
-  let data_egg_node = vec
-    .get((next_idx1 - 1) as usize)
-    .expect("Vector should contain index.")
-    .clone();
+  // let data_egg_node = vec
+  //   .get((next_idx1 - 1) as usize)
+  //   .expect("Vector should contain index.")
+  //   .clone();
   (*store_map).insert(next_idx1 - 1, addr);
   (*id_map).insert(Id::from((next_idx1 - 1) as usize));
   return (vec, next_idx1);
@@ -956,9 +964,11 @@ unsafe fn translate_egg(
         .expect("Symbol map lookup error: Cannot Find GEP");
       if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
-        LLVMRecursiveAdd(builder, cloned_gep);
+        // LLVMPrint(*gep_value);
+        // LLVMPrint(cloned_gep);
+        let new_gep = LLVMRecursiveAdd(builder, cloned_gep);
         // LLVMInsertIntoBuilder(builder, cloned_gep);
-        LLVMBuildLoad(builder, cloned_gep, b"\0".as_ptr() as *const _)
+        LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
       } else {
         LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
       }
@@ -1107,6 +1117,9 @@ unsafe fn translate_egg(
         module,
       );
       let vec_type = LLVMTypeOf(trans_acc);
+      // LLVMPrint(trans_acc);
+      // LLVMPrint(trans_v1);
+      // LLVMPrint(trans_v2);
 
       let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
       let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
@@ -1187,9 +1200,9 @@ unsafe fn egg_to_llvm(
   expr: RecExpr<VecLang>,
   gep_map: &GEPMap,
   store_map: &store_map,
-  ops_to_replace: &[LLVMValueRef],
   module: LLVMModuleRef,
   builder: LLVMBuilderRef,
+  last_bb: bool,
 ) -> () {
   // in fact this will look rather similar to translation from egg to llvm
   // the major differece is how we reconstruct loads and stores
@@ -1216,17 +1229,14 @@ unsafe fn egg_to_llvm(
       LLVMBuildStore(builder, extracted_value, *addr);
     } else {
       let cloned_addr = LLVMInstructionClone(*addr);
-      LLVMRecursiveAdd(builder, cloned_addr);
+      let new_addr = LLVMRecursiveAdd(builder, cloned_addr);
       // LLVMInsertIntoBuilder(builder, cloned_addr);
-      LLVMBuildStore(builder, extracted_value, cloned_addr);
+      LLVMBuildStore(builder, extracted_value, new_addr);
     }
   }
 
   // Add in ret; assume void
-  LLVMBuildRetVoid(builder);
-
-  // Delete all ops to replace
-  // for op in ops_to_replace.iter().rev() {
-  //   LLVMInstructionEraseFromParent(*op);
-  // }
+  if last_bb {
+    LLVMBuildRetVoid(builder);
+  }
 }

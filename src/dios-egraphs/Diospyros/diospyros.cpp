@@ -22,7 +22,8 @@ using namespace llvm;
 using namespace std;
 
 extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder,
-                         LLVMValueRef const *bb, std::size_t size);
+                         LLVMValueRef const *bb, std::size_t size,
+                         bool last_bb);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
@@ -302,7 +303,17 @@ struct DiospyrosPass : public FunctionPass {
             return false;
         }
         bool has_changes = false;
+        int num_basic_blocks = 0;
         for (auto &B : F) {
+            ++num_basic_blocks;
+        }
+        int bb_index = 0;
+        for (auto &B : F) {
+            bool last_bb = false;
+            ++bb_index;
+            if (bb_index == num_basic_blocks) {
+                last_bb = true;
+            }
             std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
             std::vector<LLVMValueRef> inner_vector = {};
             std::set<Value *> store_locations;
@@ -326,7 +337,10 @@ struct DiospyrosPass : public FunctionPass {
             }
             vectorization_accumulator.push_back(inner_vector);
 
+            int vec_length = vectorization_accumulator.size();
+            int counter = 0;
             for (auto &vec : vectorization_accumulator) {
+                ++counter;
                 if (not vec.empty()) {
                     has_changes = has_changes || true;
                     Value *last_store = unwrap(vec.back());
@@ -337,7 +351,8 @@ struct DiospyrosPass : public FunctionPass {
                     builder.SetInsertPoint(store_instr);
                     builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
-                    optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
+                    optimize(wrap(mod), wrap(&builder), vec.data(), vec.size(),
+                             last_bb && (counter == vec_length));
                 }
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());
