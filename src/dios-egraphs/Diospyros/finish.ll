@@ -146,34 +146,35 @@ define void @sum(float* %0, float* %1, float* %2) #0 {
   %119 = insertelement <4 x float> %118, float 0.000000e+00, i32 2
   %120 = insertelement <4 x float> %119, float 0.000000e+00, i32 3
   %121 = fadd <4 x float> %114, %120
-  %122 = shufflevector <8 x float> %108, <4 x float> %121, <12 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11>
-  %123 = extractelement <12 x float> %122, i32 0
-  %124 = getelementptr inbounds float, float* %2, i64 0
-  store float %123, float* %124, align 4
-  %125 = extractelement <12 x float> %122, i32 1
-  %126 = getelementptr inbounds float, float* %2, i64 1
-  store float %125, float* %126, align 4
-  %127 = extractelement <12 x float> %122, i32 2
-  %128 = getelementptr inbounds float, float* %2, i64 2
-  store float %127, float* %128, align 4
-  %129 = extractelement <12 x float> %122, i32 3
-  %130 = getelementptr inbounds float, float* %2, i64 3
-  store float %129, float* %130, align 4
-  %131 = extractelement <12 x float> %122, i32 4
-  %132 = getelementptr inbounds float, float* %2, i64 4
-  store float %131, float* %132, align 4
-  %133 = extractelement <12 x float> %122, i32 5
-  %134 = getelementptr inbounds float, float* %2, i64 5
-  store float %133, float* %134, align 4
-  %135 = extractelement <12 x float> %122, i32 6
-  %136 = getelementptr inbounds float, float* %2, i64 6
-  store float %135, float* %136, align 4
-  %137 = extractelement <12 x float> %122, i32 7
-  %138 = getelementptr inbounds float, float* %2, i64 7
-  store float %137, float* %138, align 4
-  %139 = extractelement <12 x float> %122, i32 8
-  %140 = getelementptr inbounds float, float* %2, i64 8
-  store float %139, float* %140, align 4
+  %122 = shufflevector <4 x float> %121, <4 x float> zeroinitializer, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+  %123 = shufflevector <8 x float> %108, <8 x float> %122, <12 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11>
+  %124 = extractelement <12 x float> %123, i32 0
+  %125 = getelementptr inbounds float, float* %2, i64 0
+  store float %124, float* %125, align 4
+  %126 = extractelement <12 x float> %123, i32 1
+  %127 = getelementptr inbounds float, float* %2, i64 1
+  store float %126, float* %127, align 4
+  %128 = extractelement <12 x float> %123, i32 2
+  %129 = getelementptr inbounds float, float* %2, i64 2
+  store float %128, float* %129, align 4
+  %130 = extractelement <12 x float> %123, i32 3
+  %131 = getelementptr inbounds float, float* %2, i64 3
+  store float %130, float* %131, align 4
+  %132 = extractelement <12 x float> %123, i32 4
+  %133 = getelementptr inbounds float, float* %2, i64 4
+  store float %132, float* %133, align 4
+  %134 = extractelement <12 x float> %123, i32 5
+  %135 = getelementptr inbounds float, float* %2, i64 5
+  store float %134, float* %135, align 4
+  %136 = extractelement <12 x float> %123, i32 6
+  %137 = getelementptr inbounds float, float* %2, i64 6
+  store float %136, float* %137, align 4
+  %138 = extractelement <12 x float> %123, i32 7
+  %139 = getelementptr inbounds float, float* %2, i64 7
+  store float %138, float* %139, align 4
+  %140 = extractelement <12 x float> %123, i32 8
+  %141 = getelementptr inbounds float, float* %2, i64 8
+  store float %140, float* %141, align 4
   ret void
 }
 

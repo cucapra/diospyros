@@ -686,6 +686,14 @@ enum LLVMOpType {
   Bop,
 }
 
+unsafe fn is_pow2(n: u32) -> bool {
+  let mut pow = 0;
+  while pow < n {
+    pow *= 2;
+  }
+  return pow == n;
+}
+
 unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMValueRef {
   if isa_argument(Inst) {
     return Inst;
@@ -1015,7 +1023,7 @@ unsafe fn translate_egg(
         builder,
         module,
       );
-      let trans_v2 = translate_egg(
+      let mut trans_v2 = translate_egg(
         &vec[usize::from(*v2)],
         vec,
         gep_map,
@@ -1023,11 +1031,41 @@ unsafe fn translate_egg(
         builder,
         module,
       );
+      // it turns out all vectors need to be length power of 2
+      // if the 2 vectors are not the same size, double the length of the smaller vector by padding with 0's in it
       // manually concatenate 2 vectors by using a LLVM shuffle operation.
       let v1_type = LLVMTypeOf(trans_v1);
       let v1_size = LLVMGetVectorSize(v1_type);
       let v2_type = LLVMTypeOf(trans_v2);
       let v2_size = LLVMGetVectorSize(v2_type);
+
+      // HACKY FIX FOR NOW
+      // assume both v1 and v2 are pow of 2 size
+      // assume v2 size smaller or equal to v1 size
+      // assume v2 is 1/2 size of v1
+      if v1_size != v2_size {
+        // replicate v2 size
+        let mut zeros = Vec::new();
+        for _ in 0..v2_size {
+          zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
+        }
+        let zeros_ptr = zeros.as_mut_ptr();
+        let zeros_vector = LLVMConstVector(zeros_ptr, v2_size);
+        let size = 2 * v2_size;
+        let mut indices = Vec::new();
+        for i in 0..size {
+          indices.push(LLVMConstInt(LLVMInt32Type(), i as u64, 0));
+        }
+        let mask = indices.as_mut_ptr();
+        let mask_vector = LLVMConstVector(mask, size);
+        trans_v2 = LLVMBuildShuffleVector(
+          builder,
+          trans_v2,
+          zeros_vector,
+          mask_vector,
+          b"\0".as_ptr() as *const _,
+        );
+      }
       let size = v1_size + v2_size;
       let mut indices = Vec::new();
       for i in 0..size {
