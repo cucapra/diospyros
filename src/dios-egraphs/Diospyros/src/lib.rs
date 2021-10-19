@@ -826,7 +826,6 @@ unsafe fn load_to_egg(
   id_map: &mut id_map,
 ) -> (Vec<VecLang>, i32) {
   let addr = LLVMGetOperand(expr, 0);
-  LLVMPrint(addr);
   return ref_to_egg(addr, enode_vec, next_idx, gep_map, store_map, id_map);
 }
 
@@ -841,10 +840,6 @@ unsafe fn store_to_egg(
   let data = LLVMGetOperand(expr, 0);
   let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator or addr in LLVM
   let (vec, next_idx1) = ref_to_egg(data, enode_vec, next_idx, gep_map, store_map, id_map);
-  // let data_egg_node = vec
-  //   .get((next_idx1 - 1) as usize)
-  //   .expect("Vector should contain index.")
-  //   .clone();
   (*store_map).insert(next_idx1 - 1, addr);
   (*id_map).insert(Id::from((next_idx1 - 1) as usize));
   return (vec, next_idx1);
@@ -964,10 +959,7 @@ unsafe fn translate_egg(
         .expect("Symbol map lookup error: Cannot Find GEP");
       if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
-        // LLVMPrint(*gep_value);
-        // LLVMPrint(cloned_gep);
         let new_gep = LLVMRecursiveAdd(builder, cloned_gep);
-        // LLVMInsertIntoBuilder(builder, cloned_gep);
         LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
       } else {
         LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
@@ -1117,10 +1109,6 @@ unsafe fn translate_egg(
         module,
       );
       let vec_type = LLVMTypeOf(trans_acc);
-      // LLVMPrint(trans_acc);
-      // LLVMPrint(trans_v1);
-      // LLVMPrint(trans_v2);
-
       let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
       let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
       let func = LLVMAddFunction(module, b"llvm.fma.f32\0".as_ptr() as *const _, fn_type);
@@ -1230,7 +1218,6 @@ unsafe fn egg_to_llvm(
     } else {
       let cloned_addr = LLVMInstructionClone(*addr);
       let new_addr = LLVMRecursiveAdd(builder, cloned_addr);
-      // LLVMInsertIntoBuilder(builder, cloned_addr);
       LLVMBuildStore(builder, extracted_value, new_addr);
     }
   }
