@@ -33,6 +33,18 @@ To build and run the [Clang][] pass on a test file, use this Makefile command:
 
 where `llvm-tests/a.c` is the path to any test file.
 
+To build and run the Clang pass, with optimization, use the Makefile command:
+
+    $ make run-opt test=llvm-tests/a.c
+
+where `llvm-tests/a.c` is the path to any test file.
+
+To build and see emitted LLVM IR code, , with optimization, use the Makefile command:
+
+$ make run-opt test=llvm-tests/a.c
+
+where, again, `llvm-tests/a.c` is the path to any test file.
+
 To emit the generated LLVM IR code, either unoptimized or optimized:
 
     $ make emit test=llvm-tests/a.c
