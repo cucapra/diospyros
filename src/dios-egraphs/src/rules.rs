@@ -44,7 +44,7 @@ fn filter_applicable_rules(rules: &mut Vec<Rewrite<VecLang, ()>>, prog: &RecExpr
         !drop
     });
     if dropped != "" {
-        eprintln!("Dropping inapplicable rules:{}", dropped);
+        // eprintln!("Dropping inapplicable rules:{}", dropped);
     }
 }
 
@@ -68,11 +68,11 @@ pub fn run(
         .run(&rules);
 
     // print reason to STDERR.
-    eprintln!(
-        "Stopped after {} iterations, reason: {:?}",
-        runner.iterations.len(),
-        runner.stop_reason
-    );
+    // eprintln!(
+    //     "Stopped after {} iterations, reason: {:?}",
+    //     runner.iterations.len(),
+    //     runner.stop_reason
+    // );
 
     let (eg, root) = (runner.egraph, runner.roots[0]);
 

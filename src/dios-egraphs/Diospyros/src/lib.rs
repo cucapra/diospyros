@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 extern crate llvm_sys as llvm;
 use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
@@ -648,9 +649,9 @@ pub fn optimize(
     );
 
     // optimization pass
-    eprintln!("{:?}", expr);
+    // eprintln!("{:?}", expr);
     let (_, best) = rules::run(&expr, 180, true, false);
-    eprintln!("{:?}", best.as_ref());
+    // eprintln!("{:?}", best.as_ref());
 
     // egg to llvm
     to_llvm(module, best, &gep_map, &var_map, &ops_to_replace, builder);
