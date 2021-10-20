@@ -220,55 +220,6 @@ unsafe fn to_expr_operand(
   }
 }
 
-/// New Pad Vector should round the number of elements up to a power of 2, and then recursive
-/// divide each into the lane width. Assumes lane width is also a power of 2 in size
-unsafe fn new_pad_vector<'a>(
-  binop_vec: &mut Vec<Id>,
-  enode_vec: &'a mut Vec<VecLang>,
-) -> &'a mut Vec<VecLang> {
-  let width = config::vector_width();
-  let length = binop_vec.len();
-  let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
-  let diff = closest_pow2 - (length as u32);
-  for _ in 0..diff {
-    let zero = VecLang::Num(0);
-    enode_vec.push(zero);
-    let zero_idx = enode_vec.len() - 1;
-    binop_vec.push(Id::from(zero_idx));
-  }
-  return build_concat(width, binop_vec, enode_vec);
-}
-
-unsafe fn build_concat<'a>(
-  lane_width: usize,
-  binop_vec: &mut Vec<Id>,
-  enode_vec: &'a mut Vec<VecLang>,
-) -> &'a mut Vec<VecLang> {
-  if binop_vec.len() == lane_width {
-    enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
-    return enode_vec;
-  }
-  let num_binops = binop_vec.len();
-  let halfway = num_binops / 2;
-  let (mut left, mut right) = (Vec::new(), Vec::new());
-  for (i, b) in binop_vec.iter().enumerate() {
-    if i < halfway {
-      left.push(*b);
-    } else {
-      right.push(*b);
-    }
-  }
-  assert_eq!(left.len(), right.len());
-  assert_eq!(left.len() + right.len(), num_binops);
-  assert_eq!(left.len() % lane_width, 0);
-  assert_eq!(right.len() % lane_width, 0);
-  let enode_vec1 = build_concat(lane_width, &mut left, enode_vec);
-  let idx1 = enode_vec1.len() - 1;
-  let enode_vec2 = build_concat(lane_width, &mut right, enode_vec1);
-  let idx2 = enode_vec2.len() - 1;
-  enode_vec2.push(VecLang::Concat([Id::from(idx1), Id::from(idx2)]));
-  return enode_vec2;
-}
 /// Pads a vector to be always the Vector Lane Width.
 fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
   let width = config::vector_width();
@@ -781,6 +732,56 @@ unsafe fn get_pow2(n: u32) -> u32 {
   return pow;
 }
 
+/// New Pad Vector should round the number of elements up to a power of 2, and then recursive
+/// divide each into the lane width. Assumes lane width is also a power of 2 in size
+unsafe fn balanced_pad_vector<'a>(
+  binop_vec: &mut Vec<Id>,
+  enode_vec: &'a mut Vec<VecLang>,
+) -> &'a mut Vec<VecLang> {
+  let width = config::vector_width();
+  let length = binop_vec.len();
+  let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
+  let diff = closest_pow2 - (length as u32);
+  for _ in 0..diff {
+    let zero = VecLang::Num(0);
+    enode_vec.push(zero);
+    let zero_idx = enode_vec.len() - 1;
+    binop_vec.push(Id::from(zero_idx));
+  }
+  return build_concat(width, binop_vec, enode_vec);
+}
+
+unsafe fn build_concat<'a>(
+  lane_width: usize,
+  binop_vec: &mut Vec<Id>,
+  enode_vec: &'a mut Vec<VecLang>,
+) -> &'a mut Vec<VecLang> {
+  if binop_vec.len() == lane_width {
+    enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
+    return enode_vec;
+  }
+  let num_binops = binop_vec.len();
+  let halfway = num_binops / 2;
+  let (mut left, mut right) = (Vec::new(), Vec::new());
+  for (i, b) in binop_vec.iter().enumerate() {
+    if i < halfway {
+      left.push(*b);
+    } else {
+      right.push(*b);
+    }
+  }
+  assert_eq!(left.len(), right.len());
+  assert_eq!(left.len() + right.len(), num_binops);
+  assert_eq!(left.len() % lane_width, 0);
+  assert_eq!(right.len() % lane_width, 0);
+  let enode_vec1 = build_concat(lane_width, &mut left, enode_vec);
+  let idx1 = enode_vec1.len() - 1;
+  let enode_vec2 = build_concat(lane_width, &mut right, enode_vec1);
+  let idx2 = enode_vec2.len() - 1;
+  enode_vec2.push(VecLang::Concat([Id::from(idx1), Id::from(idx2)]));
+  return enode_vec2;
+}
+
 unsafe fn LLVMPrint(Inst: LLVMValueRef) -> () {
   LLVMDumpValue(Inst);
   println!();
@@ -1177,8 +1178,7 @@ unsafe fn llvm_to_egg(
   for id in id_map.iter() {
     final_vec.push(*id);
   }
-  new_pad_vector(&mut final_vec, &mut enode_vec);
-  // pad_vector(&final_vec, &mut enode_vec);
+  balanced_pad_vector(&mut final_vec, &mut enode_vec);
 
   let rec_expr = RecExpr::from(enode_vec);
   (rec_expr, gep_map, store_map, symbol_map)
