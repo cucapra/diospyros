@@ -198,6 +198,17 @@ extern "C" bool isa_call(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM FPTruncInst/LLVMValueRef FPTruncInst
+ */
+extern "C" bool isa_fptrunc(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<FPTruncInst>(unwrapped);
+}
+
+/**
  * Gets constant float from LLVMValueRef value
  */
 extern "C" float get_constant_float(LLVMValueRef val) {
