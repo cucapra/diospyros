@@ -4,6 +4,7 @@ use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{
+  cmp,
   collections::{BTreeMap, BTreeSet},
   ffi::CStr,
   os::raw::c_char,
@@ -227,7 +228,7 @@ unsafe fn new_pad_vector<'a>(
 ) -> &'a mut Vec<VecLang> {
   let width = config::vector_width();
   let length = binop_vec.len();
-  let closest_pow2 = get_pow2(length as u32);
+  let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
   let diff = closest_pow2 - (length as u32);
   for _ in 0..diff {
     let zero = VecLang::Num(0);
@@ -244,6 +245,7 @@ unsafe fn build_concat<'a>(
   enode_vec: &'a mut Vec<VecLang>,
 ) -> &'a mut Vec<VecLang> {
   if binop_vec.len() == lane_width {
+    enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
     return enode_vec;
   }
   let num_binops = binop_vec.len();
@@ -1175,7 +1177,8 @@ unsafe fn llvm_to_egg(
   for id in id_map.iter() {
     final_vec.push(*id);
   }
-  pad_vector(&final_vec, &mut enode_vec);
+  new_pad_vector(&mut final_vec, &mut enode_vec);
+  // pad_vector(&final_vec, &mut enode_vec);
 
   let rec_expr = RecExpr::from(enode_vec);
   (rec_expr, gep_map, store_map, symbol_map)

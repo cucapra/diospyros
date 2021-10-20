@@ -1,239 +1,197 @@
 ; ModuleID = 'finish.ll'
-source_filename = "llvm-tests/cube-new.c"
+source_filename = "llvm-tests/sqrt.c"
 target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.14.0"
 
 @__const.main.a_in = private unnamed_addr constant [8 x float] [float 9.000000e+00, float 8.000000e+00, float 7.000000e+00, float 6.000000e+00, float 5.000000e+00, float 4.000000e+00, float 3.000000e+00, float 2.000000e+00], align 16
 @.str = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
-@__func__.main = private unnamed_addr constant [5 x i8] c"main\00", align 1
-@.str.1 = private unnamed_addr constant [22 x i8] c"llvm-tests/cube-new.c\00", align 1
-@.str.2 = private unnamed_addr constant [16 x i8] c"b_out[0] == 729\00", align 1
-@.str.3 = private unnamed_addr constant [16 x i8] c"b_out[1] == 512\00", align 1
-@.str.4 = private unnamed_addr constant [16 x i8] c"b_out[2] == 343\00", align 1
-@.str.5 = private unnamed_addr constant [16 x i8] c"b_out[3] == 216\00", align 1
-@.str.6 = private unnamed_addr constant [16 x i8] c"b_out[4] == 125\00", align 1
-@.str.7 = private unnamed_addr constant [15 x i8] c"b_out[5] == 64\00", align 1
-@.str.8 = private unnamed_addr constant [15 x i8] c"b_out[6] == 27\00", align 1
-@.str.9 = private unnamed_addr constant [14 x i8] c"b_out[7] == 8\00", align 1
 
 ; Function Attrs: noinline nounwind ssp uwtable
-define void @cube(float* %0, float* %1) #0 {
-  %3 = load float, float* %0, align 4
-  %4 = call float @llvm.pow.f32(float %3, float 3.000000e+00)
-  %5 = getelementptr inbounds float, float* %0, i64 1
-  %6 = load float, float* %5, align 4
-  %7 = call float @llvm.pow.f32(float %6, float 3.000000e+00)
-  %8 = getelementptr inbounds float, float* %0, i64 2
+define void @vsqrt(float* %0, float* %1, float* %2) #0 {
+  %4 = load float, float* %0, align 4
+  %5 = insertelement <4 x float> zeroinitializer, float %4, i32 0
+  %6 = load float, float* %0, align 4
+  %7 = insertelement <4 x float> %5, float %6, i32 1
+  %8 = getelementptr inbounds float, float* %0, i64 1
   %9 = load float, float* %8, align 4
-  %10 = call float @llvm.pow.f32(float %9, float 3.000000e+00)
-  %11 = getelementptr inbounds float, float* %0, i64 3
+  %10 = insertelement <4 x float> %7, float %9, i32 2
+  %11 = getelementptr inbounds float, float* %0, i64 1
   %12 = load float, float* %11, align 4
-  %13 = call float @llvm.pow.f32(float %12, float 3.000000e+00)
-  %14 = getelementptr inbounds float, float* %0, i64 4
-  %15 = load float, float* %14, align 4
-  %16 = call float @llvm.pow.f32(float %15, float 3.000000e+00)
-  %17 = getelementptr inbounds float, float* %0, i64 5
-  %18 = load float, float* %17, align 4
-  %19 = call float @llvm.pow.f32(float %18, float 3.000000e+00)
-  %20 = getelementptr inbounds float, float* %0, i64 6
-  %21 = load float, float* %20, align 4
-  %22 = call float @llvm.pow.f32(float %21, float 3.000000e+00)
-  %23 = getelementptr inbounds float, float* %0, i64 7
-  %24 = load float, float* %23, align 4
-  %25 = call float @llvm.pow.f32(float %24, float 3.000000e+00)
-  %26 = insertelement <4 x float> zeroinitializer, float %4, i32 0
-  %27 = insertelement <4 x float> %26, float %7, i32 1
-  %28 = insertelement <4 x float> %27, float %10, i32 2
-  %29 = insertelement <4 x float> %28, float %13, i32 3
-  %30 = insertelement <4 x float> zeroinitializer, float %16, i32 0
-  %31 = insertelement <4 x float> %30, float %19, i32 1
-  %32 = insertelement <4 x float> %31, float %22, i32 2
-  %33 = insertelement <4 x float> %32, float %25, i32 3
-  %34 = shufflevector <4 x float> %29, <4 x float> %33, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-  %35 = extractelement <8 x float> %34, i32 0
-  store float %35, float* %1, align 4
-  %36 = extractelement <8 x float> %34, i32 1
-  %37 = getelementptr inbounds float, float* %1, i64 1
-  store float %36, float* %37, align 4
-  %38 = extractelement <8 x float> %34, i32 2
-  %39 = getelementptr inbounds float, float* %1, i64 2
-  store float %38, float* %39, align 4
-  %40 = extractelement <8 x float> %34, i32 3
-  %41 = getelementptr inbounds float, float* %1, i64 3
-  store float %40, float* %41, align 4
-  %42 = extractelement <8 x float> %34, i32 4
-  %43 = getelementptr inbounds float, float* %1, i64 4
-  store float %42, float* %43, align 4
-  %44 = extractelement <8 x float> %34, i32 5
-  %45 = getelementptr inbounds float, float* %1, i64 5
-  store float %44, float* %45, align 4
-  %46 = extractelement <8 x float> %34, i32 6
-  %47 = getelementptr inbounds float, float* %1, i64 6
-  store float %46, float* %47, align 4
-  %48 = extractelement <8 x float> %34, i32 7
-  %49 = getelementptr inbounds float, float* %1, i64 7
-  store float %48, float* %49, align 4
+  %13 = insertelement <4 x float> %10, float %12, i32 3
+  %14 = call <4 x float> @llvm.sqrt.v4f32(<4 x float> %13)
+  %15 = getelementptr inbounds float, float* %0, i64 2
+  %16 = load float, float* %15, align 4
+  %17 = insertelement <4 x float> zeroinitializer, float %16, i32 0
+  %18 = getelementptr inbounds float, float* %0, i64 2
+  %19 = load float, float* %18, align 4
+  %20 = insertelement <4 x float> %17, float %19, i32 1
+  %21 = getelementptr inbounds float, float* %0, i64 3
+  %22 = load float, float* %21, align 4
+  %23 = insertelement <4 x float> %20, float %22, i32 2
+  %24 = getelementptr inbounds float, float* %0, i64 3
+  %25 = load float, float* %24, align 4
+  %26 = insertelement <4 x float> %23, float %25, i32 3
+  %27 = call <4 x float> @llvm.sqrt.v4f32(<4 x float> %26)
+  %28 = shufflevector <4 x float> %14, <4 x float> %27, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+  %29 = getelementptr inbounds float, float* %0, i64 4
+  %30 = load float, float* %29, align 4
+  %31 = insertelement <4 x float> zeroinitializer, float %30, i32 0
+  %32 = getelementptr inbounds float, float* %0, i64 4
+  %33 = load float, float* %32, align 4
+  %34 = insertelement <4 x float> %31, float %33, i32 1
+  %35 = getelementptr inbounds float, float* %0, i64 5
+  %36 = load float, float* %35, align 4
+  %37 = insertelement <4 x float> %34, float %36, i32 2
+  %38 = getelementptr inbounds float, float* %0, i64 5
+  %39 = load float, float* %38, align 4
+  %40 = insertelement <4 x float> %37, float %39, i32 3
+  %41 = call <4 x float> @llvm.sqrt.v4f32(<4 x float> %40)
+  %42 = getelementptr inbounds float, float* %0, i64 6
+  %43 = load float, float* %42, align 4
+  %44 = insertelement <4 x float> zeroinitializer, float %43, i32 0
+  %45 = getelementptr inbounds float, float* %0, i64 6
+  %46 = load float, float* %45, align 4
+  %47 = insertelement <4 x float> %44, float %46, i32 1
+  %48 = getelementptr inbounds float, float* %0, i64 7
+  %49 = load float, float* %48, align 4
+  %50 = insertelement <4 x float> %47, float %49, i32 2
+  %51 = getelementptr inbounds float, float* %0, i64 7
+  %52 = load float, float* %51, align 4
+  %53 = insertelement <4 x float> %50, float %52, i32 3
+  %54 = call <4 x float> @llvm.sqrt.v4f32(<4 x float> %53)
+  %55 = shufflevector <4 x float> %41, <4 x float> %54, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+  %56 = shufflevector <8 x float> %28, <8 x float> %55, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+  %57 = extractelement <16 x float> %56, i32 0
+  store float %57, float* %1, align 4
+  %58 = extractelement <16 x float> %56, i32 1
+  store float %58, float* %2, align 4
+  %59 = extractelement <16 x float> %56, i32 2
+  %60 = getelementptr inbounds float, float* %1, i64 1
+  store float %59, float* %60, align 4
+  %61 = extractelement <16 x float> %56, i32 3
+  %62 = getelementptr inbounds float, float* %2, i64 1
+  store float %61, float* %62, align 4
+  %63 = extractelement <16 x float> %56, i32 4
+  %64 = getelementptr inbounds float, float* %1, i64 2
+  store float %63, float* %64, align 4
+  %65 = extractelement <16 x float> %56, i32 5
+  %66 = getelementptr inbounds float, float* %2, i64 2
+  store float %65, float* %66, align 4
+  %67 = extractelement <16 x float> %56, i32 6
+  %68 = getelementptr inbounds float, float* %1, i64 3
+  store float %67, float* %68, align 4
+  %69 = extractelement <16 x float> %56, i32 7
+  %70 = getelementptr inbounds float, float* %2, i64 3
+  store float %69, float* %70, align 4
+  %71 = extractelement <16 x float> %56, i32 8
+  %72 = getelementptr inbounds float, float* %1, i64 4
+  store float %71, float* %72, align 4
+  %73 = extractelement <16 x float> %56, i32 9
+  %74 = getelementptr inbounds float, float* %2, i64 4
+  store float %73, float* %74, align 4
+  %75 = extractelement <16 x float> %56, i32 10
+  %76 = getelementptr inbounds float, float* %1, i64 5
+  store float %75, float* %76, align 4
+  %77 = extractelement <16 x float> %56, i32 11
+  %78 = getelementptr inbounds float, float* %2, i64 5
+  store float %77, float* %78, align 4
+  %79 = extractelement <16 x float> %56, i32 12
+  %80 = getelementptr inbounds float, float* %1, i64 6
+  store float %79, float* %80, align 4
+  %81 = extractelement <16 x float> %56, i32 13
+  %82 = getelementptr inbounds float, float* %2, i64 6
+  store float %81, float* %82, align 4
+  %83 = extractelement <16 x float> %56, i32 14
+  %84 = getelementptr inbounds float, float* %1, i64 7
+  store float %83, float* %84, align 4
+  %85 = extractelement <16 x float> %56, i32 15
+  %86 = getelementptr inbounds float, float* %2, i64 7
+  store float %85, float* %86, align 4
   ret void
 }
 
 ; Function Attrs: nounwind readnone speculatable willreturn
-declare float @llvm.pow.f32(float, float) #1
+declare double @llvm.sqrt.f64(double) #1
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define i32 @main() #0 {
   %1 = alloca [8 x float], align 16
   %2 = alloca [8 x float], align 16
-  %3 = bitcast [8 x float]* %1 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %3, i8* align 16 bitcast ([8 x float]* @__const.main.a_in to i8*), i64 32, i1 false)
-  %4 = bitcast [8 x float]* %2 to i8*
-  call void @llvm.memset.p0i8.i64(i8* align 16 %4, i8 0, i64 32, i1 false)
-  %5 = getelementptr inbounds [8 x float], [8 x float]* %1, i64 0, i64 0
-  %6 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
-  call void @cube(float* %5, float* %6)
-  %7 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
-  %8 = load float, float* %7, align 4
-  %9 = fpext float %8 to double
-  %10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %9)
-  %11 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 1
-  %12 = load float, float* %11, align 4
-  %13 = fpext float %12 to double
-  %14 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %13)
-  %15 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 2
-  %16 = load float, float* %15, align 4
-  %17 = fpext float %16 to double
-  %18 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %17)
-  %19 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 3
-  %20 = load float, float* %19, align 4
-  %21 = fpext float %20 to double
-  %22 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %21)
-  %23 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 4
-  %24 = load float, float* %23, align 4
-  %25 = fpext float %24 to double
-  %26 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %25)
-  %27 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 5
-  %28 = load float, float* %27, align 4
-  %29 = fpext float %28 to double
-  %30 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %29)
-  %31 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 6
-  %32 = load float, float* %31, align 4
-  %33 = fpext float %32 to double
-  %34 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %33)
-  %35 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 7
-  %36 = load float, float* %35, align 4
-  %37 = fpext float %36 to double
-  %38 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %37)
-  %39 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
-  %40 = load float, float* %39, align 16
-  %41 = fcmp oeq float %40, 7.290000e+02
-  %42 = xor i1 %41, true
-  %43 = zext i1 %42 to i32
-  %44 = sext i32 %43 to i64
-  %45 = icmp ne i64 %44, 0
-  br i1 %45, label %46, label %47
-
-46:                                               ; preds = %0
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 18, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.2, i64 0, i64 0)) #6
-  unreachable
-
-47:                                               ; preds = %0
-  %48 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 1
-  %49 = load float, float* %48, align 4
-  %50 = fcmp oeq float %49, 5.120000e+02
-  %51 = xor i1 %50, true
-  %52 = zext i1 %51 to i32
-  %53 = sext i32 %52 to i64
-  %54 = icmp ne i64 %53, 0
-  br i1 %54, label %55, label %56
-
-55:                                               ; preds = %47
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 19, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.3, i64 0, i64 0)) #6
-  unreachable
-
-56:                                               ; preds = %47
-  %57 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 2
-  %58 = load float, float* %57, align 8
-  %59 = fcmp oeq float %58, 3.430000e+02
-  %60 = xor i1 %59, true
-  %61 = zext i1 %60 to i32
-  %62 = sext i32 %61 to i64
-  %63 = icmp ne i64 %62, 0
-  br i1 %63, label %64, label %65
-
-64:                                               ; preds = %56
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 20, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.4, i64 0, i64 0)) #6
-  unreachable
-
-65:                                               ; preds = %56
-  %66 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 3
+  %3 = alloca [8 x float], align 16
+  %4 = bitcast [8 x float]* %1 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %4, i8* align 16 bitcast ([8 x float]* @__const.main.a_in to i8*), i64 32, i1 false)
+  %5 = bitcast [8 x float]* %2 to i8*
+  call void @llvm.memset.p0i8.i64(i8* align 16 %5, i8 0, i64 32, i1 false)
+  %6 = bitcast [8 x float]* %3 to i8*
+  call void @llvm.memset.p0i8.i64(i8* align 16 %6, i8 0, i64 32, i1 false)
+  %7 = getelementptr inbounds [8 x float], [8 x float]* %1, i64 0, i64 0
+  %8 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
+  %9 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 0
+  call void @vsqrt(float* %7, float* %8, float* %9)
+  %10 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 0
+  %11 = load float, float* %10, align 4
+  %12 = fpext float %11 to double
+  %13 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %12)
+  %14 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 0
+  %15 = load float, float* %14, align 4
+  %16 = fpext float %15 to double
+  %17 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %16)
+  %18 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 1
+  %19 = load float, float* %18, align 4
+  %20 = fpext float %19 to double
+  %21 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %20)
+  %22 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 1
+  %23 = load float, float* %22, align 4
+  %24 = fpext float %23 to double
+  %25 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %24)
+  %26 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 2
+  %27 = load float, float* %26, align 4
+  %28 = fpext float %27 to double
+  %29 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %28)
+  %30 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 2
+  %31 = load float, float* %30, align 4
+  %32 = fpext float %31 to double
+  %33 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %32)
+  %34 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 3
+  %35 = load float, float* %34, align 4
+  %36 = fpext float %35 to double
+  %37 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %36)
+  %38 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 3
+  %39 = load float, float* %38, align 4
+  %40 = fpext float %39 to double
+  %41 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %40)
+  %42 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 4
+  %43 = load float, float* %42, align 4
+  %44 = fpext float %43 to double
+  %45 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %44)
+  %46 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 4
+  %47 = load float, float* %46, align 4
+  %48 = fpext float %47 to double
+  %49 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %48)
+  %50 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 5
+  %51 = load float, float* %50, align 4
+  %52 = fpext float %51 to double
+  %53 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %52)
+  %54 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 5
+  %55 = load float, float* %54, align 4
+  %56 = fpext float %55 to double
+  %57 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %56)
+  %58 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 6
+  %59 = load float, float* %58, align 4
+  %60 = fpext float %59 to double
+  %61 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %60)
+  %62 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 6
+  %63 = load float, float* %62, align 4
+  %64 = fpext float %63 to double
+  %65 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %64)
+  %66 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 7
   %67 = load float, float* %66, align 4
-  %68 = fcmp oeq float %67, 2.160000e+02
-  %69 = xor i1 %68, true
-  %70 = zext i1 %69 to i32
-  %71 = sext i32 %70 to i64
-  %72 = icmp ne i64 %71, 0
-  br i1 %72, label %73, label %74
-
-73:                                               ; preds = %65
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 21, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.5, i64 0, i64 0)) #6
-  unreachable
-
-74:                                               ; preds = %65
-  %75 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 4
-  %76 = load float, float* %75, align 16
-  %77 = fcmp oeq float %76, 1.250000e+02
-  %78 = xor i1 %77, true
-  %79 = zext i1 %78 to i32
-  %80 = sext i32 %79 to i64
-  %81 = icmp ne i64 %80, 0
-  br i1 %81, label %82, label %83
-
-82:                                               ; preds = %74
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 22, i8* getelementptr inbounds ([16 x i8], [16 x i8]* @.str.6, i64 0, i64 0)) #6
-  unreachable
-
-83:                                               ; preds = %74
-  %84 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 5
-  %85 = load float, float* %84, align 4
-  %86 = fcmp oeq float %85, 6.400000e+01
-  %87 = xor i1 %86, true
-  %88 = zext i1 %87 to i32
-  %89 = sext i32 %88 to i64
-  %90 = icmp ne i64 %89, 0
-  br i1 %90, label %91, label %92
-
-91:                                               ; preds = %83
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 23, i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str.7, i64 0, i64 0)) #6
-  unreachable
-
-92:                                               ; preds = %83
-  %93 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 6
-  %94 = load float, float* %93, align 8
-  %95 = fcmp oeq float %94, 2.700000e+01
-  %96 = xor i1 %95, true
-  %97 = zext i1 %96 to i32
-  %98 = sext i32 %97 to i64
-  %99 = icmp ne i64 %98, 0
-  br i1 %99, label %100, label %101
-
-100:                                              ; preds = %92
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 24, i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str.8, i64 0, i64 0)) #6
-  unreachable
-
-101:                                              ; preds = %92
-  %102 = getelementptr inbounds [8 x float], [8 x float]* %2, i64 0, i64 7
-  %103 = load float, float* %102, align 4
-  %104 = fcmp oeq float %103, 8.000000e+00
-  %105 = xor i1 %104, true
-  %106 = zext i1 %105 to i32
-  %107 = sext i32 %106 to i64
-  %108 = icmp ne i64 %107, 0
-  br i1 %108, label %109, label %110
-
-109:                                              ; preds = %101
-  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 25, i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str.9, i64 0, i64 0)) #6
-  unreachable
-
-110:                                              ; preds = %101
+  %68 = fpext float %67 to double
+  %69 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %68)
+  %70 = getelementptr inbounds [8 x float], [8 x float]* %3, i64 0, i64 7
+  %71 = load float, float* %70, align 4
+  %72 = fpext float %71 to double
+  %73 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %72)
   ret i32 0
 }
 
@@ -245,16 +203,14 @@ declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) 
 
 declare i32 @printf(i8*, ...) #4
 
-; Function Attrs: noreturn
-declare void @__assert_rtn(i8*, i8*, i32, i8*) #5
+; Function Attrs: nounwind readnone speculatable willreturn
+declare <4 x float> @llvm.sqrt.v4f32(<4 x float>) #1
 
 attributes #0 = { noinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone speculatable willreturn }
 attributes #2 = { argmemonly nounwind willreturn }
 attributes #3 = { argmemonly nounwind willreturn writeonly }
 attributes #4 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #5 = { noreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="true" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #6 = { noreturn }
 
 !llvm.module.flags = !{!0, !1}
 !llvm.ident = !{!2}
