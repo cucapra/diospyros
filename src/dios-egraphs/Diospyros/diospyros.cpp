@@ -8,9 +8,12 @@
 #include <vector>
 
 #include "llvm/IR/Argument.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
@@ -21,9 +24,9 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" void optimize(LLVMModuleRef mod, LLVMBuilderRef builder,
-                         LLVMValueRef const *bb, std::size_t size,
-                         bool last_bb);
+extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
+                         LLVMBuilderRef builder, LLVMValueRef const *bb,
+                         std::size_t size);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
@@ -209,6 +212,17 @@ extern "C" bool isa_fptrunc(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM AllocInst/LLVMValueRef AllocInst
+ */
+extern "C" bool isa_alloca(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<AllocaInst>(unwrapped);
+}
+
+/**
  * Gets constant float from LLVMValueRef value
  */
 extern "C" float get_constant_float(LLVMValueRef val) {
@@ -217,6 +231,12 @@ extern "C" float get_constant_float(LLVMValueRef val) {
         return num->getValue().convertToFloat();
     }
     return -1;
+}
+
+extern "C" LLVMValueRef build_constant_float(double n, LLVMContextRef context) {
+    LLVMContext *c = unwrap(context);
+    Type *float_type = Type::getFloatTy(*c);
+    return wrap(ConstantFP::get(float_type, n));
 }
 
 /**
@@ -300,42 +320,27 @@ struct DiospyrosPass : public FunctionPass {
     DiospyrosPass() : FunctionPass(ID) {}
 
     virtual bool runOnFunction(Function &F) {
-        // for (auto &B : F) {
-        //     Instruction *first_instr = NULL;
-        //     for (auto &I : B) {
-        //         first_instr = dyn_cast<Instruction>(&I);
-        //         break;
-        //     }
-        //     if (first_instr == NULL) {
-        //         continue;
-        //     }
-        //     std::vector<LLVMValueRef> vec = {};
-        //     for (auto &I : B) {
-        //         // errs() << I << "\n";
-        //         vec.push_back(wrap(dyn_cast<Instruction>(&I)));
-        //     }
-        //     IRBuilder<> builder(first_instr);
-        //     builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
-        //     Module *mod = F.getParent();
-        //     optimize(wrap(mod), wrap(&builder), vec.data(), vec.size());
-        // }
-
         // do not optimize on main function.
         if (F.getName() == "main") {
             return false;
         }
         bool has_changes = false;
-        int num_basic_blocks = 0;
         for (auto &B : F) {
-            ++num_basic_blocks;
-        }
-        int bb_index = 0;
-        for (auto &B : F) {
-            bool last_bb = false;
-            ++bb_index;
-            if (bb_index == num_basic_blocks) {
-                last_bb = true;
+            // We skip over basic blocks without floating point types
+            bool has_float = false;
+            for (auto &I : B) {
+                if (I.getType()->isFloatTy()) {
+                    has_float = true;
+                }
             }
+            if (!has_float) {
+                continue;
+            }
+
+            // Grab the terminator from the LLVM Basic Block
+            Instruction *terminator = B.getTerminator();
+            Instruction *cloned_terminator = terminator->clone();
+
             std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
             std::vector<LLVMValueRef> inner_vector = {};
             std::set<Value *> store_locations;
@@ -373,18 +378,21 @@ struct DiospyrosPass : public FunctionPass {
                     builder.SetInsertPoint(store_instr);
                     builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
-                    optimize(wrap(mod), wrap(&builder), vec.data(), vec.size(),
-                             last_bb && (counter == vec_length));
+                    LLVMContext &context = F.getContext();
+                    optimize(wrap(mod), wrap(&context), wrap(&builder),
+                             vec.data(), vec.size());
                 }
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());
             for (auto &I : bb_instrs) {
-                if (isa<ReturnInst>(I)) {
+                if (I->isTerminator()) {
                     I->eraseFromParent();
                 } else if (isa<StoreInst>(I)) {
                     I->eraseFromParent();
                 }
             }
+            BasicBlock::InstListType &final_instrs = B.getInstList();
+            final_instrs.push_back(cloned_terminator);
         }
 
         // for (auto &B : F) {

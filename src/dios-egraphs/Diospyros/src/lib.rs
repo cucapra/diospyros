@@ -23,8 +23,10 @@ extern "C" {
   fn isa_argument(val: LLVMValueRef) -> bool;
   fn isa_call(val: LLVMValueRef) -> bool;
   fn isa_fptrunc(val: LLVMValueRef) -> bool;
+  fn isa_alloca(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
   fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
+  fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
 }
 
 // Note: We use BTreeMaps to enforce ordering in the map
@@ -664,10 +666,10 @@ unsafe fn to_llvm(
 #[no_mangle]
 pub fn optimize(
   module: LLVMModuleRef,
+  context: LLVMContextRef,
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
   size: size_t,
-  last_bb: bool,
 ) -> () {
   unsafe {
     // llvm to egg
@@ -690,8 +692,8 @@ pub fn optimize(
       &store_map,
       &symbol_map,
       module,
+      context,
       builder,
-      last_bb,
     );
     // to_llvm(module, best, &GEPMap, &var_map, &ops_to_replace, builder);
   }
@@ -810,14 +812,18 @@ unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMV
     return Inst;
   } else if isa_constant(Inst) {
     return Inst;
+  } else if isa_alloca(Inst) {
+    let cloned_inst = LLVMInstructionClone(Inst);
+    LLVMInsertIntoBuilder(Builder, cloned_inst);
+    return cloned_inst;
   }
+  let cloned_inst = LLVMInstructionClone(Inst);
   let num_ops = LLVMGetNumOperands(Inst);
   for i in 0..num_ops {
     let operand = LLVMGetOperand(Inst, i as u32);
     let new_inst = LLVMRecursiveAdd(Builder, operand);
-    LLVMSetOperand(Inst, i as u32, new_inst);
+    LLVMSetOperand(cloned_inst, i as u32, new_inst);
   }
-  let cloned_inst = LLVMInstructionClone(Inst);
   LLVMInsertIntoBuilder(Builder, cloned_inst);
   return cloned_inst;
 }
@@ -1191,6 +1197,7 @@ unsafe fn translate_egg(
   store_map: &store_map,
   symbol_map: &symbol_map,
   builder: LLVMBuilderRef,
+  context: LLVMContextRef,
   module: LLVMModuleRef,
 ) -> LLVMValueRef {
   match enode {
@@ -1198,6 +1205,7 @@ unsafe fn translate_egg(
       .get(enode)
       .expect("Symbol Should Exist in Symbol Map."),
     VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
+    // VecLang::Num(n) => build_constant_float(*n as f64, context),
     VecLang::Get(..) => {
       let (array_name, array_offsets) = translate_get(enode, vec);
       let gep_value = gep_map
@@ -1222,7 +1230,9 @@ unsafe fn translate_egg(
       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
       for (idx, &eggid) in idvec.iter().enumerate() {
         let elt = &vec[usize::from(eggid)];
-        let elt_val = translate_egg(elt, vec, gep_map, store_map, symbol_map, builder, module);
+        let elt_val = translate_egg(
+          elt, vec, gep_map, store_map, symbol_map, builder, context, module,
+        );
         vector = LLVMBuildInsertElement(
           builder,
           vector,
@@ -1251,6 +1261,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       let right = translate_egg(
@@ -1260,9 +1271,35 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
-      translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
+      if isa_constant(left) && isa_constant(right) {
+        let mut loses_info = 1;
+        let nright = LLVMConstRealGetDouble(right, &mut loses_info);
+        let new_right = build_constant_float(nright, context);
+        let nleft = LLVMConstRealGetDouble(left, &mut loses_info);
+        let new_left = build_constant_float(nleft, context);
+        return translate_binop(
+          enode,
+          new_left,
+          new_right,
+          builder,
+          b"\0".as_ptr() as *const _,
+        );
+      } else if isa_constant(right) {
+        let mut loses_info = 1;
+        let n = LLVMConstRealGetDouble(right, &mut loses_info);
+        let new_right = build_constant_float(n, context);
+        return translate_binop(enode, left, new_right, builder, b"\0".as_ptr() as *const _);
+      } else if isa_constant(left) {
+        let mut loses_info = 1;
+        let n = LLVMConstRealGetDouble(left, &mut loses_info);
+        let new_left = build_constant_float(n, context);
+        return translate_binop(enode, new_left, right, builder, b"\0".as_ptr() as *const _);
+      } else {
+        return translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _);
+      }
     }
     VecLang::Concat([v1, v2]) => {
       let trans_v1 = translate_egg(
@@ -1272,6 +1309,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       let mut trans_v2 = translate_egg(
@@ -1281,6 +1319,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       // it turns out all vectors need to be length power of 2
@@ -1341,6 +1380,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       let trans_v1 = translate_egg(
@@ -1350,6 +1390,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       let trans_v2 = translate_egg(
@@ -1359,6 +1400,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       let vec_type = LLVMTypeOf(trans_acc);
@@ -1379,6 +1421,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       LLVMBuildFNeg(builder, neg_vector, b"\0".as_ptr() as *const _)
@@ -1391,6 +1434,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       let vec_type = LLVMTypeOf(sqrt_vec);
@@ -1409,6 +1453,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       let vec_type = LLVMTypeOf(sgn_vec);
@@ -1433,6 +1478,7 @@ unsafe fn translate_egg(
         store_map,
         symbol_map,
         builder,
+        context,
         module,
       );
       translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
@@ -1447,8 +1493,8 @@ unsafe fn egg_to_llvm(
   store_map: &store_map,
   symbol_map: &symbol_map,
   module: LLVMModuleRef,
+  context: LLVMContextRef,
   builder: LLVMBuilderRef,
-  last_bb: bool,
 ) -> () {
   // in fact this will look rather similar to translation from egg to llvm
   // the major differece is how we reconstruct loads and stores
@@ -1465,7 +1511,7 @@ unsafe fn egg_to_llvm(
     .last()
     .expect("No match for last element of vector of Egg Terms.");
   let vector = translate_egg(
-    last_enode, enode_vec, gep_map, store_map, symbol_map, builder, module,
+    last_enode, enode_vec, gep_map, store_map, symbol_map, builder, context, module,
   );
 
   // Add in the Stores
@@ -1480,11 +1526,5 @@ unsafe fn egg_to_llvm(
       let new_addr = LLVMRecursiveAdd(builder, cloned_addr);
       LLVMBuildStore(builder, extracted_value, new_addr);
     }
-    // llvm_recursive_print(store);
-  }
-
-  // Add in ret; assume void
-  if last_bb {
-    LLVMBuildRetVoid(builder);
   }
 }
