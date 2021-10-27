@@ -814,14 +814,16 @@ unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMV
     return Inst;
   } else if isa_constant(Inst) {
     return Inst;
-  } else if isa_sextint(Inst) {
-    let cloned_inst = LLVMInstructionClone(Inst);
-    for i in 0..LLVMGetNumOperands(Inst) {
-      let operand = LLVMGetOperand(Inst, i as u32);
-      assert!(isa_phi(operand));
-    }
-    LLVMInsertIntoBuilder(Builder, cloned_inst);
-    return cloned_inst;
+  } else if isa_phi(Inst) {
+    return Inst;
+  // } else if isa_sextint(Inst) {
+  //   let cloned_inst = LLVMInstructionClone(Inst);
+  //   for i in 0..LLVMGetNumOperands(Inst) {
+  //     let operand = LLVMGetOperand(Inst, i as u32);
+  //     assert!(isa_phi(operand));
+  //   }
+  //   LLVMInsertIntoBuilder(Builder, cloned_inst);
+  //   return cloned_inst;
   } else if isa_alloca(Inst) {
     let cloned_inst = LLVMInstructionClone(Inst);
     LLVMInsertIntoBuilder(Builder, cloned_inst);

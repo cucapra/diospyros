@@ -358,6 +358,16 @@ struct DiospyrosPass : public FunctionPass {
             if (!has_float) {
                 continue;
             }
+            // We also skip over all basic blocks without stores
+            bool has_store = false;
+            for (auto &I : B) {
+                if (auto *op = dyn_cast<StoreInst>(&I)) {
+                    has_store = true;
+                }
+            }
+            if (!has_store) {
+                continue;
+            }
 
             // Grab the terminator from the LLVM Basic Block
             Instruction *terminator = B.getTerminator();
