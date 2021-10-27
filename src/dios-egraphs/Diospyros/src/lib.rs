@@ -24,6 +24,8 @@ extern "C" {
   fn isa_call(val: LLVMValueRef) -> bool;
   fn isa_fptrunc(val: LLVMValueRef) -> bool;
   fn isa_alloca(val: LLVMValueRef) -> bool;
+  fn isa_phi(val: LLVMValueRef) -> bool;
+  fn isa_sextint(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
   fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
   fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
@@ -812,6 +814,14 @@ unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMV
     return Inst;
   } else if isa_constant(Inst) {
     return Inst;
+  } else if isa_sextint(Inst) {
+    let cloned_inst = LLVMInstructionClone(Inst);
+    for i in 0..LLVMGetNumOperands(Inst) {
+      let operand = LLVMGetOperand(Inst, i as u32);
+      assert!(isa_phi(operand));
+    }
+    LLVMInsertIntoBuilder(Builder, cloned_inst);
+    return cloned_inst;
   } else if isa_alloca(Inst) {
     let cloned_inst = LLVMInstructionClone(Inst);
     LLVMInsertIntoBuilder(Builder, cloned_inst);

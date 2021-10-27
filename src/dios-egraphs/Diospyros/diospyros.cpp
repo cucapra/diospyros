@@ -223,6 +223,28 @@ extern "C" bool isa_alloca(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM SExtInst/LLVMValueRef SExtInst
+ */
+extern "C" bool isa_sextint(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<SExtInst>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM PHINode/LLVMValueRef PHINode
+ */
+extern "C" bool isa_phi(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<PHINode>(unwrapped);
+}
+
+/**
  * Gets constant float from LLVMValueRef value
  */
 extern "C" float get_constant_float(LLVMValueRef val) {
