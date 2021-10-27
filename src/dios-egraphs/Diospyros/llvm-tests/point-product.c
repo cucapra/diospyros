@@ -1,5 +1,8 @@
 #include <stdio.h>
 
+void cross_product(float lhs[3], float rhs[3], float result[3])
+    __attribute__((always_inline));
+
 void cross_product(float lhs[3], float rhs[3], float result[3]) {
     result[0] = lhs[1] * rhs[2] - lhs[2] * rhs[1];
     result[1] = lhs[2] * rhs[0] - lhs[0] * rhs[2];
