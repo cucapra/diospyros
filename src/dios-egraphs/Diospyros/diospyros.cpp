@@ -245,6 +245,17 @@ extern "C" bool isa_phi(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM 	SIToFPInst/LLVMValueRef 	SIToFPInst
+ */
+extern "C" bool isa_sitofp(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<SIToFPInst>(unwrapped);
+}
+
+/**
  * Gets constant float from LLVMValueRef value
  */
 extern "C" float get_constant_float(LLVMValueRef val) {

@@ -26,6 +26,7 @@ extern "C" {
   fn isa_alloca(val: LLVMValueRef) -> bool;
   fn isa_phi(val: LLVMValueRef) -> bool;
   fn isa_sextint(val: LLVMValueRef) -> bool;
+  fn isa_sitofp(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
   fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
   fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
@@ -718,6 +719,7 @@ enum LLVMOpType {
   Bop,
   Call,
   FPTrunc,
+  SIToFP,
 }
 
 unsafe fn is_pow2(n: u32) -> bool {
@@ -859,6 +861,8 @@ unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
     return LLVMOpType::Call;
   } else if isa_fptrunc(*expr) {
     return LLVMOpType::FPTrunc;
+  } else if isa_sitofp(*expr) {
+    return LLVMOpType::SIToFP;
   } else {
     LLVMDumpValue(*expr);
     println!();
@@ -969,6 +973,76 @@ unsafe fn gep_to_egg(
   return (enode_vec, next_idx + 3);
 }
 
+unsafe fn address_to_egg(
+  expr: LLVMValueRef,
+  mut enode_vec: Vec<VecLang>,
+  next_idx: i32,
+  gep_map: &mut GEPMap,
+  store_map: &mut store_map,
+  id_map: &mut id_map,
+  symbol_map: &mut symbol_map,
+) -> (Vec<VecLang>, i32) {
+  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
+  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
+
+  let num_gep_operands = LLVMGetNumOperands(expr);
+  let mut indices = Vec::new();
+  for operand_idx in 1..num_gep_operands {
+    let array_offset = llvm_index(expr, operand_idx);
+    indices.push(array_offset);
+  }
+  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
+  let offsets_symbol = Symbol::from(&offsets_string);
+  enode_vec.push(VecLang::Symbol(offsets_symbol));
+
+  let get_node = VecLang::Get([
+    Id::from((next_idx) as usize),
+    Id::from((next_idx + 1) as usize),
+  ]);
+  (*gep_map).insert(
+    (Symbol::from(array_name), Symbol::from(&offsets_string)),
+    expr,
+  );
+  enode_vec.push(get_node);
+
+  return (enode_vec, next_idx + 3);
+}
+
+unsafe fn sitofp_to_egg(
+  expr: LLVMValueRef,
+  mut enode_vec: Vec<VecLang>,
+  next_idx: i32,
+  gep_map: &mut GEPMap,
+  store_map: &mut store_map,
+  id_map: &mut id_map,
+  symbol_map: &mut symbol_map,
+) -> (Vec<VecLang>, i32) {
+  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
+  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
+
+  let num_gep_operands = LLVMGetNumOperands(expr);
+  let mut indices = Vec::new();
+  for operand_idx in 1..num_gep_operands {
+    let array_offset = llvm_index(expr, operand_idx);
+    indices.push(array_offset);
+  }
+  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
+  let offsets_symbol = Symbol::from(&offsets_string);
+  enode_vec.push(VecLang::Symbol(offsets_symbol));
+
+  let get_node = VecLang::Get([
+    Id::from((next_idx) as usize),
+    Id::from((next_idx + 1) as usize),
+  ]);
+  (*gep_map).insert(
+    (Symbol::from(array_name), Symbol::from(&offsets_string)),
+    expr,
+  );
+  enode_vec.push(get_node);
+
+  return (enode_vec, next_idx + 3);
+}
+
 unsafe fn load_to_egg(
   expr: LLVMValueRef,
   mut enode_vec: Vec<VecLang>,
@@ -988,7 +1062,11 @@ unsafe fn load_to_egg(
       addr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
     );
   } else {
-    panic!("Load Expects its address to either be a function argument that is a pointer/array or a GEP instruction.")
+    return address_to_egg(
+      addr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    );
+    // LLVMPrint(expr);
+    // panic!("Load Expects its address to either be a function argument that is a pointer/array or a GEP instruction.")
   }
   // return ref_to_egg(addr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map);
 }
@@ -1161,6 +1239,9 @@ unsafe fn ref_to_egg(
       expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
     ),
     LLVMOpType::FPTrunc => fptrunc_to_egg(
+      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    ),
+    LLVMOpType::SIToFP => sitofp_to_egg(
       expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
     ),
   }

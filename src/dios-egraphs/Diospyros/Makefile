@@ -43,7 +43,7 @@ test-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 
 run-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
-	opt -S -always-inline --inline --mem2reg -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg clang.ll -o opt.ll
+	opt -S -always-inline --inline --mem2reg -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --aggressive-instcombine  --mem2reg clang.ll -o opt.ll
 	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) opt.ll -o finish.ll
 	opt -S --adce finish.ll -o final.ll
 	$(CLANG) final.ll
