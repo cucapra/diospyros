@@ -682,9 +682,9 @@ pub fn optimize(
     // );
 
     // optimization pass
-    eprintln!("{}", expr.pretty(10));
+    // eprintln!("{}", expr.pretty(10));
     let (_, best) = rules::run(&expr, 180, true, false);
-    eprintln!("{}", best.pretty(10));
+    // eprintln!("{}", best.pretty(10));
 
     // egg to llvm
     egg_to_llvm(

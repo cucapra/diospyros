@@ -7,15 +7,15 @@ import numpy as np
 
 def plot(files, runtimes, stds):
   print("showing plot")
-  x_pos = np.arange(len(files) / 2)
-  width = 0.2
+  x_pos = np.arange(len(files))
+  width = 0.35
   # Build the plot
   fig, ax = plt.subplots()
   bar1 = ax.bar(x_pos - width / 2, runtimes[::2], width, yerr=stds[::2], align='center', alpha=0.5, ecolor='grey', capsize=2, label='test')
   bar2 = ax.bar(x_pos + width / 2, runtimes[1::2], width, yerr=stds[1::2], align='center', alpha=0.5, ecolor='grey', capsize=2, label='orig')
   ax.set_ylabel('Time (s)')
   ax.set_xticks(x_pos)
-  ax.set_xticklabels(files[::2], rotation='vertical')
+  ax.set_xticklabels(files, rotation='vertical')
   ax.set_title('Runtimes')
   ax.yaxis.grid(True)
   ax.legend()
@@ -31,7 +31,7 @@ def run_test(file):
   print("running " + file)
   # os.popen("make emit-save test=" + file + "; clang test.ll")
   subprocess.run(["make", "emit-save", "test={}".format(file)], check=True)
-  r = subprocess.run(["clang", "test.ll"])
+  # r = subprocess.run(["clang", "test.ll"])
   # if r.stderr.readline():
   #   print("bruh")
   test = time_file("./a.out", N)
@@ -56,11 +56,11 @@ def main():
   subprocess.run(["cargo", "build"])
   direc = "llvm-tests/"
   for i, filename in enumerate(os.listdir(direc)):
-    # if i > 5: break         # test first 5
+    # if i > 7: break         # test first 7
     try:
       if filename.endswith(".c"):
         rts_test, rts_orig = run_test(direc + filename)
-        files += [filename + " test", filename + " orig"]
+        files += [filename]
         runtimes += [np.mean(rts_test), np.mean(rts_orig)]
         stds += [np.std(rts_test), np.std(rts_orig)]
         print(filename + " test: " + str(np.mean(rts_test)))
