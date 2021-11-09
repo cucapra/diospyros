@@ -256,6 +256,64 @@ extern "C" bool isa_sitofp(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM Int/LLVMValueRef 	Int
+ */
+extern "C" bool isa_integertype(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return unwrapped->getType()->isIntegerTy();
+}
+
+/**
+ * True iff a value is an LLVM IntPTr/LLVMValueRef ItPtr
+ */
+extern "C" bool isa_intptr(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    Type *t = unwrapped->getType();
+    return t->isPointerTy() && t->getContainedType(0)->isIntegerTy();
+}
+
+/**
+ * True iff a value is an LLVM Float/LLVMValueRef Float
+ */
+extern "C" bool isa_floattype(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return unwrapped->getType()->isFloatTy();
+}
+
+/**
+ * True iff a value is an LLVM 	ConstantAggregateZero/LLVMValueRef
+ * ConstantAggregateZero
+ */
+extern "C" bool isa_constaggregatezero(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<ConstantAggregateZero>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM 	bitcast/LLVMValueRef
+ * bitcast
+ */
+extern "C" bool isa_bitcast(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<BitCastInst>(unwrapped);
+}
+
+/**
  * Gets constant float from LLVMValueRef value
  */
 extern "C" float get_constant_float(LLVMValueRef val) {
@@ -422,10 +480,15 @@ struct DiospyrosPass : public FunctionPass {
                     builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
                     LLVMContext &context = F.getContext();
+                    for (auto I : vec) {
+                        errs() << *unwrap(I) << "\n";
+                    }
                     optimize(wrap(mod), wrap(&context), wrap(&builder),
                              vec.data(), vec.size());
+                    errs() << "Before0\n";
                 }
             }
+            errs() << "Before1\n";
             std::reverse(bb_instrs.begin(), bb_instrs.end());
             for (auto &I : bb_instrs) {
                 if (I->isTerminator()) {
@@ -434,8 +497,10 @@ struct DiospyrosPass : public FunctionPass {
                     I->eraseFromParent();
                 }
             }
+            errs() << "Before2\n";
             BasicBlock::InstListType &final_instrs = B.getInstList();
             final_instrs.push_back(cloned_terminator);
+            errs() << "Before3\n";
         }
 
         // for (auto &B : F) {

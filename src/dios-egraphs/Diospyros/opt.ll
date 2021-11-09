@@ -10,10 +10,10 @@ define float @sgn(float %0) #0 {
   %2 = fcmp ogt float %0, 0.000000e+00
   %3 = zext i1 %2 to i32
   %4 = fcmp olt float %0, 0.000000e+00
-  %5 = zext i1 %4 to i32
-  %6 = sub nsw i32 %3, %5
-  %7 = sitofp i32 %6 to float
-  ret float %7
+  %.neg = sext i1 %4 to i32
+  %5 = add nsw i32 %.neg, %3
+  %6 = sitofp i32 %5 to float
+  ret float %6
 }
 
 ; Function Attrs: alwaysinline nounwind ssp uwtable
@@ -24,67 +24,59 @@ define float @naive_norm(float* %0, i32 %1) #0 {
   br i1 %3, label %.lr.ph, label %._crit_edge
 
 .lr.ph:                                           ; preds = %2
-  %4 = add nsw i64 %wide.trip.count, -1
   %xtraiter = and i64 %wide.trip.count, 1
-  %5 = icmp ult i64 %4, 1
-  br i1 %5, label %._crit_edge.unr-lcssa, label %.lr.ph.new
+  %4 = icmp eq i32 %smax, 1
+  br i1 %4, label %._crit_edge.unr-lcssa, label %.lr.ph.new
 
 .lr.ph.new:                                       ; preds = %.lr.ph
-  %unroll_iter = sub i64 %wide.trip.count, %xtraiter
-  br label %6
+  %unroll_iter = and i64 %wide.trip.count, 2147483646
+  br label %5
 
-6:                                                ; preds = %6, %.lr.ph.new
-  %.013 = phi float [ 0.000000e+00, %.lr.ph.new ], [ %20, %6 ]
-  %indvars.iv2 = phi i64 [ 0, %.lr.ph.new ], [ %indvars.iv.next.1, %6 ]
-  %niter = phi i64 [ %unroll_iter, %.lr.ph.new ], [ %niter.nsub.1, %6 ]
-  %7 = getelementptr inbounds float, float* %0, i64 %indvars.iv2
-  %8 = load float, float* %7, align 4
-  %9 = fpext float %8 to double
-  %10 = call double @llvm.pow.f64(double %9, double 2.000000e+00)
-  %11 = fpext float %.013 to double
-  %12 = fadd double %11, %10
-  %13 = fptrunc double %12 to float
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv2, 1
-  %niter.nsub = sub i64 %niter, 1
-  %14 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next
-  %15 = load float, float* %14, align 4
-  %16 = fpext float %15 to double
-  %17 = call double @llvm.pow.f64(double %16, double 2.000000e+00)
-  %18 = fpext float %13 to double
-  %19 = fadd double %18, %17
-  %20 = fptrunc double %19 to float
-  %indvars.iv.next.1 = add nuw nsw i64 %indvars.iv.next, 1
-  %niter.nsub.1 = sub i64 %niter.nsub, 1
-  %niter.ncmp.1 = icmp ne i64 %niter.nsub.1, 0
-  br i1 %niter.ncmp.1, label %6, label %._crit_edge.unr-lcssa
+5:                                                ; preds = %5, %.lr.ph.new
+  %.013 = phi float [ 0.000000e+00, %.lr.ph.new ], [ %17, %5 ]
+  %indvars.iv2 = phi i64 [ 0, %.lr.ph.new ], [ %indvars.iv.next.1, %5 ]
+  %niter = phi i64 [ %unroll_iter, %.lr.ph.new ], [ %niter.nsub.1, %5 ]
+  %6 = getelementptr inbounds float, float* %0, i64 %indvars.iv2
+  %7 = load float, float* %6, align 4
+  %8 = fpext float %7 to double
+  %square = fmul double %8, %8
+  %9 = fpext float %.013 to double
+  %10 = fadd double %square, %9
+  %11 = fptrunc double %10 to float
+  %indvars.iv.next = or i64 %indvars.iv2, 1
+  %12 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next
+  %13 = load float, float* %12, align 4
+  %14 = fpext float %13 to double
+  %square4 = fmul double %14, %14
+  %15 = fpext float %11 to double
+  %16 = fadd double %square4, %15
+  %17 = fptrunc double %16 to float
+  %indvars.iv.next.1 = add nuw nsw i64 %indvars.iv2, 2
+  %niter.nsub.1 = add i64 %niter, -2
+  %niter.ncmp.1.not = icmp eq i64 %niter.nsub.1, 0
+  br i1 %niter.ncmp.1.not, label %._crit_edge.unr-lcssa, label %5
 
-._crit_edge.unr-lcssa:                            ; preds = %6, %.lr.ph
-  %split.ph = phi float [ undef, %.lr.ph ], [ %20, %6 ]
-  %.013.unr = phi float [ 0.000000e+00, %.lr.ph ], [ %20, %6 ]
-  %indvars.iv2.unr = phi i64 [ 0, %.lr.ph ], [ %indvars.iv.next.1, %6 ]
-  %lcmp.mod = icmp ne i64 %xtraiter, 0
-  br i1 %lcmp.mod, label %.epil.preheader, label %._crit_edge
+._crit_edge.unr-lcssa:                            ; preds = %5, %.lr.ph
+  %split.ph = phi float [ undef, %.lr.ph ], [ %17, %5 ]
+  %.013.unr = phi float [ 0.000000e+00, %.lr.ph ], [ %17, %5 ]
+  %indvars.iv2.unr = phi i64 [ 0, %.lr.ph ], [ %indvars.iv.next.1, %5 ]
+  %lcmp.mod.not = icmp eq i64 %xtraiter, 0
+  br i1 %lcmp.mod.not, label %._crit_edge, label %.epil.preheader
 
 .epil.preheader:                                  ; preds = %._crit_edge.unr-lcssa
-  %.013.epil = phi float [ %.013.unr, %._crit_edge.unr-lcssa ]
-  %indvars.iv2.epil = phi i64 [ %indvars.iv2.unr, %._crit_edge.unr-lcssa ]
-  %21 = getelementptr inbounds float, float* %0, i64 %indvars.iv2.epil
-  %22 = load float, float* %21, align 4
-  %23 = fpext float %22 to double
-  %24 = call double @llvm.pow.f64(double %23, double 2.000000e+00)
-  %25 = fpext float %.013.epil to double
-  %26 = fadd double %25, %24
-  %27 = fptrunc double %26 to float
-  %indvars.iv.next.epil = add nuw nsw i64 %indvars.iv2.epil, 1
-  %exitcond.epil = icmp ne i64 %indvars.iv.next.epil, %wide.trip.count
+  %18 = getelementptr inbounds float, float* %0, i64 %indvars.iv2.unr
+  %19 = load float, float* %18, align 4
+  %20 = fpext float %19 to double
+  %square5 = fmul double %20, %20
+  %21 = fpext float %.013.unr to double
+  %22 = fadd double %square5, %21
+  %23 = fptrunc double %22 to float
   br label %._crit_edge
 
-._crit_edge:                                      ; preds = %.epil.preheader, %._crit_edge.unr-lcssa, %2
-  %.01.lcssa = phi float [ 0.000000e+00, %2 ], [ %split.ph, %._crit_edge.unr-lcssa ], [ %27, %.epil.preheader ]
-  %28 = fpext float %.01.lcssa to double
-  %29 = call double @llvm.sqrt.f64(double %28)
-  %30 = fptrunc double %29 to float
-  ret float %30
+._crit_edge:                                      ; preds = %._crit_edge.unr-lcssa, %.epil.preheader, %2
+  %.01.lcssa = phi float [ 0.000000e+00, %2 ], [ %split.ph, %._crit_edge.unr-lcssa ], [ %23, %.epil.preheader ]
+  %24 = call float @llvm.sqrt.f32(float %.01.lcssa)
+  ret float %24
 }
 
 ; Function Attrs: nounwind readnone speculatable willreturn
@@ -97,90 +89,110 @@ declare double @llvm.sqrt.f64(double) #1
 define void @naive_fixed_transpose(float* %0) #0 {
 .lr.ph:
   %1 = getelementptr inbounds float, float* %0, i64 1
-  %2 = load float, float* %1, align 4
-  %3 = getelementptr inbounds float, float* %0, i64 4
-  %4 = load float, float* %3, align 4
-  %5 = getelementptr inbounds float, float* %0, i64 1
-  store float %4, float* %5, align 4
-  %6 = getelementptr inbounds float, float* %0, i64 4
-  store float %2, float* %6, align 4
-  br label %7
+  %2 = bitcast float* %1 to i32*
+  %3 = load i32, i32* %2, align 4
+  %4 = getelementptr inbounds float, float* %0, i64 4
+  %5 = bitcast float* %4 to i32*
+  %6 = load i32, i32* %5, align 4
+  %7 = getelementptr inbounds float, float* %0, i64 1
+  %8 = bitcast float* %7 to i32*
+  store i32 %6, i32* %8, align 4
+  %9 = getelementptr inbounds float, float* %0, i64 4
+  %10 = bitcast float* %9 to i32*
+  store i32 %3, i32* %10, align 4
+  br label %11
 
-7:                                                ; preds = %7, %.lr.ph
-  %indvars.iv25 = phi i64 [ 2, %.lr.ph ], [ %indvars.iv.next3.1, %7 ]
-  %8 = add nuw nsw i64 0, %indvars.iv25
-  %9 = getelementptr inbounds float, float* %0, i64 %8
-  %10 = load float, float* %9, align 4
-  %11 = mul nuw nsw i64 %indvars.iv25, 4
-  %12 = getelementptr inbounds float, float* %0, i64 %11
-  %13 = load float, float* %12, align 4
-  %14 = add nuw nsw i64 0, %indvars.iv25
-  %15 = getelementptr inbounds float, float* %0, i64 %14
-  store float %13, float* %15, align 4
-  %16 = mul nuw nsw i64 %indvars.iv25, 4
-  %17 = getelementptr inbounds float, float* %0, i64 %16
-  store float %10, float* %17, align 4
-  %indvars.iv.next3 = add nuw nsw i64 %indvars.iv25, 1
-  %18 = add nuw nsw i64 0, %indvars.iv.next3
-  %19 = getelementptr inbounds float, float* %0, i64 %18
-  %20 = load float, float* %19, align 4
-  %21 = mul nuw nsw i64 %indvars.iv.next3, 4
+11:                                               ; preds = %11, %.lr.ph
+  %indvars.iv25 = phi i64 [ 2, %.lr.ph ], [ %indvars.iv.next3.1, %11 ]
+  %12 = getelementptr inbounds float, float* %0, i64 %indvars.iv25
+  %13 = bitcast float* %12 to i32*
+  %14 = load i32, i32* %13, align 4
+  %15 = shl nuw nsw i64 %indvars.iv25, 2
+  %16 = getelementptr inbounds float, float* %0, i64 %15
+  %17 = bitcast float* %16 to i32*
+  %18 = load i32, i32* %17, align 4
+  %19 = getelementptr inbounds float, float* %0, i64 %indvars.iv25
+  %20 = bitcast float* %19 to i32*
+  store i32 %18, i32* %20, align 4
+  %21 = shl nuw nsw i64 %indvars.iv25, 2
   %22 = getelementptr inbounds float, float* %0, i64 %21
-  %23 = load float, float* %22, align 4
-  %24 = add nuw nsw i64 0, %indvars.iv.next3
-  %25 = getelementptr inbounds float, float* %0, i64 %24
-  store float %23, float* %25, align 4
-  %26 = mul nuw nsw i64 %indvars.iv.next3, 4
-  %27 = getelementptr inbounds float, float* %0, i64 %26
-  store float %20, float* %27, align 4
-  %indvars.iv.next3.1 = add nuw nsw i64 %indvars.iv.next3, 1
-  %exitcond.1 = icmp ne i64 %indvars.iv.next3.1, 4
-  br i1 %exitcond.1, label %7, label %.lr.ph.new.1
+  %23 = bitcast float* %22 to i32*
+  store i32 %14, i32* %23, align 4
+  %indvars.iv.next3 = or i64 %indvars.iv25, 1
+  %24 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next3
+  %25 = bitcast float* %24 to i32*
+  %26 = load i32, i32* %25, align 4
+  %27 = shl nuw nsw i64 %indvars.iv.next3, 2
+  %28 = getelementptr inbounds float, float* %0, i64 %27
+  %29 = bitcast float* %28 to i32*
+  %30 = load i32, i32* %29, align 4
+  %31 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next3
+  %32 = bitcast float* %31 to i32*
+  store i32 %30, i32* %32, align 4
+  %33 = shl nuw nsw i64 %indvars.iv.next3, 2
+  %34 = getelementptr inbounds float, float* %0, i64 %33
+  %35 = bitcast float* %34 to i32*
+  store i32 %26, i32* %35, align 4
+  %indvars.iv.next3.1 = add nuw nsw i64 %indvars.iv25, 2
+  %exitcond.1.not = icmp eq i64 %indvars.iv.next3.1, 4
+  br i1 %exitcond.1.not, label %.lr.ph.new.1, label %11
 
-.lr.ph.new.1:                                     ; preds = %7, %.lr.ph.new.1
-  %indvars.iv25.1 = phi i64 [ %indvars.iv.next3.1.1, %.lr.ph.new.1 ], [ 2, %7 ]
-  %28 = add nuw nsw i64 4, %indvars.iv25.1
-  %29 = getelementptr inbounds float, float* %0, i64 %28
-  %30 = load float, float* %29, align 4
-  %31 = mul nuw nsw i64 %indvars.iv25.1, 4
-  %32 = add nuw nsw i64 %31, 1
-  %33 = getelementptr inbounds float, float* %0, i64 %32
-  %34 = load float, float* %33, align 4
-  %35 = add nuw nsw i64 4, %indvars.iv25.1
-  %36 = getelementptr inbounds float, float* %0, i64 %35
-  store float %34, float* %36, align 4
-  %37 = mul nuw nsw i64 %indvars.iv25.1, 4
-  %38 = add nuw nsw i64 %37, 1
-  %39 = getelementptr inbounds float, float* %0, i64 %38
-  store float %30, float* %39, align 4
-  %indvars.iv.next3.113 = add nuw nsw i64 %indvars.iv25.1, 1
-  %40 = add nuw nsw i64 4, %indvars.iv.next3.113
-  %41 = getelementptr inbounds float, float* %0, i64 %40
-  %42 = load float, float* %41, align 4
-  %43 = mul nuw nsw i64 %indvars.iv.next3.113, 4
-  %44 = add nuw nsw i64 %43, 1
-  %45 = getelementptr inbounds float, float* %0, i64 %44
-  %46 = load float, float* %45, align 4
-  %47 = add nuw nsw i64 4, %indvars.iv.next3.113
-  %48 = getelementptr inbounds float, float* %0, i64 %47
-  store float %46, float* %48, align 4
-  %49 = mul nuw nsw i64 %indvars.iv.next3.113, 4
-  %50 = add nuw nsw i64 %49, 1
-  %51 = getelementptr inbounds float, float* %0, i64 %50
-  store float %42, float* %51, align 4
-  %indvars.iv.next3.1.1 = add nuw nsw i64 %indvars.iv.next3.113, 1
-  %exitcond.1.1 = icmp ne i64 %indvars.iv.next3.1.1, 4
-  br i1 %exitcond.1.1, label %.lr.ph.new.1, label %.prol.preheader.2
+.lr.ph.new.1:                                     ; preds = %.lr.ph.new.1, %11
+  %indvars.iv25.1 = phi i64 [ %indvars.iv.next3.1.1, %.lr.ph.new.1 ], [ 2, %11 ]
+  %36 = add nuw nsw i64 %indvars.iv25.1, 4
+  %37 = getelementptr inbounds float, float* %0, i64 %36
+  %38 = bitcast float* %37 to i32*
+  %39 = load i32, i32* %38, align 4
+  %40 = shl nuw nsw i64 %indvars.iv25.1, 2
+  %41 = or i64 %40, 1
+  %42 = getelementptr inbounds float, float* %0, i64 %41
+  %43 = bitcast float* %42 to i32*
+  %44 = load i32, i32* %43, align 4
+  %45 = add nuw nsw i64 %indvars.iv25.1, 4
+  %46 = getelementptr inbounds float, float* %0, i64 %45
+  %47 = bitcast float* %46 to i32*
+  store i32 %44, i32* %47, align 4
+  %48 = shl nuw nsw i64 %indvars.iv25.1, 2
+  %49 = or i64 %48, 1
+  %50 = getelementptr inbounds float, float* %0, i64 %49
+  %51 = bitcast float* %50 to i32*
+  store i32 %39, i32* %51, align 4
+  %indvars.iv.next3.113 = or i64 %indvars.iv25.1, 1
+  %52 = add nuw nsw i64 %indvars.iv25.1, 5
+  %53 = getelementptr inbounds float, float* %0, i64 %52
+  %54 = bitcast float* %53 to i32*
+  %55 = load i32, i32* %54, align 4
+  %56 = shl nuw nsw i64 %indvars.iv.next3.113, 2
+  %57 = or i64 %56, 1
+  %58 = getelementptr inbounds float, float* %0, i64 %57
+  %59 = bitcast float* %58 to i32*
+  %60 = load i32, i32* %59, align 4
+  %61 = add nuw nsw i64 %indvars.iv25.1, 5
+  %62 = getelementptr inbounds float, float* %0, i64 %61
+  %63 = bitcast float* %62 to i32*
+  store i32 %60, i32* %63, align 4
+  %64 = shl nuw nsw i64 %indvars.iv.next3.113, 2
+  %65 = or i64 %64, 1
+  %66 = getelementptr inbounds float, float* %0, i64 %65
+  %67 = bitcast float* %66 to i32*
+  store i32 %55, i32* %67, align 4
+  %indvars.iv.next3.1.1 = add nuw nsw i64 %indvars.iv25.1, 2
+  %exitcond.1.1.not = icmp eq i64 %indvars.iv.next3.1.1, 4
+  br i1 %exitcond.1.1.not, label %.prol.preheader.2, label %.lr.ph.new.1
 
 .prol.preheader.2:                                ; preds = %.lr.ph.new.1
-  %52 = getelementptr inbounds float, float* %0, i64 11
-  %53 = load float, float* %52, align 4
-  %54 = getelementptr inbounds float, float* %0, i64 14
-  %55 = load float, float* %54, align 4
-  %56 = getelementptr inbounds float, float* %0, i64 11
-  store float %55, float* %56, align 4
-  %57 = getelementptr inbounds float, float* %0, i64 14
-  store float %53, float* %57, align 4
+  %68 = getelementptr inbounds float, float* %0, i64 11
+  %69 = bitcast float* %68 to i32*
+  %70 = load i32, i32* %69, align 4
+  %71 = getelementptr inbounds float, float* %0, i64 14
+  %72 = bitcast float* %71 to i32*
+  %73 = load i32, i32* %72, align 4
+  %74 = getelementptr inbounds float, float* %0, i64 11
+  %75 = bitcast float* %74 to i32*
+  store i32 %73, i32* %75, align 4
+  %76 = getelementptr inbounds float, float* %0, i64 14
+  %77 = bitcast float* %76 to i32*
+  store i32 %70, i32* %77, align 4
   ret void
 }
 
@@ -191,4207 +203,3278 @@ define void @naive_fixed_matrix_multiply(float* %0, float* %1, float* %2) #0 {
   %3 = load float, float* %0, align 4
   %4 = load float, float* %1, align 4
   %5 = fmul float %3, %4
-  %6 = load float, float* %2, align 4
-  %7 = fadd float %6, %5
-  store float %7, float* %2, align 4
-  %8 = getelementptr inbounds float, float* %0, i64 1
-  %9 = load float, float* %8, align 4
-  %10 = getelementptr inbounds float, float* %1, i64 4
-  %11 = load float, float* %10, align 4
-  %12 = fmul float %9, %11
-  %13 = load float, float* %2, align 4
-  %14 = fadd float %13, %12
-  store float %14, float* %2, align 4
-  %15 = getelementptr inbounds float, float* %0, i64 2
+  %6 = fadd float %5, 0.000000e+00
+  store float %6, float* %2, align 4
+  %7 = getelementptr inbounds float, float* %0, i64 1
+  %8 = load float, float* %7, align 4
+  %9 = getelementptr inbounds float, float* %1, i64 4
+  %10 = load float, float* %9, align 4
+  %11 = fmul float %8, %10
+  %12 = fadd float %6, %11
+  store float %12, float* %2, align 4
+  %13 = getelementptr inbounds float, float* %0, i64 2
+  %14 = load float, float* %13, align 4
+  %15 = getelementptr inbounds float, float* %1, i64 8
   %16 = load float, float* %15, align 4
-  %17 = getelementptr inbounds float, float* %1, i64 8
-  %18 = load float, float* %17, align 4
-  %19 = fmul float %16, %18
-  %20 = load float, float* %2, align 4
-  %21 = fadd float %20, %19
-  store float %21, float* %2, align 4
-  %22 = getelementptr inbounds float, float* %0, i64 3
-  %23 = load float, float* %22, align 4
-  %24 = getelementptr inbounds float, float* %1, i64 12
-  %25 = load float, float* %24, align 4
-  %26 = fmul float %23, %25
-  %27 = load float, float* %2, align 4
-  %28 = fadd float %27, %26
-  store float %28, float* %2, align 4
-  %29 = getelementptr inbounds float, float* %2, i64 1
-  store float 0.000000e+00, float* %29, align 4
-  %30 = getelementptr inbounds float, float* %2, i64 1
-  %31 = load float, float* %0, align 4
-  %32 = getelementptr inbounds float, float* %1, i64 1
+  %17 = fmul float %14, %16
+  %18 = fadd float %12, %17
+  store float %18, float* %2, align 4
+  %19 = getelementptr inbounds float, float* %0, i64 3
+  %20 = load float, float* %19, align 4
+  %21 = getelementptr inbounds float, float* %1, i64 12
+  %22 = load float, float* %21, align 4
+  %23 = fmul float %20, %22
+  %24 = fadd float %18, %23
+  store float %24, float* %2, align 4
+  %25 = getelementptr inbounds float, float* %2, i64 1
+  store float 0.000000e+00, float* %25, align 4
+  %26 = getelementptr inbounds float, float* %2, i64 1
+  %27 = load float, float* %0, align 4
+  %28 = getelementptr inbounds float, float* %1, i64 1
+  %29 = load float, float* %28, align 4
+  %30 = fmul float %27, %29
+  %31 = fadd float %30, 0.000000e+00
+  store float %31, float* %26, align 4
+  %32 = getelementptr inbounds float, float* %0, i64 1
   %33 = load float, float* %32, align 4
-  %34 = fmul float %31, %33
-  %35 = load float, float* %30, align 4
-  %36 = fadd float %35, %34
-  store float %36, float* %30, align 4
-  %37 = getelementptr inbounds float, float* %0, i64 1
-  %38 = load float, float* %37, align 4
-  %39 = getelementptr inbounds float, float* %1, i64 5
-  %40 = load float, float* %39, align 4
-  %41 = fmul float %38, %40
-  %42 = load float, float* %30, align 4
-  %43 = fadd float %42, %41
-  store float %43, float* %30, align 4
-  %44 = getelementptr inbounds float, float* %0, i64 2
+  %34 = getelementptr inbounds float, float* %1, i64 5
+  %35 = load float, float* %34, align 4
+  %36 = fmul float %33, %35
+  %37 = fadd float %31, %36
+  store float %37, float* %26, align 4
+  %38 = getelementptr inbounds float, float* %0, i64 2
+  %39 = load float, float* %38, align 4
+  %40 = getelementptr inbounds float, float* %1, i64 9
+  %41 = load float, float* %40, align 4
+  %42 = fmul float %39, %41
+  %43 = fadd float %37, %42
+  store float %43, float* %26, align 4
+  %44 = getelementptr inbounds float, float* %0, i64 3
   %45 = load float, float* %44, align 4
-  %46 = getelementptr inbounds float, float* %1, i64 9
+  %46 = getelementptr inbounds float, float* %1, i64 13
   %47 = load float, float* %46, align 4
   %48 = fmul float %45, %47
-  %49 = load float, float* %30, align 4
-  %50 = fadd float %49, %48
-  store float %50, float* %30, align 4
-  %51 = getelementptr inbounds float, float* %0, i64 3
-  %52 = load float, float* %51, align 4
-  %53 = getelementptr inbounds float, float* %1, i64 13
+  %49 = fadd float %43, %48
+  store float %49, float* %26, align 4
+  %50 = getelementptr inbounds float, float* %2, i64 2
+  store float 0.000000e+00, float* %50, align 4
+  %51 = getelementptr inbounds float, float* %2, i64 2
+  %52 = load float, float* %0, align 4
+  %53 = getelementptr inbounds float, float* %1, i64 2
   %54 = load float, float* %53, align 4
   %55 = fmul float %52, %54
-  %56 = load float, float* %30, align 4
-  %57 = fadd float %56, %55
-  store float %57, float* %30, align 4
-  %58 = getelementptr inbounds float, float* %2, i64 2
-  store float 0.000000e+00, float* %58, align 4
-  %59 = getelementptr inbounds float, float* %2, i64 2
-  %60 = load float, float* %0, align 4
-  %61 = getelementptr inbounds float, float* %1, i64 2
-  %62 = load float, float* %61, align 4
-  %63 = fmul float %60, %62
-  %64 = load float, float* %59, align 4
-  %65 = fadd float %64, %63
-  store float %65, float* %59, align 4
-  %66 = getelementptr inbounds float, float* %0, i64 1
-  %67 = load float, float* %66, align 4
-  %68 = getelementptr inbounds float, float* %1, i64 6
-  %69 = load float, float* %68, align 4
-  %70 = fmul float %67, %69
-  %71 = load float, float* %59, align 4
-  %72 = fadd float %71, %70
-  store float %72, float* %59, align 4
-  %73 = getelementptr inbounds float, float* %0, i64 2
-  %74 = load float, float* %73, align 4
-  %75 = getelementptr inbounds float, float* %1, i64 10
-  %76 = load float, float* %75, align 4
-  %77 = fmul float %74, %76
-  %78 = load float, float* %59, align 4
-  %79 = fadd float %78, %77
-  store float %79, float* %59, align 4
-  %80 = getelementptr inbounds float, float* %0, i64 3
-  %81 = load float, float* %80, align 4
-  %82 = getelementptr inbounds float, float* %1, i64 14
+  %56 = fadd float %55, 0.000000e+00
+  store float %56, float* %51, align 4
+  %57 = getelementptr inbounds float, float* %0, i64 1
+  %58 = load float, float* %57, align 4
+  %59 = getelementptr inbounds float, float* %1, i64 6
+  %60 = load float, float* %59, align 4
+  %61 = fmul float %58, %60
+  %62 = fadd float %56, %61
+  store float %62, float* %51, align 4
+  %63 = getelementptr inbounds float, float* %0, i64 2
+  %64 = load float, float* %63, align 4
+  %65 = getelementptr inbounds float, float* %1, i64 10
+  %66 = load float, float* %65, align 4
+  %67 = fmul float %64, %66
+  %68 = fadd float %62, %67
+  store float %68, float* %51, align 4
+  %69 = getelementptr inbounds float, float* %0, i64 3
+  %70 = load float, float* %69, align 4
+  %71 = getelementptr inbounds float, float* %1, i64 14
+  %72 = load float, float* %71, align 4
+  %73 = fmul float %70, %72
+  %74 = fadd float %68, %73
+  store float %74, float* %51, align 4
+  %75 = getelementptr inbounds float, float* %2, i64 3
+  store float 0.000000e+00, float* %75, align 4
+  %76 = getelementptr inbounds float, float* %2, i64 3
+  %77 = load float, float* %0, align 4
+  %78 = getelementptr inbounds float, float* %1, i64 3
+  %79 = load float, float* %78, align 4
+  %80 = fmul float %77, %79
+  %81 = fadd float %80, 0.000000e+00
+  store float %81, float* %76, align 4
+  %82 = getelementptr inbounds float, float* %0, i64 1
   %83 = load float, float* %82, align 4
-  %84 = fmul float %81, %83
-  %85 = load float, float* %59, align 4
-  %86 = fadd float %85, %84
-  store float %86, float* %59, align 4
-  %87 = getelementptr inbounds float, float* %2, i64 3
-  store float 0.000000e+00, float* %87, align 4
-  %88 = getelementptr inbounds float, float* %2, i64 3
-  %89 = load float, float* %0, align 4
-  %90 = getelementptr inbounds float, float* %1, i64 3
+  %84 = getelementptr inbounds float, float* %1, i64 7
+  %85 = load float, float* %84, align 4
+  %86 = fmul float %83, %85
+  %87 = fadd float %81, %86
+  store float %87, float* %76, align 4
+  %88 = getelementptr inbounds float, float* %0, i64 2
+  %89 = load float, float* %88, align 4
+  %90 = getelementptr inbounds float, float* %1, i64 11
   %91 = load float, float* %90, align 4
   %92 = fmul float %89, %91
-  %93 = load float, float* %88, align 4
-  %94 = fadd float %93, %92
-  store float %94, float* %88, align 4
-  %95 = getelementptr inbounds float, float* %0, i64 1
-  %96 = load float, float* %95, align 4
-  %97 = getelementptr inbounds float, float* %1, i64 7
-  %98 = load float, float* %97, align 4
-  %99 = fmul float %96, %98
-  %100 = load float, float* %88, align 4
-  %101 = fadd float %100, %99
-  store float %101, float* %88, align 4
-  %102 = getelementptr inbounds float, float* %0, i64 2
-  %103 = load float, float* %102, align 4
-  %104 = getelementptr inbounds float, float* %1, i64 11
-  %105 = load float, float* %104, align 4
-  %106 = fmul float %103, %105
-  %107 = load float, float* %88, align 4
-  %108 = fadd float %107, %106
-  store float %108, float* %88, align 4
-  %109 = getelementptr inbounds float, float* %0, i64 3
+  %93 = fadd float %87, %92
+  store float %93, float* %76, align 4
+  %94 = getelementptr inbounds float, float* %0, i64 3
+  %95 = load float, float* %94, align 4
+  %96 = getelementptr inbounds float, float* %1, i64 15
+  %97 = load float, float* %96, align 4
+  %98 = fmul float %95, %97
+  %99 = fadd float %93, %98
+  store float %99, float* %76, align 4
+  %100 = getelementptr inbounds float, float* %0, i64 4
+  %101 = getelementptr inbounds float, float* %2, i64 4
+  store float 0.000000e+00, float* %101, align 4
+  %102 = getelementptr inbounds float, float* %2, i64 4
+  %103 = load float, float* %100, align 4
+  %104 = load float, float* %1, align 4
+  %105 = fmul float %103, %104
+  %106 = fadd float %105, 0.000000e+00
+  store float %106, float* %102, align 4
+  %107 = getelementptr inbounds float, float* %0, i64 5
+  %108 = load float, float* %107, align 4
+  %109 = getelementptr inbounds float, float* %1, i64 4
   %110 = load float, float* %109, align 4
-  %111 = getelementptr inbounds float, float* %1, i64 15
-  %112 = load float, float* %111, align 4
-  %113 = fmul float %110, %112
-  %114 = load float, float* %88, align 4
-  %115 = fadd float %114, %113
-  store float %115, float* %88, align 4
-  %116 = getelementptr inbounds float, float* %0, i64 4
-  %117 = getelementptr inbounds float, float* %2, i64 4
-  store float 0.000000e+00, float* %117, align 4
-  %118 = getelementptr inbounds float, float* %2, i64 4
-  %119 = load float, float* %116, align 4
-  %120 = load float, float* %1, align 4
-  %121 = fmul float %119, %120
-  %122 = load float, float* %118, align 4
-  %123 = fadd float %122, %121
-  store float %123, float* %118, align 4
-  %124 = getelementptr inbounds float, float* %0, i64 5
-  %125 = load float, float* %124, align 4
-  %126 = getelementptr inbounds float, float* %1, i64 4
-  %127 = load float, float* %126, align 4
-  %128 = fmul float %125, %127
-  %129 = load float, float* %118, align 4
-  %130 = fadd float %129, %128
-  store float %130, float* %118, align 4
-  %131 = getelementptr inbounds float, float* %0, i64 6
-  %132 = load float, float* %131, align 4
-  %133 = getelementptr inbounds float, float* %1, i64 8
-  %134 = load float, float* %133, align 4
-  %135 = fmul float %132, %134
-  %136 = load float, float* %118, align 4
-  %137 = fadd float %136, %135
-  store float %137, float* %118, align 4
-  %138 = getelementptr inbounds float, float* %0, i64 7
+  %111 = fmul float %108, %110
+  %112 = fadd float %106, %111
+  store float %112, float* %102, align 4
+  %113 = getelementptr inbounds float, float* %0, i64 6
+  %114 = load float, float* %113, align 4
+  %115 = getelementptr inbounds float, float* %1, i64 8
+  %116 = load float, float* %115, align 4
+  %117 = fmul float %114, %116
+  %118 = fadd float %112, %117
+  store float %118, float* %102, align 4
+  %119 = getelementptr inbounds float, float* %0, i64 7
+  %120 = load float, float* %119, align 4
+  %121 = getelementptr inbounds float, float* %1, i64 12
+  %122 = load float, float* %121, align 4
+  %123 = fmul float %120, %122
+  %124 = fadd float %118, %123
+  store float %124, float* %102, align 4
+  %125 = getelementptr inbounds float, float* %2, i64 5
+  store float 0.000000e+00, float* %125, align 4
+  %126 = getelementptr inbounds float, float* %2, i64 5
+  %127 = load float, float* %100, align 4
+  %128 = getelementptr inbounds float, float* %1, i64 1
+  %129 = load float, float* %128, align 4
+  %130 = fmul float %127, %129
+  %131 = fadd float %130, 0.000000e+00
+  store float %131, float* %126, align 4
+  %132 = getelementptr inbounds float, float* %0, i64 5
+  %133 = load float, float* %132, align 4
+  %134 = getelementptr inbounds float, float* %1, i64 5
+  %135 = load float, float* %134, align 4
+  %136 = fmul float %133, %135
+  %137 = fadd float %131, %136
+  store float %137, float* %126, align 4
+  %138 = getelementptr inbounds float, float* %0, i64 6
   %139 = load float, float* %138, align 4
-  %140 = getelementptr inbounds float, float* %1, i64 12
+  %140 = getelementptr inbounds float, float* %1, i64 9
   %141 = load float, float* %140, align 4
   %142 = fmul float %139, %141
-  %143 = load float, float* %118, align 4
-  %144 = fadd float %143, %142
-  store float %144, float* %118, align 4
-  %145 = getelementptr inbounds float, float* %2, i64 5
-  store float 0.000000e+00, float* %145, align 4
-  %146 = getelementptr inbounds float, float* %2, i64 5
-  %147 = load float, float* %116, align 4
-  %148 = getelementptr inbounds float, float* %1, i64 1
-  %149 = load float, float* %148, align 4
-  %150 = fmul float %147, %149
-  %151 = load float, float* %146, align 4
-  %152 = fadd float %151, %150
-  store float %152, float* %146, align 4
-  %153 = getelementptr inbounds float, float* %0, i64 5
+  %143 = fadd float %137, %142
+  store float %143, float* %126, align 4
+  %144 = getelementptr inbounds float, float* %0, i64 7
+  %145 = load float, float* %144, align 4
+  %146 = getelementptr inbounds float, float* %1, i64 13
+  %147 = load float, float* %146, align 4
+  %148 = fmul float %145, %147
+  %149 = fadd float %143, %148
+  store float %149, float* %126, align 4
+  %150 = getelementptr inbounds float, float* %2, i64 6
+  store float 0.000000e+00, float* %150, align 4
+  %151 = getelementptr inbounds float, float* %2, i64 6
+  %152 = load float, float* %100, align 4
+  %153 = getelementptr inbounds float, float* %1, i64 2
   %154 = load float, float* %153, align 4
-  %155 = getelementptr inbounds float, float* %1, i64 5
-  %156 = load float, float* %155, align 4
-  %157 = fmul float %154, %156
-  %158 = load float, float* %146, align 4
-  %159 = fadd float %158, %157
-  store float %159, float* %146, align 4
-  %160 = getelementptr inbounds float, float* %0, i64 6
-  %161 = load float, float* %160, align 4
-  %162 = getelementptr inbounds float, float* %1, i64 9
-  %163 = load float, float* %162, align 4
-  %164 = fmul float %161, %163
-  %165 = load float, float* %146, align 4
-  %166 = fadd float %165, %164
-  store float %166, float* %146, align 4
-  %167 = getelementptr inbounds float, float* %0, i64 7
-  %168 = load float, float* %167, align 4
-  %169 = getelementptr inbounds float, float* %1, i64 13
+  %155 = fmul float %152, %154
+  %156 = fadd float %155, 0.000000e+00
+  store float %156, float* %151, align 4
+  %157 = getelementptr inbounds float, float* %0, i64 5
+  %158 = load float, float* %157, align 4
+  %159 = getelementptr inbounds float, float* %1, i64 6
+  %160 = load float, float* %159, align 4
+  %161 = fmul float %158, %160
+  %162 = fadd float %156, %161
+  store float %162, float* %151, align 4
+  %163 = getelementptr inbounds float, float* %0, i64 6
+  %164 = load float, float* %163, align 4
+  %165 = getelementptr inbounds float, float* %1, i64 10
+  %166 = load float, float* %165, align 4
+  %167 = fmul float %164, %166
+  %168 = fadd float %162, %167
+  store float %168, float* %151, align 4
+  %169 = getelementptr inbounds float, float* %0, i64 7
   %170 = load float, float* %169, align 4
-  %171 = fmul float %168, %170
-  %172 = load float, float* %146, align 4
-  %173 = fadd float %172, %171
-  store float %173, float* %146, align 4
-  %174 = getelementptr inbounds float, float* %2, i64 6
-  store float 0.000000e+00, float* %174, align 4
-  %175 = getelementptr inbounds float, float* %2, i64 6
-  %176 = load float, float* %116, align 4
-  %177 = getelementptr inbounds float, float* %1, i64 2
-  %178 = load float, float* %177, align 4
-  %179 = fmul float %176, %178
-  %180 = load float, float* %175, align 4
-  %181 = fadd float %180, %179
-  store float %181, float* %175, align 4
+  %171 = getelementptr inbounds float, float* %1, i64 14
+  %172 = load float, float* %171, align 4
+  %173 = fmul float %170, %172
+  %174 = fadd float %168, %173
+  store float %174, float* %151, align 4
+  %175 = getelementptr inbounds float, float* %2, i64 7
+  store float 0.000000e+00, float* %175, align 4
+  %176 = getelementptr inbounds float, float* %2, i64 7
+  %177 = load float, float* %100, align 4
+  %178 = getelementptr inbounds float, float* %1, i64 3
+  %179 = load float, float* %178, align 4
+  %180 = fmul float %177, %179
+  %181 = fadd float %180, 0.000000e+00
+  store float %181, float* %176, align 4
   %182 = getelementptr inbounds float, float* %0, i64 5
   %183 = load float, float* %182, align 4
-  %184 = getelementptr inbounds float, float* %1, i64 6
+  %184 = getelementptr inbounds float, float* %1, i64 7
   %185 = load float, float* %184, align 4
   %186 = fmul float %183, %185
-  %187 = load float, float* %175, align 4
-  %188 = fadd float %187, %186
-  store float %188, float* %175, align 4
-  %189 = getelementptr inbounds float, float* %0, i64 6
-  %190 = load float, float* %189, align 4
-  %191 = getelementptr inbounds float, float* %1, i64 10
-  %192 = load float, float* %191, align 4
-  %193 = fmul float %190, %192
-  %194 = load float, float* %175, align 4
-  %195 = fadd float %194, %193
-  store float %195, float* %175, align 4
-  %196 = getelementptr inbounds float, float* %0, i64 7
+  %187 = fadd float %181, %186
+  store float %187, float* %176, align 4
+  %188 = getelementptr inbounds float, float* %0, i64 6
+  %189 = load float, float* %188, align 4
+  %190 = getelementptr inbounds float, float* %1, i64 11
+  %191 = load float, float* %190, align 4
+  %192 = fmul float %189, %191
+  %193 = fadd float %187, %192
+  store float %193, float* %176, align 4
+  %194 = getelementptr inbounds float, float* %0, i64 7
+  %195 = load float, float* %194, align 4
+  %196 = getelementptr inbounds float, float* %1, i64 15
   %197 = load float, float* %196, align 4
-  %198 = getelementptr inbounds float, float* %1, i64 14
-  %199 = load float, float* %198, align 4
-  %200 = fmul float %197, %199
-  %201 = load float, float* %175, align 4
-  %202 = fadd float %201, %200
-  store float %202, float* %175, align 4
-  %203 = getelementptr inbounds float, float* %2, i64 7
-  store float 0.000000e+00, float* %203, align 4
-  %204 = getelementptr inbounds float, float* %2, i64 7
-  %205 = load float, float* %116, align 4
-  %206 = getelementptr inbounds float, float* %1, i64 3
-  %207 = load float, float* %206, align 4
-  %208 = fmul float %205, %207
-  %209 = load float, float* %204, align 4
-  %210 = fadd float %209, %208
-  store float %210, float* %204, align 4
-  %211 = getelementptr inbounds float, float* %0, i64 5
-  %212 = load float, float* %211, align 4
-  %213 = getelementptr inbounds float, float* %1, i64 7
+  %198 = fmul float %195, %197
+  %199 = fadd float %193, %198
+  store float %199, float* %176, align 4
+  %200 = getelementptr inbounds float, float* %0, i64 8
+  %201 = getelementptr inbounds float, float* %2, i64 8
+  store float 0.000000e+00, float* %201, align 4
+  %202 = getelementptr inbounds float, float* %2, i64 8
+  %203 = load float, float* %200, align 4
+  %204 = load float, float* %1, align 4
+  %205 = fmul float %203, %204
+  %206 = fadd float %205, 0.000000e+00
+  store float %206, float* %202, align 4
+  %207 = getelementptr inbounds float, float* %0, i64 9
+  %208 = load float, float* %207, align 4
+  %209 = getelementptr inbounds float, float* %1, i64 4
+  %210 = load float, float* %209, align 4
+  %211 = fmul float %208, %210
+  %212 = fadd float %206, %211
+  store float %212, float* %202, align 4
+  %213 = getelementptr inbounds float, float* %0, i64 10
   %214 = load float, float* %213, align 4
-  %215 = fmul float %212, %214
-  %216 = load float, float* %204, align 4
-  %217 = fadd float %216, %215
-  store float %217, float* %204, align 4
-  %218 = getelementptr inbounds float, float* %0, i64 6
-  %219 = load float, float* %218, align 4
-  %220 = getelementptr inbounds float, float* %1, i64 11
-  %221 = load float, float* %220, align 4
-  %222 = fmul float %219, %221
-  %223 = load float, float* %204, align 4
-  %224 = fadd float %223, %222
-  store float %224, float* %204, align 4
-  %225 = getelementptr inbounds float, float* %0, i64 7
-  %226 = load float, float* %225, align 4
-  %227 = getelementptr inbounds float, float* %1, i64 15
-  %228 = load float, float* %227, align 4
-  %229 = fmul float %226, %228
-  %230 = load float, float* %204, align 4
-  %231 = fadd float %230, %229
-  store float %231, float* %204, align 4
-  %232 = getelementptr inbounds float, float* %0, i64 8
-  %233 = getelementptr inbounds float, float* %2, i64 8
-  store float 0.000000e+00, float* %233, align 4
-  %234 = getelementptr inbounds float, float* %2, i64 8
-  %235 = load float, float* %232, align 4
-  %236 = load float, float* %1, align 4
-  %237 = fmul float %235, %236
-  %238 = load float, float* %234, align 4
-  %239 = fadd float %238, %237
-  store float %239, float* %234, align 4
-  %240 = getelementptr inbounds float, float* %0, i64 9
+  %215 = getelementptr inbounds float, float* %1, i64 8
+  %216 = load float, float* %215, align 4
+  %217 = fmul float %214, %216
+  %218 = fadd float %212, %217
+  store float %218, float* %202, align 4
+  %219 = getelementptr inbounds float, float* %0, i64 11
+  %220 = load float, float* %219, align 4
+  %221 = getelementptr inbounds float, float* %1, i64 12
+  %222 = load float, float* %221, align 4
+  %223 = fmul float %220, %222
+  %224 = fadd float %218, %223
+  store float %224, float* %202, align 4
+  %225 = getelementptr inbounds float, float* %2, i64 9
+  store float 0.000000e+00, float* %225, align 4
+  %226 = getelementptr inbounds float, float* %2, i64 9
+  %227 = load float, float* %200, align 4
+  %228 = getelementptr inbounds float, float* %1, i64 1
+  %229 = load float, float* %228, align 4
+  %230 = fmul float %227, %229
+  %231 = fadd float %230, 0.000000e+00
+  store float %231, float* %226, align 4
+  %232 = getelementptr inbounds float, float* %0, i64 9
+  %233 = load float, float* %232, align 4
+  %234 = getelementptr inbounds float, float* %1, i64 5
+  %235 = load float, float* %234, align 4
+  %236 = fmul float %233, %235
+  %237 = fadd float %231, %236
+  store float %237, float* %226, align 4
+  %238 = getelementptr inbounds float, float* %0, i64 10
+  %239 = load float, float* %238, align 4
+  %240 = getelementptr inbounds float, float* %1, i64 9
   %241 = load float, float* %240, align 4
-  %242 = getelementptr inbounds float, float* %1, i64 4
-  %243 = load float, float* %242, align 4
-  %244 = fmul float %241, %243
-  %245 = load float, float* %234, align 4
-  %246 = fadd float %245, %244
-  store float %246, float* %234, align 4
-  %247 = getelementptr inbounds float, float* %0, i64 10
-  %248 = load float, float* %247, align 4
-  %249 = getelementptr inbounds float, float* %1, i64 8
-  %250 = load float, float* %249, align 4
-  %251 = fmul float %248, %250
-  %252 = load float, float* %234, align 4
-  %253 = fadd float %252, %251
-  store float %253, float* %234, align 4
-  %254 = getelementptr inbounds float, float* %0, i64 11
-  %255 = load float, float* %254, align 4
-  %256 = getelementptr inbounds float, float* %1, i64 12
-  %257 = load float, float* %256, align 4
-  %258 = fmul float %255, %257
-  %259 = load float, float* %234, align 4
-  %260 = fadd float %259, %258
-  store float %260, float* %234, align 4
-  %261 = getelementptr inbounds float, float* %2, i64 9
-  store float 0.000000e+00, float* %261, align 4
-  %262 = getelementptr inbounds float, float* %2, i64 9
-  %263 = load float, float* %232, align 4
-  %264 = getelementptr inbounds float, float* %1, i64 1
-  %265 = load float, float* %264, align 4
-  %266 = fmul float %263, %265
-  %267 = load float, float* %262, align 4
-  %268 = fadd float %267, %266
-  store float %268, float* %262, align 4
-  %269 = getelementptr inbounds float, float* %0, i64 9
+  %242 = fmul float %239, %241
+  %243 = fadd float %237, %242
+  store float %243, float* %226, align 4
+  %244 = getelementptr inbounds float, float* %0, i64 11
+  %245 = load float, float* %244, align 4
+  %246 = getelementptr inbounds float, float* %1, i64 13
+  %247 = load float, float* %246, align 4
+  %248 = fmul float %245, %247
+  %249 = fadd float %243, %248
+  store float %249, float* %226, align 4
+  %250 = getelementptr inbounds float, float* %2, i64 10
+  store float 0.000000e+00, float* %250, align 4
+  %251 = getelementptr inbounds float, float* %2, i64 10
+  %252 = load float, float* %200, align 4
+  %253 = getelementptr inbounds float, float* %1, i64 2
+  %254 = load float, float* %253, align 4
+  %255 = fmul float %252, %254
+  %256 = fadd float %255, 0.000000e+00
+  store float %256, float* %251, align 4
+  %257 = getelementptr inbounds float, float* %0, i64 9
+  %258 = load float, float* %257, align 4
+  %259 = getelementptr inbounds float, float* %1, i64 6
+  %260 = load float, float* %259, align 4
+  %261 = fmul float %258, %260
+  %262 = fadd float %256, %261
+  store float %262, float* %251, align 4
+  %263 = getelementptr inbounds float, float* %0, i64 10
+  %264 = load float, float* %263, align 4
+  %265 = getelementptr inbounds float, float* %1, i64 10
+  %266 = load float, float* %265, align 4
+  %267 = fmul float %264, %266
+  %268 = fadd float %262, %267
+  store float %268, float* %251, align 4
+  %269 = getelementptr inbounds float, float* %0, i64 11
   %270 = load float, float* %269, align 4
-  %271 = getelementptr inbounds float, float* %1, i64 5
+  %271 = getelementptr inbounds float, float* %1, i64 14
   %272 = load float, float* %271, align 4
   %273 = fmul float %270, %272
-  %274 = load float, float* %262, align 4
-  %275 = fadd float %274, %273
-  store float %275, float* %262, align 4
-  %276 = getelementptr inbounds float, float* %0, i64 10
-  %277 = load float, float* %276, align 4
-  %278 = getelementptr inbounds float, float* %1, i64 9
+  %274 = fadd float %268, %273
+  store float %274, float* %251, align 4
+  %275 = getelementptr inbounds float, float* %2, i64 11
+  store float 0.000000e+00, float* %275, align 4
+  %276 = getelementptr inbounds float, float* %2, i64 11
+  %277 = load float, float* %200, align 4
+  %278 = getelementptr inbounds float, float* %1, i64 3
   %279 = load float, float* %278, align 4
   %280 = fmul float %277, %279
-  %281 = load float, float* %262, align 4
-  %282 = fadd float %281, %280
-  store float %282, float* %262, align 4
-  %283 = getelementptr inbounds float, float* %0, i64 11
-  %284 = load float, float* %283, align 4
-  %285 = getelementptr inbounds float, float* %1, i64 13
-  %286 = load float, float* %285, align 4
-  %287 = fmul float %284, %286
-  %288 = load float, float* %262, align 4
-  %289 = fadd float %288, %287
-  store float %289, float* %262, align 4
-  %290 = getelementptr inbounds float, float* %2, i64 10
-  store float 0.000000e+00, float* %290, align 4
-  %291 = getelementptr inbounds float, float* %2, i64 10
-  %292 = load float, float* %232, align 4
-  %293 = getelementptr inbounds float, float* %1, i64 2
-  %294 = load float, float* %293, align 4
-  %295 = fmul float %292, %294
-  %296 = load float, float* %291, align 4
-  %297 = fadd float %296, %295
-  store float %297, float* %291, align 4
-  %298 = getelementptr inbounds float, float* %0, i64 9
-  %299 = load float, float* %298, align 4
-  %300 = getelementptr inbounds float, float* %1, i64 6
-  %301 = load float, float* %300, align 4
-  %302 = fmul float %299, %301
-  %303 = load float, float* %291, align 4
-  %304 = fadd float %303, %302
-  store float %304, float* %291, align 4
-  %305 = getelementptr inbounds float, float* %0, i64 10
-  %306 = load float, float* %305, align 4
-  %307 = getelementptr inbounds float, float* %1, i64 10
+  %281 = fadd float %280, 0.000000e+00
+  store float %281, float* %276, align 4
+  %282 = getelementptr inbounds float, float* %0, i64 9
+  %283 = load float, float* %282, align 4
+  %284 = getelementptr inbounds float, float* %1, i64 7
+  %285 = load float, float* %284, align 4
+  %286 = fmul float %283, %285
+  %287 = fadd float %281, %286
+  store float %287, float* %276, align 4
+  %288 = getelementptr inbounds float, float* %0, i64 10
+  %289 = load float, float* %288, align 4
+  %290 = getelementptr inbounds float, float* %1, i64 11
+  %291 = load float, float* %290, align 4
+  %292 = fmul float %289, %291
+  %293 = fadd float %287, %292
+  store float %293, float* %276, align 4
+  %294 = getelementptr inbounds float, float* %0, i64 11
+  %295 = load float, float* %294, align 4
+  %296 = getelementptr inbounds float, float* %1, i64 15
+  %297 = load float, float* %296, align 4
+  %298 = fmul float %295, %297
+  %299 = fadd float %293, %298
+  store float %299, float* %276, align 4
+  %300 = getelementptr inbounds float, float* %0, i64 12
+  %301 = getelementptr inbounds float, float* %2, i64 12
+  store float 0.000000e+00, float* %301, align 4
+  %302 = getelementptr inbounds float, float* %2, i64 12
+  %303 = load float, float* %300, align 4
+  %304 = load float, float* %1, align 4
+  %305 = fmul float %303, %304
+  %306 = fadd float %305, 0.000000e+00
+  store float %306, float* %302, align 4
+  %307 = getelementptr inbounds float, float* %0, i64 13
   %308 = load float, float* %307, align 4
-  %309 = fmul float %306, %308
-  %310 = load float, float* %291, align 4
-  %311 = fadd float %310, %309
-  store float %311, float* %291, align 4
-  %312 = getelementptr inbounds float, float* %0, i64 11
-  %313 = load float, float* %312, align 4
-  %314 = getelementptr inbounds float, float* %1, i64 14
-  %315 = load float, float* %314, align 4
-  %316 = fmul float %313, %315
-  %317 = load float, float* %291, align 4
-  %318 = fadd float %317, %316
-  store float %318, float* %291, align 4
-  %319 = getelementptr inbounds float, float* %2, i64 11
-  store float 0.000000e+00, float* %319, align 4
-  %320 = getelementptr inbounds float, float* %2, i64 11
-  %321 = load float, float* %232, align 4
-  %322 = getelementptr inbounds float, float* %1, i64 3
-  %323 = load float, float* %322, align 4
-  %324 = fmul float %321, %323
-  %325 = load float, float* %320, align 4
-  %326 = fadd float %325, %324
-  store float %326, float* %320, align 4
-  %327 = getelementptr inbounds float, float* %0, i64 9
-  %328 = load float, float* %327, align 4
-  %329 = getelementptr inbounds float, float* %1, i64 7
-  %330 = load float, float* %329, align 4
-  %331 = fmul float %328, %330
-  %332 = load float, float* %320, align 4
-  %333 = fadd float %332, %331
-  store float %333, float* %320, align 4
-  %334 = getelementptr inbounds float, float* %0, i64 10
+  %309 = getelementptr inbounds float, float* %1, i64 4
+  %310 = load float, float* %309, align 4
+  %311 = fmul float %308, %310
+  %312 = fadd float %306, %311
+  store float %312, float* %302, align 4
+  %313 = getelementptr inbounds float, float* %0, i64 14
+  %314 = load float, float* %313, align 4
+  %315 = getelementptr inbounds float, float* %1, i64 8
+  %316 = load float, float* %315, align 4
+  %317 = fmul float %314, %316
+  %318 = fadd float %312, %317
+  store float %318, float* %302, align 4
+  %319 = getelementptr inbounds float, float* %0, i64 15
+  %320 = load float, float* %319, align 4
+  %321 = getelementptr inbounds float, float* %1, i64 12
+  %322 = load float, float* %321, align 4
+  %323 = fmul float %320, %322
+  %324 = fadd float %318, %323
+  store float %324, float* %302, align 4
+  %325 = getelementptr inbounds float, float* %2, i64 13
+  store float 0.000000e+00, float* %325, align 4
+  %326 = getelementptr inbounds float, float* %2, i64 13
+  %327 = load float, float* %300, align 4
+  %328 = getelementptr inbounds float, float* %1, i64 1
+  %329 = load float, float* %328, align 4
+  %330 = fmul float %327, %329
+  %331 = fadd float %330, 0.000000e+00
+  store float %331, float* %326, align 4
+  %332 = getelementptr inbounds float, float* %0, i64 13
+  %333 = load float, float* %332, align 4
+  %334 = getelementptr inbounds float, float* %1, i64 5
   %335 = load float, float* %334, align 4
-  %336 = getelementptr inbounds float, float* %1, i64 11
-  %337 = load float, float* %336, align 4
-  %338 = fmul float %335, %337
-  %339 = load float, float* %320, align 4
-  %340 = fadd float %339, %338
-  store float %340, float* %320, align 4
-  %341 = getelementptr inbounds float, float* %0, i64 11
-  %342 = load float, float* %341, align 4
-  %343 = getelementptr inbounds float, float* %1, i64 15
-  %344 = load float, float* %343, align 4
-  %345 = fmul float %342, %344
-  %346 = load float, float* %320, align 4
-  %347 = fadd float %346, %345
-  store float %347, float* %320, align 4
-  %348 = getelementptr inbounds float, float* %0, i64 12
-  %349 = getelementptr inbounds float, float* %2, i64 12
-  store float 0.000000e+00, float* %349, align 4
-  %350 = getelementptr inbounds float, float* %2, i64 12
-  %351 = load float, float* %348, align 4
-  %352 = load float, float* %1, align 4
-  %353 = fmul float %351, %352
-  %354 = load float, float* %350, align 4
-  %355 = fadd float %354, %353
-  store float %355, float* %350, align 4
-  %356 = getelementptr inbounds float, float* %0, i64 13
-  %357 = load float, float* %356, align 4
-  %358 = getelementptr inbounds float, float* %1, i64 4
-  %359 = load float, float* %358, align 4
-  %360 = fmul float %357, %359
-  %361 = load float, float* %350, align 4
-  %362 = fadd float %361, %360
-  store float %362, float* %350, align 4
+  %336 = fmul float %333, %335
+  %337 = fadd float %331, %336
+  store float %337, float* %326, align 4
+  %338 = getelementptr inbounds float, float* %0, i64 14
+  %339 = load float, float* %338, align 4
+  %340 = getelementptr inbounds float, float* %1, i64 9
+  %341 = load float, float* %340, align 4
+  %342 = fmul float %339, %341
+  %343 = fadd float %337, %342
+  store float %343, float* %326, align 4
+  %344 = getelementptr inbounds float, float* %0, i64 15
+  %345 = load float, float* %344, align 4
+  %346 = getelementptr inbounds float, float* %1, i64 13
+  %347 = load float, float* %346, align 4
+  %348 = fmul float %345, %347
+  %349 = fadd float %343, %348
+  store float %349, float* %326, align 4
+  %350 = getelementptr inbounds float, float* %2, i64 14
+  store float 0.000000e+00, float* %350, align 4
+  %351 = getelementptr inbounds float, float* %2, i64 14
+  %352 = load float, float* %300, align 4
+  %353 = getelementptr inbounds float, float* %1, i64 2
+  %354 = load float, float* %353, align 4
+  %355 = fmul float %352, %354
+  %356 = fadd float %355, 0.000000e+00
+  store float %356, float* %351, align 4
+  %357 = getelementptr inbounds float, float* %0, i64 13
+  %358 = load float, float* %357, align 4
+  %359 = getelementptr inbounds float, float* %1, i64 6
+  %360 = load float, float* %359, align 4
+  %361 = fmul float %358, %360
+  %362 = fadd float %356, %361
+  store float %362, float* %351, align 4
   %363 = getelementptr inbounds float, float* %0, i64 14
   %364 = load float, float* %363, align 4
-  %365 = getelementptr inbounds float, float* %1, i64 8
+  %365 = getelementptr inbounds float, float* %1, i64 10
   %366 = load float, float* %365, align 4
   %367 = fmul float %364, %366
-  %368 = load float, float* %350, align 4
-  %369 = fadd float %368, %367
-  store float %369, float* %350, align 4
-  %370 = getelementptr inbounds float, float* %0, i64 15
-  %371 = load float, float* %370, align 4
-  %372 = getelementptr inbounds float, float* %1, i64 12
-  %373 = load float, float* %372, align 4
-  %374 = fmul float %371, %373
-  %375 = load float, float* %350, align 4
-  %376 = fadd float %375, %374
-  store float %376, float* %350, align 4
-  %377 = getelementptr inbounds float, float* %2, i64 13
-  store float 0.000000e+00, float* %377, align 4
-  %378 = getelementptr inbounds float, float* %2, i64 13
-  %379 = load float, float* %348, align 4
-  %380 = getelementptr inbounds float, float* %1, i64 1
-  %381 = load float, float* %380, align 4
-  %382 = fmul float %379, %381
-  %383 = load float, float* %378, align 4
-  %384 = fadd float %383, %382
-  store float %384, float* %378, align 4
-  %385 = getelementptr inbounds float, float* %0, i64 13
-  %386 = load float, float* %385, align 4
-  %387 = getelementptr inbounds float, float* %1, i64 5
-  %388 = load float, float* %387, align 4
-  %389 = fmul float %386, %388
-  %390 = load float, float* %378, align 4
-  %391 = fadd float %390, %389
-  store float %391, float* %378, align 4
-  %392 = getelementptr inbounds float, float* %0, i64 14
-  %393 = load float, float* %392, align 4
-  %394 = getelementptr inbounds float, float* %1, i64 9
+  %368 = fadd float %362, %367
+  store float %368, float* %351, align 4
+  %369 = getelementptr inbounds float, float* %0, i64 15
+  %370 = load float, float* %369, align 4
+  %371 = getelementptr inbounds float, float* %1, i64 14
+  %372 = load float, float* %371, align 4
+  %373 = fmul float %370, %372
+  %374 = fadd float %368, %373
+  store float %374, float* %351, align 4
+  %375 = getelementptr inbounds float, float* %2, i64 15
+  store float 0.000000e+00, float* %375, align 4
+  %376 = getelementptr inbounds float, float* %2, i64 15
+  %377 = load float, float* %300, align 4
+  %378 = getelementptr inbounds float, float* %1, i64 3
+  %379 = load float, float* %378, align 4
+  %380 = fmul float %377, %379
+  %381 = fadd float %380, 0.000000e+00
+  store float %381, float* %376, align 4
+  %382 = getelementptr inbounds float, float* %0, i64 13
+  %383 = load float, float* %382, align 4
+  %384 = getelementptr inbounds float, float* %1, i64 7
+  %385 = load float, float* %384, align 4
+  %386 = fmul float %383, %385
+  %387 = fadd float %381, %386
+  store float %387, float* %376, align 4
+  %388 = getelementptr inbounds float, float* %0, i64 14
+  %389 = load float, float* %388, align 4
+  %390 = getelementptr inbounds float, float* %1, i64 11
+  %391 = load float, float* %390, align 4
+  %392 = fmul float %389, %391
+  %393 = fadd float %387, %392
+  store float %393, float* %376, align 4
+  %394 = getelementptr inbounds float, float* %0, i64 15
   %395 = load float, float* %394, align 4
-  %396 = fmul float %393, %395
-  %397 = load float, float* %378, align 4
-  %398 = fadd float %397, %396
-  store float %398, float* %378, align 4
-  %399 = getelementptr inbounds float, float* %0, i64 15
-  %400 = load float, float* %399, align 4
-  %401 = getelementptr inbounds float, float* %1, i64 13
-  %402 = load float, float* %401, align 4
-  %403 = fmul float %400, %402
-  %404 = load float, float* %378, align 4
-  %405 = fadd float %404, %403
-  store float %405, float* %378, align 4
-  %406 = getelementptr inbounds float, float* %2, i64 14
-  store float 0.000000e+00, float* %406, align 4
-  %407 = getelementptr inbounds float, float* %2, i64 14
-  %408 = load float, float* %348, align 4
-  %409 = getelementptr inbounds float, float* %1, i64 2
-  %410 = load float, float* %409, align 4
-  %411 = fmul float %408, %410
-  %412 = load float, float* %407, align 4
-  %413 = fadd float %412, %411
-  store float %413, float* %407, align 4
-  %414 = getelementptr inbounds float, float* %0, i64 13
-  %415 = load float, float* %414, align 4
-  %416 = getelementptr inbounds float, float* %1, i64 6
-  %417 = load float, float* %416, align 4
-  %418 = fmul float %415, %417
-  %419 = load float, float* %407, align 4
-  %420 = fadd float %419, %418
-  store float %420, float* %407, align 4
-  %421 = getelementptr inbounds float, float* %0, i64 14
-  %422 = load float, float* %421, align 4
-  %423 = getelementptr inbounds float, float* %1, i64 10
-  %424 = load float, float* %423, align 4
-  %425 = fmul float %422, %424
-  %426 = load float, float* %407, align 4
-  %427 = fadd float %426, %425
-  store float %427, float* %407, align 4
-  %428 = getelementptr inbounds float, float* %0, i64 15
-  %429 = load float, float* %428, align 4
-  %430 = getelementptr inbounds float, float* %1, i64 14
-  %431 = load float, float* %430, align 4
-  %432 = fmul float %429, %431
-  %433 = load float, float* %407, align 4
-  %434 = fadd float %433, %432
-  store float %434, float* %407, align 4
-  %435 = getelementptr inbounds float, float* %2, i64 15
-  store float 0.000000e+00, float* %435, align 4
-  %436 = getelementptr inbounds float, float* %2, i64 15
-  %437 = load float, float* %348, align 4
-  %438 = getelementptr inbounds float, float* %1, i64 3
-  %439 = load float, float* %438, align 4
-  %440 = fmul float %437, %439
-  %441 = load float, float* %436, align 4
-  %442 = fadd float %441, %440
-  store float %442, float* %436, align 4
-  %443 = getelementptr inbounds float, float* %0, i64 13
-  %444 = load float, float* %443, align 4
-  %445 = getelementptr inbounds float, float* %1, i64 7
-  %446 = load float, float* %445, align 4
-  %447 = fmul float %444, %446
-  %448 = load float, float* %436, align 4
-  %449 = fadd float %448, %447
-  store float %449, float* %436, align 4
-  %450 = getelementptr inbounds float, float* %0, i64 14
-  %451 = load float, float* %450, align 4
-  %452 = getelementptr inbounds float, float* %1, i64 11
-  %453 = load float, float* %452, align 4
-  %454 = fmul float %451, %453
-  %455 = load float, float* %436, align 4
-  %456 = fadd float %455, %454
-  store float %456, float* %436, align 4
-  %457 = getelementptr inbounds float, float* %0, i64 15
-  %458 = load float, float* %457, align 4
-  %459 = getelementptr inbounds float, float* %1, i64 15
-  %460 = load float, float* %459, align 4
-  %461 = fmul float %458, %460
-  %462 = load float, float* %436, align 4
-  %463 = fadd float %462, %461
-  store float %463, float* %436, align 4
+  %396 = getelementptr inbounds float, float* %1, i64 15
+  %397 = load float, float* %396, align 4
+  %398 = fmul float %395, %397
+  %399 = fadd float %393, %398
+  store float %399, float* %376, align 4
   ret void
 }
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define void @naive_fixed_qr_decomp(float* %0, float* %1, float* %2) #2 {
-.preheader33:
+.preheader26:
   %3 = bitcast float* %2 to i8*
   %4 = bitcast float* %0 to i8*
   %5 = bitcast float* %2 to i8*
   %6 = call i64 @llvm.objectsize.i64.p0i8(i8* %5, i1 false, i1 true, i1 false)
-  %7 = call i8* @__memcpy_chk(i8* %3, i8* %4, i64 64, i64 %6) #8
-  %8 = call i8* @calloc(i64 4, i64 16) #9
+  %7 = call i8* @__memcpy_chk(i8* %3, i8* %4, i64 64, i64 %6) #7
+  %8 = call dereferenceable_or_null(64) i8* @calloc(i64 4, i64 16) #8
   %9 = bitcast i8* %8 to float*
   store float 1.000000e+00, float* %9, align 4
-  %10 = getelementptr inbounds float, float* %9, i64 1
-  store float 0.000000e+00, float* %10, align 4
-  %11 = getelementptr inbounds float, float* %9, i64 2
+  %10 = getelementptr inbounds i8, i8* %8, i64 4
+  %11 = bitcast i8* %10 to float*
   store float 0.000000e+00, float* %11, align 4
-  %12 = getelementptr inbounds float, float* %9, i64 3
-  store float 0.000000e+00, float* %12, align 4
-  %13 = getelementptr inbounds float, float* %9, i64 4
+  %12 = getelementptr inbounds i8, i8* %8, i64 8
+  %13 = bitcast i8* %12 to float*
   store float 0.000000e+00, float* %13, align 4
-  %14 = getelementptr inbounds float, float* %9, i64 5
-  store float 1.000000e+00, float* %14, align 4
-  %15 = getelementptr inbounds float, float* %9, i64 6
+  %14 = getelementptr inbounds i8, i8* %8, i64 12
+  %15 = bitcast i8* %14 to float*
   store float 0.000000e+00, float* %15, align 4
-  %16 = getelementptr inbounds float, float* %9, i64 7
-  store float 0.000000e+00, float* %16, align 4
-  %17 = getelementptr inbounds float, float* %9, i64 8
+  %16 = getelementptr inbounds i8, i8* %8, i64 16
+  %17 = bitcast i8* %16 to float*
   store float 0.000000e+00, float* %17, align 4
-  %18 = getelementptr inbounds float, float* %9, i64 9
-  store float 0.000000e+00, float* %18, align 4
-  %19 = getelementptr inbounds float, float* %9, i64 10
+  %18 = getelementptr inbounds i8, i8* %8, i64 20
+  %19 = bitcast i8* %18 to float*
   store float 1.000000e+00, float* %19, align 4
-  %20 = getelementptr inbounds float, float* %9, i64 11
-  store float 0.000000e+00, float* %20, align 4
-  %21 = getelementptr inbounds float, float* %9, i64 12
+  %20 = getelementptr inbounds i8, i8* %8, i64 24
+  %21 = bitcast i8* %20 to float*
   store float 0.000000e+00, float* %21, align 4
-  %22 = getelementptr inbounds float, float* %9, i64 13
-  store float 0.000000e+00, float* %22, align 4
-  %23 = getelementptr inbounds float, float* %9, i64 14
+  %22 = getelementptr inbounds i8, i8* %8, i64 28
+  %23 = bitcast i8* %22 to float*
   store float 0.000000e+00, float* %23, align 4
-  %24 = getelementptr inbounds float, float* %9, i64 15
-  store float 1.000000e+00, float* %24, align 4
-  %25 = bitcast float* %1 to i8*
-  %26 = bitcast float* %1 to i8*
-  %27 = call i64 @llvm.objectsize.i64.p0i8(i8* %26, i1 false, i1 true, i1 false)
-  %28 = bitcast float* %2 to i8*
-  %29 = bitcast float* %2 to i8*
-  %30 = call i64 @llvm.objectsize.i64.p0i8(i8* %29, i1 false, i1 true, i1 false)
-  %31 = bitcast float* %1 to i8*
-  %32 = bitcast float* %1 to i8*
-  %33 = call i64 @llvm.objectsize.i64.p0i8(i8* %32, i1 false, i1 true, i1 false)
-  %34 = call i8* @calloc(i64 4, i64 4) #9
+  %24 = getelementptr inbounds i8, i8* %8, i64 32
+  %25 = bitcast i8* %24 to float*
+  store float 0.000000e+00, float* %25, align 4
+  %26 = getelementptr inbounds i8, i8* %8, i64 36
+  %27 = bitcast i8* %26 to float*
+  store float 0.000000e+00, float* %27, align 4
+  %28 = getelementptr inbounds i8, i8* %8, i64 40
+  %29 = bitcast i8* %28 to float*
+  store float 1.000000e+00, float* %29, align 4
+  %30 = getelementptr inbounds i8, i8* %8, i64 44
+  %31 = bitcast i8* %30 to float*
+  store float 0.000000e+00, float* %31, align 4
+  %32 = getelementptr inbounds i8, i8* %8, i64 48
+  %33 = bitcast i8* %32 to float*
+  store float 0.000000e+00, float* %33, align 4
+  %34 = getelementptr inbounds i8, i8* %8, i64 52
   %35 = bitcast i8* %34 to float*
-  %36 = call i8* @calloc(i64 4, i64 4) #9
+  store float 0.000000e+00, float* %35, align 4
+  %36 = getelementptr inbounds i8, i8* %8, i64 56
   %37 = bitcast i8* %36 to float*
-  %38 = load float, float* %2, align 4
-  store float %38, float* %35, align 4
-  %39 = load float, float* %9, align 4
-  store float %39, float* %37, align 4
-  %40 = getelementptr inbounds float, float* %2, i64 4
-  %41 = load float, float* %40, align 4
-  %42 = getelementptr inbounds float, float* %35, i64 1
-  store float %41, float* %42, align 4
-  %43 = getelementptr inbounds float, float* %9, i64 4
-  %44 = load float, float* %43, align 4
-  %45 = getelementptr inbounds float, float* %37, i64 1
-  store float %44, float* %45, align 4
-  %46 = getelementptr inbounds float, float* %2, i64 8
-  %47 = load float, float* %46, align 4
-  %48 = getelementptr inbounds float, float* %35, i64 2
-  store float %47, float* %48, align 4
-  %49 = getelementptr inbounds float, float* %9, i64 8
-  %50 = load float, float* %49, align 4
-  %51 = getelementptr inbounds float, float* %37, i64 2
-  store float %50, float* %51, align 4
-  %52 = getelementptr inbounds float, float* %2, i64 12
-  %53 = load float, float* %52, align 4
-  %54 = getelementptr inbounds float, float* %35, i64 3
-  store float %53, float* %54, align 4
-  %55 = getelementptr inbounds float, float* %9, i64 12
-  %56 = load float, float* %55, align 4
-  %57 = getelementptr inbounds float, float* %37, i64 3
-  store float %56, float* %57, align 4
-  %58 = load float, float* %35, align 4
-  %59 = fcmp ogt float %58, 0.000000e+00
-  %60 = zext i1 %59 to i32
-  %61 = fcmp olt float %58, 0.000000e+00
-  %62 = zext i1 %61 to i32
-  %63 = sub nsw i32 %60, %62
-  %64 = sitofp i32 %63 to float
-  %65 = load float, float* %35, align 4
-  %66 = fpext float %65 to double
-  %67 = call double @llvm.pow.f64(double %66, double 2.000000e+00) #8
-  %68 = fadd double 0.000000e+00, %67
-  %69 = fptrunc double %68 to float
-  %70 = getelementptr inbounds float, float* %35, i64 1
-  %71 = load float, float* %70, align 4
-  %72 = fpext float %71 to double
-  %73 = call double @llvm.pow.f64(double %72, double 2.000000e+00) #8
-  %74 = fpext float %69 to double
-  %75 = fadd double %74, %73
-  %76 = fptrunc double %75 to float
-  %77 = getelementptr inbounds float, float* %35, i64 2
-  %78 = load float, float* %77, align 4
-  %79 = fpext float %78 to double
-  %80 = call double @llvm.pow.f64(double %79, double 2.000000e+00) #8
-  %81 = fpext float %76 to double
-  %82 = fadd double %81, %80
-  %83 = fptrunc double %82 to float
-  %84 = getelementptr inbounds float, float* %35, i64 3
-  %85 = load float, float* %84, align 4
-  %86 = fpext float %85 to double
-  %87 = call double @llvm.pow.f64(double %86, double 2.000000e+00) #8
-  %88 = fpext float %83 to double
-  %89 = fadd double %88, %87
-  %90 = fptrunc double %89 to float
-  %91 = fneg float %64
-  %92 = fpext float %90 to double
-  %93 = call double @llvm.sqrt.f64(double %92) #8
-  %94 = fptrunc double %93 to float
-  %95 = fmul float %91, %94
-  %96 = call i8* @calloc(i64 4, i64 4) #9
-  %97 = bitcast i8* %96 to float*
-  %98 = call i8* @calloc(i64 4, i64 4) #9
-  %99 = load float, float* %35, align 4
-  %100 = load float, float* %37, align 4
-  %101 = fmul float %95, %100
-  %102 = fadd float %99, %101
-  store float %102, float* %97, align 4
-  %103 = getelementptr inbounds float, float* %35, i64 1
-  %104 = load float, float* %103, align 4
-  %105 = getelementptr inbounds float, float* %37, i64 1
+  store float 0.000000e+00, float* %37, align 4
+  %38 = getelementptr inbounds i8, i8* %8, i64 60
+  %39 = bitcast i8* %38 to float*
+  store float 1.000000e+00, float* %39, align 4
+  %40 = call dereferenceable_or_null(16) i8* @calloc(i64 4, i64 4) #8
+  %41 = bitcast i8* %40 to float*
+  %42 = call dereferenceable_or_null(16) i8* @calloc(i64 4, i64 4) #8
+  %43 = bitcast i8* %42 to float*
+  %44 = bitcast float* %2 to i32*
+  %45 = load i32, i32* %44, align 4
+  %46 = bitcast i8* %40 to i32*
+  store i32 %45, i32* %46, align 4
+  %47 = bitcast i8* %8 to i32*
+  %48 = load i32, i32* %47, align 4
+  %49 = bitcast i8* %42 to i32*
+  store i32 %48, i32* %49, align 4
+  %50 = getelementptr inbounds float, float* %2, i64 4
+  %51 = bitcast float* %50 to i32*
+  %52 = load i32, i32* %51, align 4
+  %53 = getelementptr inbounds i8, i8* %40, i64 4
+  %54 = bitcast i8* %53 to i32*
+  store i32 %52, i32* %54, align 4
+  %55 = getelementptr inbounds i8, i8* %8, i64 16
+  %56 = bitcast i8* %55 to i32*
+  %57 = load i32, i32* %56, align 4
+  %58 = getelementptr inbounds i8, i8* %42, i64 4
+  %59 = bitcast i8* %58 to i32*
+  store i32 %57, i32* %59, align 4
+  %60 = getelementptr inbounds float, float* %2, i64 8
+  %61 = bitcast float* %60 to i32*
+  %62 = load i32, i32* %61, align 4
+  %63 = getelementptr inbounds i8, i8* %40, i64 8
+  %64 = bitcast i8* %63 to i32*
+  store i32 %62, i32* %64, align 4
+  %65 = getelementptr inbounds i8, i8* %8, i64 32
+  %66 = bitcast i8* %65 to i32*
+  %67 = load i32, i32* %66, align 4
+  %68 = getelementptr inbounds i8, i8* %42, i64 8
+  %69 = bitcast i8* %68 to i32*
+  store i32 %67, i32* %69, align 4
+  %70 = getelementptr inbounds float, float* %2, i64 12
+  %71 = bitcast float* %70 to i32*
+  %72 = load i32, i32* %71, align 4
+  %73 = getelementptr inbounds i8, i8* %40, i64 12
+  %74 = bitcast i8* %73 to i32*
+  store i32 %72, i32* %74, align 4
+  %75 = getelementptr inbounds i8, i8* %8, i64 48
+  %76 = bitcast i8* %75 to i32*
+  %77 = load i32, i32* %76, align 4
+  %78 = getelementptr inbounds i8, i8* %42, i64 12
+  %79 = bitcast i8* %78 to i32*
+  store i32 %77, i32* %79, align 4
+  %80 = load float, float* %41, align 4
+  %81 = fcmp ogt float %80, 0.000000e+00
+  %82 = zext i1 %81 to i32
+  %83 = fcmp olt float %80, 0.000000e+00
+  %.neg = sext i1 %83 to i32
+  %84 = add nsw i32 %.neg, %82
+  %85 = sitofp i32 %84 to float
+  %86 = load float, float* %41, align 4
+  %87 = fpext float %86 to double
+  %square = fmul double %87, %87
+  %88 = fadd double %square, 0.000000e+00
+  %89 = fptrunc double %88 to float
+  %90 = getelementptr inbounds i8, i8* %40, i64 4
+  %91 = bitcast i8* %90 to float*
+  %92 = load float, float* %91, align 4
+  %93 = fpext float %92 to double
+  %square173 = fmul double %93, %93
+  %94 = fpext float %89 to double
+  %95 = fadd double %square173, %94
+  %96 = fptrunc double %95 to float
+  %97 = getelementptr inbounds i8, i8* %40, i64 8
+  %98 = bitcast i8* %97 to float*
+  %99 = load float, float* %98, align 4
+  %100 = fpext float %99 to double
+  %square174 = fmul double %100, %100
+  %101 = fpext float %96 to double
+  %102 = fadd double %square174, %101
+  %103 = fptrunc double %102 to float
+  %104 = getelementptr inbounds i8, i8* %40, i64 12
+  %105 = bitcast i8* %104 to float*
   %106 = load float, float* %105, align 4
-  %107 = fmul float %95, %106
-  %108 = fadd float %104, %107
-  %109 = getelementptr inbounds float, float* %97, i64 1
-  store float %108, float* %109, align 4
-  %110 = getelementptr inbounds float, float* %35, i64 2
-  %111 = load float, float* %110, align 4
-  %112 = getelementptr inbounds float, float* %37, i64 2
-  %113 = load float, float* %112, align 4
-  %114 = fmul float %95, %113
-  %115 = fadd float %111, %114
-  %116 = getelementptr inbounds float, float* %97, i64 2
-  store float %115, float* %116, align 4
-  %117 = getelementptr inbounds float, float* %35, i64 3
-  %118 = load float, float* %117, align 4
-  %119 = getelementptr inbounds float, float* %37, i64 3
-  %120 = load float, float* %119, align 4
-  %121 = fmul float %95, %120
-  %122 = fadd float %118, %121
-  %123 = getelementptr inbounds float, float* %97, i64 3
-  store float %122, float* %123, align 4
-  %124 = load float, float* %97, align 4
-  %125 = fpext float %124 to double
-  %126 = call double @llvm.pow.f64(double %125, double 2.000000e+00) #8
-  %127 = fadd double 0.000000e+00, %126
-  %128 = fptrunc double %127 to float
-  %129 = getelementptr inbounds float, float* %97, i64 1
-  %130 = load float, float* %129, align 4
-  %131 = fpext float %130 to double
-  %132 = call double @llvm.pow.f64(double %131, double 2.000000e+00) #8
-  %133 = fpext float %128 to double
-  %134 = fadd double %133, %132
-  %135 = fptrunc double %134 to float
-  %136 = getelementptr inbounds float, float* %97, i64 2
-  %137 = load float, float* %136, align 4
-  %138 = fpext float %137 to double
-  %139 = call double @llvm.pow.f64(double %138, double 2.000000e+00) #8
-  %140 = fpext float %135 to double
-  %141 = fadd double %140, %139
-  %142 = fptrunc double %141 to float
-  %143 = getelementptr inbounds float, float* %97, i64 3
-  %144 = load float, float* %143, align 4
-  %145 = fpext float %144 to double
-  %146 = call double @llvm.pow.f64(double %145, double 2.000000e+00) #8
-  %147 = fpext float %142 to double
-  %148 = fadd double %147, %146
-  %149 = fptrunc double %148 to float
-  %150 = bitcast i8* %98 to float*
-  %151 = fpext float %149 to double
-  %152 = call double @llvm.sqrt.f64(double %151) #8
-  %153 = fptrunc double %152 to float
-  %154 = load float, float* %97, align 4
-  %155 = fdiv float %154, %153
-  store float %155, float* %150, align 4
-  %156 = getelementptr inbounds float, float* %97, i64 1
+  %107 = fpext float %106 to double
+  %square175 = fmul double %107, %107
+  %108 = fpext float %103 to double
+  %109 = fadd double %square175, %108
+  %110 = fptrunc double %109 to float
+  %111 = fneg float %85
+  %112 = call float @llvm.sqrt.f32(float %110)
+  %113 = fmul float %112, %111
+  %114 = call dereferenceable_or_null(16) i8* @calloc(i64 4, i64 4) #8
+  %115 = bitcast i8* %114 to float*
+  %116 = call dereferenceable_or_null(16) i8* @calloc(i64 4, i64 4) #8
+  %117 = load float, float* %41, align 4
+  %118 = load float, float* %43, align 4
+  %119 = fmul float %113, %118
+  %120 = fadd float %117, %119
+  store float %120, float* %115, align 4
+  %121 = getelementptr inbounds i8, i8* %40, i64 4
+  %122 = bitcast i8* %121 to float*
+  %123 = load float, float* %122, align 4
+  %124 = getelementptr inbounds i8, i8* %42, i64 4
+  %125 = bitcast i8* %124 to float*
+  %126 = load float, float* %125, align 4
+  %127 = fmul float %113, %126
+  %128 = fadd float %123, %127
+  %129 = getelementptr inbounds i8, i8* %114, i64 4
+  %130 = bitcast i8* %129 to float*
+  store float %128, float* %130, align 4
+  %131 = getelementptr inbounds i8, i8* %40, i64 8
+  %132 = bitcast i8* %131 to float*
+  %133 = load float, float* %132, align 4
+  %134 = getelementptr inbounds i8, i8* %42, i64 8
+  %135 = bitcast i8* %134 to float*
+  %136 = load float, float* %135, align 4
+  %137 = fmul float %113, %136
+  %138 = fadd float %133, %137
+  %139 = getelementptr inbounds i8, i8* %114, i64 8
+  %140 = bitcast i8* %139 to float*
+  store float %138, float* %140, align 4
+  %141 = getelementptr inbounds i8, i8* %40, i64 12
+  %142 = bitcast i8* %141 to float*
+  %143 = load float, float* %142, align 4
+  %144 = getelementptr inbounds i8, i8* %42, i64 12
+  %145 = bitcast i8* %144 to float*
+  %146 = load float, float* %145, align 4
+  %147 = fmul float %113, %146
+  %148 = fadd float %143, %147
+  %149 = getelementptr inbounds i8, i8* %114, i64 12
+  %150 = bitcast i8* %149 to float*
+  store float %148, float* %150, align 4
+  %151 = load float, float* %115, align 4
+  %152 = fpext float %151 to double
+  %square176 = fmul double %152, %152
+  %153 = fadd double %square176, 0.000000e+00
+  %154 = fptrunc double %153 to float
+  %155 = getelementptr inbounds i8, i8* %114, i64 4
+  %156 = bitcast i8* %155 to float*
   %157 = load float, float* %156, align 4
-  %158 = fdiv float %157, %153
-  %159 = getelementptr inbounds float, float* %150, i64 1
-  store float %158, float* %159, align 4
-  %160 = getelementptr inbounds float, float* %97, i64 2
-  %161 = load float, float* %160, align 4
-  %162 = fdiv float %161, %153
-  %163 = getelementptr inbounds float, float* %150, i64 2
-  store float %162, float* %163, align 4
-  %164 = getelementptr inbounds float, float* %97, i64 3
-  %165 = load float, float* %164, align 4
-  %166 = fdiv float %165, %153
-  %167 = getelementptr inbounds float, float* %150, i64 3
-  store float %166, float* %167, align 4
-  %168 = call i8* @calloc(i64 4, i64 16) #9
-  %169 = bitcast i8* %168 to float*
-  %170 = load float, float* %150, align 4
-  %171 = fmul float 2.000000e+00, %170
-  %172 = load float, float* %150, align 4
-  %173 = fmul float %171, %172
-  %174 = fpext float %173 to double
-  %175 = fsub double 1.000000e+00, %174
-  %176 = fptrunc double %175 to float
-  store float %176, float* %169, align 4
-  %177 = load float, float* %150, align 4
-  %178 = fmul float 2.000000e+00, %177
-  %179 = getelementptr inbounds float, float* %150, i64 1
-  %180 = load float, float* %179, align 4
-  %181 = fmul float %178, %180
-  %182 = fpext float %181 to double
-  %183 = fsub double 0.000000e+00, %182
-  %184 = fptrunc double %183 to float
-  %185 = getelementptr inbounds float, float* %169, i64 1
-  store float %184, float* %185, align 4
-  %186 = load float, float* %150, align 4
-  %187 = fmul float 2.000000e+00, %186
-  %188 = getelementptr inbounds float, float* %150, i64 2
-  %189 = load float, float* %188, align 4
-  %190 = fmul float %187, %189
-  %191 = fpext float %190 to double
-  %192 = fsub double 0.000000e+00, %191
-  %193 = fptrunc double %192 to float
-  %194 = getelementptr inbounds float, float* %169, i64 2
-  store float %193, float* %194, align 4
-  %195 = load float, float* %150, align 4
-  %196 = fmul float 2.000000e+00, %195
-  %197 = getelementptr inbounds float, float* %150, i64 3
-  %198 = load float, float* %197, align 4
-  %199 = fmul float %196, %198
-  %200 = fpext float %199 to double
-  %201 = fsub double 0.000000e+00, %200
-  %202 = fptrunc double %201 to float
-  %203 = getelementptr inbounds float, float* %169, i64 3
-  store float %202, float* %203, align 4
-  %204 = getelementptr inbounds float, float* %150, i64 1
-  %205 = load float, float* %204, align 4
-  %206 = fmul float 2.000000e+00, %205
-  %207 = load float, float* %150, align 4
-  %208 = fmul float %206, %207
-  %209 = fpext float %208 to double
-  %210 = fsub double 0.000000e+00, %209
-  %211 = fptrunc double %210 to float
-  %212 = getelementptr inbounds float, float* %169, i64 4
-  store float %211, float* %212, align 4
-  %213 = load float, float* %204, align 4
-  %214 = fmul float 2.000000e+00, %213
-  %215 = getelementptr inbounds float, float* %150, i64 1
-  %216 = load float, float* %215, align 4
-  %217 = fmul float %214, %216
-  %218 = fpext float %217 to double
-  %219 = fsub double 1.000000e+00, %218
-  %220 = fptrunc double %219 to float
-  %221 = getelementptr inbounds float, float* %169, i64 5
-  store float %220, float* %221, align 4
-  %222 = load float, float* %204, align 4
-  %223 = fmul float 2.000000e+00, %222
-  %224 = getelementptr inbounds float, float* %150, i64 2
-  %225 = load float, float* %224, align 4
-  %226 = fmul float %223, %225
-  %227 = fpext float %226 to double
-  %228 = fsub double 0.000000e+00, %227
-  %229 = fptrunc double %228 to float
-  %230 = getelementptr inbounds float, float* %169, i64 6
-  store float %229, float* %230, align 4
-  %231 = load float, float* %204, align 4
-  %232 = fmul float 2.000000e+00, %231
-  %233 = getelementptr inbounds float, float* %150, i64 3
-  %234 = load float, float* %233, align 4
-  %235 = fmul float %232, %234
-  %236 = fpext float %235 to double
-  %237 = fsub double 0.000000e+00, %236
-  %238 = fptrunc double %237 to float
-  %239 = getelementptr inbounds float, float* %169, i64 7
-  store float %238, float* %239, align 4
-  %240 = getelementptr inbounds float, float* %150, i64 2
-  %241 = load float, float* %240, align 4
-  %242 = fmul float 2.000000e+00, %241
-  %243 = load float, float* %150, align 4
-  %244 = fmul float %242, %243
-  %245 = fpext float %244 to double
-  %246 = fsub double 0.000000e+00, %245
-  %247 = fptrunc double %246 to float
-  %248 = getelementptr inbounds float, float* %169, i64 8
-  store float %247, float* %248, align 4
-  %249 = load float, float* %240, align 4
-  %250 = fmul float 2.000000e+00, %249
-  %251 = getelementptr inbounds float, float* %150, i64 1
-  %252 = load float, float* %251, align 4
-  %253 = fmul float %250, %252
-  %254 = fpext float %253 to double
-  %255 = fsub double 0.000000e+00, %254
-  %256 = fptrunc double %255 to float
-  %257 = getelementptr inbounds float, float* %169, i64 9
-  store float %256, float* %257, align 4
-  %258 = load float, float* %240, align 4
-  %259 = fmul float 2.000000e+00, %258
-  %260 = getelementptr inbounds float, float* %150, i64 2
-  %261 = load float, float* %260, align 4
-  %262 = fmul float %259, %261
-  %263 = fpext float %262 to double
-  %264 = fsub double 1.000000e+00, %263
-  %265 = fptrunc double %264 to float
-  %266 = getelementptr inbounds float, float* %169, i64 10
-  store float %265, float* %266, align 4
-  %267 = load float, float* %240, align 4
-  %268 = fmul float 2.000000e+00, %267
-  %269 = getelementptr inbounds float, float* %150, i64 3
-  %270 = load float, float* %269, align 4
-  %271 = fmul float %268, %270
-  %272 = fpext float %271 to double
-  %273 = fsub double 0.000000e+00, %272
-  %274 = fptrunc double %273 to float
-  %275 = getelementptr inbounds float, float* %169, i64 11
-  store float %274, float* %275, align 4
-  %276 = getelementptr inbounds float, float* %150, i64 3
+  %158 = fpext float %157 to double
+  %square177 = fmul double %158, %158
+  %159 = fpext float %154 to double
+  %160 = fadd double %square177, %159
+  %161 = fptrunc double %160 to float
+  %162 = getelementptr inbounds i8, i8* %114, i64 8
+  %163 = bitcast i8* %162 to float*
+  %164 = load float, float* %163, align 4
+  %165 = fpext float %164 to double
+  %square178 = fmul double %165, %165
+  %166 = fpext float %161 to double
+  %167 = fadd double %square178, %166
+  %168 = fptrunc double %167 to float
+  %169 = getelementptr inbounds i8, i8* %114, i64 12
+  %170 = bitcast i8* %169 to float*
+  %171 = load float, float* %170, align 4
+  %172 = fpext float %171 to double
+  %square179 = fmul double %172, %172
+  %173 = fpext float %168 to double
+  %174 = fadd double %square179, %173
+  %175 = fptrunc double %174 to float
+  %176 = bitcast i8* %116 to float*
+  %177 = call float @llvm.sqrt.f32(float %175)
+  %178 = load float, float* %115, align 4
+  %179 = fdiv float %178, %177
+  store float %179, float* %176, align 4
+  %180 = getelementptr inbounds i8, i8* %114, i64 4
+  %181 = bitcast i8* %180 to float*
+  %182 = load float, float* %181, align 4
+  %183 = fdiv float %182, %177
+  %184 = getelementptr inbounds i8, i8* %116, i64 4
+  %185 = bitcast i8* %184 to float*
+  store float %183, float* %185, align 4
+  %186 = getelementptr inbounds i8, i8* %114, i64 8
+  %187 = bitcast i8* %186 to float*
+  %188 = load float, float* %187, align 4
+  %189 = fdiv float %188, %177
+  %190 = getelementptr inbounds i8, i8* %116, i64 8
+  %191 = bitcast i8* %190 to float*
+  store float %189, float* %191, align 4
+  %192 = getelementptr inbounds i8, i8* %114, i64 12
+  %193 = bitcast i8* %192 to float*
+  %194 = load float, float* %193, align 4
+  %195 = fdiv float %194, %177
+  %196 = getelementptr inbounds i8, i8* %116, i64 12
+  %197 = bitcast i8* %196 to float*
+  store float %195, float* %197, align 4
+  %198 = call dereferenceable_or_null(64) i8* @calloc(i64 4, i64 16) #8
+  %199 = bitcast i8* %198 to float*
+  %200 = load float, float* %176, align 4
+  %201 = fmul float %200, 2.000000e+00
+  %202 = fmul float %201, %200
+  %203 = fsub float 1.000000e+00, %202
+  store float %203, float* %199, align 4
+  %204 = load float, float* %176, align 4
+  %205 = fmul float %204, 2.000000e+00
+  %206 = getelementptr inbounds i8, i8* %116, i64 4
+  %207 = bitcast i8* %206 to float*
+  %208 = load float, float* %207, align 4
+  %209 = fmul float %205, %208
+  %210 = fsub float 0.000000e+00, %209
+  %211 = getelementptr inbounds i8, i8* %198, i64 4
+  %212 = bitcast i8* %211 to float*
+  store float %210, float* %212, align 4
+  %213 = load float, float* %176, align 4
+  %214 = fmul float %213, 2.000000e+00
+  %215 = getelementptr inbounds i8, i8* %116, i64 8
+  %216 = bitcast i8* %215 to float*
+  %217 = load float, float* %216, align 4
+  %218 = fmul float %214, %217
+  %219 = fsub float 0.000000e+00, %218
+  %220 = getelementptr inbounds i8, i8* %198, i64 8
+  %221 = bitcast i8* %220 to float*
+  store float %219, float* %221, align 4
+  %222 = load float, float* %176, align 4
+  %223 = fmul float %222, 2.000000e+00
+  %224 = getelementptr inbounds i8, i8* %116, i64 12
+  %225 = bitcast i8* %224 to float*
+  %226 = load float, float* %225, align 4
+  %227 = fmul float %223, %226
+  %228 = fsub float 0.000000e+00, %227
+  %229 = getelementptr inbounds i8, i8* %198, i64 12
+  %230 = bitcast i8* %229 to float*
+  store float %228, float* %230, align 4
+  %231 = getelementptr inbounds i8, i8* %116, i64 4
+  %232 = bitcast i8* %231 to float*
+  %233 = load float, float* %232, align 4
+  %234 = fmul float %233, 2.000000e+00
+  %235 = load float, float* %176, align 4
+  %236 = fmul float %234, %235
+  %237 = fsub float 0.000000e+00, %236
+  %238 = getelementptr inbounds i8, i8* %198, i64 16
+  %239 = bitcast i8* %238 to float*
+  store float %237, float* %239, align 4
+  %240 = load float, float* %232, align 4
+  %241 = fmul float %240, 2.000000e+00
+  %242 = fmul float %241, %240
+  %243 = fsub float 1.000000e+00, %242
+  %244 = getelementptr inbounds i8, i8* %198, i64 20
+  %245 = bitcast i8* %244 to float*
+  store float %243, float* %245, align 4
+  %246 = load float, float* %232, align 4
+  %247 = fmul float %246, 2.000000e+00
+  %248 = getelementptr inbounds i8, i8* %116, i64 8
+  %249 = bitcast i8* %248 to float*
+  %250 = load float, float* %249, align 4
+  %251 = fmul float %247, %250
+  %252 = fsub float 0.000000e+00, %251
+  %253 = getelementptr inbounds i8, i8* %198, i64 24
+  %254 = bitcast i8* %253 to float*
+  store float %252, float* %254, align 4
+  %255 = load float, float* %232, align 4
+  %256 = fmul float %255, 2.000000e+00
+  %257 = getelementptr inbounds i8, i8* %116, i64 12
+  %258 = bitcast i8* %257 to float*
+  %259 = load float, float* %258, align 4
+  %260 = fmul float %256, %259
+  %261 = fsub float 0.000000e+00, %260
+  %262 = getelementptr inbounds i8, i8* %198, i64 28
+  %263 = bitcast i8* %262 to float*
+  store float %261, float* %263, align 4
+  %264 = getelementptr inbounds i8, i8* %116, i64 8
+  %265 = bitcast i8* %264 to float*
+  %266 = load float, float* %265, align 4
+  %267 = fmul float %266, 2.000000e+00
+  %268 = load float, float* %176, align 4
+  %269 = fmul float %267, %268
+  %270 = fsub float 0.000000e+00, %269
+  %271 = getelementptr inbounds i8, i8* %198, i64 32
+  %272 = bitcast i8* %271 to float*
+  store float %270, float* %272, align 4
+  %273 = load float, float* %265, align 4
+  %274 = fmul float %273, 2.000000e+00
+  %275 = getelementptr inbounds i8, i8* %116, i64 4
+  %276 = bitcast i8* %275 to float*
   %277 = load float, float* %276, align 4
-  %278 = fmul float 2.000000e+00, %277
-  %279 = load float, float* %150, align 4
-  %280 = fmul float %278, %279
-  %281 = fpext float %280 to double
-  %282 = fsub double 0.000000e+00, %281
-  %283 = fptrunc double %282 to float
-  %284 = getelementptr inbounds float, float* %169, i64 12
-  store float %283, float* %284, align 4
-  %285 = load float, float* %276, align 4
-  %286 = fmul float 2.000000e+00, %285
-  %287 = getelementptr inbounds float, float* %150, i64 1
-  %288 = load float, float* %287, align 4
-  %289 = fmul float %286, %288
-  %290 = fpext float %289 to double
-  %291 = fsub double 0.000000e+00, %290
-  %292 = fptrunc double %291 to float
-  %293 = getelementptr inbounds float, float* %169, i64 13
-  store float %292, float* %293, align 4
-  %294 = load float, float* %276, align 4
-  %295 = fmul float 2.000000e+00, %294
-  %296 = getelementptr inbounds float, float* %150, i64 2
-  %297 = load float, float* %296, align 4
-  %298 = fmul float %295, %297
-  %299 = fpext float %298 to double
-  %300 = fsub double 0.000000e+00, %299
-  %301 = fptrunc double %300 to float
-  %302 = getelementptr inbounds float, float* %169, i64 14
-  store float %301, float* %302, align 4
-  %303 = load float, float* %276, align 4
-  %304 = fmul float 2.000000e+00, %303
-  %305 = getelementptr inbounds float, float* %150, i64 3
-  %306 = load float, float* %305, align 4
-  %307 = fmul float %304, %306
-  %308 = fpext float %307 to double
-  %309 = fsub double 1.000000e+00, %308
-  %310 = fptrunc double %309 to float
-  %311 = getelementptr inbounds float, float* %169, i64 15
-  store float %310, float* %311, align 4
-  %312 = call i8* @calloc(i64 4, i64 16) #9
-  %313 = bitcast i8* %312 to float*
-  %314 = getelementptr inbounds float, float* %169, i64 0
-  %315 = load float, float* %314, align 4
-  store float %315, float* %313, align 4
-  %316 = getelementptr inbounds float, float* %169, i64 1
-  %317 = load float, float* %316, align 4
-  %318 = getelementptr inbounds float, float* %313, i64 1
-  store float %317, float* %318, align 4
-  %319 = getelementptr inbounds float, float* %169, i64 2
-  %320 = load float, float* %319, align 4
-  %321 = getelementptr inbounds float, float* %313, i64 2
-  store float %320, float* %321, align 4
-  %322 = getelementptr inbounds float, float* %169, i64 3
-  %323 = load float, float* %322, align 4
-  %324 = getelementptr inbounds float, float* %313, i64 3
-  store float %323, float* %324, align 4
-  %325 = getelementptr inbounds float, float* %169, i64 4
-  %326 = load float, float* %325, align 4
-  %327 = getelementptr inbounds float, float* %313, i64 4
-  store float %326, float* %327, align 4
-  %328 = getelementptr inbounds float, float* %169, i64 5
-  %329 = load float, float* %328, align 4
-  %330 = getelementptr inbounds float, float* %313, i64 5
-  store float %329, float* %330, align 4
-  %331 = getelementptr inbounds float, float* %169, i64 6
-  %332 = load float, float* %331, align 4
-  %333 = getelementptr inbounds float, float* %313, i64 6
-  store float %332, float* %333, align 4
-  %334 = getelementptr inbounds float, float* %169, i64 7
-  %335 = load float, float* %334, align 4
-  %336 = getelementptr inbounds float, float* %313, i64 7
-  store float %335, float* %336, align 4
-  %337 = getelementptr inbounds float, float* %169, i64 8
-  %338 = load float, float* %337, align 4
-  %339 = getelementptr inbounds float, float* %313, i64 8
-  store float %338, float* %339, align 4
-  %340 = getelementptr inbounds float, float* %169, i64 9
-  %341 = load float, float* %340, align 4
-  %342 = getelementptr inbounds float, float* %313, i64 9
-  store float %341, float* %342, align 4
-  %343 = getelementptr inbounds float, float* %169, i64 10
-  %344 = load float, float* %343, align 4
-  %345 = getelementptr inbounds float, float* %313, i64 10
-  store float %344, float* %345, align 4
-  %346 = getelementptr inbounds float, float* %169, i64 11
-  %347 = load float, float* %346, align 4
-  %348 = getelementptr inbounds float, float* %313, i64 11
-  store float %347, float* %348, align 4
-  %349 = getelementptr inbounds float, float* %169, i64 12
-  %350 = load float, float* %349, align 4
-  %351 = getelementptr inbounds float, float* %313, i64 12
-  store float %350, float* %351, align 4
-  %352 = getelementptr inbounds float, float* %169, i64 13
-  %353 = load float, float* %352, align 4
-  %354 = getelementptr inbounds float, float* %313, i64 13
-  store float %353, float* %354, align 4
-  %355 = getelementptr inbounds float, float* %169, i64 14
-  %356 = load float, float* %355, align 4
-  %357 = getelementptr inbounds float, float* %313, i64 14
-  store float %356, float* %357, align 4
-  %358 = getelementptr inbounds float, float* %169, i64 15
-  %359 = load float, float* %358, align 4
-  %360 = getelementptr inbounds float, float* %313, i64 15
-  store float %359, float* %360, align 4
-  %361 = call i8* @__memcpy_chk(i8* %31, i8* %312, i64 64, i64 %33) #8
+  %278 = fmul float %274, %277
+  %279 = fsub float 0.000000e+00, %278
+  %280 = getelementptr inbounds i8, i8* %198, i64 36
+  %281 = bitcast i8* %280 to float*
+  store float %279, float* %281, align 4
+  %282 = load float, float* %265, align 4
+  %283 = fmul float %282, 2.000000e+00
+  %284 = fmul float %283, %282
+  %285 = fsub float 1.000000e+00, %284
+  %286 = getelementptr inbounds i8, i8* %198, i64 40
+  %287 = bitcast i8* %286 to float*
+  store float %285, float* %287, align 4
+  %288 = load float, float* %265, align 4
+  %289 = fmul float %288, 2.000000e+00
+  %290 = getelementptr inbounds i8, i8* %116, i64 12
+  %291 = bitcast i8* %290 to float*
+  %292 = load float, float* %291, align 4
+  %293 = fmul float %289, %292
+  %294 = fsub float 0.000000e+00, %293
+  %295 = getelementptr inbounds i8, i8* %198, i64 44
+  %296 = bitcast i8* %295 to float*
+  store float %294, float* %296, align 4
+  %297 = getelementptr inbounds i8, i8* %116, i64 12
+  %298 = bitcast i8* %297 to float*
+  %299 = load float, float* %298, align 4
+  %300 = fmul float %299, 2.000000e+00
+  %301 = load float, float* %176, align 4
+  %302 = fmul float %300, %301
+  %303 = fsub float 0.000000e+00, %302
+  %304 = getelementptr inbounds i8, i8* %198, i64 48
+  %305 = bitcast i8* %304 to float*
+  store float %303, float* %305, align 4
+  %306 = load float, float* %298, align 4
+  %307 = fmul float %306, 2.000000e+00
+  %308 = getelementptr inbounds i8, i8* %116, i64 4
+  %309 = bitcast i8* %308 to float*
+  %310 = load float, float* %309, align 4
+  %311 = fmul float %307, %310
+  %312 = fsub float 0.000000e+00, %311
+  %313 = getelementptr inbounds i8, i8* %198, i64 52
+  %314 = bitcast i8* %313 to float*
+  store float %312, float* %314, align 4
+  %315 = load float, float* %298, align 4
+  %316 = fmul float %315, 2.000000e+00
+  %317 = getelementptr inbounds i8, i8* %116, i64 8
+  %318 = bitcast i8* %317 to float*
+  %319 = load float, float* %318, align 4
+  %320 = fmul float %316, %319
+  %321 = fsub float 0.000000e+00, %320
+  %322 = getelementptr inbounds i8, i8* %198, i64 56
+  %323 = bitcast i8* %322 to float*
+  store float %321, float* %323, align 4
+  %324 = load float, float* %298, align 4
+  %325 = fmul float %324, 2.000000e+00
+  %326 = fmul float %325, %324
+  %327 = fsub float 1.000000e+00, %326
+  %328 = getelementptr inbounds i8, i8* %198, i64 60
+  %329 = bitcast i8* %328 to float*
+  store float %327, float* %329, align 4
+  %330 = call dereferenceable_or_null(64) i8* @calloc(i64 4, i64 16) #8
+  %331 = bitcast i8* %330 to float*
+  %332 = bitcast i8* %198 to i32*
+  %333 = load i32, i32* %332, align 4
+  %334 = bitcast i8* %330 to i32*
+  store i32 %333, i32* %334, align 4
+  %335 = getelementptr inbounds i8, i8* %198, i64 4
+  %336 = bitcast i8* %335 to i32*
+  %337 = load i32, i32* %336, align 4
+  %338 = getelementptr inbounds i8, i8* %330, i64 4
+  %339 = bitcast i8* %338 to i32*
+  store i32 %337, i32* %339, align 4
+  %340 = getelementptr inbounds i8, i8* %198, i64 8
+  %341 = bitcast i8* %340 to i32*
+  %342 = load i32, i32* %341, align 4
+  %343 = getelementptr inbounds i8, i8* %330, i64 8
+  %344 = bitcast i8* %343 to i32*
+  store i32 %342, i32* %344, align 4
+  %345 = getelementptr inbounds i8, i8* %198, i64 12
+  %346 = bitcast i8* %345 to i32*
+  %347 = load i32, i32* %346, align 4
+  %348 = getelementptr inbounds i8, i8* %330, i64 12
+  %349 = bitcast i8* %348 to i32*
+  store i32 %347, i32* %349, align 4
+  %350 = getelementptr inbounds i8, i8* %198, i64 16
+  %351 = bitcast i8* %350 to i32*
+  %352 = load i32, i32* %351, align 4
+  %353 = getelementptr inbounds i8, i8* %330, i64 16
+  %354 = bitcast i8* %353 to i32*
+  store i32 %352, i32* %354, align 4
+  %355 = getelementptr inbounds i8, i8* %198, i64 20
+  %356 = bitcast i8* %355 to i32*
+  %357 = load i32, i32* %356, align 4
+  %358 = getelementptr inbounds i8, i8* %330, i64 20
+  %359 = bitcast i8* %358 to i32*
+  store i32 %357, i32* %359, align 4
+  %360 = getelementptr inbounds i8, i8* %198, i64 24
+  %361 = bitcast i8* %360 to i32*
+  %362 = load i32, i32* %361, align 4
+  %363 = getelementptr inbounds i8, i8* %330, i64 24
+  %364 = bitcast i8* %363 to i32*
+  store i32 %362, i32* %364, align 4
+  %365 = getelementptr inbounds i8, i8* %198, i64 28
+  %366 = bitcast i8* %365 to i32*
+  %367 = load i32, i32* %366, align 4
+  %368 = getelementptr inbounds i8, i8* %330, i64 28
+  %369 = bitcast i8* %368 to i32*
+  store i32 %367, i32* %369, align 4
+  %370 = getelementptr inbounds i8, i8* %198, i64 32
+  %371 = bitcast i8* %370 to i32*
+  %372 = load i32, i32* %371, align 4
+  %373 = getelementptr inbounds i8, i8* %330, i64 32
+  %374 = bitcast i8* %373 to i32*
+  store i32 %372, i32* %374, align 4
+  %375 = getelementptr inbounds i8, i8* %198, i64 36
+  %376 = bitcast i8* %375 to i32*
+  %377 = load i32, i32* %376, align 4
+  %378 = getelementptr inbounds i8, i8* %330, i64 36
+  %379 = bitcast i8* %378 to i32*
+  store i32 %377, i32* %379, align 4
+  %380 = getelementptr inbounds i8, i8* %198, i64 40
+  %381 = bitcast i8* %380 to i32*
+  %382 = load i32, i32* %381, align 4
+  %383 = getelementptr inbounds i8, i8* %330, i64 40
+  %384 = bitcast i8* %383 to i32*
+  store i32 %382, i32* %384, align 4
+  %385 = getelementptr inbounds i8, i8* %198, i64 44
+  %386 = bitcast i8* %385 to i32*
+  %387 = load i32, i32* %386, align 4
+  %388 = getelementptr inbounds i8, i8* %330, i64 44
+  %389 = bitcast i8* %388 to i32*
+  store i32 %387, i32* %389, align 4
+  %390 = getelementptr inbounds i8, i8* %198, i64 48
+  %391 = bitcast i8* %390 to i32*
+  %392 = load i32, i32* %391, align 4
+  %393 = getelementptr inbounds i8, i8* %330, i64 48
+  %394 = bitcast i8* %393 to i32*
+  store i32 %392, i32* %394, align 4
+  %395 = getelementptr inbounds i8, i8* %198, i64 52
+  %396 = bitcast i8* %395 to i32*
+  %397 = load i32, i32* %396, align 4
+  %398 = getelementptr inbounds i8, i8* %330, i64 52
+  %399 = bitcast i8* %398 to i32*
+  store i32 %397, i32* %399, align 4
+  %400 = getelementptr inbounds i8, i8* %198, i64 56
+  %401 = bitcast i8* %400 to i32*
+  %402 = load i32, i32* %401, align 4
+  %403 = getelementptr inbounds i8, i8* %330, i64 56
+  %404 = bitcast i8* %403 to i32*
+  store i32 %402, i32* %404, align 4
+  %405 = getelementptr inbounds i8, i8* %198, i64 60
+  %406 = bitcast i8* %405 to i32*
+  %407 = load i32, i32* %406, align 4
+  %408 = getelementptr inbounds i8, i8* %330, i64 60
+  %409 = bitcast i8* %408 to i32*
+  store i32 %407, i32* %409, align 4
   store float 0.000000e+00, float* %2, align 4
-  %362 = load float, float* %313, align 4
-  %363 = load float, float* %0, align 4
-  %364 = fmul float %362, %363
-  %365 = load float, float* %2, align 4
-  %366 = fadd float %365, %364
-  store float %366, float* %2, align 4
-  %367 = getelementptr inbounds float, float* %313, i64 1
-  %368 = load float, float* %367, align 4
-  %369 = getelementptr inbounds float, float* %0, i64 4
-  %370 = load float, float* %369, align 4
-  %371 = fmul float %368, %370
-  %372 = load float, float* %2, align 4
-  %373 = fadd float %372, %371
-  store float %373, float* %2, align 4
-  %374 = getelementptr inbounds float, float* %313, i64 2
-  %375 = load float, float* %374, align 4
-  %376 = getelementptr inbounds float, float* %0, i64 8
-  %377 = load float, float* %376, align 4
-  %378 = fmul float %375, %377
-  %379 = load float, float* %2, align 4
-  %380 = fadd float %379, %378
-  store float %380, float* %2, align 4
-  %381 = getelementptr inbounds float, float* %313, i64 3
-  %382 = load float, float* %381, align 4
-  %383 = getelementptr inbounds float, float* %0, i64 12
-  %384 = load float, float* %383, align 4
-  %385 = fmul float %382, %384
-  %386 = load float, float* %2, align 4
-  %387 = fadd float %386, %385
-  store float %387, float* %2, align 4
-  %388 = getelementptr inbounds float, float* %2, i64 1
-  store float 0.000000e+00, float* %388, align 4
-  %389 = getelementptr inbounds float, float* %2, i64 1
-  %390 = load float, float* %313, align 4
-  %391 = getelementptr inbounds float, float* %0, i64 1
-  %392 = load float, float* %391, align 4
-  %393 = fmul float %390, %392
-  %394 = load float, float* %389, align 4
-  %395 = fadd float %394, %393
-  store float %395, float* %389, align 4
-  %396 = getelementptr inbounds float, float* %313, i64 1
-  %397 = load float, float* %396, align 4
-  %398 = getelementptr inbounds float, float* %0, i64 5
-  %399 = load float, float* %398, align 4
-  %400 = fmul float %397, %399
-  %401 = load float, float* %389, align 4
-  %402 = fadd float %401, %400
-  store float %402, float* %389, align 4
-  %403 = getelementptr inbounds float, float* %313, i64 2
-  %404 = load float, float* %403, align 4
-  %405 = getelementptr inbounds float, float* %0, i64 9
-  %406 = load float, float* %405, align 4
-  %407 = fmul float %404, %406
-  %408 = load float, float* %389, align 4
-  %409 = fadd float %408, %407
-  store float %409, float* %389, align 4
-  %410 = getelementptr inbounds float, float* %313, i64 3
-  %411 = load float, float* %410, align 4
-  %412 = getelementptr inbounds float, float* %0, i64 13
-  %413 = load float, float* %412, align 4
-  %414 = fmul float %411, %413
-  %415 = load float, float* %389, align 4
-  %416 = fadd float %415, %414
-  store float %416, float* %389, align 4
-  %417 = getelementptr inbounds float, float* %2, i64 2
-  store float 0.000000e+00, float* %417, align 4
-  %418 = getelementptr inbounds float, float* %2, i64 2
-  %419 = load float, float* %313, align 4
-  %420 = getelementptr inbounds float, float* %0, i64 2
-  %421 = load float, float* %420, align 4
-  %422 = fmul float %419, %421
-  %423 = load float, float* %418, align 4
-  %424 = fadd float %423, %422
-  store float %424, float* %418, align 4
-  %425 = getelementptr inbounds float, float* %313, i64 1
+  %410 = load float, float* %331, align 4
+  %411 = load float, float* %0, align 4
+  %412 = fmul float %410, %411
+  %413 = fadd float %412, 0.000000e+00
+  store float %413, float* %2, align 4
+  %414 = getelementptr inbounds i8, i8* %330, i64 4
+  %415 = bitcast i8* %414 to float*
+  %416 = load float, float* %415, align 4
+  %417 = getelementptr inbounds float, float* %0, i64 4
+  %418 = load float, float* %417, align 4
+  %419 = fmul float %416, %418
+  %420 = load float, float* %2, align 4
+  %421 = fadd float %420, %419
+  store float %421, float* %2, align 4
+  %422 = getelementptr inbounds i8, i8* %330, i64 8
+  %423 = bitcast i8* %422 to float*
+  %424 = load float, float* %423, align 4
+  %425 = getelementptr inbounds float, float* %0, i64 8
   %426 = load float, float* %425, align 4
-  %427 = getelementptr inbounds float, float* %0, i64 6
-  %428 = load float, float* %427, align 4
-  %429 = fmul float %426, %428
-  %430 = load float, float* %418, align 4
-  %431 = fadd float %430, %429
-  store float %431, float* %418, align 4
-  %432 = getelementptr inbounds float, float* %313, i64 2
-  %433 = load float, float* %432, align 4
-  %434 = getelementptr inbounds float, float* %0, i64 10
-  %435 = load float, float* %434, align 4
-  %436 = fmul float %433, %435
-  %437 = load float, float* %418, align 4
-  %438 = fadd float %437, %436
-  store float %438, float* %418, align 4
-  %439 = getelementptr inbounds float, float* %313, i64 3
-  %440 = load float, float* %439, align 4
-  %441 = getelementptr inbounds float, float* %0, i64 14
+  %427 = fmul float %424, %426
+  %428 = load float, float* %2, align 4
+  %429 = fadd float %428, %427
+  store float %429, float* %2, align 4
+  %430 = getelementptr inbounds i8, i8* %330, i64 12
+  %431 = bitcast i8* %430 to float*
+  %432 = load float, float* %431, align 4
+  %433 = getelementptr inbounds float, float* %0, i64 12
+  %434 = load float, float* %433, align 4
+  %435 = fmul float %432, %434
+  %436 = load float, float* %2, align 4
+  %437 = fadd float %436, %435
+  store float %437, float* %2, align 4
+  %438 = getelementptr inbounds float, float* %2, i64 1
+  store float 0.000000e+00, float* %438, align 4
+  %439 = getelementptr inbounds float, float* %2, i64 1
+  %440 = load float, float* %331, align 4
+  %441 = getelementptr inbounds float, float* %0, i64 1
   %442 = load float, float* %441, align 4
   %443 = fmul float %440, %442
-  %444 = load float, float* %418, align 4
-  %445 = fadd float %444, %443
-  store float %445, float* %418, align 4
-  %446 = getelementptr inbounds float, float* %2, i64 3
-  store float 0.000000e+00, float* %446, align 4
-  %447 = getelementptr inbounds float, float* %2, i64 3
-  %448 = load float, float* %313, align 4
-  %449 = getelementptr inbounds float, float* %0, i64 3
-  %450 = load float, float* %449, align 4
-  %451 = fmul float %448, %450
-  %452 = load float, float* %447, align 4
-  %453 = fadd float %452, %451
-  store float %453, float* %447, align 4
-  %454 = getelementptr inbounds float, float* %313, i64 1
+  %444 = fadd float %443, 0.000000e+00
+  store float %444, float* %439, align 4
+  %445 = getelementptr inbounds i8, i8* %330, i64 4
+  %446 = bitcast i8* %445 to float*
+  %447 = load float, float* %446, align 4
+  %448 = getelementptr inbounds float, float* %0, i64 5
+  %449 = load float, float* %448, align 4
+  %450 = fmul float %447, %449
+  %451 = load float, float* %439, align 4
+  %452 = fadd float %451, %450
+  store float %452, float* %439, align 4
+  %453 = getelementptr inbounds i8, i8* %330, i64 8
+  %454 = bitcast i8* %453 to float*
   %455 = load float, float* %454, align 4
-  %456 = getelementptr inbounds float, float* %0, i64 7
+  %456 = getelementptr inbounds float, float* %0, i64 9
   %457 = load float, float* %456, align 4
   %458 = fmul float %455, %457
-  %459 = load float, float* %447, align 4
+  %459 = load float, float* %439, align 4
   %460 = fadd float %459, %458
-  store float %460, float* %447, align 4
-  %461 = getelementptr inbounds float, float* %313, i64 2
-  %462 = load float, float* %461, align 4
-  %463 = getelementptr inbounds float, float* %0, i64 11
-  %464 = load float, float* %463, align 4
-  %465 = fmul float %462, %464
-  %466 = load float, float* %447, align 4
-  %467 = fadd float %466, %465
-  store float %467, float* %447, align 4
-  %468 = getelementptr inbounds float, float* %313, i64 3
-  %469 = load float, float* %468, align 4
-  %470 = getelementptr inbounds float, float* %0, i64 15
-  %471 = load float, float* %470, align 4
-  %472 = fmul float %469, %471
-  %473 = load float, float* %447, align 4
-  %474 = fadd float %473, %472
-  store float %474, float* %447, align 4
-  %475 = getelementptr inbounds float, float* %313, i64 4
-  %476 = getelementptr inbounds float, float* %2, i64 4
-  store float 0.000000e+00, float* %476, align 4
-  %477 = getelementptr inbounds float, float* %2, i64 4
-  %478 = load float, float* %475, align 4
-  %479 = load float, float* %0, align 4
-  %480 = fmul float %478, %479
-  %481 = load float, float* %477, align 4
-  %482 = fadd float %481, %480
-  store float %482, float* %477, align 4
-  %483 = getelementptr inbounds float, float* %313, i64 5
-  %484 = load float, float* %483, align 4
-  %485 = getelementptr inbounds float, float* %0, i64 4
+  store float %460, float* %439, align 4
+  %461 = getelementptr inbounds i8, i8* %330, i64 12
+  %462 = bitcast i8* %461 to float*
+  %463 = load float, float* %462, align 4
+  %464 = getelementptr inbounds float, float* %0, i64 13
+  %465 = load float, float* %464, align 4
+  %466 = fmul float %463, %465
+  %467 = load float, float* %439, align 4
+  %468 = fadd float %467, %466
+  store float %468, float* %439, align 4
+  %469 = getelementptr inbounds float, float* %2, i64 2
+  store float 0.000000e+00, float* %469, align 4
+  %470 = getelementptr inbounds float, float* %2, i64 2
+  %471 = load float, float* %331, align 4
+  %472 = getelementptr inbounds float, float* %0, i64 2
+  %473 = load float, float* %472, align 4
+  %474 = fmul float %471, %473
+  %475 = fadd float %474, 0.000000e+00
+  store float %475, float* %470, align 4
+  %476 = getelementptr inbounds i8, i8* %330, i64 4
+  %477 = bitcast i8* %476 to float*
+  %478 = load float, float* %477, align 4
+  %479 = getelementptr inbounds float, float* %0, i64 6
+  %480 = load float, float* %479, align 4
+  %481 = fmul float %478, %480
+  %482 = load float, float* %470, align 4
+  %483 = fadd float %482, %481
+  store float %483, float* %470, align 4
+  %484 = getelementptr inbounds i8, i8* %330, i64 8
+  %485 = bitcast i8* %484 to float*
   %486 = load float, float* %485, align 4
-  %487 = fmul float %484, %486
-  %488 = load float, float* %477, align 4
-  %489 = fadd float %488, %487
-  store float %489, float* %477, align 4
-  %490 = getelementptr inbounds float, float* %313, i64 6
-  %491 = load float, float* %490, align 4
-  %492 = getelementptr inbounds float, float* %0, i64 8
-  %493 = load float, float* %492, align 4
-  %494 = fmul float %491, %493
-  %495 = load float, float* %477, align 4
-  %496 = fadd float %495, %494
-  store float %496, float* %477, align 4
-  %497 = getelementptr inbounds float, float* %313, i64 7
-  %498 = load float, float* %497, align 4
-  %499 = getelementptr inbounds float, float* %0, i64 12
-  %500 = load float, float* %499, align 4
-  %501 = fmul float %498, %500
-  %502 = load float, float* %477, align 4
-  %503 = fadd float %502, %501
-  store float %503, float* %477, align 4
-  %504 = getelementptr inbounds float, float* %2, i64 5
-  store float 0.000000e+00, float* %504, align 4
-  %505 = getelementptr inbounds float, float* %2, i64 5
-  %506 = load float, float* %475, align 4
-  %507 = getelementptr inbounds float, float* %0, i64 1
-  %508 = load float, float* %507, align 4
-  %509 = fmul float %506, %508
-  %510 = load float, float* %505, align 4
-  %511 = fadd float %510, %509
-  store float %511, float* %505, align 4
-  %512 = getelementptr inbounds float, float* %313, i64 5
-  %513 = load float, float* %512, align 4
-  %514 = getelementptr inbounds float, float* %0, i64 5
-  %515 = load float, float* %514, align 4
-  %516 = fmul float %513, %515
-  %517 = load float, float* %505, align 4
-  %518 = fadd float %517, %516
-  store float %518, float* %505, align 4
-  %519 = getelementptr inbounds float, float* %313, i64 6
-  %520 = load float, float* %519, align 4
-  %521 = getelementptr inbounds float, float* %0, i64 9
-  %522 = load float, float* %521, align 4
-  %523 = fmul float %520, %522
-  %524 = load float, float* %505, align 4
-  %525 = fadd float %524, %523
-  store float %525, float* %505, align 4
-  %526 = getelementptr inbounds float, float* %313, i64 7
+  %487 = getelementptr inbounds float, float* %0, i64 10
+  %488 = load float, float* %487, align 4
+  %489 = fmul float %486, %488
+  %490 = load float, float* %470, align 4
+  %491 = fadd float %490, %489
+  store float %491, float* %470, align 4
+  %492 = getelementptr inbounds i8, i8* %330, i64 12
+  %493 = bitcast i8* %492 to float*
+  %494 = load float, float* %493, align 4
+  %495 = getelementptr inbounds float, float* %0, i64 14
+  %496 = load float, float* %495, align 4
+  %497 = fmul float %494, %496
+  %498 = load float, float* %470, align 4
+  %499 = fadd float %498, %497
+  store float %499, float* %470, align 4
+  %500 = getelementptr inbounds float, float* %2, i64 3
+  store float 0.000000e+00, float* %500, align 4
+  %501 = getelementptr inbounds float, float* %2, i64 3
+  %502 = load float, float* %331, align 4
+  %503 = getelementptr inbounds float, float* %0, i64 3
+  %504 = load float, float* %503, align 4
+  %505 = fmul float %502, %504
+  %506 = fadd float %505, 0.000000e+00
+  store float %506, float* %501, align 4
+  %507 = getelementptr inbounds i8, i8* %330, i64 4
+  %508 = bitcast i8* %507 to float*
+  %509 = load float, float* %508, align 4
+  %510 = getelementptr inbounds float, float* %0, i64 7
+  %511 = load float, float* %510, align 4
+  %512 = fmul float %509, %511
+  %513 = load float, float* %501, align 4
+  %514 = fadd float %513, %512
+  store float %514, float* %501, align 4
+  %515 = getelementptr inbounds i8, i8* %330, i64 8
+  %516 = bitcast i8* %515 to float*
+  %517 = load float, float* %516, align 4
+  %518 = getelementptr inbounds float, float* %0, i64 11
+  %519 = load float, float* %518, align 4
+  %520 = fmul float %517, %519
+  %521 = load float, float* %501, align 4
+  %522 = fadd float %521, %520
+  store float %522, float* %501, align 4
+  %523 = getelementptr inbounds i8, i8* %330, i64 12
+  %524 = bitcast i8* %523 to float*
+  %525 = load float, float* %524, align 4
+  %526 = getelementptr inbounds float, float* %0, i64 15
   %527 = load float, float* %526, align 4
-  %528 = getelementptr inbounds float, float* %0, i64 13
-  %529 = load float, float* %528, align 4
-  %530 = fmul float %527, %529
-  %531 = load float, float* %505, align 4
-  %532 = fadd float %531, %530
-  store float %532, float* %505, align 4
-  %533 = getelementptr inbounds float, float* %2, i64 6
+  %528 = fmul float %525, %527
+  %529 = load float, float* %501, align 4
+  %530 = fadd float %529, %528
+  store float %530, float* %501, align 4
+  %531 = getelementptr inbounds i8, i8* %330, i64 16
+  %532 = bitcast i8* %531 to float*
+  %533 = getelementptr inbounds float, float* %2, i64 4
   store float 0.000000e+00, float* %533, align 4
-  %534 = getelementptr inbounds float, float* %2, i64 6
-  %535 = load float, float* %475, align 4
-  %536 = getelementptr inbounds float, float* %0, i64 2
-  %537 = load float, float* %536, align 4
-  %538 = fmul float %535, %537
-  %539 = load float, float* %534, align 4
-  %540 = fadd float %539, %538
-  store float %540, float* %534, align 4
-  %541 = getelementptr inbounds float, float* %313, i64 5
-  %542 = load float, float* %541, align 4
-  %543 = getelementptr inbounds float, float* %0, i64 6
-  %544 = load float, float* %543, align 4
-  %545 = fmul float %542, %544
-  %546 = load float, float* %534, align 4
-  %547 = fadd float %546, %545
-  store float %547, float* %534, align 4
-  %548 = getelementptr inbounds float, float* %313, i64 6
+  %534 = getelementptr inbounds float, float* %2, i64 4
+  %535 = load float, float* %532, align 4
+  %536 = load float, float* %0, align 4
+  %537 = fmul float %535, %536
+  %538 = fadd float %537, 0.000000e+00
+  store float %538, float* %534, align 4
+  %539 = getelementptr inbounds i8, i8* %330, i64 20
+  %540 = bitcast i8* %539 to float*
+  %541 = load float, float* %540, align 4
+  %542 = getelementptr inbounds float, float* %0, i64 4
+  %543 = load float, float* %542, align 4
+  %544 = fmul float %541, %543
+  %545 = load float, float* %534, align 4
+  %546 = fadd float %545, %544
+  store float %546, float* %534, align 4
+  %547 = getelementptr inbounds i8, i8* %330, i64 24
+  %548 = bitcast i8* %547 to float*
   %549 = load float, float* %548, align 4
-  %550 = getelementptr inbounds float, float* %0, i64 10
+  %550 = getelementptr inbounds float, float* %0, i64 8
   %551 = load float, float* %550, align 4
   %552 = fmul float %549, %551
   %553 = load float, float* %534, align 4
   %554 = fadd float %553, %552
   store float %554, float* %534, align 4
-  %555 = getelementptr inbounds float, float* %313, i64 7
-  %556 = load float, float* %555, align 4
-  %557 = getelementptr inbounds float, float* %0, i64 14
-  %558 = load float, float* %557, align 4
-  %559 = fmul float %556, %558
-  %560 = load float, float* %534, align 4
-  %561 = fadd float %560, %559
-  store float %561, float* %534, align 4
-  %562 = getelementptr inbounds float, float* %2, i64 7
-  store float 0.000000e+00, float* %562, align 4
-  %563 = getelementptr inbounds float, float* %2, i64 7
-  %564 = load float, float* %475, align 4
-  %565 = getelementptr inbounds float, float* %0, i64 3
-  %566 = load float, float* %565, align 4
-  %567 = fmul float %564, %566
-  %568 = load float, float* %563, align 4
-  %569 = fadd float %568, %567
-  store float %569, float* %563, align 4
-  %570 = getelementptr inbounds float, float* %313, i64 5
-  %571 = load float, float* %570, align 4
-  %572 = getelementptr inbounds float, float* %0, i64 7
-  %573 = load float, float* %572, align 4
-  %574 = fmul float %571, %573
-  %575 = load float, float* %563, align 4
-  %576 = fadd float %575, %574
-  store float %576, float* %563, align 4
-  %577 = getelementptr inbounds float, float* %313, i64 6
-  %578 = load float, float* %577, align 4
-  %579 = getelementptr inbounds float, float* %0, i64 11
+  %555 = getelementptr inbounds i8, i8* %330, i64 28
+  %556 = bitcast i8* %555 to float*
+  %557 = load float, float* %556, align 4
+  %558 = getelementptr inbounds float, float* %0, i64 12
+  %559 = load float, float* %558, align 4
+  %560 = fmul float %557, %559
+  %561 = load float, float* %534, align 4
+  %562 = fadd float %561, %560
+  store float %562, float* %534, align 4
+  %563 = getelementptr inbounds float, float* %2, i64 5
+  store float 0.000000e+00, float* %563, align 4
+  %564 = getelementptr inbounds float, float* %2, i64 5
+  %565 = load float, float* %532, align 4
+  %566 = getelementptr inbounds float, float* %0, i64 1
+  %567 = load float, float* %566, align 4
+  %568 = fmul float %565, %567
+  %569 = fadd float %568, 0.000000e+00
+  store float %569, float* %564, align 4
+  %570 = getelementptr inbounds i8, i8* %330, i64 20
+  %571 = bitcast i8* %570 to float*
+  %572 = load float, float* %571, align 4
+  %573 = getelementptr inbounds float, float* %0, i64 5
+  %574 = load float, float* %573, align 4
+  %575 = fmul float %572, %574
+  %576 = load float, float* %564, align 4
+  %577 = fadd float %576, %575
+  store float %577, float* %564, align 4
+  %578 = getelementptr inbounds i8, i8* %330, i64 24
+  %579 = bitcast i8* %578 to float*
   %580 = load float, float* %579, align 4
-  %581 = fmul float %578, %580
-  %582 = load float, float* %563, align 4
-  %583 = fadd float %582, %581
-  store float %583, float* %563, align 4
-  %584 = getelementptr inbounds float, float* %313, i64 7
-  %585 = load float, float* %584, align 4
-  %586 = getelementptr inbounds float, float* %0, i64 15
-  %587 = load float, float* %586, align 4
-  %588 = fmul float %585, %587
-  %589 = load float, float* %563, align 4
-  %590 = fadd float %589, %588
-  store float %590, float* %563, align 4
-  %591 = getelementptr inbounds float, float* %313, i64 8
-  %592 = getelementptr inbounds float, float* %2, i64 8
-  store float 0.000000e+00, float* %592, align 4
-  %593 = getelementptr inbounds float, float* %2, i64 8
-  %594 = load float, float* %591, align 4
-  %595 = load float, float* %0, align 4
-  %596 = fmul float %594, %595
-  %597 = load float, float* %593, align 4
-  %598 = fadd float %597, %596
-  store float %598, float* %593, align 4
-  %599 = getelementptr inbounds float, float* %313, i64 9
-  %600 = load float, float* %599, align 4
-  %601 = getelementptr inbounds float, float* %0, i64 4
-  %602 = load float, float* %601, align 4
-  %603 = fmul float %600, %602
-  %604 = load float, float* %593, align 4
-  %605 = fadd float %604, %603
-  store float %605, float* %593, align 4
-  %606 = getelementptr inbounds float, float* %313, i64 10
-  %607 = load float, float* %606, align 4
-  %608 = getelementptr inbounds float, float* %0, i64 8
-  %609 = load float, float* %608, align 4
-  %610 = fmul float %607, %609
-  %611 = load float, float* %593, align 4
-  %612 = fadd float %611, %610
-  store float %612, float* %593, align 4
-  %613 = getelementptr inbounds float, float* %313, i64 11
-  %614 = load float, float* %613, align 4
-  %615 = getelementptr inbounds float, float* %0, i64 12
-  %616 = load float, float* %615, align 4
-  %617 = fmul float %614, %616
-  %618 = load float, float* %593, align 4
-  %619 = fadd float %618, %617
-  store float %619, float* %593, align 4
-  %620 = getelementptr inbounds float, float* %2, i64 9
-  store float 0.000000e+00, float* %620, align 4
-  %621 = getelementptr inbounds float, float* %2, i64 9
-  %622 = load float, float* %591, align 4
-  %623 = getelementptr inbounds float, float* %0, i64 1
-  %624 = load float, float* %623, align 4
-  %625 = fmul float %622, %624
-  %626 = load float, float* %621, align 4
-  %627 = fadd float %626, %625
-  store float %627, float* %621, align 4
-  %628 = getelementptr inbounds float, float* %313, i64 9
+  %581 = getelementptr inbounds float, float* %0, i64 9
+  %582 = load float, float* %581, align 4
+  %583 = fmul float %580, %582
+  %584 = load float, float* %564, align 4
+  %585 = fadd float %584, %583
+  store float %585, float* %564, align 4
+  %586 = getelementptr inbounds i8, i8* %330, i64 28
+  %587 = bitcast i8* %586 to float*
+  %588 = load float, float* %587, align 4
+  %589 = getelementptr inbounds float, float* %0, i64 13
+  %590 = load float, float* %589, align 4
+  %591 = fmul float %588, %590
+  %592 = load float, float* %564, align 4
+  %593 = fadd float %592, %591
+  store float %593, float* %564, align 4
+  %594 = getelementptr inbounds float, float* %2, i64 6
+  store float 0.000000e+00, float* %594, align 4
+  %595 = getelementptr inbounds float, float* %2, i64 6
+  %596 = load float, float* %532, align 4
+  %597 = getelementptr inbounds float, float* %0, i64 2
+  %598 = load float, float* %597, align 4
+  %599 = fmul float %596, %598
+  %600 = fadd float %599, 0.000000e+00
+  store float %600, float* %595, align 4
+  %601 = getelementptr inbounds i8, i8* %330, i64 20
+  %602 = bitcast i8* %601 to float*
+  %603 = load float, float* %602, align 4
+  %604 = getelementptr inbounds float, float* %0, i64 6
+  %605 = load float, float* %604, align 4
+  %606 = fmul float %603, %605
+  %607 = load float, float* %595, align 4
+  %608 = fadd float %607, %606
+  store float %608, float* %595, align 4
+  %609 = getelementptr inbounds i8, i8* %330, i64 24
+  %610 = bitcast i8* %609 to float*
+  %611 = load float, float* %610, align 4
+  %612 = getelementptr inbounds float, float* %0, i64 10
+  %613 = load float, float* %612, align 4
+  %614 = fmul float %611, %613
+  %615 = load float, float* %595, align 4
+  %616 = fadd float %615, %614
+  store float %616, float* %595, align 4
+  %617 = getelementptr inbounds i8, i8* %330, i64 28
+  %618 = bitcast i8* %617 to float*
+  %619 = load float, float* %618, align 4
+  %620 = getelementptr inbounds float, float* %0, i64 14
+  %621 = load float, float* %620, align 4
+  %622 = fmul float %619, %621
+  %623 = load float, float* %595, align 4
+  %624 = fadd float %623, %622
+  store float %624, float* %595, align 4
+  %625 = getelementptr inbounds float, float* %2, i64 7
+  store float 0.000000e+00, float* %625, align 4
+  %626 = getelementptr inbounds float, float* %2, i64 7
+  %627 = load float, float* %532, align 4
+  %628 = getelementptr inbounds float, float* %0, i64 3
   %629 = load float, float* %628, align 4
-  %630 = getelementptr inbounds float, float* %0, i64 5
-  %631 = load float, float* %630, align 4
-  %632 = fmul float %629, %631
-  %633 = load float, float* %621, align 4
-  %634 = fadd float %633, %632
-  store float %634, float* %621, align 4
-  %635 = getelementptr inbounds float, float* %313, i64 10
+  %630 = fmul float %627, %629
+  %631 = fadd float %630, 0.000000e+00
+  store float %631, float* %626, align 4
+  %632 = getelementptr inbounds i8, i8* %330, i64 20
+  %633 = bitcast i8* %632 to float*
+  %634 = load float, float* %633, align 4
+  %635 = getelementptr inbounds float, float* %0, i64 7
   %636 = load float, float* %635, align 4
-  %637 = getelementptr inbounds float, float* %0, i64 9
-  %638 = load float, float* %637, align 4
-  %639 = fmul float %636, %638
-  %640 = load float, float* %621, align 4
-  %641 = fadd float %640, %639
-  store float %641, float* %621, align 4
-  %642 = getelementptr inbounds float, float* %313, i64 11
-  %643 = load float, float* %642, align 4
-  %644 = getelementptr inbounds float, float* %0, i64 13
-  %645 = load float, float* %644, align 4
-  %646 = fmul float %643, %645
-  %647 = load float, float* %621, align 4
-  %648 = fadd float %647, %646
-  store float %648, float* %621, align 4
-  %649 = getelementptr inbounds float, float* %2, i64 10
-  store float 0.000000e+00, float* %649, align 4
-  %650 = getelementptr inbounds float, float* %2, i64 10
-  %651 = load float, float* %591, align 4
-  %652 = getelementptr inbounds float, float* %0, i64 2
-  %653 = load float, float* %652, align 4
-  %654 = fmul float %651, %653
-  %655 = load float, float* %650, align 4
-  %656 = fadd float %655, %654
-  store float %656, float* %650, align 4
-  %657 = getelementptr inbounds float, float* %313, i64 9
-  %658 = load float, float* %657, align 4
-  %659 = getelementptr inbounds float, float* %0, i64 6
-  %660 = load float, float* %659, align 4
-  %661 = fmul float %658, %660
-  %662 = load float, float* %650, align 4
-  %663 = fadd float %662, %661
-  store float %663, float* %650, align 4
-  %664 = getelementptr inbounds float, float* %313, i64 10
-  %665 = load float, float* %664, align 4
-  %666 = getelementptr inbounds float, float* %0, i64 10
-  %667 = load float, float* %666, align 4
-  %668 = fmul float %665, %667
-  %669 = load float, float* %650, align 4
-  %670 = fadd float %669, %668
-  store float %670, float* %650, align 4
-  %671 = getelementptr inbounds float, float* %313, i64 11
-  %672 = load float, float* %671, align 4
-  %673 = getelementptr inbounds float, float* %0, i64 14
+  %637 = fmul float %634, %636
+  %638 = load float, float* %626, align 4
+  %639 = fadd float %638, %637
+  store float %639, float* %626, align 4
+  %640 = getelementptr inbounds i8, i8* %330, i64 24
+  %641 = bitcast i8* %640 to float*
+  %642 = load float, float* %641, align 4
+  %643 = getelementptr inbounds float, float* %0, i64 11
+  %644 = load float, float* %643, align 4
+  %645 = fmul float %642, %644
+  %646 = load float, float* %626, align 4
+  %647 = fadd float %646, %645
+  store float %647, float* %626, align 4
+  %648 = getelementptr inbounds i8, i8* %330, i64 28
+  %649 = bitcast i8* %648 to float*
+  %650 = load float, float* %649, align 4
+  %651 = getelementptr inbounds float, float* %0, i64 15
+  %652 = load float, float* %651, align 4
+  %653 = fmul float %650, %652
+  %654 = load float, float* %626, align 4
+  %655 = fadd float %654, %653
+  store float %655, float* %626, align 4
+  %656 = getelementptr inbounds i8, i8* %330, i64 32
+  %657 = bitcast i8* %656 to float*
+  %658 = getelementptr inbounds float, float* %2, i64 8
+  store float 0.000000e+00, float* %658, align 4
+  %659 = getelementptr inbounds float, float* %2, i64 8
+  %660 = load float, float* %657, align 4
+  %661 = load float, float* %0, align 4
+  %662 = fmul float %660, %661
+  %663 = fadd float %662, 0.000000e+00
+  store float %663, float* %659, align 4
+  %664 = getelementptr inbounds i8, i8* %330, i64 36
+  %665 = bitcast i8* %664 to float*
+  %666 = load float, float* %665, align 4
+  %667 = getelementptr inbounds float, float* %0, i64 4
+  %668 = load float, float* %667, align 4
+  %669 = fmul float %666, %668
+  %670 = load float, float* %659, align 4
+  %671 = fadd float %670, %669
+  store float %671, float* %659, align 4
+  %672 = getelementptr inbounds i8, i8* %330, i64 40
+  %673 = bitcast i8* %672 to float*
   %674 = load float, float* %673, align 4
-  %675 = fmul float %672, %674
-  %676 = load float, float* %650, align 4
-  %677 = fadd float %676, %675
-  store float %677, float* %650, align 4
-  %678 = getelementptr inbounds float, float* %2, i64 11
-  store float 0.000000e+00, float* %678, align 4
-  %679 = getelementptr inbounds float, float* %2, i64 11
-  %680 = load float, float* %591, align 4
-  %681 = getelementptr inbounds float, float* %0, i64 3
+  %675 = getelementptr inbounds float, float* %0, i64 8
+  %676 = load float, float* %675, align 4
+  %677 = fmul float %674, %676
+  %678 = load float, float* %659, align 4
+  %679 = fadd float %678, %677
+  store float %679, float* %659, align 4
+  %680 = getelementptr inbounds i8, i8* %330, i64 44
+  %681 = bitcast i8* %680 to float*
   %682 = load float, float* %681, align 4
-  %683 = fmul float %680, %682
-  %684 = load float, float* %679, align 4
-  %685 = fadd float %684, %683
-  store float %685, float* %679, align 4
-  %686 = getelementptr inbounds float, float* %313, i64 9
-  %687 = load float, float* %686, align 4
-  %688 = getelementptr inbounds float, float* %0, i64 7
-  %689 = load float, float* %688, align 4
-  %690 = fmul float %687, %689
-  %691 = load float, float* %679, align 4
-  %692 = fadd float %691, %690
-  store float %692, float* %679, align 4
-  %693 = getelementptr inbounds float, float* %313, i64 10
-  %694 = load float, float* %693, align 4
-  %695 = getelementptr inbounds float, float* %0, i64 11
-  %696 = load float, float* %695, align 4
-  %697 = fmul float %694, %696
-  %698 = load float, float* %679, align 4
-  %699 = fadd float %698, %697
-  store float %699, float* %679, align 4
-  %700 = getelementptr inbounds float, float* %313, i64 11
-  %701 = load float, float* %700, align 4
-  %702 = getelementptr inbounds float, float* %0, i64 15
-  %703 = load float, float* %702, align 4
-  %704 = fmul float %701, %703
-  %705 = load float, float* %679, align 4
-  %706 = fadd float %705, %704
-  store float %706, float* %679, align 4
-  %707 = getelementptr inbounds float, float* %313, i64 12
-  %708 = getelementptr inbounds float, float* %2, i64 12
-  store float 0.000000e+00, float* %708, align 4
-  %709 = getelementptr inbounds float, float* %2, i64 12
-  %710 = load float, float* %707, align 4
-  %711 = load float, float* %0, align 4
-  %712 = fmul float %710, %711
-  %713 = load float, float* %709, align 4
-  %714 = fadd float %713, %712
-  store float %714, float* %709, align 4
-  %715 = getelementptr inbounds float, float* %313, i64 13
-  %716 = load float, float* %715, align 4
-  %717 = getelementptr inbounds float, float* %0, i64 4
-  %718 = load float, float* %717, align 4
-  %719 = fmul float %716, %718
-  %720 = load float, float* %709, align 4
-  %721 = fadd float %720, %719
-  store float %721, float* %709, align 4
-  %722 = getelementptr inbounds float, float* %313, i64 14
+  %683 = getelementptr inbounds float, float* %0, i64 12
+  %684 = load float, float* %683, align 4
+  %685 = fmul float %682, %684
+  %686 = load float, float* %659, align 4
+  %687 = fadd float %686, %685
+  store float %687, float* %659, align 4
+  %688 = getelementptr inbounds float, float* %2, i64 9
+  store float 0.000000e+00, float* %688, align 4
+  %689 = getelementptr inbounds float, float* %2, i64 9
+  %690 = load float, float* %657, align 4
+  %691 = getelementptr inbounds float, float* %0, i64 1
+  %692 = load float, float* %691, align 4
+  %693 = fmul float %690, %692
+  %694 = fadd float %693, 0.000000e+00
+  store float %694, float* %689, align 4
+  %695 = getelementptr inbounds i8, i8* %330, i64 36
+  %696 = bitcast i8* %695 to float*
+  %697 = load float, float* %696, align 4
+  %698 = getelementptr inbounds float, float* %0, i64 5
+  %699 = load float, float* %698, align 4
+  %700 = fmul float %697, %699
+  %701 = load float, float* %689, align 4
+  %702 = fadd float %701, %700
+  store float %702, float* %689, align 4
+  %703 = getelementptr inbounds i8, i8* %330, i64 40
+  %704 = bitcast i8* %703 to float*
+  %705 = load float, float* %704, align 4
+  %706 = getelementptr inbounds float, float* %0, i64 9
+  %707 = load float, float* %706, align 4
+  %708 = fmul float %705, %707
+  %709 = load float, float* %689, align 4
+  %710 = fadd float %709, %708
+  store float %710, float* %689, align 4
+  %711 = getelementptr inbounds i8, i8* %330, i64 44
+  %712 = bitcast i8* %711 to float*
+  %713 = load float, float* %712, align 4
+  %714 = getelementptr inbounds float, float* %0, i64 13
+  %715 = load float, float* %714, align 4
+  %716 = fmul float %713, %715
+  %717 = load float, float* %689, align 4
+  %718 = fadd float %717, %716
+  store float %718, float* %689, align 4
+  %719 = getelementptr inbounds float, float* %2, i64 10
+  store float 0.000000e+00, float* %719, align 4
+  %720 = getelementptr inbounds float, float* %2, i64 10
+  %721 = load float, float* %657, align 4
+  %722 = getelementptr inbounds float, float* %0, i64 2
   %723 = load float, float* %722, align 4
-  %724 = getelementptr inbounds float, float* %0, i64 8
-  %725 = load float, float* %724, align 4
-  %726 = fmul float %723, %725
-  %727 = load float, float* %709, align 4
-  %728 = fadd float %727, %726
-  store float %728, float* %709, align 4
-  %729 = getelementptr inbounds float, float* %313, i64 15
+  %724 = fmul float %721, %723
+  %725 = fadd float %724, 0.000000e+00
+  store float %725, float* %720, align 4
+  %726 = getelementptr inbounds i8, i8* %330, i64 36
+  %727 = bitcast i8* %726 to float*
+  %728 = load float, float* %727, align 4
+  %729 = getelementptr inbounds float, float* %0, i64 6
   %730 = load float, float* %729, align 4
-  %731 = getelementptr inbounds float, float* %0, i64 12
-  %732 = load float, float* %731, align 4
-  %733 = fmul float %730, %732
-  %734 = load float, float* %709, align 4
-  %735 = fadd float %734, %733
-  store float %735, float* %709, align 4
-  %736 = getelementptr inbounds float, float* %2, i64 13
-  store float 0.000000e+00, float* %736, align 4
-  %737 = getelementptr inbounds float, float* %2, i64 13
-  %738 = load float, float* %707, align 4
-  %739 = getelementptr inbounds float, float* %0, i64 1
-  %740 = load float, float* %739, align 4
-  %741 = fmul float %738, %740
-  %742 = load float, float* %737, align 4
-  %743 = fadd float %742, %741
-  store float %743, float* %737, align 4
-  %744 = getelementptr inbounds float, float* %313, i64 13
-  %745 = load float, float* %744, align 4
-  %746 = getelementptr inbounds float, float* %0, i64 5
-  %747 = load float, float* %746, align 4
-  %748 = fmul float %745, %747
-  %749 = load float, float* %737, align 4
-  %750 = fadd float %749, %748
-  store float %750, float* %737, align 4
-  %751 = getelementptr inbounds float, float* %313, i64 14
-  %752 = load float, float* %751, align 4
-  %753 = getelementptr inbounds float, float* %0, i64 9
+  %731 = fmul float %728, %730
+  %732 = load float, float* %720, align 4
+  %733 = fadd float %732, %731
+  store float %733, float* %720, align 4
+  %734 = getelementptr inbounds i8, i8* %330, i64 40
+  %735 = bitcast i8* %734 to float*
+  %736 = load float, float* %735, align 4
+  %737 = getelementptr inbounds float, float* %0, i64 10
+  %738 = load float, float* %737, align 4
+  %739 = fmul float %736, %738
+  %740 = load float, float* %720, align 4
+  %741 = fadd float %740, %739
+  store float %741, float* %720, align 4
+  %742 = getelementptr inbounds i8, i8* %330, i64 44
+  %743 = bitcast i8* %742 to float*
+  %744 = load float, float* %743, align 4
+  %745 = getelementptr inbounds float, float* %0, i64 14
+  %746 = load float, float* %745, align 4
+  %747 = fmul float %744, %746
+  %748 = load float, float* %720, align 4
+  %749 = fadd float %748, %747
+  store float %749, float* %720, align 4
+  %750 = getelementptr inbounds float, float* %2, i64 11
+  store float 0.000000e+00, float* %750, align 4
+  %751 = getelementptr inbounds float, float* %2, i64 11
+  %752 = load float, float* %657, align 4
+  %753 = getelementptr inbounds float, float* %0, i64 3
   %754 = load float, float* %753, align 4
   %755 = fmul float %752, %754
-  %756 = load float, float* %737, align 4
-  %757 = fadd float %756, %755
-  store float %757, float* %737, align 4
-  %758 = getelementptr inbounds float, float* %313, i64 15
+  %756 = fadd float %755, 0.000000e+00
+  store float %756, float* %751, align 4
+  %757 = getelementptr inbounds i8, i8* %330, i64 36
+  %758 = bitcast i8* %757 to float*
   %759 = load float, float* %758, align 4
-  %760 = getelementptr inbounds float, float* %0, i64 13
+  %760 = getelementptr inbounds float, float* %0, i64 7
   %761 = load float, float* %760, align 4
   %762 = fmul float %759, %761
-  %763 = load float, float* %737, align 4
+  %763 = load float, float* %751, align 4
   %764 = fadd float %763, %762
-  store float %764, float* %737, align 4
-  %765 = getelementptr inbounds float, float* %2, i64 14
-  store float 0.000000e+00, float* %765, align 4
-  %766 = getelementptr inbounds float, float* %2, i64 14
-  %767 = load float, float* %707, align 4
-  %768 = getelementptr inbounds float, float* %0, i64 2
+  store float %764, float* %751, align 4
+  %765 = getelementptr inbounds i8, i8* %330, i64 40
+  %766 = bitcast i8* %765 to float*
+  %767 = load float, float* %766, align 4
+  %768 = getelementptr inbounds float, float* %0, i64 11
   %769 = load float, float* %768, align 4
   %770 = fmul float %767, %769
-  %771 = load float, float* %766, align 4
+  %771 = load float, float* %751, align 4
   %772 = fadd float %771, %770
-  store float %772, float* %766, align 4
-  %773 = getelementptr inbounds float, float* %313, i64 13
-  %774 = load float, float* %773, align 4
-  %775 = getelementptr inbounds float, float* %0, i64 6
-  %776 = load float, float* %775, align 4
-  %777 = fmul float %774, %776
-  %778 = load float, float* %766, align 4
-  %779 = fadd float %778, %777
-  store float %779, float* %766, align 4
-  %780 = getelementptr inbounds float, float* %313, i64 14
-  %781 = load float, float* %780, align 4
-  %782 = getelementptr inbounds float, float* %0, i64 10
-  %783 = load float, float* %782, align 4
-  %784 = fmul float %781, %783
-  %785 = load float, float* %766, align 4
-  %786 = fadd float %785, %784
-  store float %786, float* %766, align 4
-  %787 = getelementptr inbounds float, float* %313, i64 15
-  %788 = load float, float* %787, align 4
-  %789 = getelementptr inbounds float, float* %0, i64 14
-  %790 = load float, float* %789, align 4
-  %791 = fmul float %788, %790
-  %792 = load float, float* %766, align 4
-  %793 = fadd float %792, %791
-  store float %793, float* %766, align 4
-  %794 = getelementptr inbounds float, float* %2, i64 15
-  store float 0.000000e+00, float* %794, align 4
-  %795 = getelementptr inbounds float, float* %2, i64 15
-  %796 = load float, float* %707, align 4
-  %797 = getelementptr inbounds float, float* %0, i64 3
-  %798 = load float, float* %797, align 4
-  %799 = fmul float %796, %798
-  %800 = load float, float* %795, align 4
-  %801 = fadd float %800, %799
-  store float %801, float* %795, align 4
-  %802 = getelementptr inbounds float, float* %313, i64 13
-  %803 = load float, float* %802, align 4
-  %804 = getelementptr inbounds float, float* %0, i64 7
-  %805 = load float, float* %804, align 4
-  %806 = fmul float %803, %805
-  %807 = load float, float* %795, align 4
-  %808 = fadd float %807, %806
-  store float %808, float* %795, align 4
-  %809 = getelementptr inbounds float, float* %313, i64 14
-  %810 = load float, float* %809, align 4
-  %811 = getelementptr inbounds float, float* %0, i64 11
-  %812 = load float, float* %811, align 4
-  %813 = fmul float %810, %812
-  %814 = load float, float* %795, align 4
-  %815 = fadd float %814, %813
-  store float %815, float* %795, align 4
-  %816 = getelementptr inbounds float, float* %313, i64 15
+  store float %772, float* %751, align 4
+  %773 = getelementptr inbounds i8, i8* %330, i64 44
+  %774 = bitcast i8* %773 to float*
+  %775 = load float, float* %774, align 4
+  %776 = getelementptr inbounds float, float* %0, i64 15
+  %777 = load float, float* %776, align 4
+  %778 = fmul float %775, %777
+  %779 = load float, float* %751, align 4
+  %780 = fadd float %779, %778
+  store float %780, float* %751, align 4
+  %781 = getelementptr inbounds i8, i8* %330, i64 48
+  %782 = bitcast i8* %781 to float*
+  %783 = getelementptr inbounds float, float* %2, i64 12
+  store float 0.000000e+00, float* %783, align 4
+  %784 = getelementptr inbounds float, float* %2, i64 12
+  %785 = load float, float* %782, align 4
+  %786 = load float, float* %0, align 4
+  %787 = fmul float %785, %786
+  %788 = fadd float %787, 0.000000e+00
+  store float %788, float* %784, align 4
+  %789 = getelementptr inbounds i8, i8* %330, i64 52
+  %790 = bitcast i8* %789 to float*
+  %791 = load float, float* %790, align 4
+  %792 = getelementptr inbounds float, float* %0, i64 4
+  %793 = load float, float* %792, align 4
+  %794 = fmul float %791, %793
+  %795 = load float, float* %784, align 4
+  %796 = fadd float %795, %794
+  store float %796, float* %784, align 4
+  %797 = getelementptr inbounds i8, i8* %330, i64 56
+  %798 = bitcast i8* %797 to float*
+  %799 = load float, float* %798, align 4
+  %800 = getelementptr inbounds float, float* %0, i64 8
+  %801 = load float, float* %800, align 4
+  %802 = fmul float %799, %801
+  %803 = load float, float* %784, align 4
+  %804 = fadd float %803, %802
+  store float %804, float* %784, align 4
+  %805 = getelementptr inbounds i8, i8* %330, i64 60
+  %806 = bitcast i8* %805 to float*
+  %807 = load float, float* %806, align 4
+  %808 = getelementptr inbounds float, float* %0, i64 12
+  %809 = load float, float* %808, align 4
+  %810 = fmul float %807, %809
+  %811 = load float, float* %784, align 4
+  %812 = fadd float %811, %810
+  store float %812, float* %784, align 4
+  %813 = getelementptr inbounds float, float* %2, i64 13
+  store float 0.000000e+00, float* %813, align 4
+  %814 = getelementptr inbounds float, float* %2, i64 13
+  %815 = load float, float* %782, align 4
+  %816 = getelementptr inbounds float, float* %0, i64 1
   %817 = load float, float* %816, align 4
-  %818 = getelementptr inbounds float, float* %0, i64 15
-  %819 = load float, float* %818, align 4
-  %820 = fmul float %817, %819
-  %821 = load float, float* %795, align 4
-  %822 = fadd float %821, %820
-  store float %822, float* %795, align 4
-  call void @free(i8* %34)
-  call void @free(i8* %36)
-  call void @free(i8* %96)
-  call void @free(i8* %98)
-  call void @free(i8* %168)
-  call void @free(i8* %312)
-  %823 = call i8* @calloc(i64 4, i64 3) #9
-  %824 = bitcast i8* %823 to float*
-  %825 = call i8* @calloc(i64 4, i64 3) #9
-  %826 = bitcast i8* %825 to float*
-  %827 = getelementptr inbounds float, float* %2, i64 5
-  %828 = load float, float* %827, align 4
-  store float %828, float* %824, align 4
-  %829 = getelementptr inbounds float, float* %9, i64 5
+  %818 = fmul float %815, %817
+  %819 = fadd float %818, 0.000000e+00
+  store float %819, float* %814, align 4
+  %820 = getelementptr inbounds i8, i8* %330, i64 52
+  %821 = bitcast i8* %820 to float*
+  %822 = load float, float* %821, align 4
+  %823 = getelementptr inbounds float, float* %0, i64 5
+  %824 = load float, float* %823, align 4
+  %825 = fmul float %822, %824
+  %826 = load float, float* %814, align 4
+  %827 = fadd float %826, %825
+  store float %827, float* %814, align 4
+  %828 = getelementptr inbounds i8, i8* %330, i64 56
+  %829 = bitcast i8* %828 to float*
   %830 = load float, float* %829, align 4
-  store float %830, float* %826, align 4
-  %831 = getelementptr inbounds float, float* %2, i64 9
+  %831 = getelementptr inbounds float, float* %0, i64 9
   %832 = load float, float* %831, align 4
-  %833 = getelementptr inbounds float, float* %824, i64 1
-  store float %832, float* %833, align 4
-  %834 = getelementptr inbounds float, float* %9, i64 9
-  %835 = load float, float* %834, align 4
-  %836 = getelementptr inbounds float, float* %826, i64 1
-  store float %835, float* %836, align 4
-  %837 = getelementptr inbounds float, float* %2, i64 13
+  %833 = fmul float %830, %832
+  %834 = load float, float* %814, align 4
+  %835 = fadd float %834, %833
+  store float %835, float* %814, align 4
+  %836 = getelementptr inbounds i8, i8* %330, i64 60
+  %837 = bitcast i8* %836 to float*
   %838 = load float, float* %837, align 4
-  %839 = getelementptr inbounds float, float* %824, i64 2
-  store float %838, float* %839, align 4
-  %840 = getelementptr inbounds float, float* %9, i64 13
-  %841 = load float, float* %840, align 4
-  %842 = getelementptr inbounds float, float* %826, i64 2
-  store float %841, float* %842, align 4
-  %843 = load float, float* %824, align 4
-  %844 = fcmp ogt float %843, 0.000000e+00
-  %845 = zext i1 %844 to i32
-  %846 = fcmp olt float %843, 0.000000e+00
-  %847 = zext i1 %846 to i32
-  %848 = sub nsw i32 %845, %847
-  %849 = sitofp i32 %848 to float
-  %850 = load float, float* %824, align 4
-  %851 = fpext float %850 to double
-  %852 = call double @llvm.pow.f64(double %851, double 2.000000e+00) #8
-  %853 = fadd double 0.000000e+00, %852
-  %854 = fptrunc double %853 to float
-  %855 = getelementptr inbounds float, float* %824, i64 1
-  %856 = load float, float* %855, align 4
-  %857 = fpext float %856 to double
-  %858 = call double @llvm.pow.f64(double %857, double 2.000000e+00) #8
-  %859 = fpext float %854 to double
-  %860 = fadd double %859, %858
-  %861 = fptrunc double %860 to float
-  %862 = getelementptr inbounds float, float* %824, i64 2
+  %839 = getelementptr inbounds float, float* %0, i64 13
+  %840 = load float, float* %839, align 4
+  %841 = fmul float %838, %840
+  %842 = load float, float* %814, align 4
+  %843 = fadd float %842, %841
+  store float %843, float* %814, align 4
+  %844 = getelementptr inbounds float, float* %2, i64 14
+  store float 0.000000e+00, float* %844, align 4
+  %845 = getelementptr inbounds float, float* %2, i64 14
+  %846 = load float, float* %782, align 4
+  %847 = getelementptr inbounds float, float* %0, i64 2
+  %848 = load float, float* %847, align 4
+  %849 = fmul float %846, %848
+  %850 = fadd float %849, 0.000000e+00
+  store float %850, float* %845, align 4
+  %851 = getelementptr inbounds i8, i8* %330, i64 52
+  %852 = bitcast i8* %851 to float*
+  %853 = load float, float* %852, align 4
+  %854 = getelementptr inbounds float, float* %0, i64 6
+  %855 = load float, float* %854, align 4
+  %856 = fmul float %853, %855
+  %857 = load float, float* %845, align 4
+  %858 = fadd float %857, %856
+  store float %858, float* %845, align 4
+  %859 = getelementptr inbounds i8, i8* %330, i64 56
+  %860 = bitcast i8* %859 to float*
+  %861 = load float, float* %860, align 4
+  %862 = getelementptr inbounds float, float* %0, i64 10
   %863 = load float, float* %862, align 4
-  %864 = fpext float %863 to double
-  %865 = call double @llvm.pow.f64(double %864, double 2.000000e+00) #8
-  %866 = fpext float %861 to double
-  %867 = fadd double %866, %865
-  %868 = fptrunc double %867 to float
-  %869 = fneg float %849
-  %870 = fpext float %868 to double
-  %871 = call double @llvm.sqrt.f64(double %870) #8
-  %872 = fptrunc double %871 to float
-  %873 = fmul float %869, %872
-  %874 = call i8* @calloc(i64 4, i64 3) #9
-  %875 = bitcast i8* %874 to float*
-  %876 = call i8* @calloc(i64 4, i64 3) #9
-  %877 = load float, float* %824, align 4
-  %878 = load float, float* %826, align 4
-  %879 = fmul float %873, %878
-  %880 = fadd float %877, %879
-  store float %880, float* %875, align 4
-  %881 = getelementptr inbounds float, float* %824, i64 1
-  %882 = load float, float* %881, align 4
-  %883 = getelementptr inbounds float, float* %826, i64 1
+  %864 = fmul float %861, %863
+  %865 = load float, float* %845, align 4
+  %866 = fadd float %865, %864
+  store float %866, float* %845, align 4
+  %867 = getelementptr inbounds i8, i8* %330, i64 60
+  %868 = bitcast i8* %867 to float*
+  %869 = load float, float* %868, align 4
+  %870 = getelementptr inbounds float, float* %0, i64 14
+  %871 = load float, float* %870, align 4
+  %872 = fmul float %869, %871
+  %873 = load float, float* %845, align 4
+  %874 = fadd float %873, %872
+  store float %874, float* %845, align 4
+  %875 = getelementptr inbounds float, float* %2, i64 15
+  store float 0.000000e+00, float* %875, align 4
+  %876 = getelementptr inbounds float, float* %2, i64 15
+  %877 = load float, float* %782, align 4
+  %878 = getelementptr inbounds float, float* %0, i64 3
+  %879 = load float, float* %878, align 4
+  %880 = fmul float %877, %879
+  %881 = fadd float %880, 0.000000e+00
+  store float %881, float* %876, align 4
+  %882 = getelementptr inbounds i8, i8* %330, i64 52
+  %883 = bitcast i8* %882 to float*
   %884 = load float, float* %883, align 4
-  %885 = fmul float %873, %884
-  %886 = fadd float %882, %885
-  %887 = getelementptr inbounds float, float* %875, i64 1
-  store float %886, float* %887, align 4
-  %888 = getelementptr inbounds float, float* %824, i64 2
-  %889 = load float, float* %888, align 4
-  %890 = getelementptr inbounds float, float* %826, i64 2
-  %891 = load float, float* %890, align 4
-  %892 = fmul float %873, %891
-  %893 = fadd float %889, %892
-  %894 = getelementptr inbounds float, float* %875, i64 2
-  store float %893, float* %894, align 4
-  %895 = load float, float* %875, align 4
-  %896 = fpext float %895 to double
-  %897 = call double @llvm.pow.f64(double %896, double 2.000000e+00) #8
-  %898 = fadd double 0.000000e+00, %897
-  %899 = fptrunc double %898 to float
-  %900 = getelementptr inbounds float, float* %875, i64 1
-  %901 = load float, float* %900, align 4
-  %902 = fpext float %901 to double
-  %903 = call double @llvm.pow.f64(double %902, double 2.000000e+00) #8
-  %904 = fpext float %899 to double
-  %905 = fadd double %904, %903
-  %906 = fptrunc double %905 to float
-  %907 = getelementptr inbounds float, float* %875, i64 2
-  %908 = load float, float* %907, align 4
-  %909 = fpext float %908 to double
-  %910 = call double @llvm.pow.f64(double %909, double 2.000000e+00) #8
-  %911 = fpext float %906 to double
-  %912 = fadd double %911, %910
-  %913 = fptrunc double %912 to float
-  %914 = bitcast i8* %876 to float*
-  %915 = fpext float %913 to double
-  %916 = call double @llvm.sqrt.f64(double %915) #8
-  %917 = fptrunc double %916 to float
-  %918 = load float, float* %875, align 4
-  %919 = fdiv float %918, %917
-  store float %919, float* %914, align 4
-  %920 = getelementptr inbounds float, float* %875, i64 1
-  %921 = load float, float* %920, align 4
-  %922 = fdiv float %921, %917
-  %923 = getelementptr inbounds float, float* %914, i64 1
-  store float %922, float* %923, align 4
-  %924 = getelementptr inbounds float, float* %875, i64 2
-  %925 = load float, float* %924, align 4
-  %926 = fdiv float %925, %917
-  %927 = getelementptr inbounds float, float* %914, i64 2
-  store float %926, float* %927, align 4
-  %928 = call i8* @calloc(i64 4, i64 9) #9
-  %929 = bitcast i8* %928 to float*
-  %930 = load float, float* %914, align 4
-  %931 = fmul float 2.000000e+00, %930
-  %932 = load float, float* %914, align 4
-  %933 = fmul float %931, %932
-  %934 = fpext float %933 to double
-  %935 = fsub double 1.000000e+00, %934
-  %936 = fptrunc double %935 to float
-  store float %936, float* %929, align 4
-  %937 = load float, float* %914, align 4
-  %938 = fmul float 2.000000e+00, %937
-  %939 = getelementptr inbounds float, float* %914, i64 1
-  %940 = load float, float* %939, align 4
-  %941 = fmul float %938, %940
-  %942 = fpext float %941 to double
-  %943 = fsub double 0.000000e+00, %942
-  %944 = fptrunc double %943 to float
-  %945 = getelementptr inbounds float, float* %929, i64 1
-  store float %944, float* %945, align 4
-  %946 = load float, float* %914, align 4
-  %947 = fmul float 2.000000e+00, %946
-  %948 = getelementptr inbounds float, float* %914, i64 2
-  %949 = load float, float* %948, align 4
-  %950 = fmul float %947, %949
+  %885 = getelementptr inbounds float, float* %0, i64 7
+  %886 = load float, float* %885, align 4
+  %887 = fmul float %884, %886
+  %888 = load float, float* %876, align 4
+  %889 = fadd float %888, %887
+  store float %889, float* %876, align 4
+  %890 = getelementptr inbounds i8, i8* %330, i64 56
+  %891 = bitcast i8* %890 to float*
+  %892 = load float, float* %891, align 4
+  %893 = getelementptr inbounds float, float* %0, i64 11
+  %894 = load float, float* %893, align 4
+  %895 = fmul float %892, %894
+  %896 = load float, float* %876, align 4
+  %897 = fadd float %896, %895
+  store float %897, float* %876, align 4
+  %898 = getelementptr inbounds i8, i8* %330, i64 60
+  %899 = bitcast i8* %898 to float*
+  %900 = load float, float* %899, align 4
+  %901 = getelementptr inbounds float, float* %0, i64 15
+  %902 = load float, float* %901, align 4
+  %903 = fmul float %900, %902
+  %904 = load float, float* %876, align 4
+  %905 = fadd float %904, %903
+  store float %905, float* %876, align 4
+  %906 = call dereferenceable_or_null(12) i8* @calloc(i64 4, i64 3) #8
+  %907 = bitcast i8* %906 to float*
+  %908 = call dereferenceable_or_null(12) i8* @calloc(i64 4, i64 3) #8
+  %909 = bitcast i8* %908 to float*
+  %910 = getelementptr inbounds float, float* %2, i64 5
+  %911 = bitcast float* %910 to i32*
+  %912 = load i32, i32* %911, align 4
+  %913 = bitcast i8* %906 to i32*
+  store i32 %912, i32* %913, align 4
+  %914 = getelementptr inbounds i8, i8* %8, i64 20
+  %915 = bitcast i8* %914 to i32*
+  %916 = load i32, i32* %915, align 4
+  %917 = bitcast i8* %908 to i32*
+  store i32 %916, i32* %917, align 4
+  %918 = getelementptr inbounds float, float* %2, i64 9
+  %919 = bitcast float* %918 to i32*
+  %920 = load i32, i32* %919, align 4
+  %921 = getelementptr inbounds i8, i8* %906, i64 4
+  %922 = bitcast i8* %921 to i32*
+  store i32 %920, i32* %922, align 4
+  %923 = getelementptr inbounds i8, i8* %8, i64 36
+  %924 = bitcast i8* %923 to i32*
+  %925 = load i32, i32* %924, align 4
+  %926 = getelementptr inbounds i8, i8* %908, i64 4
+  %927 = bitcast i8* %926 to i32*
+  store i32 %925, i32* %927, align 4
+  %928 = getelementptr inbounds float, float* %2, i64 13
+  %929 = bitcast float* %928 to i32*
+  %930 = load i32, i32* %929, align 4
+  %931 = getelementptr inbounds i8, i8* %906, i64 8
+  %932 = bitcast i8* %931 to i32*
+  store i32 %930, i32* %932, align 4
+  %933 = getelementptr inbounds i8, i8* %8, i64 52
+  %934 = bitcast i8* %933 to i32*
+  %935 = load i32, i32* %934, align 4
+  %936 = getelementptr inbounds i8, i8* %908, i64 8
+  %937 = bitcast i8* %936 to i32*
+  store i32 %935, i32* %937, align 4
+  %938 = load float, float* %907, align 4
+  %939 = fcmp ogt float %938, 0.000000e+00
+  %940 = zext i1 %939 to i32
+  %941 = fcmp olt float %938, 0.000000e+00
+  %.neg180 = sext i1 %941 to i32
+  %942 = add nsw i32 %.neg180, %940
+  %943 = sitofp i32 %942 to float
+  %944 = load float, float* %907, align 4
+  %945 = fpext float %944 to double
+  %square181 = fmul double %945, %945
+  %946 = fadd double %square181, 0.000000e+00
+  %947 = fptrunc double %946 to float
+  %948 = getelementptr inbounds i8, i8* %906, i64 4
+  %949 = bitcast i8* %948 to float*
+  %950 = load float, float* %949, align 4
   %951 = fpext float %950 to double
-  %952 = fsub double 0.000000e+00, %951
-  %953 = fptrunc double %952 to float
-  %954 = getelementptr inbounds float, float* %929, i64 2
-  store float %953, float* %954, align 4
-  %955 = getelementptr inbounds float, float* %914, i64 1
-  %956 = load float, float* %955, align 4
-  %957 = fmul float 2.000000e+00, %956
-  %958 = load float, float* %914, align 4
-  %959 = fmul float %957, %958
-  %960 = fpext float %959 to double
-  %961 = fsub double 0.000000e+00, %960
-  %962 = fptrunc double %961 to float
-  %963 = getelementptr inbounds float, float* %929, i64 3
-  store float %962, float* %963, align 4
-  %964 = load float, float* %955, align 4
-  %965 = fmul float 2.000000e+00, %964
-  %966 = getelementptr inbounds float, float* %914, i64 1
-  %967 = load float, float* %966, align 4
-  %968 = fmul float %965, %967
-  %969 = fpext float %968 to double
-  %970 = fsub double 1.000000e+00, %969
-  %971 = fptrunc double %970 to float
-  %972 = getelementptr inbounds float, float* %929, i64 4
-  store float %971, float* %972, align 4
-  %973 = load float, float* %955, align 4
-  %974 = fmul float 2.000000e+00, %973
-  %975 = getelementptr inbounds float, float* %914, i64 2
-  %976 = load float, float* %975, align 4
-  %977 = fmul float %974, %976
-  %978 = fpext float %977 to double
-  %979 = fsub double 0.000000e+00, %978
-  %980 = fptrunc double %979 to float
-  %981 = getelementptr inbounds float, float* %929, i64 5
-  store float %980, float* %981, align 4
-  %982 = getelementptr inbounds float, float* %914, i64 2
-  %983 = load float, float* %982, align 4
-  %984 = fmul float 2.000000e+00, %983
-  %985 = load float, float* %914, align 4
-  %986 = fmul float %984, %985
-  %987 = fpext float %986 to double
-  %988 = fsub double 0.000000e+00, %987
-  %989 = fptrunc double %988 to float
-  %990 = getelementptr inbounds float, float* %929, i64 6
-  store float %989, float* %990, align 4
-  %991 = load float, float* %982, align 4
-  %992 = fmul float 2.000000e+00, %991
-  %993 = getelementptr inbounds float, float* %914, i64 1
-  %994 = load float, float* %993, align 4
-  %995 = fmul float %992, %994
-  %996 = fpext float %995 to double
-  %997 = fsub double 0.000000e+00, %996
-  %998 = fptrunc double %997 to float
-  %999 = getelementptr inbounds float, float* %929, i64 7
-  store float %998, float* %999, align 4
-  %1000 = load float, float* %982, align 4
-  %1001 = fmul float 2.000000e+00, %1000
-  %1002 = getelementptr inbounds float, float* %914, i64 2
-  %1003 = load float, float* %1002, align 4
-  %1004 = fmul float %1001, %1003
-  %1005 = fpext float %1004 to double
-  %1006 = fsub double 1.000000e+00, %1005
-  %1007 = fptrunc double %1006 to float
-  %1008 = getelementptr inbounds float, float* %929, i64 8
-  store float %1007, float* %1008, align 4
-  %1009 = call i8* @calloc(i64 4, i64 16) #9
-  %1010 = bitcast i8* %1009 to float*
-  store float 1.000000e+00, float* %1010, align 4
-  %1011 = getelementptr inbounds float, float* %1010, i64 1
-  store float 0.000000e+00, float* %1011, align 4
-  %1012 = getelementptr inbounds float, float* %1010, i64 2
-  store float 0.000000e+00, float* %1012, align 4
-  %1013 = getelementptr inbounds float, float* %1010, i64 3
-  store float 0.000000e+00, float* %1013, align 4
-  %1014 = getelementptr inbounds float, float* %1010, i64 4
-  store float 0.000000e+00, float* %1014, align 4
-  %1015 = load float, float* %929, align 4
-  %1016 = getelementptr inbounds float, float* %1010, i64 5
-  store float %1015, float* %1016, align 4
-  %1017 = getelementptr inbounds float, float* %929, i64 1
-  %1018 = load float, float* %1017, align 4
-  %1019 = getelementptr inbounds float, float* %1010, i64 6
-  store float %1018, float* %1019, align 4
-  %1020 = getelementptr inbounds float, float* %929, i64 2
-  %1021 = load float, float* %1020, align 4
-  %1022 = getelementptr inbounds float, float* %1010, i64 7
-  store float %1021, float* %1022, align 4
-  %1023 = getelementptr inbounds float, float* %1010, i64 8
-  store float 0.000000e+00, float* %1023, align 4
-  %1024 = getelementptr inbounds float, float* %929, i64 3
-  %1025 = load float, float* %1024, align 4
-  %1026 = getelementptr inbounds float, float* %1010, i64 9
-  store float %1025, float* %1026, align 4
-  %1027 = getelementptr inbounds float, float* %929, i64 4
-  %1028 = load float, float* %1027, align 4
-  %1029 = getelementptr inbounds float, float* %1010, i64 10
-  store float %1028, float* %1029, align 4
-  %1030 = getelementptr inbounds float, float* %929, i64 5
-  %1031 = load float, float* %1030, align 4
-  %1032 = getelementptr inbounds float, float* %1010, i64 11
-  store float %1031, float* %1032, align 4
-  %1033 = getelementptr inbounds float, float* %1010, i64 12
-  store float 0.000000e+00, float* %1033, align 4
-  %1034 = getelementptr inbounds float, float* %929, i64 6
-  %1035 = load float, float* %1034, align 4
-  %1036 = getelementptr inbounds float, float* %1010, i64 13
-  store float %1035, float* %1036, align 4
-  %1037 = getelementptr inbounds float, float* %929, i64 7
-  %1038 = load float, float* %1037, align 4
-  %1039 = getelementptr inbounds float, float* %1010, i64 14
-  store float %1038, float* %1039, align 4
-  %1040 = getelementptr inbounds float, float* %929, i64 8
-  %1041 = load float, float* %1040, align 4
-  %1042 = getelementptr inbounds float, float* %1010, i64 15
-  store float %1041, float* %1042, align 4
-  %1043 = call i8* @calloc(i64 4, i64 16) #9
+  %square182 = fmul double %951, %951
+  %952 = fpext float %947 to double
+  %953 = fadd double %square182, %952
+  %954 = fptrunc double %953 to float
+  %955 = getelementptr inbounds i8, i8* %906, i64 8
+  %956 = bitcast i8* %955 to float*
+  %957 = load float, float* %956, align 4
+  %958 = fpext float %957 to double
+  %square183 = fmul double %958, %958
+  %959 = fpext float %954 to double
+  %960 = fadd double %square183, %959
+  %961 = fptrunc double %960 to float
+  %962 = fneg float %943
+  %963 = call float @llvm.sqrt.f32(float %961)
+  %964 = fmul float %963, %962
+  %965 = call dereferenceable_or_null(12) i8* @calloc(i64 4, i64 3) #8
+  %966 = bitcast i8* %965 to float*
+  %967 = call dereferenceable_or_null(12) i8* @calloc(i64 4, i64 3) #8
+  %968 = load float, float* %907, align 4
+  %969 = load float, float* %909, align 4
+  %970 = fmul float %964, %969
+  %971 = fadd float %968, %970
+  store float %971, float* %966, align 4
+  %972 = getelementptr inbounds i8, i8* %906, i64 4
+  %973 = bitcast i8* %972 to float*
+  %974 = load float, float* %973, align 4
+  %975 = getelementptr inbounds i8, i8* %908, i64 4
+  %976 = bitcast i8* %975 to float*
+  %977 = load float, float* %976, align 4
+  %978 = fmul float %964, %977
+  %979 = fadd float %974, %978
+  %980 = getelementptr inbounds i8, i8* %965, i64 4
+  %981 = bitcast i8* %980 to float*
+  store float %979, float* %981, align 4
+  %982 = getelementptr inbounds i8, i8* %906, i64 8
+  %983 = bitcast i8* %982 to float*
+  %984 = load float, float* %983, align 4
+  %985 = getelementptr inbounds i8, i8* %908, i64 8
+  %986 = bitcast i8* %985 to float*
+  %987 = load float, float* %986, align 4
+  %988 = fmul float %964, %987
+  %989 = fadd float %984, %988
+  %990 = getelementptr inbounds i8, i8* %965, i64 8
+  %991 = bitcast i8* %990 to float*
+  store float %989, float* %991, align 4
+  %992 = load float, float* %966, align 4
+  %993 = fpext float %992 to double
+  %square184 = fmul double %993, %993
+  %994 = fadd double %square184, 0.000000e+00
+  %995 = fptrunc double %994 to float
+  %996 = getelementptr inbounds i8, i8* %965, i64 4
+  %997 = bitcast i8* %996 to float*
+  %998 = load float, float* %997, align 4
+  %999 = fpext float %998 to double
+  %square185 = fmul double %999, %999
+  %1000 = fpext float %995 to double
+  %1001 = fadd double %square185, %1000
+  %1002 = fptrunc double %1001 to float
+  %1003 = getelementptr inbounds i8, i8* %965, i64 8
+  %1004 = bitcast i8* %1003 to float*
+  %1005 = load float, float* %1004, align 4
+  %1006 = fpext float %1005 to double
+  %square186 = fmul double %1006, %1006
+  %1007 = fpext float %1002 to double
+  %1008 = fadd double %square186, %1007
+  %1009 = fptrunc double %1008 to float
+  %1010 = bitcast i8* %967 to float*
+  %1011 = call float @llvm.sqrt.f32(float %1009)
+  %1012 = load float, float* %966, align 4
+  %1013 = fdiv float %1012, %1011
+  store float %1013, float* %1010, align 4
+  %1014 = getelementptr inbounds i8, i8* %965, i64 4
+  %1015 = bitcast i8* %1014 to float*
+  %1016 = load float, float* %1015, align 4
+  %1017 = fdiv float %1016, %1011
+  %1018 = getelementptr inbounds i8, i8* %967, i64 4
+  %1019 = bitcast i8* %1018 to float*
+  store float %1017, float* %1019, align 4
+  %1020 = getelementptr inbounds i8, i8* %965, i64 8
+  %1021 = bitcast i8* %1020 to float*
+  %1022 = load float, float* %1021, align 4
+  %1023 = fdiv float %1022, %1011
+  %1024 = getelementptr inbounds i8, i8* %967, i64 8
+  %1025 = bitcast i8* %1024 to float*
+  store float %1023, float* %1025, align 4
+  %1026 = call dereferenceable_or_null(36) i8* @calloc(i64 4, i64 9) #8
+  %1027 = bitcast i8* %1026 to float*
+  %1028 = load float, float* %1010, align 4
+  %1029 = fmul float %1028, 2.000000e+00
+  %1030 = fmul float %1029, %1028
+  %1031 = fsub float 1.000000e+00, %1030
+  store float %1031, float* %1027, align 4
+  %1032 = load float, float* %1010, align 4
+  %1033 = fmul float %1032, 2.000000e+00
+  %1034 = getelementptr inbounds i8, i8* %967, i64 4
+  %1035 = bitcast i8* %1034 to float*
+  %1036 = load float, float* %1035, align 4
+  %1037 = fmul float %1033, %1036
+  %1038 = fsub float 0.000000e+00, %1037
+  %1039 = getelementptr inbounds i8, i8* %1026, i64 4
+  %1040 = bitcast i8* %1039 to float*
+  store float %1038, float* %1040, align 4
+  %1041 = load float, float* %1010, align 4
+  %1042 = fmul float %1041, 2.000000e+00
+  %1043 = getelementptr inbounds i8, i8* %967, i64 8
   %1044 = bitcast i8* %1043 to float*
-  store float 0.000000e+00, float* %1044, align 4
-  %1045 = load float, float* %1010, align 4
-  %1046 = load float, float* %1, align 4
-  %1047 = fmul float %1045, %1046
-  %1048 = load float, float* %1044, align 4
-  %1049 = fadd float %1048, %1047
-  store float %1049, float* %1044, align 4
-  %1050 = getelementptr inbounds float, float* %1010, i64 1
-  %1051 = load float, float* %1050, align 4
-  %1052 = getelementptr inbounds float, float* %1, i64 4
-  %1053 = load float, float* %1052, align 4
-  %1054 = fmul float %1051, %1053
-  %1055 = load float, float* %1044, align 4
-  %1056 = fadd float %1055, %1054
-  store float %1056, float* %1044, align 4
-  %1057 = getelementptr inbounds float, float* %1010, i64 2
-  %1058 = load float, float* %1057, align 4
-  %1059 = getelementptr inbounds float, float* %1, i64 8
-  %1060 = load float, float* %1059, align 4
-  %1061 = fmul float %1058, %1060
-  %1062 = load float, float* %1044, align 4
-  %1063 = fadd float %1062, %1061
-  store float %1063, float* %1044, align 4
-  %1064 = getelementptr inbounds float, float* %1010, i64 3
-  %1065 = load float, float* %1064, align 4
-  %1066 = getelementptr inbounds float, float* %1, i64 12
-  %1067 = load float, float* %1066, align 4
-  %1068 = fmul float %1065, %1067
-  %1069 = load float, float* %1044, align 4
-  %1070 = fadd float %1069, %1068
-  store float %1070, float* %1044, align 4
-  %1071 = getelementptr inbounds float, float* %1044, i64 1
-  store float 0.000000e+00, float* %1071, align 4
-  %1072 = getelementptr inbounds float, float* %1044, i64 1
-  %1073 = load float, float* %1010, align 4
-  %1074 = getelementptr inbounds float, float* %1, i64 1
-  %1075 = load float, float* %1074, align 4
-  %1076 = fmul float %1073, %1075
-  %1077 = load float, float* %1072, align 4
-  %1078 = fadd float %1077, %1076
-  store float %1078, float* %1072, align 4
-  %1079 = getelementptr inbounds float, float* %1010, i64 1
-  %1080 = load float, float* %1079, align 4
-  %1081 = getelementptr inbounds float, float* %1, i64 5
-  %1082 = load float, float* %1081, align 4
-  %1083 = fmul float %1080, %1082
-  %1084 = load float, float* %1072, align 4
-  %1085 = fadd float %1084, %1083
-  store float %1085, float* %1072, align 4
-  %1086 = getelementptr inbounds float, float* %1010, i64 2
+  %1045 = load float, float* %1044, align 4
+  %1046 = fmul float %1042, %1045
+  %1047 = fsub float 0.000000e+00, %1046
+  %1048 = getelementptr inbounds i8, i8* %1026, i64 8
+  %1049 = bitcast i8* %1048 to float*
+  store float %1047, float* %1049, align 4
+  %1050 = getelementptr inbounds i8, i8* %967, i64 4
+  %1051 = bitcast i8* %1050 to float*
+  %1052 = load float, float* %1051, align 4
+  %1053 = fmul float %1052, 2.000000e+00
+  %1054 = load float, float* %1010, align 4
+  %1055 = fmul float %1053, %1054
+  %1056 = fsub float 0.000000e+00, %1055
+  %1057 = getelementptr inbounds i8, i8* %1026, i64 12
+  %1058 = bitcast i8* %1057 to float*
+  store float %1056, float* %1058, align 4
+  %1059 = load float, float* %1051, align 4
+  %1060 = fmul float %1059, 2.000000e+00
+  %1061 = fmul float %1060, %1059
+  %1062 = fsub float 1.000000e+00, %1061
+  %1063 = getelementptr inbounds i8, i8* %1026, i64 16
+  %1064 = bitcast i8* %1063 to float*
+  store float %1062, float* %1064, align 4
+  %1065 = load float, float* %1051, align 4
+  %1066 = fmul float %1065, 2.000000e+00
+  %1067 = getelementptr inbounds i8, i8* %967, i64 8
+  %1068 = bitcast i8* %1067 to float*
+  %1069 = load float, float* %1068, align 4
+  %1070 = fmul float %1066, %1069
+  %1071 = fsub float 0.000000e+00, %1070
+  %1072 = getelementptr inbounds i8, i8* %1026, i64 20
+  %1073 = bitcast i8* %1072 to float*
+  store float %1071, float* %1073, align 4
+  %1074 = getelementptr inbounds i8, i8* %967, i64 8
+  %1075 = bitcast i8* %1074 to float*
+  %1076 = load float, float* %1075, align 4
+  %1077 = fmul float %1076, 2.000000e+00
+  %1078 = load float, float* %1010, align 4
+  %1079 = fmul float %1077, %1078
+  %1080 = fsub float 0.000000e+00, %1079
+  %1081 = getelementptr inbounds i8, i8* %1026, i64 24
+  %1082 = bitcast i8* %1081 to float*
+  store float %1080, float* %1082, align 4
+  %1083 = load float, float* %1075, align 4
+  %1084 = fmul float %1083, 2.000000e+00
+  %1085 = getelementptr inbounds i8, i8* %967, i64 4
+  %1086 = bitcast i8* %1085 to float*
   %1087 = load float, float* %1086, align 4
-  %1088 = getelementptr inbounds float, float* %1, i64 9
-  %1089 = load float, float* %1088, align 4
-  %1090 = fmul float %1087, %1089
-  %1091 = load float, float* %1072, align 4
-  %1092 = fadd float %1091, %1090
-  store float %1092, float* %1072, align 4
-  %1093 = getelementptr inbounds float, float* %1010, i64 3
-  %1094 = load float, float* %1093, align 4
-  %1095 = getelementptr inbounds float, float* %1, i64 13
-  %1096 = load float, float* %1095, align 4
-  %1097 = fmul float %1094, %1096
-  %1098 = load float, float* %1072, align 4
-  %1099 = fadd float %1098, %1097
-  store float %1099, float* %1072, align 4
-  %1100 = getelementptr inbounds float, float* %1044, i64 2
-  store float 0.000000e+00, float* %1100, align 4
-  %1101 = getelementptr inbounds float, float* %1044, i64 2
-  %1102 = load float, float* %1010, align 4
-  %1103 = getelementptr inbounds float, float* %1, i64 2
-  %1104 = load float, float* %1103, align 4
-  %1105 = fmul float %1102, %1104
-  %1106 = load float, float* %1101, align 4
-  %1107 = fadd float %1106, %1105
-  store float %1107, float* %1101, align 4
-  %1108 = getelementptr inbounds float, float* %1010, i64 1
-  %1109 = load float, float* %1108, align 4
-  %1110 = getelementptr inbounds float, float* %1, i64 6
-  %1111 = load float, float* %1110, align 4
-  %1112 = fmul float %1109, %1111
-  %1113 = load float, float* %1101, align 4
-  %1114 = fadd float %1113, %1112
-  store float %1114, float* %1101, align 4
-  %1115 = getelementptr inbounds float, float* %1010, i64 2
-  %1116 = load float, float* %1115, align 4
-  %1117 = getelementptr inbounds float, float* %1, i64 10
-  %1118 = load float, float* %1117, align 4
-  %1119 = fmul float %1116, %1118
-  %1120 = load float, float* %1101, align 4
-  %1121 = fadd float %1120, %1119
-  store float %1121, float* %1101, align 4
-  %1122 = getelementptr inbounds float, float* %1010, i64 3
-  %1123 = load float, float* %1122, align 4
-  %1124 = getelementptr inbounds float, float* %1, i64 14
-  %1125 = load float, float* %1124, align 4
-  %1126 = fmul float %1123, %1125
-  %1127 = load float, float* %1101, align 4
-  %1128 = fadd float %1127, %1126
-  store float %1128, float* %1101, align 4
-  %1129 = getelementptr inbounds float, float* %1044, i64 3
-  store float 0.000000e+00, float* %1129, align 4
-  %1130 = getelementptr inbounds float, float* %1044, i64 3
-  %1131 = load float, float* %1010, align 4
-  %1132 = getelementptr inbounds float, float* %1, i64 3
-  %1133 = load float, float* %1132, align 4
-  %1134 = fmul float %1131, %1133
-  %1135 = load float, float* %1130, align 4
-  %1136 = fadd float %1135, %1134
-  store float %1136, float* %1130, align 4
-  %1137 = getelementptr inbounds float, float* %1010, i64 1
-  %1138 = load float, float* %1137, align 4
-  %1139 = getelementptr inbounds float, float* %1, i64 7
-  %1140 = load float, float* %1139, align 4
-  %1141 = fmul float %1138, %1140
-  %1142 = load float, float* %1130, align 4
-  %1143 = fadd float %1142, %1141
-  store float %1143, float* %1130, align 4
-  %1144 = getelementptr inbounds float, float* %1010, i64 2
-  %1145 = load float, float* %1144, align 4
-  %1146 = getelementptr inbounds float, float* %1, i64 11
-  %1147 = load float, float* %1146, align 4
-  %1148 = fmul float %1145, %1147
-  %1149 = load float, float* %1130, align 4
-  %1150 = fadd float %1149, %1148
-  store float %1150, float* %1130, align 4
-  %1151 = getelementptr inbounds float, float* %1010, i64 3
-  %1152 = load float, float* %1151, align 4
-  %1153 = getelementptr inbounds float, float* %1, i64 15
-  %1154 = load float, float* %1153, align 4
-  %1155 = fmul float %1152, %1154
-  %1156 = load float, float* %1130, align 4
-  %1157 = fadd float %1156, %1155
-  store float %1157, float* %1130, align 4
-  %1158 = getelementptr inbounds float, float* %1010, i64 4
-  %1159 = getelementptr inbounds float, float* %1044, i64 4
-  store float 0.000000e+00, float* %1159, align 4
-  %1160 = getelementptr inbounds float, float* %1044, i64 4
-  %1161 = load float, float* %1158, align 4
-  %1162 = load float, float* %1, align 4
-  %1163 = fmul float %1161, %1162
-  %1164 = load float, float* %1160, align 4
-  %1165 = fadd float %1164, %1163
-  store float %1165, float* %1160, align 4
-  %1166 = getelementptr inbounds float, float* %1010, i64 5
-  %1167 = load float, float* %1166, align 4
-  %1168 = getelementptr inbounds float, float* %1, i64 4
-  %1169 = load float, float* %1168, align 4
-  %1170 = fmul float %1167, %1169
-  %1171 = load float, float* %1160, align 4
-  %1172 = fadd float %1171, %1170
-  store float %1172, float* %1160, align 4
-  %1173 = getelementptr inbounds float, float* %1010, i64 6
-  %1174 = load float, float* %1173, align 4
-  %1175 = getelementptr inbounds float, float* %1, i64 8
-  %1176 = load float, float* %1175, align 4
-  %1177 = fmul float %1174, %1176
-  %1178 = load float, float* %1160, align 4
-  %1179 = fadd float %1178, %1177
-  store float %1179, float* %1160, align 4
-  %1180 = getelementptr inbounds float, float* %1010, i64 7
-  %1181 = load float, float* %1180, align 4
-  %1182 = getelementptr inbounds float, float* %1, i64 12
-  %1183 = load float, float* %1182, align 4
-  %1184 = fmul float %1181, %1183
-  %1185 = load float, float* %1160, align 4
-  %1186 = fadd float %1185, %1184
-  store float %1186, float* %1160, align 4
-  %1187 = getelementptr inbounds float, float* %1044, i64 5
-  store float 0.000000e+00, float* %1187, align 4
-  %1188 = getelementptr inbounds float, float* %1044, i64 5
-  %1189 = load float, float* %1158, align 4
-  %1190 = getelementptr inbounds float, float* %1, i64 1
-  %1191 = load float, float* %1190, align 4
-  %1192 = fmul float %1189, %1191
-  %1193 = load float, float* %1188, align 4
-  %1194 = fadd float %1193, %1192
-  store float %1194, float* %1188, align 4
-  %1195 = getelementptr inbounds float, float* %1010, i64 5
-  %1196 = load float, float* %1195, align 4
-  %1197 = getelementptr inbounds float, float* %1, i64 5
-  %1198 = load float, float* %1197, align 4
-  %1199 = fmul float %1196, %1198
-  %1200 = load float, float* %1188, align 4
-  %1201 = fadd float %1200, %1199
-  store float %1201, float* %1188, align 4
-  %1202 = getelementptr inbounds float, float* %1010, i64 6
+  %1088 = fmul float %1084, %1087
+  %1089 = fsub float 0.000000e+00, %1088
+  %1090 = getelementptr inbounds i8, i8* %1026, i64 28
+  %1091 = bitcast i8* %1090 to float*
+  store float %1089, float* %1091, align 4
+  %1092 = load float, float* %1075, align 4
+  %1093 = fmul float %1092, 2.000000e+00
+  %1094 = fmul float %1093, %1092
+  %1095 = fsub float 1.000000e+00, %1094
+  %1096 = getelementptr inbounds i8, i8* %1026, i64 32
+  %1097 = bitcast i8* %1096 to float*
+  store float %1095, float* %1097, align 4
+  %1098 = call dereferenceable_or_null(64) i8* @calloc(i64 4, i64 16) #8
+  %1099 = bitcast i8* %1098 to float*
+  store float 1.000000e+00, float* %1099, align 4
+  %1100 = getelementptr inbounds i8, i8* %1098, i64 4
+  %1101 = bitcast i8* %1100 to float*
+  store float 0.000000e+00, float* %1101, align 4
+  %1102 = getelementptr inbounds i8, i8* %1098, i64 8
+  %1103 = bitcast i8* %1102 to float*
+  store float 0.000000e+00, float* %1103, align 4
+  %1104 = getelementptr inbounds i8, i8* %1098, i64 12
+  %1105 = bitcast i8* %1104 to float*
+  store float 0.000000e+00, float* %1105, align 4
+  %1106 = getelementptr inbounds i8, i8* %1098, i64 16
+  %1107 = bitcast i8* %1106 to float*
+  store float 0.000000e+00, float* %1107, align 4
+  %1108 = bitcast i8* %1026 to i32*
+  %1109 = load i32, i32* %1108, align 4
+  %1110 = getelementptr inbounds i8, i8* %1098, i64 20
+  %1111 = bitcast i8* %1110 to i32*
+  store i32 %1109, i32* %1111, align 4
+  %1112 = getelementptr inbounds i8, i8* %1026, i64 4
+  %1113 = bitcast i8* %1112 to i32*
+  %1114 = load i32, i32* %1113, align 4
+  %1115 = getelementptr inbounds i8, i8* %1098, i64 24
+  %1116 = bitcast i8* %1115 to i32*
+  store i32 %1114, i32* %1116, align 4
+  %1117 = getelementptr inbounds i8, i8* %1026, i64 8
+  %1118 = bitcast i8* %1117 to i32*
+  %1119 = load i32, i32* %1118, align 4
+  %1120 = getelementptr inbounds i8, i8* %1098, i64 28
+  %1121 = bitcast i8* %1120 to i32*
+  store i32 %1119, i32* %1121, align 4
+  %1122 = getelementptr inbounds i8, i8* %1098, i64 32
+  %1123 = bitcast i8* %1122 to float*
+  store float 0.000000e+00, float* %1123, align 4
+  %1124 = getelementptr inbounds i8, i8* %1026, i64 12
+  %1125 = bitcast i8* %1124 to i32*
+  %1126 = load i32, i32* %1125, align 4
+  %1127 = getelementptr inbounds i8, i8* %1098, i64 36
+  %1128 = bitcast i8* %1127 to i32*
+  store i32 %1126, i32* %1128, align 4
+  %1129 = getelementptr inbounds i8, i8* %1026, i64 16
+  %1130 = bitcast i8* %1129 to i32*
+  %1131 = load i32, i32* %1130, align 4
+  %1132 = getelementptr inbounds i8, i8* %1098, i64 40
+  %1133 = bitcast i8* %1132 to i32*
+  store i32 %1131, i32* %1133, align 4
+  %1134 = getelementptr inbounds i8, i8* %1026, i64 20
+  %1135 = bitcast i8* %1134 to i32*
+  %1136 = load i32, i32* %1135, align 4
+  %1137 = getelementptr inbounds i8, i8* %1098, i64 44
+  %1138 = bitcast i8* %1137 to i32*
+  store i32 %1136, i32* %1138, align 4
+  %1139 = getelementptr inbounds i8, i8* %1098, i64 48
+  %1140 = bitcast i8* %1139 to float*
+  store float 0.000000e+00, float* %1140, align 4
+  %1141 = getelementptr inbounds i8, i8* %1026, i64 24
+  %1142 = bitcast i8* %1141 to i32*
+  %1143 = load i32, i32* %1142, align 4
+  %1144 = getelementptr inbounds i8, i8* %1098, i64 52
+  %1145 = bitcast i8* %1144 to i32*
+  store i32 %1143, i32* %1145, align 4
+  %1146 = getelementptr inbounds i8, i8* %1026, i64 28
+  %1147 = bitcast i8* %1146 to i32*
+  %1148 = load i32, i32* %1147, align 4
+  %1149 = getelementptr inbounds i8, i8* %1098, i64 56
+  %1150 = bitcast i8* %1149 to i32*
+  store i32 %1148, i32* %1150, align 4
+  %1151 = getelementptr inbounds i8, i8* %1026, i64 32
+  %1152 = bitcast i8* %1151 to i32*
+  %1153 = load i32, i32* %1152, align 4
+  %1154 = getelementptr inbounds i8, i8* %1098, i64 60
+  %1155 = bitcast i8* %1154 to i32*
+  store i32 %1153, i32* %1155, align 4
+  store float 0.000000e+00, float* %2, align 4
+  %1156 = load float, float* %1099, align 4
+  %1157 = load float, float* %0, align 4
+  %1158 = fmul float %1156, %1157
+  %1159 = fadd float %1158, 0.000000e+00
+  store float %1159, float* %2, align 4
+  %1160 = getelementptr inbounds i8, i8* %1098, i64 4
+  %1161 = bitcast i8* %1160 to float*
+  %1162 = load float, float* %1161, align 4
+  %1163 = getelementptr inbounds float, float* %0, i64 4
+  %1164 = load float, float* %1163, align 4
+  %1165 = fmul float %1162, %1164
+  %1166 = load float, float* %2, align 4
+  %1167 = fadd float %1166, %1165
+  store float %1167, float* %2, align 4
+  %1168 = getelementptr inbounds i8, i8* %1098, i64 8
+  %1169 = bitcast i8* %1168 to float*
+  %1170 = load float, float* %1169, align 4
+  %1171 = getelementptr inbounds float, float* %0, i64 8
+  %1172 = load float, float* %1171, align 4
+  %1173 = fmul float %1170, %1172
+  %1174 = load float, float* %2, align 4
+  %1175 = fadd float %1174, %1173
+  store float %1175, float* %2, align 4
+  %1176 = getelementptr inbounds i8, i8* %1098, i64 12
+  %1177 = bitcast i8* %1176 to float*
+  %1178 = load float, float* %1177, align 4
+  %1179 = getelementptr inbounds float, float* %0, i64 12
+  %1180 = load float, float* %1179, align 4
+  %1181 = fmul float %1178, %1180
+  %1182 = load float, float* %2, align 4
+  %1183 = fadd float %1182, %1181
+  store float %1183, float* %2, align 4
+  %1184 = getelementptr inbounds float, float* %2, i64 1
+  store float 0.000000e+00, float* %1184, align 4
+  %1185 = getelementptr inbounds float, float* %2, i64 1
+  %1186 = load float, float* %1099, align 4
+  %1187 = getelementptr inbounds float, float* %0, i64 1
+  %1188 = load float, float* %1187, align 4
+  %1189 = fmul float %1186, %1188
+  %1190 = fadd float %1189, 0.000000e+00
+  store float %1190, float* %1185, align 4
+  %1191 = getelementptr inbounds i8, i8* %1098, i64 4
+  %1192 = bitcast i8* %1191 to float*
+  %1193 = load float, float* %1192, align 4
+  %1194 = getelementptr inbounds float, float* %0, i64 5
+  %1195 = load float, float* %1194, align 4
+  %1196 = fmul float %1193, %1195
+  %1197 = load float, float* %1185, align 4
+  %1198 = fadd float %1197, %1196
+  store float %1198, float* %1185, align 4
+  %1199 = getelementptr inbounds i8, i8* %1098, i64 8
+  %1200 = bitcast i8* %1199 to float*
+  %1201 = load float, float* %1200, align 4
+  %1202 = getelementptr inbounds float, float* %0, i64 9
   %1203 = load float, float* %1202, align 4
-  %1204 = getelementptr inbounds float, float* %1, i64 9
-  %1205 = load float, float* %1204, align 4
-  %1206 = fmul float %1203, %1205
-  %1207 = load float, float* %1188, align 4
-  %1208 = fadd float %1207, %1206
-  store float %1208, float* %1188, align 4
-  %1209 = getelementptr inbounds float, float* %1010, i64 7
-  %1210 = load float, float* %1209, align 4
-  %1211 = getelementptr inbounds float, float* %1, i64 13
-  %1212 = load float, float* %1211, align 4
-  %1213 = fmul float %1210, %1212
-  %1214 = load float, float* %1188, align 4
-  %1215 = fadd float %1214, %1213
-  store float %1215, float* %1188, align 4
-  %1216 = getelementptr inbounds float, float* %1044, i64 6
-  store float 0.000000e+00, float* %1216, align 4
-  %1217 = getelementptr inbounds float, float* %1044, i64 6
-  %1218 = load float, float* %1158, align 4
-  %1219 = getelementptr inbounds float, float* %1, i64 2
-  %1220 = load float, float* %1219, align 4
-  %1221 = fmul float %1218, %1220
-  %1222 = load float, float* %1217, align 4
-  %1223 = fadd float %1222, %1221
-  store float %1223, float* %1217, align 4
-  %1224 = getelementptr inbounds float, float* %1010, i64 5
-  %1225 = load float, float* %1224, align 4
-  %1226 = getelementptr inbounds float, float* %1, i64 6
-  %1227 = load float, float* %1226, align 4
-  %1228 = fmul float %1225, %1227
-  %1229 = load float, float* %1217, align 4
-  %1230 = fadd float %1229, %1228
-  store float %1230, float* %1217, align 4
-  %1231 = getelementptr inbounds float, float* %1010, i64 6
+  %1204 = fmul float %1201, %1203
+  %1205 = load float, float* %1185, align 4
+  %1206 = fadd float %1205, %1204
+  store float %1206, float* %1185, align 4
+  %1207 = getelementptr inbounds i8, i8* %1098, i64 12
+  %1208 = bitcast i8* %1207 to float*
+  %1209 = load float, float* %1208, align 4
+  %1210 = getelementptr inbounds float, float* %0, i64 13
+  %1211 = load float, float* %1210, align 4
+  %1212 = fmul float %1209, %1211
+  %1213 = load float, float* %1185, align 4
+  %1214 = fadd float %1213, %1212
+  store float %1214, float* %1185, align 4
+  %1215 = getelementptr inbounds float, float* %2, i64 2
+  store float 0.000000e+00, float* %1215, align 4
+  %1216 = getelementptr inbounds float, float* %2, i64 2
+  %1217 = load float, float* %1099, align 4
+  %1218 = getelementptr inbounds float, float* %0, i64 2
+  %1219 = load float, float* %1218, align 4
+  %1220 = fmul float %1217, %1219
+  %1221 = fadd float %1220, 0.000000e+00
+  store float %1221, float* %1216, align 4
+  %1222 = getelementptr inbounds i8, i8* %1098, i64 4
+  %1223 = bitcast i8* %1222 to float*
+  %1224 = load float, float* %1223, align 4
+  %1225 = getelementptr inbounds float, float* %0, i64 6
+  %1226 = load float, float* %1225, align 4
+  %1227 = fmul float %1224, %1226
+  %1228 = load float, float* %1216, align 4
+  %1229 = fadd float %1228, %1227
+  store float %1229, float* %1216, align 4
+  %1230 = getelementptr inbounds i8, i8* %1098, i64 8
+  %1231 = bitcast i8* %1230 to float*
   %1232 = load float, float* %1231, align 4
-  %1233 = getelementptr inbounds float, float* %1, i64 10
+  %1233 = getelementptr inbounds float, float* %0, i64 10
   %1234 = load float, float* %1233, align 4
   %1235 = fmul float %1232, %1234
-  %1236 = load float, float* %1217, align 4
+  %1236 = load float, float* %1216, align 4
   %1237 = fadd float %1236, %1235
-  store float %1237, float* %1217, align 4
-  %1238 = getelementptr inbounds float, float* %1010, i64 7
-  %1239 = load float, float* %1238, align 4
-  %1240 = getelementptr inbounds float, float* %1, i64 14
-  %1241 = load float, float* %1240, align 4
-  %1242 = fmul float %1239, %1241
-  %1243 = load float, float* %1217, align 4
-  %1244 = fadd float %1243, %1242
-  store float %1244, float* %1217, align 4
-  %1245 = getelementptr inbounds float, float* %1044, i64 7
-  store float 0.000000e+00, float* %1245, align 4
-  %1246 = getelementptr inbounds float, float* %1044, i64 7
-  %1247 = load float, float* %1158, align 4
-  %1248 = getelementptr inbounds float, float* %1, i64 3
-  %1249 = load float, float* %1248, align 4
-  %1250 = fmul float %1247, %1249
-  %1251 = load float, float* %1246, align 4
-  %1252 = fadd float %1251, %1250
-  store float %1252, float* %1246, align 4
-  %1253 = getelementptr inbounds float, float* %1010, i64 5
-  %1254 = load float, float* %1253, align 4
-  %1255 = getelementptr inbounds float, float* %1, i64 7
-  %1256 = load float, float* %1255, align 4
-  %1257 = fmul float %1254, %1256
-  %1258 = load float, float* %1246, align 4
-  %1259 = fadd float %1258, %1257
-  store float %1259, float* %1246, align 4
-  %1260 = getelementptr inbounds float, float* %1010, i64 6
-  %1261 = load float, float* %1260, align 4
-  %1262 = getelementptr inbounds float, float* %1, i64 11
+  store float %1237, float* %1216, align 4
+  %1238 = getelementptr inbounds i8, i8* %1098, i64 12
+  %1239 = bitcast i8* %1238 to float*
+  %1240 = load float, float* %1239, align 4
+  %1241 = getelementptr inbounds float, float* %0, i64 14
+  %1242 = load float, float* %1241, align 4
+  %1243 = fmul float %1240, %1242
+  %1244 = load float, float* %1216, align 4
+  %1245 = fadd float %1244, %1243
+  store float %1245, float* %1216, align 4
+  %1246 = getelementptr inbounds float, float* %2, i64 3
+  store float 0.000000e+00, float* %1246, align 4
+  %1247 = getelementptr inbounds float, float* %2, i64 3
+  %1248 = load float, float* %1099, align 4
+  %1249 = getelementptr inbounds float, float* %0, i64 3
+  %1250 = load float, float* %1249, align 4
+  %1251 = fmul float %1248, %1250
+  %1252 = fadd float %1251, 0.000000e+00
+  store float %1252, float* %1247, align 4
+  %1253 = getelementptr inbounds i8, i8* %1098, i64 4
+  %1254 = bitcast i8* %1253 to float*
+  %1255 = load float, float* %1254, align 4
+  %1256 = getelementptr inbounds float, float* %0, i64 7
+  %1257 = load float, float* %1256, align 4
+  %1258 = fmul float %1255, %1257
+  %1259 = load float, float* %1247, align 4
+  %1260 = fadd float %1259, %1258
+  store float %1260, float* %1247, align 4
+  %1261 = getelementptr inbounds i8, i8* %1098, i64 8
+  %1262 = bitcast i8* %1261 to float*
   %1263 = load float, float* %1262, align 4
-  %1264 = fmul float %1261, %1263
-  %1265 = load float, float* %1246, align 4
-  %1266 = fadd float %1265, %1264
-  store float %1266, float* %1246, align 4
-  %1267 = getelementptr inbounds float, float* %1010, i64 7
-  %1268 = load float, float* %1267, align 4
-  %1269 = getelementptr inbounds float, float* %1, i64 15
-  %1270 = load float, float* %1269, align 4
-  %1271 = fmul float %1268, %1270
-  %1272 = load float, float* %1246, align 4
-  %1273 = fadd float %1272, %1271
-  store float %1273, float* %1246, align 4
-  %1274 = getelementptr inbounds float, float* %1010, i64 8
-  %1275 = getelementptr inbounds float, float* %1044, i64 8
-  store float 0.000000e+00, float* %1275, align 4
-  %1276 = getelementptr inbounds float, float* %1044, i64 8
-  %1277 = load float, float* %1274, align 4
-  %1278 = load float, float* %1, align 4
-  %1279 = fmul float %1277, %1278
-  %1280 = load float, float* %1276, align 4
-  %1281 = fadd float %1280, %1279
-  store float %1281, float* %1276, align 4
-  %1282 = getelementptr inbounds float, float* %1010, i64 9
-  %1283 = load float, float* %1282, align 4
-  %1284 = getelementptr inbounds float, float* %1, i64 4
-  %1285 = load float, float* %1284, align 4
-  %1286 = fmul float %1283, %1285
-  %1287 = load float, float* %1276, align 4
-  %1288 = fadd float %1287, %1286
-  store float %1288, float* %1276, align 4
-  %1289 = getelementptr inbounds float, float* %1010, i64 10
-  %1290 = load float, float* %1289, align 4
-  %1291 = getelementptr inbounds float, float* %1, i64 8
-  %1292 = load float, float* %1291, align 4
-  %1293 = fmul float %1290, %1292
-  %1294 = load float, float* %1276, align 4
-  %1295 = fadd float %1294, %1293
-  store float %1295, float* %1276, align 4
-  %1296 = getelementptr inbounds float, float* %1010, i64 11
+  %1264 = getelementptr inbounds float, float* %0, i64 11
+  %1265 = load float, float* %1264, align 4
+  %1266 = fmul float %1263, %1265
+  %1267 = load float, float* %1247, align 4
+  %1268 = fadd float %1267, %1266
+  store float %1268, float* %1247, align 4
+  %1269 = getelementptr inbounds i8, i8* %1098, i64 12
+  %1270 = bitcast i8* %1269 to float*
+  %1271 = load float, float* %1270, align 4
+  %1272 = getelementptr inbounds float, float* %0, i64 15
+  %1273 = load float, float* %1272, align 4
+  %1274 = fmul float %1271, %1273
+  %1275 = load float, float* %1247, align 4
+  %1276 = fadd float %1275, %1274
+  store float %1276, float* %1247, align 4
+  %1277 = getelementptr inbounds i8, i8* %1098, i64 16
+  %1278 = bitcast i8* %1277 to float*
+  %1279 = getelementptr inbounds float, float* %2, i64 4
+  store float 0.000000e+00, float* %1279, align 4
+  %1280 = getelementptr inbounds float, float* %2, i64 4
+  %1281 = load float, float* %1278, align 4
+  %1282 = load float, float* %0, align 4
+  %1283 = fmul float %1281, %1282
+  %1284 = fadd float %1283, 0.000000e+00
+  store float %1284, float* %1280, align 4
+  %1285 = getelementptr inbounds i8, i8* %1098, i64 20
+  %1286 = bitcast i8* %1285 to float*
+  %1287 = load float, float* %1286, align 4
+  %1288 = getelementptr inbounds float, float* %0, i64 4
+  %1289 = load float, float* %1288, align 4
+  %1290 = fmul float %1287, %1289
+  %1291 = load float, float* %1280, align 4
+  %1292 = fadd float %1291, %1290
+  store float %1292, float* %1280, align 4
+  %1293 = getelementptr inbounds i8, i8* %1098, i64 24
+  %1294 = bitcast i8* %1293 to float*
+  %1295 = load float, float* %1294, align 4
+  %1296 = getelementptr inbounds float, float* %0, i64 8
   %1297 = load float, float* %1296, align 4
-  %1298 = getelementptr inbounds float, float* %1, i64 12
-  %1299 = load float, float* %1298, align 4
-  %1300 = fmul float %1297, %1299
-  %1301 = load float, float* %1276, align 4
-  %1302 = fadd float %1301, %1300
-  store float %1302, float* %1276, align 4
-  %1303 = getelementptr inbounds float, float* %1044, i64 9
-  store float 0.000000e+00, float* %1303, align 4
-  %1304 = getelementptr inbounds float, float* %1044, i64 9
-  %1305 = load float, float* %1274, align 4
-  %1306 = getelementptr inbounds float, float* %1, i64 1
-  %1307 = load float, float* %1306, align 4
-  %1308 = fmul float %1305, %1307
-  %1309 = load float, float* %1304, align 4
-  %1310 = fadd float %1309, %1308
-  store float %1310, float* %1304, align 4
-  %1311 = getelementptr inbounds float, float* %1010, i64 9
-  %1312 = load float, float* %1311, align 4
-  %1313 = getelementptr inbounds float, float* %1, i64 5
-  %1314 = load float, float* %1313, align 4
-  %1315 = fmul float %1312, %1314
-  %1316 = load float, float* %1304, align 4
-  %1317 = fadd float %1316, %1315
-  store float %1317, float* %1304, align 4
-  %1318 = getelementptr inbounds float, float* %1010, i64 10
-  %1319 = load float, float* %1318, align 4
-  %1320 = getelementptr inbounds float, float* %1, i64 9
-  %1321 = load float, float* %1320, align 4
-  %1322 = fmul float %1319, %1321
-  %1323 = load float, float* %1304, align 4
-  %1324 = fadd float %1323, %1322
-  store float %1324, float* %1304, align 4
-  %1325 = getelementptr inbounds float, float* %1010, i64 11
+  %1298 = fmul float %1295, %1297
+  %1299 = load float, float* %1280, align 4
+  %1300 = fadd float %1299, %1298
+  store float %1300, float* %1280, align 4
+  %1301 = getelementptr inbounds i8, i8* %1098, i64 28
+  %1302 = bitcast i8* %1301 to float*
+  %1303 = load float, float* %1302, align 4
+  %1304 = getelementptr inbounds float, float* %0, i64 12
+  %1305 = load float, float* %1304, align 4
+  %1306 = fmul float %1303, %1305
+  %1307 = load float, float* %1280, align 4
+  %1308 = fadd float %1307, %1306
+  store float %1308, float* %1280, align 4
+  %1309 = getelementptr inbounds float, float* %2, i64 5
+  store float 0.000000e+00, float* %1309, align 4
+  %1310 = getelementptr inbounds float, float* %2, i64 5
+  %1311 = load float, float* %1278, align 4
+  %1312 = getelementptr inbounds float, float* %0, i64 1
+  %1313 = load float, float* %1312, align 4
+  %1314 = fmul float %1311, %1313
+  %1315 = fadd float %1314, 0.000000e+00
+  store float %1315, float* %1310, align 4
+  %1316 = getelementptr inbounds i8, i8* %1098, i64 20
+  %1317 = bitcast i8* %1316 to float*
+  %1318 = load float, float* %1317, align 4
+  %1319 = getelementptr inbounds float, float* %0, i64 5
+  %1320 = load float, float* %1319, align 4
+  %1321 = fmul float %1318, %1320
+  %1322 = load float, float* %1310, align 4
+  %1323 = fadd float %1322, %1321
+  store float %1323, float* %1310, align 4
+  %1324 = getelementptr inbounds i8, i8* %1098, i64 24
+  %1325 = bitcast i8* %1324 to float*
   %1326 = load float, float* %1325, align 4
-  %1327 = getelementptr inbounds float, float* %1, i64 13
+  %1327 = getelementptr inbounds float, float* %0, i64 9
   %1328 = load float, float* %1327, align 4
   %1329 = fmul float %1326, %1328
-  %1330 = load float, float* %1304, align 4
+  %1330 = load float, float* %1310, align 4
   %1331 = fadd float %1330, %1329
-  store float %1331, float* %1304, align 4
-  %1332 = getelementptr inbounds float, float* %1044, i64 10
-  store float 0.000000e+00, float* %1332, align 4
-  %1333 = getelementptr inbounds float, float* %1044, i64 10
-  %1334 = load float, float* %1274, align 4
-  %1335 = getelementptr inbounds float, float* %1, i64 2
+  store float %1331, float* %1310, align 4
+  %1332 = getelementptr inbounds i8, i8* %1098, i64 28
+  %1333 = bitcast i8* %1332 to float*
+  %1334 = load float, float* %1333, align 4
+  %1335 = getelementptr inbounds float, float* %0, i64 13
   %1336 = load float, float* %1335, align 4
   %1337 = fmul float %1334, %1336
-  %1338 = load float, float* %1333, align 4
+  %1338 = load float, float* %1310, align 4
   %1339 = fadd float %1338, %1337
-  store float %1339, float* %1333, align 4
-  %1340 = getelementptr inbounds float, float* %1010, i64 9
-  %1341 = load float, float* %1340, align 4
-  %1342 = getelementptr inbounds float, float* %1, i64 6
-  %1343 = load float, float* %1342, align 4
-  %1344 = fmul float %1341, %1343
-  %1345 = load float, float* %1333, align 4
-  %1346 = fadd float %1345, %1344
-  store float %1346, float* %1333, align 4
-  %1347 = getelementptr inbounds float, float* %1010, i64 10
-  %1348 = load float, float* %1347, align 4
-  %1349 = getelementptr inbounds float, float* %1, i64 10
-  %1350 = load float, float* %1349, align 4
-  %1351 = fmul float %1348, %1350
-  %1352 = load float, float* %1333, align 4
-  %1353 = fadd float %1352, %1351
-  store float %1353, float* %1333, align 4
-  %1354 = getelementptr inbounds float, float* %1010, i64 11
-  %1355 = load float, float* %1354, align 4
-  %1356 = getelementptr inbounds float, float* %1, i64 14
+  store float %1339, float* %1310, align 4
+  %1340 = getelementptr inbounds float, float* %2, i64 6
+  store float 0.000000e+00, float* %1340, align 4
+  %1341 = getelementptr inbounds float, float* %2, i64 6
+  %1342 = load float, float* %1278, align 4
+  %1343 = getelementptr inbounds float, float* %0, i64 2
+  %1344 = load float, float* %1343, align 4
+  %1345 = fmul float %1342, %1344
+  %1346 = fadd float %1345, 0.000000e+00
+  store float %1346, float* %1341, align 4
+  %1347 = getelementptr inbounds i8, i8* %1098, i64 20
+  %1348 = bitcast i8* %1347 to float*
+  %1349 = load float, float* %1348, align 4
+  %1350 = getelementptr inbounds float, float* %0, i64 6
+  %1351 = load float, float* %1350, align 4
+  %1352 = fmul float %1349, %1351
+  %1353 = load float, float* %1341, align 4
+  %1354 = fadd float %1353, %1352
+  store float %1354, float* %1341, align 4
+  %1355 = getelementptr inbounds i8, i8* %1098, i64 24
+  %1356 = bitcast i8* %1355 to float*
   %1357 = load float, float* %1356, align 4
-  %1358 = fmul float %1355, %1357
-  %1359 = load float, float* %1333, align 4
-  %1360 = fadd float %1359, %1358
-  store float %1360, float* %1333, align 4
-  %1361 = getelementptr inbounds float, float* %1044, i64 11
-  store float 0.000000e+00, float* %1361, align 4
-  %1362 = getelementptr inbounds float, float* %1044, i64 11
-  %1363 = load float, float* %1274, align 4
-  %1364 = getelementptr inbounds float, float* %1, i64 3
+  %1358 = getelementptr inbounds float, float* %0, i64 10
+  %1359 = load float, float* %1358, align 4
+  %1360 = fmul float %1357, %1359
+  %1361 = load float, float* %1341, align 4
+  %1362 = fadd float %1361, %1360
+  store float %1362, float* %1341, align 4
+  %1363 = getelementptr inbounds i8, i8* %1098, i64 28
+  %1364 = bitcast i8* %1363 to float*
   %1365 = load float, float* %1364, align 4
-  %1366 = fmul float %1363, %1365
-  %1367 = load float, float* %1362, align 4
-  %1368 = fadd float %1367, %1366
-  store float %1368, float* %1362, align 4
-  %1369 = getelementptr inbounds float, float* %1010, i64 9
-  %1370 = load float, float* %1369, align 4
-  %1371 = getelementptr inbounds float, float* %1, i64 7
-  %1372 = load float, float* %1371, align 4
-  %1373 = fmul float %1370, %1372
-  %1374 = load float, float* %1362, align 4
-  %1375 = fadd float %1374, %1373
-  store float %1375, float* %1362, align 4
-  %1376 = getelementptr inbounds float, float* %1010, i64 10
-  %1377 = load float, float* %1376, align 4
-  %1378 = getelementptr inbounds float, float* %1, i64 11
-  %1379 = load float, float* %1378, align 4
-  %1380 = fmul float %1377, %1379
-  %1381 = load float, float* %1362, align 4
-  %1382 = fadd float %1381, %1380
-  store float %1382, float* %1362, align 4
-  %1383 = getelementptr inbounds float, float* %1010, i64 11
-  %1384 = load float, float* %1383, align 4
-  %1385 = getelementptr inbounds float, float* %1, i64 15
-  %1386 = load float, float* %1385, align 4
-  %1387 = fmul float %1384, %1386
-  %1388 = load float, float* %1362, align 4
-  %1389 = fadd float %1388, %1387
-  store float %1389, float* %1362, align 4
-  %1390 = getelementptr inbounds float, float* %1010, i64 12
-  %1391 = getelementptr inbounds float, float* %1044, i64 12
-  store float 0.000000e+00, float* %1391, align 4
-  %1392 = getelementptr inbounds float, float* %1044, i64 12
-  %1393 = load float, float* %1390, align 4
-  %1394 = load float, float* %1, align 4
-  %1395 = fmul float %1393, %1394
-  %1396 = load float, float* %1392, align 4
-  %1397 = fadd float %1396, %1395
-  store float %1397, float* %1392, align 4
-  %1398 = getelementptr inbounds float, float* %1010, i64 13
-  %1399 = load float, float* %1398, align 4
-  %1400 = getelementptr inbounds float, float* %1, i64 4
-  %1401 = load float, float* %1400, align 4
-  %1402 = fmul float %1399, %1401
-  %1403 = load float, float* %1392, align 4
-  %1404 = fadd float %1403, %1402
-  store float %1404, float* %1392, align 4
-  %1405 = getelementptr inbounds float, float* %1010, i64 14
-  %1406 = load float, float* %1405, align 4
-  %1407 = getelementptr inbounds float, float* %1, i64 8
-  %1408 = load float, float* %1407, align 4
-  %1409 = fmul float %1406, %1408
-  %1410 = load float, float* %1392, align 4
-  %1411 = fadd float %1410, %1409
-  store float %1411, float* %1392, align 4
-  %1412 = getelementptr inbounds float, float* %1010, i64 15
-  %1413 = load float, float* %1412, align 4
-  %1414 = getelementptr inbounds float, float* %1, i64 12
-  %1415 = load float, float* %1414, align 4
-  %1416 = fmul float %1413, %1415
-  %1417 = load float, float* %1392, align 4
-  %1418 = fadd float %1417, %1416
-  store float %1418, float* %1392, align 4
-  %1419 = getelementptr inbounds float, float* %1044, i64 13
-  store float 0.000000e+00, float* %1419, align 4
-  %1420 = getelementptr inbounds float, float* %1044, i64 13
-  %1421 = load float, float* %1390, align 4
-  %1422 = getelementptr inbounds float, float* %1, i64 1
-  %1423 = load float, float* %1422, align 4
-  %1424 = fmul float %1421, %1423
-  %1425 = load float, float* %1420, align 4
-  %1426 = fadd float %1425, %1424
-  store float %1426, float* %1420, align 4
-  %1427 = getelementptr inbounds float, float* %1010, i64 13
+  %1366 = getelementptr inbounds float, float* %0, i64 14
+  %1367 = load float, float* %1366, align 4
+  %1368 = fmul float %1365, %1367
+  %1369 = load float, float* %1341, align 4
+  %1370 = fadd float %1369, %1368
+  store float %1370, float* %1341, align 4
+  %1371 = getelementptr inbounds float, float* %2, i64 7
+  store float 0.000000e+00, float* %1371, align 4
+  %1372 = getelementptr inbounds float, float* %2, i64 7
+  %1373 = load float, float* %1278, align 4
+  %1374 = getelementptr inbounds float, float* %0, i64 3
+  %1375 = load float, float* %1374, align 4
+  %1376 = fmul float %1373, %1375
+  %1377 = fadd float %1376, 0.000000e+00
+  store float %1377, float* %1372, align 4
+  %1378 = getelementptr inbounds i8, i8* %1098, i64 20
+  %1379 = bitcast i8* %1378 to float*
+  %1380 = load float, float* %1379, align 4
+  %1381 = getelementptr inbounds float, float* %0, i64 7
+  %1382 = load float, float* %1381, align 4
+  %1383 = fmul float %1380, %1382
+  %1384 = load float, float* %1372, align 4
+  %1385 = fadd float %1384, %1383
+  store float %1385, float* %1372, align 4
+  %1386 = getelementptr inbounds i8, i8* %1098, i64 24
+  %1387 = bitcast i8* %1386 to float*
+  %1388 = load float, float* %1387, align 4
+  %1389 = getelementptr inbounds float, float* %0, i64 11
+  %1390 = load float, float* %1389, align 4
+  %1391 = fmul float %1388, %1390
+  %1392 = load float, float* %1372, align 4
+  %1393 = fadd float %1392, %1391
+  store float %1393, float* %1372, align 4
+  %1394 = getelementptr inbounds i8, i8* %1098, i64 28
+  %1395 = bitcast i8* %1394 to float*
+  %1396 = load float, float* %1395, align 4
+  %1397 = getelementptr inbounds float, float* %0, i64 15
+  %1398 = load float, float* %1397, align 4
+  %1399 = fmul float %1396, %1398
+  %1400 = load float, float* %1372, align 4
+  %1401 = fadd float %1400, %1399
+  store float %1401, float* %1372, align 4
+  %1402 = getelementptr inbounds i8, i8* %1098, i64 32
+  %1403 = bitcast i8* %1402 to float*
+  %1404 = getelementptr inbounds float, float* %2, i64 8
+  store float 0.000000e+00, float* %1404, align 4
+  %1405 = getelementptr inbounds float, float* %2, i64 8
+  %1406 = load float, float* %1403, align 4
+  %1407 = load float, float* %0, align 4
+  %1408 = fmul float %1406, %1407
+  %1409 = fadd float %1408, 0.000000e+00
+  store float %1409, float* %1405, align 4
+  %1410 = getelementptr inbounds i8, i8* %1098, i64 36
+  %1411 = bitcast i8* %1410 to float*
+  %1412 = load float, float* %1411, align 4
+  %1413 = getelementptr inbounds float, float* %0, i64 4
+  %1414 = load float, float* %1413, align 4
+  %1415 = fmul float %1412, %1414
+  %1416 = load float, float* %1405, align 4
+  %1417 = fadd float %1416, %1415
+  store float %1417, float* %1405, align 4
+  %1418 = getelementptr inbounds i8, i8* %1098, i64 40
+  %1419 = bitcast i8* %1418 to float*
+  %1420 = load float, float* %1419, align 4
+  %1421 = getelementptr inbounds float, float* %0, i64 8
+  %1422 = load float, float* %1421, align 4
+  %1423 = fmul float %1420, %1422
+  %1424 = load float, float* %1405, align 4
+  %1425 = fadd float %1424, %1423
+  store float %1425, float* %1405, align 4
+  %1426 = getelementptr inbounds i8, i8* %1098, i64 44
+  %1427 = bitcast i8* %1426 to float*
   %1428 = load float, float* %1427, align 4
-  %1429 = getelementptr inbounds float, float* %1, i64 5
+  %1429 = getelementptr inbounds float, float* %0, i64 12
   %1430 = load float, float* %1429, align 4
   %1431 = fmul float %1428, %1430
-  %1432 = load float, float* %1420, align 4
+  %1432 = load float, float* %1405, align 4
   %1433 = fadd float %1432, %1431
-  store float %1433, float* %1420, align 4
-  %1434 = getelementptr inbounds float, float* %1010, i64 14
-  %1435 = load float, float* %1434, align 4
-  %1436 = getelementptr inbounds float, float* %1, i64 9
-  %1437 = load float, float* %1436, align 4
-  %1438 = fmul float %1435, %1437
-  %1439 = load float, float* %1420, align 4
-  %1440 = fadd float %1439, %1438
-  store float %1440, float* %1420, align 4
-  %1441 = getelementptr inbounds float, float* %1010, i64 15
-  %1442 = load float, float* %1441, align 4
-  %1443 = getelementptr inbounds float, float* %1, i64 13
-  %1444 = load float, float* %1443, align 4
-  %1445 = fmul float %1442, %1444
-  %1446 = load float, float* %1420, align 4
-  %1447 = fadd float %1446, %1445
-  store float %1447, float* %1420, align 4
-  %1448 = getelementptr inbounds float, float* %1044, i64 14
-  store float 0.000000e+00, float* %1448, align 4
-  %1449 = getelementptr inbounds float, float* %1044, i64 14
-  %1450 = load float, float* %1390, align 4
-  %1451 = getelementptr inbounds float, float* %1, i64 2
-  %1452 = load float, float* %1451, align 4
-  %1453 = fmul float %1450, %1452
-  %1454 = load float, float* %1449, align 4
-  %1455 = fadd float %1454, %1453
-  store float %1455, float* %1449, align 4
-  %1456 = getelementptr inbounds float, float* %1010, i64 13
-  %1457 = load float, float* %1456, align 4
-  %1458 = getelementptr inbounds float, float* %1, i64 6
+  store float %1433, float* %1405, align 4
+  %1434 = getelementptr inbounds float, float* %2, i64 9
+  store float 0.000000e+00, float* %1434, align 4
+  %1435 = getelementptr inbounds float, float* %2, i64 9
+  %1436 = load float, float* %1403, align 4
+  %1437 = getelementptr inbounds float, float* %0, i64 1
+  %1438 = load float, float* %1437, align 4
+  %1439 = fmul float %1436, %1438
+  %1440 = fadd float %1439, 0.000000e+00
+  store float %1440, float* %1435, align 4
+  %1441 = getelementptr inbounds i8, i8* %1098, i64 36
+  %1442 = bitcast i8* %1441 to float*
+  %1443 = load float, float* %1442, align 4
+  %1444 = getelementptr inbounds float, float* %0, i64 5
+  %1445 = load float, float* %1444, align 4
+  %1446 = fmul float %1443, %1445
+  %1447 = load float, float* %1435, align 4
+  %1448 = fadd float %1447, %1446
+  store float %1448, float* %1435, align 4
+  %1449 = getelementptr inbounds i8, i8* %1098, i64 40
+  %1450 = bitcast i8* %1449 to float*
+  %1451 = load float, float* %1450, align 4
+  %1452 = getelementptr inbounds float, float* %0, i64 9
+  %1453 = load float, float* %1452, align 4
+  %1454 = fmul float %1451, %1453
+  %1455 = load float, float* %1435, align 4
+  %1456 = fadd float %1455, %1454
+  store float %1456, float* %1435, align 4
+  %1457 = getelementptr inbounds i8, i8* %1098, i64 44
+  %1458 = bitcast i8* %1457 to float*
   %1459 = load float, float* %1458, align 4
-  %1460 = fmul float %1457, %1459
-  %1461 = load float, float* %1449, align 4
-  %1462 = fadd float %1461, %1460
-  store float %1462, float* %1449, align 4
-  %1463 = getelementptr inbounds float, float* %1010, i64 14
-  %1464 = load float, float* %1463, align 4
-  %1465 = getelementptr inbounds float, float* %1, i64 10
-  %1466 = load float, float* %1465, align 4
-  %1467 = fmul float %1464, %1466
-  %1468 = load float, float* %1449, align 4
-  %1469 = fadd float %1468, %1467
-  store float %1469, float* %1449, align 4
-  %1470 = getelementptr inbounds float, float* %1010, i64 15
-  %1471 = load float, float* %1470, align 4
-  %1472 = getelementptr inbounds float, float* %1, i64 14
-  %1473 = load float, float* %1472, align 4
-  %1474 = fmul float %1471, %1473
-  %1475 = load float, float* %1449, align 4
-  %1476 = fadd float %1475, %1474
-  store float %1476, float* %1449, align 4
-  %1477 = getelementptr inbounds float, float* %1044, i64 15
-  store float 0.000000e+00, float* %1477, align 4
-  %1478 = getelementptr inbounds float, float* %1044, i64 15
-  %1479 = load float, float* %1390, align 4
-  %1480 = getelementptr inbounds float, float* %1, i64 3
-  %1481 = load float, float* %1480, align 4
-  %1482 = fmul float %1479, %1481
-  %1483 = load float, float* %1478, align 4
-  %1484 = fadd float %1483, %1482
-  store float %1484, float* %1478, align 4
-  %1485 = getelementptr inbounds float, float* %1010, i64 13
-  %1486 = load float, float* %1485, align 4
-  %1487 = getelementptr inbounds float, float* %1, i64 7
-  %1488 = load float, float* %1487, align 4
-  %1489 = fmul float %1486, %1488
-  %1490 = load float, float* %1478, align 4
-  %1491 = fadd float %1490, %1489
-  store float %1491, float* %1478, align 4
-  %1492 = getelementptr inbounds float, float* %1010, i64 14
-  %1493 = load float, float* %1492, align 4
-  %1494 = getelementptr inbounds float, float* %1, i64 11
-  %1495 = load float, float* %1494, align 4
-  %1496 = fmul float %1493, %1495
-  %1497 = load float, float* %1478, align 4
-  %1498 = fadd float %1497, %1496
-  store float %1498, float* %1478, align 4
-  %1499 = getelementptr inbounds float, float* %1010, i64 15
+  %1460 = getelementptr inbounds float, float* %0, i64 13
+  %1461 = load float, float* %1460, align 4
+  %1462 = fmul float %1459, %1461
+  %1463 = load float, float* %1435, align 4
+  %1464 = fadd float %1463, %1462
+  store float %1464, float* %1435, align 4
+  %1465 = getelementptr inbounds float, float* %2, i64 10
+  store float 0.000000e+00, float* %1465, align 4
+  %1466 = getelementptr inbounds float, float* %2, i64 10
+  %1467 = load float, float* %1403, align 4
+  %1468 = getelementptr inbounds float, float* %0, i64 2
+  %1469 = load float, float* %1468, align 4
+  %1470 = fmul float %1467, %1469
+  %1471 = fadd float %1470, 0.000000e+00
+  store float %1471, float* %1466, align 4
+  %1472 = getelementptr inbounds i8, i8* %1098, i64 36
+  %1473 = bitcast i8* %1472 to float*
+  %1474 = load float, float* %1473, align 4
+  %1475 = getelementptr inbounds float, float* %0, i64 6
+  %1476 = load float, float* %1475, align 4
+  %1477 = fmul float %1474, %1476
+  %1478 = load float, float* %1466, align 4
+  %1479 = fadd float %1478, %1477
+  store float %1479, float* %1466, align 4
+  %1480 = getelementptr inbounds i8, i8* %1098, i64 40
+  %1481 = bitcast i8* %1480 to float*
+  %1482 = load float, float* %1481, align 4
+  %1483 = getelementptr inbounds float, float* %0, i64 10
+  %1484 = load float, float* %1483, align 4
+  %1485 = fmul float %1482, %1484
+  %1486 = load float, float* %1466, align 4
+  %1487 = fadd float %1486, %1485
+  store float %1487, float* %1466, align 4
+  %1488 = getelementptr inbounds i8, i8* %1098, i64 44
+  %1489 = bitcast i8* %1488 to float*
+  %1490 = load float, float* %1489, align 4
+  %1491 = getelementptr inbounds float, float* %0, i64 14
+  %1492 = load float, float* %1491, align 4
+  %1493 = fmul float %1490, %1492
+  %1494 = load float, float* %1466, align 4
+  %1495 = fadd float %1494, %1493
+  store float %1495, float* %1466, align 4
+  %1496 = getelementptr inbounds float, float* %2, i64 11
+  store float 0.000000e+00, float* %1496, align 4
+  %1497 = getelementptr inbounds float, float* %2, i64 11
+  %1498 = load float, float* %1403, align 4
+  %1499 = getelementptr inbounds float, float* %0, i64 3
   %1500 = load float, float* %1499, align 4
-  %1501 = getelementptr inbounds float, float* %1, i64 15
-  %1502 = load float, float* %1501, align 4
-  %1503 = fmul float %1500, %1502
-  %1504 = load float, float* %1478, align 4
-  %1505 = fadd float %1504, %1503
-  store float %1505, float* %1478, align 4
-  %1506 = call i8* @__memcpy_chk(i8* %25, i8* %1043, i64 64, i64 %27) #8
-  store float 0.000000e+00, float* %1044, align 4
-  %1507 = load float, float* %1010, align 4
-  %1508 = load float, float* %2, align 4
-  %1509 = fmul float %1507, %1508
-  %1510 = load float, float* %1044, align 4
-  %1511 = fadd float %1510, %1509
-  store float %1511, float* %1044, align 4
-  %1512 = getelementptr inbounds float, float* %1010, i64 1
+  %1501 = fmul float %1498, %1500
+  %1502 = fadd float %1501, 0.000000e+00
+  store float %1502, float* %1497, align 4
+  %1503 = getelementptr inbounds i8, i8* %1098, i64 36
+  %1504 = bitcast i8* %1503 to float*
+  %1505 = load float, float* %1504, align 4
+  %1506 = getelementptr inbounds float, float* %0, i64 7
+  %1507 = load float, float* %1506, align 4
+  %1508 = fmul float %1505, %1507
+  %1509 = load float, float* %1497, align 4
+  %1510 = fadd float %1509, %1508
+  store float %1510, float* %1497, align 4
+  %1511 = getelementptr inbounds i8, i8* %1098, i64 40
+  %1512 = bitcast i8* %1511 to float*
   %1513 = load float, float* %1512, align 4
-  %1514 = getelementptr inbounds float, float* %2, i64 4
+  %1514 = getelementptr inbounds float, float* %0, i64 11
   %1515 = load float, float* %1514, align 4
   %1516 = fmul float %1513, %1515
-  %1517 = load float, float* %1044, align 4
+  %1517 = load float, float* %1497, align 4
   %1518 = fadd float %1517, %1516
-  store float %1518, float* %1044, align 4
-  %1519 = getelementptr inbounds float, float* %1010, i64 2
-  %1520 = load float, float* %1519, align 4
-  %1521 = getelementptr inbounds float, float* %2, i64 8
-  %1522 = load float, float* %1521, align 4
-  %1523 = fmul float %1520, %1522
-  %1524 = load float, float* %1044, align 4
-  %1525 = fadd float %1524, %1523
-  store float %1525, float* %1044, align 4
-  %1526 = getelementptr inbounds float, float* %1010, i64 3
-  %1527 = load float, float* %1526, align 4
-  %1528 = getelementptr inbounds float, float* %2, i64 12
-  %1529 = load float, float* %1528, align 4
-  %1530 = fmul float %1527, %1529
-  %1531 = load float, float* %1044, align 4
-  %1532 = fadd float %1531, %1530
-  store float %1532, float* %1044, align 4
-  %1533 = getelementptr inbounds float, float* %1044, i64 1
-  store float 0.000000e+00, float* %1533, align 4
-  %1534 = getelementptr inbounds float, float* %1044, i64 1
-  %1535 = load float, float* %1010, align 4
-  %1536 = getelementptr inbounds float, float* %2, i64 1
+  store float %1518, float* %1497, align 4
+  %1519 = getelementptr inbounds i8, i8* %1098, i64 44
+  %1520 = bitcast i8* %1519 to float*
+  %1521 = load float, float* %1520, align 4
+  %1522 = getelementptr inbounds float, float* %0, i64 15
+  %1523 = load float, float* %1522, align 4
+  %1524 = fmul float %1521, %1523
+  %1525 = load float, float* %1497, align 4
+  %1526 = fadd float %1525, %1524
+  store float %1526, float* %1497, align 4
+  %1527 = getelementptr inbounds i8, i8* %1098, i64 48
+  %1528 = bitcast i8* %1527 to float*
+  %1529 = getelementptr inbounds float, float* %2, i64 12
+  store float 0.000000e+00, float* %1529, align 4
+  %1530 = getelementptr inbounds float, float* %2, i64 12
+  %1531 = load float, float* %1528, align 4
+  %1532 = load float, float* %0, align 4
+  %1533 = fmul float %1531, %1532
+  %1534 = fadd float %1533, 0.000000e+00
+  store float %1534, float* %1530, align 4
+  %1535 = getelementptr inbounds i8, i8* %1098, i64 52
+  %1536 = bitcast i8* %1535 to float*
   %1537 = load float, float* %1536, align 4
-  %1538 = fmul float %1535, %1537
-  %1539 = load float, float* %1534, align 4
-  %1540 = fadd float %1539, %1538
-  store float %1540, float* %1534, align 4
-  %1541 = getelementptr inbounds float, float* %1010, i64 1
-  %1542 = load float, float* %1541, align 4
-  %1543 = getelementptr inbounds float, float* %2, i64 5
-  %1544 = load float, float* %1543, align 4
-  %1545 = fmul float %1542, %1544
-  %1546 = load float, float* %1534, align 4
-  %1547 = fadd float %1546, %1545
-  store float %1547, float* %1534, align 4
-  %1548 = getelementptr inbounds float, float* %1010, i64 2
-  %1549 = load float, float* %1548, align 4
-  %1550 = getelementptr inbounds float, float* %2, i64 9
-  %1551 = load float, float* %1550, align 4
-  %1552 = fmul float %1549, %1551
-  %1553 = load float, float* %1534, align 4
-  %1554 = fadd float %1553, %1552
-  store float %1554, float* %1534, align 4
-  %1555 = getelementptr inbounds float, float* %1010, i64 3
-  %1556 = load float, float* %1555, align 4
-  %1557 = getelementptr inbounds float, float* %2, i64 13
-  %1558 = load float, float* %1557, align 4
-  %1559 = fmul float %1556, %1558
-  %1560 = load float, float* %1534, align 4
-  %1561 = fadd float %1560, %1559
-  store float %1561, float* %1534, align 4
-  %1562 = getelementptr inbounds float, float* %1044, i64 2
-  store float 0.000000e+00, float* %1562, align 4
-  %1563 = getelementptr inbounds float, float* %1044, i64 2
-  %1564 = load float, float* %1010, align 4
-  %1565 = getelementptr inbounds float, float* %2, i64 2
-  %1566 = load float, float* %1565, align 4
-  %1567 = fmul float %1564, %1566
-  %1568 = load float, float* %1563, align 4
-  %1569 = fadd float %1568, %1567
-  store float %1569, float* %1563, align 4
-  %1570 = getelementptr inbounds float, float* %1010, i64 1
-  %1571 = load float, float* %1570, align 4
-  %1572 = getelementptr inbounds float, float* %2, i64 6
-  %1573 = load float, float* %1572, align 4
-  %1574 = fmul float %1571, %1573
-  %1575 = load float, float* %1563, align 4
-  %1576 = fadd float %1575, %1574
-  store float %1576, float* %1563, align 4
-  %1577 = getelementptr inbounds float, float* %1010, i64 2
+  %1538 = getelementptr inbounds float, float* %0, i64 4
+  %1539 = load float, float* %1538, align 4
+  %1540 = fmul float %1537, %1539
+  %1541 = load float, float* %1530, align 4
+  %1542 = fadd float %1541, %1540
+  store float %1542, float* %1530, align 4
+  %1543 = getelementptr inbounds i8, i8* %1098, i64 56
+  %1544 = bitcast i8* %1543 to float*
+  %1545 = load float, float* %1544, align 4
+  %1546 = getelementptr inbounds float, float* %0, i64 8
+  %1547 = load float, float* %1546, align 4
+  %1548 = fmul float %1545, %1547
+  %1549 = load float, float* %1530, align 4
+  %1550 = fadd float %1549, %1548
+  store float %1550, float* %1530, align 4
+  %1551 = getelementptr inbounds i8, i8* %1098, i64 60
+  %1552 = bitcast i8* %1551 to float*
+  %1553 = load float, float* %1552, align 4
+  %1554 = getelementptr inbounds float, float* %0, i64 12
+  %1555 = load float, float* %1554, align 4
+  %1556 = fmul float %1553, %1555
+  %1557 = load float, float* %1530, align 4
+  %1558 = fadd float %1557, %1556
+  store float %1558, float* %1530, align 4
+  %1559 = getelementptr inbounds float, float* %2, i64 13
+  store float 0.000000e+00, float* %1559, align 4
+  %1560 = getelementptr inbounds float, float* %2, i64 13
+  %1561 = load float, float* %1528, align 4
+  %1562 = getelementptr inbounds float, float* %0, i64 1
+  %1563 = load float, float* %1562, align 4
+  %1564 = fmul float %1561, %1563
+  %1565 = fadd float %1564, 0.000000e+00
+  store float %1565, float* %1560, align 4
+  %1566 = getelementptr inbounds i8, i8* %1098, i64 52
+  %1567 = bitcast i8* %1566 to float*
+  %1568 = load float, float* %1567, align 4
+  %1569 = getelementptr inbounds float, float* %0, i64 5
+  %1570 = load float, float* %1569, align 4
+  %1571 = fmul float %1568, %1570
+  %1572 = load float, float* %1560, align 4
+  %1573 = fadd float %1572, %1571
+  store float %1573, float* %1560, align 4
+  %1574 = getelementptr inbounds i8, i8* %1098, i64 56
+  %1575 = bitcast i8* %1574 to float*
+  %1576 = load float, float* %1575, align 4
+  %1577 = getelementptr inbounds float, float* %0, i64 9
   %1578 = load float, float* %1577, align 4
-  %1579 = getelementptr inbounds float, float* %2, i64 10
-  %1580 = load float, float* %1579, align 4
-  %1581 = fmul float %1578, %1580
-  %1582 = load float, float* %1563, align 4
-  %1583 = fadd float %1582, %1581
-  store float %1583, float* %1563, align 4
-  %1584 = getelementptr inbounds float, float* %1010, i64 3
-  %1585 = load float, float* %1584, align 4
-  %1586 = getelementptr inbounds float, float* %2, i64 14
-  %1587 = load float, float* %1586, align 4
-  %1588 = fmul float %1585, %1587
-  %1589 = load float, float* %1563, align 4
-  %1590 = fadd float %1589, %1588
-  store float %1590, float* %1563, align 4
-  %1591 = getelementptr inbounds float, float* %1044, i64 3
-  store float 0.000000e+00, float* %1591, align 4
-  %1592 = getelementptr inbounds float, float* %1044, i64 3
-  %1593 = load float, float* %1010, align 4
-  %1594 = getelementptr inbounds float, float* %2, i64 3
-  %1595 = load float, float* %1594, align 4
-  %1596 = fmul float %1593, %1595
-  %1597 = load float, float* %1592, align 4
-  %1598 = fadd float %1597, %1596
-  store float %1598, float* %1592, align 4
-  %1599 = getelementptr inbounds float, float* %1010, i64 1
-  %1600 = load float, float* %1599, align 4
-  %1601 = getelementptr inbounds float, float* %2, i64 7
-  %1602 = load float, float* %1601, align 4
-  %1603 = fmul float %1600, %1602
-  %1604 = load float, float* %1592, align 4
-  %1605 = fadd float %1604, %1603
-  store float %1605, float* %1592, align 4
-  %1606 = getelementptr inbounds float, float* %1010, i64 2
+  %1579 = fmul float %1576, %1578
+  %1580 = load float, float* %1560, align 4
+  %1581 = fadd float %1580, %1579
+  store float %1581, float* %1560, align 4
+  %1582 = getelementptr inbounds i8, i8* %1098, i64 60
+  %1583 = bitcast i8* %1582 to float*
+  %1584 = load float, float* %1583, align 4
+  %1585 = getelementptr inbounds float, float* %0, i64 13
+  %1586 = load float, float* %1585, align 4
+  %1587 = fmul float %1584, %1586
+  %1588 = load float, float* %1560, align 4
+  %1589 = fadd float %1588, %1587
+  store float %1589, float* %1560, align 4
+  %1590 = getelementptr inbounds float, float* %2, i64 14
+  store float 0.000000e+00, float* %1590, align 4
+  %1591 = getelementptr inbounds float, float* %2, i64 14
+  %1592 = load float, float* %1528, align 4
+  %1593 = getelementptr inbounds float, float* %0, i64 2
+  %1594 = load float, float* %1593, align 4
+  %1595 = fmul float %1592, %1594
+  %1596 = fadd float %1595, 0.000000e+00
+  store float %1596, float* %1591, align 4
+  %1597 = getelementptr inbounds i8, i8* %1098, i64 52
+  %1598 = bitcast i8* %1597 to float*
+  %1599 = load float, float* %1598, align 4
+  %1600 = getelementptr inbounds float, float* %0, i64 6
+  %1601 = load float, float* %1600, align 4
+  %1602 = fmul float %1599, %1601
+  %1603 = load float, float* %1591, align 4
+  %1604 = fadd float %1603, %1602
+  store float %1604, float* %1591, align 4
+  %1605 = getelementptr inbounds i8, i8* %1098, i64 56
+  %1606 = bitcast i8* %1605 to float*
   %1607 = load float, float* %1606, align 4
-  %1608 = getelementptr inbounds float, float* %2, i64 11
+  %1608 = getelementptr inbounds float, float* %0, i64 10
   %1609 = load float, float* %1608, align 4
   %1610 = fmul float %1607, %1609
-  %1611 = load float, float* %1592, align 4
+  %1611 = load float, float* %1591, align 4
   %1612 = fadd float %1611, %1610
-  store float %1612, float* %1592, align 4
-  %1613 = getelementptr inbounds float, float* %1010, i64 3
-  %1614 = load float, float* %1613, align 4
-  %1615 = getelementptr inbounds float, float* %2, i64 15
-  %1616 = load float, float* %1615, align 4
-  %1617 = fmul float %1614, %1616
-  %1618 = load float, float* %1592, align 4
-  %1619 = fadd float %1618, %1617
-  store float %1619, float* %1592, align 4
-  %1620 = getelementptr inbounds float, float* %1010, i64 4
-  %1621 = getelementptr inbounds float, float* %1044, i64 4
+  store float %1612, float* %1591, align 4
+  %1613 = getelementptr inbounds i8, i8* %1098, i64 60
+  %1614 = bitcast i8* %1613 to float*
+  %1615 = load float, float* %1614, align 4
+  %1616 = getelementptr inbounds float, float* %0, i64 14
+  %1617 = load float, float* %1616, align 4
+  %1618 = fmul float %1615, %1617
+  %1619 = load float, float* %1591, align 4
+  %1620 = fadd float %1619, %1618
+  store float %1620, float* %1591, align 4
+  %1621 = getelementptr inbounds float, float* %2, i64 15
   store float 0.000000e+00, float* %1621, align 4
-  %1622 = getelementptr inbounds float, float* %1044, i64 4
-  %1623 = load float, float* %1620, align 4
-  %1624 = load float, float* %2, align 4
-  %1625 = fmul float %1623, %1624
-  %1626 = load float, float* %1622, align 4
-  %1627 = fadd float %1626, %1625
+  %1622 = getelementptr inbounds float, float* %2, i64 15
+  %1623 = load float, float* %1528, align 4
+  %1624 = getelementptr inbounds float, float* %0, i64 3
+  %1625 = load float, float* %1624, align 4
+  %1626 = fmul float %1623, %1625
+  %1627 = fadd float %1626, 0.000000e+00
   store float %1627, float* %1622, align 4
-  %1628 = getelementptr inbounds float, float* %1010, i64 5
-  %1629 = load float, float* %1628, align 4
-  %1630 = getelementptr inbounds float, float* %2, i64 4
-  %1631 = load float, float* %1630, align 4
-  %1632 = fmul float %1629, %1631
-  %1633 = load float, float* %1622, align 4
-  %1634 = fadd float %1633, %1632
-  store float %1634, float* %1622, align 4
-  %1635 = getelementptr inbounds float, float* %1010, i64 6
-  %1636 = load float, float* %1635, align 4
-  %1637 = getelementptr inbounds float, float* %2, i64 8
+  %1628 = getelementptr inbounds i8, i8* %1098, i64 52
+  %1629 = bitcast i8* %1628 to float*
+  %1630 = load float, float* %1629, align 4
+  %1631 = getelementptr inbounds float, float* %0, i64 7
+  %1632 = load float, float* %1631, align 4
+  %1633 = fmul float %1630, %1632
+  %1634 = load float, float* %1622, align 4
+  %1635 = fadd float %1634, %1633
+  store float %1635, float* %1622, align 4
+  %1636 = getelementptr inbounds i8, i8* %1098, i64 56
+  %1637 = bitcast i8* %1636 to float*
   %1638 = load float, float* %1637, align 4
-  %1639 = fmul float %1636, %1638
-  %1640 = load float, float* %1622, align 4
-  %1641 = fadd float %1640, %1639
-  store float %1641, float* %1622, align 4
-  %1642 = getelementptr inbounds float, float* %1010, i64 7
-  %1643 = load float, float* %1642, align 4
-  %1644 = getelementptr inbounds float, float* %2, i64 12
-  %1645 = load float, float* %1644, align 4
-  %1646 = fmul float %1643, %1645
-  %1647 = load float, float* %1622, align 4
-  %1648 = fadd float %1647, %1646
-  store float %1648, float* %1622, align 4
-  %1649 = getelementptr inbounds float, float* %1044, i64 5
-  store float 0.000000e+00, float* %1649, align 4
-  %1650 = getelementptr inbounds float, float* %1044, i64 5
-  %1651 = load float, float* %1620, align 4
-  %1652 = getelementptr inbounds float, float* %2, i64 1
-  %1653 = load float, float* %1652, align 4
-  %1654 = fmul float %1651, %1653
-  %1655 = load float, float* %1650, align 4
-  %1656 = fadd float %1655, %1654
-  store float %1656, float* %1650, align 4
-  %1657 = getelementptr inbounds float, float* %1010, i64 5
-  %1658 = load float, float* %1657, align 4
-  %1659 = getelementptr inbounds float, float* %2, i64 5
-  %1660 = load float, float* %1659, align 4
-  %1661 = fmul float %1658, %1660
-  %1662 = load float, float* %1650, align 4
-  %1663 = fadd float %1662, %1661
-  store float %1663, float* %1650, align 4
-  %1664 = getelementptr inbounds float, float* %1010, i64 6
-  %1665 = load float, float* %1664, align 4
-  %1666 = getelementptr inbounds float, float* %2, i64 9
-  %1667 = load float, float* %1666, align 4
-  %1668 = fmul float %1665, %1667
-  %1669 = load float, float* %1650, align 4
-  %1670 = fadd float %1669, %1668
-  store float %1670, float* %1650, align 4
-  %1671 = getelementptr inbounds float, float* %1010, i64 7
-  %1672 = load float, float* %1671, align 4
-  %1673 = getelementptr inbounds float, float* %2, i64 13
-  %1674 = load float, float* %1673, align 4
-  %1675 = fmul float %1672, %1674
-  %1676 = load float, float* %1650, align 4
-  %1677 = fadd float %1676, %1675
-  store float %1677, float* %1650, align 4
-  %1678 = getelementptr inbounds float, float* %1044, i64 6
-  store float 0.000000e+00, float* %1678, align 4
-  %1679 = getelementptr inbounds float, float* %1044, i64 6
-  %1680 = load float, float* %1620, align 4
-  %1681 = getelementptr inbounds float, float* %2, i64 2
-  %1682 = load float, float* %1681, align 4
-  %1683 = fmul float %1680, %1682
-  %1684 = load float, float* %1679, align 4
-  %1685 = fadd float %1684, %1683
-  store float %1685, float* %1679, align 4
-  %1686 = getelementptr inbounds float, float* %1010, i64 5
-  %1687 = load float, float* %1686, align 4
-  %1688 = getelementptr inbounds float, float* %2, i64 6
-  %1689 = load float, float* %1688, align 4
-  %1690 = fmul float %1687, %1689
-  %1691 = load float, float* %1679, align 4
-  %1692 = fadd float %1691, %1690
-  store float %1692, float* %1679, align 4
-  %1693 = getelementptr inbounds float, float* %1010, i64 6
-  %1694 = load float, float* %1693, align 4
-  %1695 = getelementptr inbounds float, float* %2, i64 10
-  %1696 = load float, float* %1695, align 4
-  %1697 = fmul float %1694, %1696
-  %1698 = load float, float* %1679, align 4
-  %1699 = fadd float %1698, %1697
-  store float %1699, float* %1679, align 4
-  %1700 = getelementptr inbounds float, float* %1010, i64 7
-  %1701 = load float, float* %1700, align 4
-  %1702 = getelementptr inbounds float, float* %2, i64 14
+  %1639 = getelementptr inbounds float, float* %0, i64 11
+  %1640 = load float, float* %1639, align 4
+  %1641 = fmul float %1638, %1640
+  %1642 = load float, float* %1622, align 4
+  %1643 = fadd float %1642, %1641
+  store float %1643, float* %1622, align 4
+  %1644 = getelementptr inbounds i8, i8* %1098, i64 60
+  %1645 = bitcast i8* %1644 to float*
+  %1646 = load float, float* %1645, align 4
+  %1647 = getelementptr inbounds float, float* %0, i64 15
+  %1648 = load float, float* %1647, align 4
+  %1649 = fmul float %1646, %1648
+  %1650 = load float, float* %1622, align 4
+  %1651 = fadd float %1650, %1649
+  store float %1651, float* %1622, align 4
+  %1652 = call dereferenceable_or_null(8) i8* @calloc(i64 4, i64 2) #8
+  %1653 = bitcast i8* %1652 to float*
+  %1654 = call dereferenceable_or_null(8) i8* @calloc(i64 4, i64 2) #8
+  %1655 = bitcast i8* %1654 to float*
+  %1656 = getelementptr inbounds float, float* %2, i64 10
+  %1657 = bitcast float* %1656 to i32*
+  %1658 = load i32, i32* %1657, align 4
+  %1659 = bitcast i8* %1652 to i32*
+  store i32 %1658, i32* %1659, align 4
+  %1660 = getelementptr inbounds i8, i8* %8, i64 40
+  %1661 = bitcast i8* %1660 to i32*
+  %1662 = load i32, i32* %1661, align 4
+  %1663 = bitcast i8* %1654 to i32*
+  store i32 %1662, i32* %1663, align 4
+  %1664 = getelementptr inbounds float, float* %2, i64 14
+  %1665 = bitcast float* %1664 to i32*
+  %1666 = load i32, i32* %1665, align 4
+  %1667 = getelementptr inbounds i8, i8* %1652, i64 4
+  %1668 = bitcast i8* %1667 to i32*
+  store i32 %1666, i32* %1668, align 4
+  %1669 = getelementptr inbounds i8, i8* %8, i64 56
+  %1670 = bitcast i8* %1669 to i32*
+  %1671 = load i32, i32* %1670, align 4
+  %1672 = getelementptr inbounds i8, i8* %1654, i64 4
+  %1673 = bitcast i8* %1672 to i32*
+  store i32 %1671, i32* %1673, align 4
+  %1674 = load float, float* %1653, align 4
+  %1675 = fcmp ogt float %1674, 0.000000e+00
+  %1676 = zext i1 %1675 to i32
+  %1677 = fcmp olt float %1674, 0.000000e+00
+  %.neg187 = sext i1 %1677 to i32
+  %1678 = add nsw i32 %.neg187, %1676
+  %1679 = sitofp i32 %1678 to float
+  %1680 = load float, float* %1653, align 4
+  %1681 = fpext float %1680 to double
+  %square188 = fmul double %1681, %1681
+  %1682 = fadd double %square188, 0.000000e+00
+  %1683 = fptrunc double %1682 to float
+  %1684 = getelementptr inbounds i8, i8* %1652, i64 4
+  %1685 = bitcast i8* %1684 to float*
+  %1686 = load float, float* %1685, align 4
+  %1687 = fpext float %1686 to double
+  %square189 = fmul double %1687, %1687
+  %1688 = fpext float %1683 to double
+  %1689 = fadd double %square189, %1688
+  %1690 = fptrunc double %1689 to float
+  %1691 = fneg float %1679
+  %1692 = call float @llvm.sqrt.f32(float %1690)
+  %1693 = fmul float %1692, %1691
+  %1694 = call dereferenceable_or_null(8) i8* @calloc(i64 4, i64 2) #8
+  %1695 = bitcast i8* %1694 to float*
+  %1696 = call dereferenceable_or_null(8) i8* @calloc(i64 4, i64 2) #8
+  %1697 = load float, float* %1653, align 4
+  %1698 = load float, float* %1655, align 4
+  %1699 = fmul float %1693, %1698
+  %1700 = fadd float %1697, %1699
+  store float %1700, float* %1695, align 4
+  %1701 = getelementptr inbounds i8, i8* %1652, i64 4
+  %1702 = bitcast i8* %1701 to float*
   %1703 = load float, float* %1702, align 4
-  %1704 = fmul float %1701, %1703
-  %1705 = load float, float* %1679, align 4
-  %1706 = fadd float %1705, %1704
-  store float %1706, float* %1679, align 4
-  %1707 = getelementptr inbounds float, float* %1044, i64 7
-  store float 0.000000e+00, float* %1707, align 4
-  %1708 = getelementptr inbounds float, float* %1044, i64 7
-  %1709 = load float, float* %1620, align 4
-  %1710 = getelementptr inbounds float, float* %2, i64 3
-  %1711 = load float, float* %1710, align 4
-  %1712 = fmul float %1709, %1711
-  %1713 = load float, float* %1708, align 4
-  %1714 = fadd float %1713, %1712
-  store float %1714, float* %1708, align 4
-  %1715 = getelementptr inbounds float, float* %1010, i64 5
-  %1716 = load float, float* %1715, align 4
-  %1717 = getelementptr inbounds float, float* %2, i64 7
-  %1718 = load float, float* %1717, align 4
-  %1719 = fmul float %1716, %1718
-  %1720 = load float, float* %1708, align 4
-  %1721 = fadd float %1720, %1719
-  store float %1721, float* %1708, align 4
-  %1722 = getelementptr inbounds float, float* %1010, i64 6
-  %1723 = load float, float* %1722, align 4
-  %1724 = getelementptr inbounds float, float* %2, i64 11
-  %1725 = load float, float* %1724, align 4
-  %1726 = fmul float %1723, %1725
-  %1727 = load float, float* %1708, align 4
-  %1728 = fadd float %1727, %1726
-  store float %1728, float* %1708, align 4
-  %1729 = getelementptr inbounds float, float* %1010, i64 7
-  %1730 = load float, float* %1729, align 4
-  %1731 = getelementptr inbounds float, float* %2, i64 15
-  %1732 = load float, float* %1731, align 4
-  %1733 = fmul float %1730, %1732
-  %1734 = load float, float* %1708, align 4
-  %1735 = fadd float %1734, %1733
-  store float %1735, float* %1708, align 4
-  %1736 = getelementptr inbounds float, float* %1010, i64 8
-  %1737 = getelementptr inbounds float, float* %1044, i64 8
-  store float 0.000000e+00, float* %1737, align 4
-  %1738 = getelementptr inbounds float, float* %1044, i64 8
-  %1739 = load float, float* %1736, align 4
-  %1740 = load float, float* %2, align 4
-  %1741 = fmul float %1739, %1740
-  %1742 = load float, float* %1738, align 4
-  %1743 = fadd float %1742, %1741
-  store float %1743, float* %1738, align 4
-  %1744 = getelementptr inbounds float, float* %1010, i64 9
-  %1745 = load float, float* %1744, align 4
-  %1746 = getelementptr inbounds float, float* %2, i64 4
-  %1747 = load float, float* %1746, align 4
-  %1748 = fmul float %1745, %1747
-  %1749 = load float, float* %1738, align 4
-  %1750 = fadd float %1749, %1748
-  store float %1750, float* %1738, align 4
-  %1751 = getelementptr inbounds float, float* %1010, i64 10
-  %1752 = load float, float* %1751, align 4
-  %1753 = getelementptr inbounds float, float* %2, i64 8
-  %1754 = load float, float* %1753, align 4
-  %1755 = fmul float %1752, %1754
-  %1756 = load float, float* %1738, align 4
-  %1757 = fadd float %1756, %1755
-  store float %1757, float* %1738, align 4
-  %1758 = getelementptr inbounds float, float* %1010, i64 11
-  %1759 = load float, float* %1758, align 4
-  %1760 = getelementptr inbounds float, float* %2, i64 12
-  %1761 = load float, float* %1760, align 4
-  %1762 = fmul float %1759, %1761
-  %1763 = load float, float* %1738, align 4
-  %1764 = fadd float %1763, %1762
-  store float %1764, float* %1738, align 4
-  %1765 = getelementptr inbounds float, float* %1044, i64 9
+  %1704 = getelementptr inbounds i8, i8* %1654, i64 4
+  %1705 = bitcast i8* %1704 to float*
+  %1706 = load float, float* %1705, align 4
+  %1707 = fmul float %1693, %1706
+  %1708 = fadd float %1703, %1707
+  %1709 = getelementptr inbounds i8, i8* %1694, i64 4
+  %1710 = bitcast i8* %1709 to float*
+  store float %1708, float* %1710, align 4
+  %1711 = load float, float* %1695, align 4
+  %1712 = fpext float %1711 to double
+  %square190 = fmul double %1712, %1712
+  %1713 = fadd double %square190, 0.000000e+00
+  %1714 = fptrunc double %1713 to float
+  %1715 = getelementptr inbounds i8, i8* %1694, i64 4
+  %1716 = bitcast i8* %1715 to float*
+  %1717 = load float, float* %1716, align 4
+  %1718 = fpext float %1717 to double
+  %square191 = fmul double %1718, %1718
+  %1719 = fpext float %1714 to double
+  %1720 = fadd double %square191, %1719
+  %1721 = fptrunc double %1720 to float
+  %1722 = bitcast i8* %1696 to float*
+  %1723 = call float @llvm.sqrt.f32(float %1721)
+  %1724 = load float, float* %1695, align 4
+  %1725 = fdiv float %1724, %1723
+  store float %1725, float* %1722, align 4
+  %1726 = getelementptr inbounds i8, i8* %1694, i64 4
+  %1727 = bitcast i8* %1726 to float*
+  %1728 = load float, float* %1727, align 4
+  %1729 = fdiv float %1728, %1723
+  %1730 = getelementptr inbounds i8, i8* %1696, i64 4
+  %1731 = bitcast i8* %1730 to float*
+  store float %1729, float* %1731, align 4
+  %1732 = call dereferenceable_or_null(16) i8* @calloc(i64 4, i64 4) #8
+  %1733 = bitcast i8* %1732 to float*
+  %1734 = load float, float* %1722, align 4
+  %1735 = fmul float %1734, 2.000000e+00
+  %1736 = fmul float %1735, %1734
+  %1737 = fsub float 1.000000e+00, %1736
+  store float %1737, float* %1733, align 4
+  %1738 = load float, float* %1722, align 4
+  %1739 = fmul float %1738, 2.000000e+00
+  %1740 = getelementptr inbounds i8, i8* %1696, i64 4
+  %1741 = bitcast i8* %1740 to float*
+  %1742 = load float, float* %1741, align 4
+  %1743 = fmul float %1739, %1742
+  %1744 = fsub float 0.000000e+00, %1743
+  %1745 = getelementptr inbounds i8, i8* %1732, i64 4
+  %1746 = bitcast i8* %1745 to float*
+  store float %1744, float* %1746, align 4
+  %1747 = getelementptr inbounds i8, i8* %1696, i64 4
+  %1748 = bitcast i8* %1747 to float*
+  %1749 = load float, float* %1748, align 4
+  %1750 = fmul float %1749, 2.000000e+00
+  %1751 = load float, float* %1722, align 4
+  %1752 = fmul float %1750, %1751
+  %1753 = fsub float 0.000000e+00, %1752
+  %1754 = getelementptr inbounds i8, i8* %1732, i64 8
+  %1755 = bitcast i8* %1754 to float*
+  store float %1753, float* %1755, align 4
+  %1756 = load float, float* %1748, align 4
+  %1757 = fmul float %1756, 2.000000e+00
+  %1758 = fmul float %1757, %1756
+  %1759 = fsub float 1.000000e+00, %1758
+  %1760 = getelementptr inbounds i8, i8* %1732, i64 12
+  %1761 = bitcast i8* %1760 to float*
+  store float %1759, float* %1761, align 4
+  %1762 = call dereferenceable_or_null(64) i8* @calloc(i64 4, i64 16) #8
+  %1763 = bitcast i8* %1762 to float*
+  store float 1.000000e+00, float* %1763, align 4
+  %1764 = getelementptr inbounds i8, i8* %1762, i64 4
+  %1765 = bitcast i8* %1764 to float*
   store float 0.000000e+00, float* %1765, align 4
-  %1766 = getelementptr inbounds float, float* %1044, i64 9
-  %1767 = load float, float* %1736, align 4
-  %1768 = getelementptr inbounds float, float* %2, i64 1
-  %1769 = load float, float* %1768, align 4
-  %1770 = fmul float %1767, %1769
-  %1771 = load float, float* %1766, align 4
-  %1772 = fadd float %1771, %1770
-  store float %1772, float* %1766, align 4
-  %1773 = getelementptr inbounds float, float* %1010, i64 9
-  %1774 = load float, float* %1773, align 4
-  %1775 = getelementptr inbounds float, float* %2, i64 5
-  %1776 = load float, float* %1775, align 4
-  %1777 = fmul float %1774, %1776
-  %1778 = load float, float* %1766, align 4
-  %1779 = fadd float %1778, %1777
-  store float %1779, float* %1766, align 4
-  %1780 = getelementptr inbounds float, float* %1010, i64 10
-  %1781 = load float, float* %1780, align 4
-  %1782 = getelementptr inbounds float, float* %2, i64 9
-  %1783 = load float, float* %1782, align 4
-  %1784 = fmul float %1781, %1783
-  %1785 = load float, float* %1766, align 4
-  %1786 = fadd float %1785, %1784
-  store float %1786, float* %1766, align 4
-  %1787 = getelementptr inbounds float, float* %1010, i64 11
-  %1788 = load float, float* %1787, align 4
-  %1789 = getelementptr inbounds float, float* %2, i64 13
-  %1790 = load float, float* %1789, align 4
-  %1791 = fmul float %1788, %1790
-  %1792 = load float, float* %1766, align 4
-  %1793 = fadd float %1792, %1791
-  store float %1793, float* %1766, align 4
-  %1794 = getelementptr inbounds float, float* %1044, i64 10
+  %1766 = getelementptr inbounds i8, i8* %1762, i64 8
+  %1767 = bitcast i8* %1766 to float*
+  store float 0.000000e+00, float* %1767, align 4
+  %1768 = getelementptr inbounds i8, i8* %1762, i64 12
+  %1769 = bitcast i8* %1768 to float*
+  store float 0.000000e+00, float* %1769, align 4
+  %1770 = getelementptr inbounds i8, i8* %1762, i64 16
+  %1771 = bitcast i8* %1770 to float*
+  store float 0.000000e+00, float* %1771, align 4
+  %1772 = getelementptr inbounds i8, i8* %1762, i64 20
+  %1773 = bitcast i8* %1772 to float*
+  store float 1.000000e+00, float* %1773, align 4
+  %1774 = getelementptr inbounds i8, i8* %1762, i64 24
+  %1775 = bitcast i8* %1774 to float*
+  store float 0.000000e+00, float* %1775, align 4
+  %1776 = getelementptr inbounds i8, i8* %1762, i64 28
+  %1777 = bitcast i8* %1776 to float*
+  store float 0.000000e+00, float* %1777, align 4
+  %1778 = getelementptr inbounds i8, i8* %1762, i64 32
+  %1779 = bitcast i8* %1778 to float*
+  store float 0.000000e+00, float* %1779, align 4
+  %1780 = getelementptr inbounds i8, i8* %1762, i64 36
+  %1781 = bitcast i8* %1780 to float*
+  store float 0.000000e+00, float* %1781, align 4
+  %1782 = bitcast i8* %1732 to i32*
+  %1783 = load i32, i32* %1782, align 4
+  %1784 = getelementptr inbounds i8, i8* %1762, i64 40
+  %1785 = bitcast i8* %1784 to i32*
+  store i32 %1783, i32* %1785, align 4
+  %1786 = getelementptr inbounds i8, i8* %1732, i64 4
+  %1787 = bitcast i8* %1786 to i32*
+  %1788 = load i32, i32* %1787, align 4
+  %1789 = getelementptr inbounds i8, i8* %1762, i64 44
+  %1790 = bitcast i8* %1789 to i32*
+  store i32 %1788, i32* %1790, align 4
+  %1791 = getelementptr inbounds i8, i8* %1762, i64 48
+  %1792 = bitcast i8* %1791 to float*
+  store float 0.000000e+00, float* %1792, align 4
+  %1793 = getelementptr inbounds i8, i8* %1762, i64 52
+  %1794 = bitcast i8* %1793 to float*
   store float 0.000000e+00, float* %1794, align 4
-  %1795 = getelementptr inbounds float, float* %1044, i64 10
-  %1796 = load float, float* %1736, align 4
-  %1797 = getelementptr inbounds float, float* %2, i64 2
-  %1798 = load float, float* %1797, align 4
-  %1799 = fmul float %1796, %1798
-  %1800 = load float, float* %1795, align 4
-  %1801 = fadd float %1800, %1799
-  store float %1801, float* %1795, align 4
-  %1802 = getelementptr inbounds float, float* %1010, i64 9
-  %1803 = load float, float* %1802, align 4
-  %1804 = getelementptr inbounds float, float* %2, i64 6
-  %1805 = load float, float* %1804, align 4
-  %1806 = fmul float %1803, %1805
-  %1807 = load float, float* %1795, align 4
-  %1808 = fadd float %1807, %1806
-  store float %1808, float* %1795, align 4
-  %1809 = getelementptr inbounds float, float* %1010, i64 10
-  %1810 = load float, float* %1809, align 4
-  %1811 = getelementptr inbounds float, float* %2, i64 10
-  %1812 = load float, float* %1811, align 4
-  %1813 = fmul float %1810, %1812
-  %1814 = load float, float* %1795, align 4
-  %1815 = fadd float %1814, %1813
-  store float %1815, float* %1795, align 4
-  %1816 = getelementptr inbounds float, float* %1010, i64 11
-  %1817 = load float, float* %1816, align 4
-  %1818 = getelementptr inbounds float, float* %2, i64 14
+  %1795 = getelementptr inbounds i8, i8* %1732, i64 8
+  %1796 = bitcast i8* %1795 to i32*
+  %1797 = load i32, i32* %1796, align 4
+  %1798 = getelementptr inbounds i8, i8* %1762, i64 56
+  %1799 = bitcast i8* %1798 to i32*
+  store i32 %1797, i32* %1799, align 4
+  %1800 = getelementptr inbounds i8, i8* %1732, i64 12
+  %1801 = bitcast i8* %1800 to i32*
+  %1802 = load i32, i32* %1801, align 4
+  %1803 = getelementptr inbounds i8, i8* %1762, i64 60
+  %1804 = bitcast i8* %1803 to i32*
+  store i32 %1802, i32* %1804, align 4
+  store float 0.000000e+00, float* %2, align 4
+  %1805 = load float, float* %1763, align 4
+  %1806 = load float, float* %0, align 4
+  %1807 = fmul float %1805, %1806
+  %1808 = fadd float %1807, 0.000000e+00
+  store float %1808, float* %2, align 4
+  %1809 = getelementptr inbounds i8, i8* %1762, i64 4
+  %1810 = bitcast i8* %1809 to float*
+  %1811 = load float, float* %1810, align 4
+  %1812 = getelementptr inbounds float, float* %0, i64 4
+  %1813 = load float, float* %1812, align 4
+  %1814 = fmul float %1811, %1813
+  %1815 = load float, float* %2, align 4
+  %1816 = fadd float %1815, %1814
+  store float %1816, float* %2, align 4
+  %1817 = getelementptr inbounds i8, i8* %1762, i64 8
+  %1818 = bitcast i8* %1817 to float*
   %1819 = load float, float* %1818, align 4
-  %1820 = fmul float %1817, %1819
-  %1821 = load float, float* %1795, align 4
-  %1822 = fadd float %1821, %1820
-  store float %1822, float* %1795, align 4
-  %1823 = getelementptr inbounds float, float* %1044, i64 11
-  store float 0.000000e+00, float* %1823, align 4
-  %1824 = getelementptr inbounds float, float* %1044, i64 11
-  %1825 = load float, float* %1736, align 4
-  %1826 = getelementptr inbounds float, float* %2, i64 3
+  %1820 = getelementptr inbounds float, float* %0, i64 8
+  %1821 = load float, float* %1820, align 4
+  %1822 = fmul float %1819, %1821
+  %1823 = load float, float* %2, align 4
+  %1824 = fadd float %1823, %1822
+  store float %1824, float* %2, align 4
+  %1825 = getelementptr inbounds i8, i8* %1762, i64 12
+  %1826 = bitcast i8* %1825 to float*
   %1827 = load float, float* %1826, align 4
-  %1828 = fmul float %1825, %1827
-  %1829 = load float, float* %1824, align 4
-  %1830 = fadd float %1829, %1828
-  store float %1830, float* %1824, align 4
-  %1831 = getelementptr inbounds float, float* %1010, i64 9
-  %1832 = load float, float* %1831, align 4
-  %1833 = getelementptr inbounds float, float* %2, i64 7
-  %1834 = load float, float* %1833, align 4
-  %1835 = fmul float %1832, %1834
-  %1836 = load float, float* %1824, align 4
-  %1837 = fadd float %1836, %1835
-  store float %1837, float* %1824, align 4
-  %1838 = getelementptr inbounds float, float* %1010, i64 10
-  %1839 = load float, float* %1838, align 4
-  %1840 = getelementptr inbounds float, float* %2, i64 11
-  %1841 = load float, float* %1840, align 4
-  %1842 = fmul float %1839, %1841
-  %1843 = load float, float* %1824, align 4
-  %1844 = fadd float %1843, %1842
-  store float %1844, float* %1824, align 4
-  %1845 = getelementptr inbounds float, float* %1010, i64 11
-  %1846 = load float, float* %1845, align 4
-  %1847 = getelementptr inbounds float, float* %2, i64 15
-  %1848 = load float, float* %1847, align 4
-  %1849 = fmul float %1846, %1848
-  %1850 = load float, float* %1824, align 4
-  %1851 = fadd float %1850, %1849
-  store float %1851, float* %1824, align 4
-  %1852 = getelementptr inbounds float, float* %1010, i64 12
-  %1853 = getelementptr inbounds float, float* %1044, i64 12
-  store float 0.000000e+00, float* %1853, align 4
-  %1854 = getelementptr inbounds float, float* %1044, i64 12
-  %1855 = load float, float* %1852, align 4
-  %1856 = load float, float* %2, align 4
-  %1857 = fmul float %1855, %1856
-  %1858 = load float, float* %1854, align 4
-  %1859 = fadd float %1858, %1857
-  store float %1859, float* %1854, align 4
-  %1860 = getelementptr inbounds float, float* %1010, i64 13
-  %1861 = load float, float* %1860, align 4
-  %1862 = getelementptr inbounds float, float* %2, i64 4
-  %1863 = load float, float* %1862, align 4
-  %1864 = fmul float %1861, %1863
-  %1865 = load float, float* %1854, align 4
-  %1866 = fadd float %1865, %1864
-  store float %1866, float* %1854, align 4
-  %1867 = getelementptr inbounds float, float* %1010, i64 14
+  %1828 = getelementptr inbounds float, float* %0, i64 12
+  %1829 = load float, float* %1828, align 4
+  %1830 = fmul float %1827, %1829
+  %1831 = load float, float* %2, align 4
+  %1832 = fadd float %1831, %1830
+  store float %1832, float* %2, align 4
+  %1833 = getelementptr inbounds float, float* %2, i64 1
+  store float 0.000000e+00, float* %1833, align 4
+  %1834 = getelementptr inbounds float, float* %2, i64 1
+  %1835 = load float, float* %1763, align 4
+  %1836 = getelementptr inbounds float, float* %0, i64 1
+  %1837 = load float, float* %1836, align 4
+  %1838 = fmul float %1835, %1837
+  %1839 = fadd float %1838, 0.000000e+00
+  store float %1839, float* %1834, align 4
+  %1840 = getelementptr inbounds i8, i8* %1762, i64 4
+  %1841 = bitcast i8* %1840 to float*
+  %1842 = load float, float* %1841, align 4
+  %1843 = getelementptr inbounds float, float* %0, i64 5
+  %1844 = load float, float* %1843, align 4
+  %1845 = fmul float %1842, %1844
+  %1846 = load float, float* %1834, align 4
+  %1847 = fadd float %1846, %1845
+  store float %1847, float* %1834, align 4
+  %1848 = getelementptr inbounds i8, i8* %1762, i64 8
+  %1849 = bitcast i8* %1848 to float*
+  %1850 = load float, float* %1849, align 4
+  %1851 = getelementptr inbounds float, float* %0, i64 9
+  %1852 = load float, float* %1851, align 4
+  %1853 = fmul float %1850, %1852
+  %1854 = load float, float* %1834, align 4
+  %1855 = fadd float %1854, %1853
+  store float %1855, float* %1834, align 4
+  %1856 = getelementptr inbounds i8, i8* %1762, i64 12
+  %1857 = bitcast i8* %1856 to float*
+  %1858 = load float, float* %1857, align 4
+  %1859 = getelementptr inbounds float, float* %0, i64 13
+  %1860 = load float, float* %1859, align 4
+  %1861 = fmul float %1858, %1860
+  %1862 = load float, float* %1834, align 4
+  %1863 = fadd float %1862, %1861
+  store float %1863, float* %1834, align 4
+  %1864 = getelementptr inbounds float, float* %2, i64 2
+  store float 0.000000e+00, float* %1864, align 4
+  %1865 = getelementptr inbounds float, float* %2, i64 2
+  %1866 = load float, float* %1763, align 4
+  %1867 = getelementptr inbounds float, float* %0, i64 2
   %1868 = load float, float* %1867, align 4
-  %1869 = getelementptr inbounds float, float* %2, i64 8
-  %1870 = load float, float* %1869, align 4
-  %1871 = fmul float %1868, %1870
-  %1872 = load float, float* %1854, align 4
-  %1873 = fadd float %1872, %1871
-  store float %1873, float* %1854, align 4
-  %1874 = getelementptr inbounds float, float* %1010, i64 15
+  %1869 = fmul float %1866, %1868
+  %1870 = fadd float %1869, 0.000000e+00
+  store float %1870, float* %1865, align 4
+  %1871 = getelementptr inbounds i8, i8* %1762, i64 4
+  %1872 = bitcast i8* %1871 to float*
+  %1873 = load float, float* %1872, align 4
+  %1874 = getelementptr inbounds float, float* %0, i64 6
   %1875 = load float, float* %1874, align 4
-  %1876 = getelementptr inbounds float, float* %2, i64 12
-  %1877 = load float, float* %1876, align 4
-  %1878 = fmul float %1875, %1877
-  %1879 = load float, float* %1854, align 4
-  %1880 = fadd float %1879, %1878
-  store float %1880, float* %1854, align 4
-  %1881 = getelementptr inbounds float, float* %1044, i64 13
-  store float 0.000000e+00, float* %1881, align 4
-  %1882 = getelementptr inbounds float, float* %1044, i64 13
-  %1883 = load float, float* %1852, align 4
-  %1884 = getelementptr inbounds float, float* %2, i64 1
-  %1885 = load float, float* %1884, align 4
-  %1886 = fmul float %1883, %1885
-  %1887 = load float, float* %1882, align 4
-  %1888 = fadd float %1887, %1886
-  store float %1888, float* %1882, align 4
-  %1889 = getelementptr inbounds float, float* %1010, i64 13
-  %1890 = load float, float* %1889, align 4
-  %1891 = getelementptr inbounds float, float* %2, i64 5
-  %1892 = load float, float* %1891, align 4
-  %1893 = fmul float %1890, %1892
-  %1894 = load float, float* %1882, align 4
-  %1895 = fadd float %1894, %1893
-  store float %1895, float* %1882, align 4
-  %1896 = getelementptr inbounds float, float* %1010, i64 14
-  %1897 = load float, float* %1896, align 4
-  %1898 = getelementptr inbounds float, float* %2, i64 9
+  %1876 = fmul float %1873, %1875
+  %1877 = load float, float* %1865, align 4
+  %1878 = fadd float %1877, %1876
+  store float %1878, float* %1865, align 4
+  %1879 = getelementptr inbounds i8, i8* %1762, i64 8
+  %1880 = bitcast i8* %1879 to float*
+  %1881 = load float, float* %1880, align 4
+  %1882 = getelementptr inbounds float, float* %0, i64 10
+  %1883 = load float, float* %1882, align 4
+  %1884 = fmul float %1881, %1883
+  %1885 = load float, float* %1865, align 4
+  %1886 = fadd float %1885, %1884
+  store float %1886, float* %1865, align 4
+  %1887 = getelementptr inbounds i8, i8* %1762, i64 12
+  %1888 = bitcast i8* %1887 to float*
+  %1889 = load float, float* %1888, align 4
+  %1890 = getelementptr inbounds float, float* %0, i64 14
+  %1891 = load float, float* %1890, align 4
+  %1892 = fmul float %1889, %1891
+  %1893 = load float, float* %1865, align 4
+  %1894 = fadd float %1893, %1892
+  store float %1894, float* %1865, align 4
+  %1895 = getelementptr inbounds float, float* %2, i64 3
+  store float 0.000000e+00, float* %1895, align 4
+  %1896 = getelementptr inbounds float, float* %2, i64 3
+  %1897 = load float, float* %1763, align 4
+  %1898 = getelementptr inbounds float, float* %0, i64 3
   %1899 = load float, float* %1898, align 4
   %1900 = fmul float %1897, %1899
-  %1901 = load float, float* %1882, align 4
-  %1902 = fadd float %1901, %1900
-  store float %1902, float* %1882, align 4
-  %1903 = getelementptr inbounds float, float* %1010, i64 15
+  %1901 = fadd float %1900, 0.000000e+00
+  store float %1901, float* %1896, align 4
+  %1902 = getelementptr inbounds i8, i8* %1762, i64 4
+  %1903 = bitcast i8* %1902 to float*
   %1904 = load float, float* %1903, align 4
-  %1905 = getelementptr inbounds float, float* %2, i64 13
+  %1905 = getelementptr inbounds float, float* %0, i64 7
   %1906 = load float, float* %1905, align 4
   %1907 = fmul float %1904, %1906
-  %1908 = load float, float* %1882, align 4
+  %1908 = load float, float* %1896, align 4
   %1909 = fadd float %1908, %1907
-  store float %1909, float* %1882, align 4
-  %1910 = getelementptr inbounds float, float* %1044, i64 14
-  store float 0.000000e+00, float* %1910, align 4
-  %1911 = getelementptr inbounds float, float* %1044, i64 14
-  %1912 = load float, float* %1852, align 4
-  %1913 = getelementptr inbounds float, float* %2, i64 2
+  store float %1909, float* %1896, align 4
+  %1910 = getelementptr inbounds i8, i8* %1762, i64 8
+  %1911 = bitcast i8* %1910 to float*
+  %1912 = load float, float* %1911, align 4
+  %1913 = getelementptr inbounds float, float* %0, i64 11
   %1914 = load float, float* %1913, align 4
   %1915 = fmul float %1912, %1914
-  %1916 = load float, float* %1911, align 4
+  %1916 = load float, float* %1896, align 4
   %1917 = fadd float %1916, %1915
-  store float %1917, float* %1911, align 4
-  %1918 = getelementptr inbounds float, float* %1010, i64 13
-  %1919 = load float, float* %1918, align 4
-  %1920 = getelementptr inbounds float, float* %2, i64 6
-  %1921 = load float, float* %1920, align 4
-  %1922 = fmul float %1919, %1921
-  %1923 = load float, float* %1911, align 4
-  %1924 = fadd float %1923, %1922
-  store float %1924, float* %1911, align 4
-  %1925 = getelementptr inbounds float, float* %1010, i64 14
-  %1926 = load float, float* %1925, align 4
-  %1927 = getelementptr inbounds float, float* %2, i64 10
-  %1928 = load float, float* %1927, align 4
-  %1929 = fmul float %1926, %1928
-  %1930 = load float, float* %1911, align 4
-  %1931 = fadd float %1930, %1929
-  store float %1931, float* %1911, align 4
-  %1932 = getelementptr inbounds float, float* %1010, i64 15
-  %1933 = load float, float* %1932, align 4
-  %1934 = getelementptr inbounds float, float* %2, i64 14
-  %1935 = load float, float* %1934, align 4
-  %1936 = fmul float %1933, %1935
-  %1937 = load float, float* %1911, align 4
-  %1938 = fadd float %1937, %1936
-  store float %1938, float* %1911, align 4
-  %1939 = getelementptr inbounds float, float* %1044, i64 15
-  store float 0.000000e+00, float* %1939, align 4
-  %1940 = getelementptr inbounds float, float* %1044, i64 15
-  %1941 = load float, float* %1852, align 4
-  %1942 = getelementptr inbounds float, float* %2, i64 3
-  %1943 = load float, float* %1942, align 4
-  %1944 = fmul float %1941, %1943
-  %1945 = load float, float* %1940, align 4
-  %1946 = fadd float %1945, %1944
-  store float %1946, float* %1940, align 4
-  %1947 = getelementptr inbounds float, float* %1010, i64 13
-  %1948 = load float, float* %1947, align 4
-  %1949 = getelementptr inbounds float, float* %2, i64 7
-  %1950 = load float, float* %1949, align 4
-  %1951 = fmul float %1948, %1950
-  %1952 = load float, float* %1940, align 4
-  %1953 = fadd float %1952, %1951
-  store float %1953, float* %1940, align 4
-  %1954 = getelementptr inbounds float, float* %1010, i64 14
-  %1955 = load float, float* %1954, align 4
-  %1956 = getelementptr inbounds float, float* %2, i64 11
-  %1957 = load float, float* %1956, align 4
-  %1958 = fmul float %1955, %1957
-  %1959 = load float, float* %1940, align 4
-  %1960 = fadd float %1959, %1958
-  store float %1960, float* %1940, align 4
-  %1961 = getelementptr inbounds float, float* %1010, i64 15
+  store float %1917, float* %1896, align 4
+  %1918 = getelementptr inbounds i8, i8* %1762, i64 12
+  %1919 = bitcast i8* %1918 to float*
+  %1920 = load float, float* %1919, align 4
+  %1921 = getelementptr inbounds float, float* %0, i64 15
+  %1922 = load float, float* %1921, align 4
+  %1923 = fmul float %1920, %1922
+  %1924 = load float, float* %1896, align 4
+  %1925 = fadd float %1924, %1923
+  store float %1925, float* %1896, align 4
+  %1926 = getelementptr inbounds i8, i8* %1762, i64 16
+  %1927 = bitcast i8* %1926 to float*
+  %1928 = getelementptr inbounds float, float* %2, i64 4
+  store float 0.000000e+00, float* %1928, align 4
+  %1929 = getelementptr inbounds float, float* %2, i64 4
+  %1930 = load float, float* %1927, align 4
+  %1931 = load float, float* %0, align 4
+  %1932 = fmul float %1930, %1931
+  %1933 = fadd float %1932, 0.000000e+00
+  store float %1933, float* %1929, align 4
+  %1934 = getelementptr inbounds i8, i8* %1762, i64 20
+  %1935 = bitcast i8* %1934 to float*
+  %1936 = load float, float* %1935, align 4
+  %1937 = getelementptr inbounds float, float* %0, i64 4
+  %1938 = load float, float* %1937, align 4
+  %1939 = fmul float %1936, %1938
+  %1940 = load float, float* %1929, align 4
+  %1941 = fadd float %1940, %1939
+  store float %1941, float* %1929, align 4
+  %1942 = getelementptr inbounds i8, i8* %1762, i64 24
+  %1943 = bitcast i8* %1942 to float*
+  %1944 = load float, float* %1943, align 4
+  %1945 = getelementptr inbounds float, float* %0, i64 8
+  %1946 = load float, float* %1945, align 4
+  %1947 = fmul float %1944, %1946
+  %1948 = load float, float* %1929, align 4
+  %1949 = fadd float %1948, %1947
+  store float %1949, float* %1929, align 4
+  %1950 = getelementptr inbounds i8, i8* %1762, i64 28
+  %1951 = bitcast i8* %1950 to float*
+  %1952 = load float, float* %1951, align 4
+  %1953 = getelementptr inbounds float, float* %0, i64 12
+  %1954 = load float, float* %1953, align 4
+  %1955 = fmul float %1952, %1954
+  %1956 = load float, float* %1929, align 4
+  %1957 = fadd float %1956, %1955
+  store float %1957, float* %1929, align 4
+  %1958 = getelementptr inbounds float, float* %2, i64 5
+  store float 0.000000e+00, float* %1958, align 4
+  %1959 = getelementptr inbounds float, float* %2, i64 5
+  %1960 = load float, float* %1927, align 4
+  %1961 = getelementptr inbounds float, float* %0, i64 1
   %1962 = load float, float* %1961, align 4
-  %1963 = getelementptr inbounds float, float* %2, i64 15
-  %1964 = load float, float* %1963, align 4
-  %1965 = fmul float %1962, %1964
-  %1966 = load float, float* %1940, align 4
-  %1967 = fadd float %1966, %1965
-  store float %1967, float* %1940, align 4
-  %1968 = call i8* @__memcpy_chk(i8* %28, i8* %1043, i64 64, i64 %30) #8
-  call void @free(i8* %823)
-  call void @free(i8* %825)
-  call void @free(i8* %874)
-  call void @free(i8* %876)
-  call void @free(i8* %928)
-  call void @free(i8* %1009)
-  %1969 = call i8* @calloc(i64 4, i64 2) #9
-  %1970 = bitcast i8* %1969 to float*
-  %1971 = call i8* @calloc(i64 4, i64 2) #9
-  %1972 = bitcast i8* %1971 to float*
-  %1973 = getelementptr inbounds float, float* %2, i64 10
-  %1974 = load float, float* %1973, align 4
-  store float %1974, float* %1970, align 4
-  %1975 = getelementptr inbounds float, float* %9, i64 10
-  %1976 = load float, float* %1975, align 4
-  store float %1976, float* %1972, align 4
-  %1977 = getelementptr inbounds float, float* %2, i64 14
-  %1978 = load float, float* %1977, align 4
-  %1979 = getelementptr inbounds float, float* %1970, i64 1
-  store float %1978, float* %1979, align 4
-  %1980 = getelementptr inbounds float, float* %9, i64 14
-  %1981 = load float, float* %1980, align 4
-  %1982 = getelementptr inbounds float, float* %1972, i64 1
-  store float %1981, float* %1982, align 4
-  %1983 = load float, float* %1970, align 4
-  %1984 = fcmp ogt float %1983, 0.000000e+00
-  %1985 = zext i1 %1984 to i32
-  %1986 = fcmp olt float %1983, 0.000000e+00
-  %1987 = zext i1 %1986 to i32
-  %1988 = sub nsw i32 %1985, %1987
-  %1989 = sitofp i32 %1988 to float
-  %1990 = load float, float* %1970, align 4
-  %1991 = fpext float %1990 to double
-  %1992 = call double @llvm.pow.f64(double %1991, double 2.000000e+00) #8
-  %1993 = fadd double 0.000000e+00, %1992
-  %1994 = fptrunc double %1993 to float
-  %1995 = getelementptr inbounds float, float* %1970, i64 1
-  %1996 = load float, float* %1995, align 4
-  %1997 = fpext float %1996 to double
-  %1998 = call double @llvm.pow.f64(double %1997, double 2.000000e+00) #8
-  %1999 = fpext float %1994 to double
-  %2000 = fadd double %1999, %1998
-  %2001 = fptrunc double %2000 to float
-  %2002 = fneg float %1989
-  %2003 = fpext float %2001 to double
-  %2004 = call double @llvm.sqrt.f64(double %2003) #8
-  %2005 = fptrunc double %2004 to float
-  %2006 = fmul float %2002, %2005
-  %2007 = call i8* @calloc(i64 4, i64 2) #9
-  %2008 = bitcast i8* %2007 to float*
-  %2009 = call i8* @calloc(i64 4, i64 2) #9
-  %2010 = load float, float* %1970, align 4
-  %2011 = load float, float* %1972, align 4
-  %2012 = fmul float %2006, %2011
-  %2013 = fadd float %2010, %2012
-  store float %2013, float* %2008, align 4
-  %2014 = getelementptr inbounds float, float* %1970, i64 1
-  %2015 = load float, float* %2014, align 4
-  %2016 = getelementptr inbounds float, float* %1972, i64 1
-  %2017 = load float, float* %2016, align 4
-  %2018 = fmul float %2006, %2017
-  %2019 = fadd float %2015, %2018
-  %2020 = getelementptr inbounds float, float* %2008, i64 1
-  store float %2019, float* %2020, align 4
-  %2021 = load float, float* %2008, align 4
-  %2022 = fpext float %2021 to double
-  %2023 = call double @llvm.pow.f64(double %2022, double 2.000000e+00) #8
-  %2024 = fadd double 0.000000e+00, %2023
-  %2025 = fptrunc double %2024 to float
-  %2026 = getelementptr inbounds float, float* %2008, i64 1
-  %2027 = load float, float* %2026, align 4
-  %2028 = fpext float %2027 to double
-  %2029 = call double @llvm.pow.f64(double %2028, double 2.000000e+00) #8
-  %2030 = fpext float %2025 to double
-  %2031 = fadd double %2030, %2029
-  %2032 = fptrunc double %2031 to float
-  %2033 = bitcast i8* %2009 to float*
-  %2034 = fpext float %2032 to double
-  %2035 = call double @llvm.sqrt.f64(double %2034) #8
-  %2036 = fptrunc double %2035 to float
-  %2037 = load float, float* %2008, align 4
-  %2038 = fdiv float %2037, %2036
-  store float %2038, float* %2033, align 4
-  %2039 = getelementptr inbounds float, float* %2008, i64 1
-  %2040 = load float, float* %2039, align 4
-  %2041 = fdiv float %2040, %2036
-  %2042 = getelementptr inbounds float, float* %2033, i64 1
-  store float %2041, float* %2042, align 4
-  %2043 = call i8* @calloc(i64 4, i64 4) #9
+  %1963 = fmul float %1960, %1962
+  %1964 = fadd float %1963, 0.000000e+00
+  store float %1964, float* %1959, align 4
+  %1965 = getelementptr inbounds i8, i8* %1762, i64 20
+  %1966 = bitcast i8* %1965 to float*
+  %1967 = load float, float* %1966, align 4
+  %1968 = getelementptr inbounds float, float* %0, i64 5
+  %1969 = load float, float* %1968, align 4
+  %1970 = fmul float %1967, %1969
+  %1971 = load float, float* %1959, align 4
+  %1972 = fadd float %1971, %1970
+  store float %1972, float* %1959, align 4
+  %1973 = getelementptr inbounds i8, i8* %1762, i64 24
+  %1974 = bitcast i8* %1973 to float*
+  %1975 = load float, float* %1974, align 4
+  %1976 = getelementptr inbounds float, float* %0, i64 9
+  %1977 = load float, float* %1976, align 4
+  %1978 = fmul float %1975, %1977
+  %1979 = load float, float* %1959, align 4
+  %1980 = fadd float %1979, %1978
+  store float %1980, float* %1959, align 4
+  %1981 = getelementptr inbounds i8, i8* %1762, i64 28
+  %1982 = bitcast i8* %1981 to float*
+  %1983 = load float, float* %1982, align 4
+  %1984 = getelementptr inbounds float, float* %0, i64 13
+  %1985 = load float, float* %1984, align 4
+  %1986 = fmul float %1983, %1985
+  %1987 = load float, float* %1959, align 4
+  %1988 = fadd float %1987, %1986
+  store float %1988, float* %1959, align 4
+  %1989 = getelementptr inbounds float, float* %2, i64 6
+  store float 0.000000e+00, float* %1989, align 4
+  %1990 = getelementptr inbounds float, float* %2, i64 6
+  %1991 = load float, float* %1927, align 4
+  %1992 = getelementptr inbounds float, float* %0, i64 2
+  %1993 = load float, float* %1992, align 4
+  %1994 = fmul float %1991, %1993
+  %1995 = fadd float %1994, 0.000000e+00
+  store float %1995, float* %1990, align 4
+  %1996 = getelementptr inbounds i8, i8* %1762, i64 20
+  %1997 = bitcast i8* %1996 to float*
+  %1998 = load float, float* %1997, align 4
+  %1999 = getelementptr inbounds float, float* %0, i64 6
+  %2000 = load float, float* %1999, align 4
+  %2001 = fmul float %1998, %2000
+  %2002 = load float, float* %1990, align 4
+  %2003 = fadd float %2002, %2001
+  store float %2003, float* %1990, align 4
+  %2004 = getelementptr inbounds i8, i8* %1762, i64 24
+  %2005 = bitcast i8* %2004 to float*
+  %2006 = load float, float* %2005, align 4
+  %2007 = getelementptr inbounds float, float* %0, i64 10
+  %2008 = load float, float* %2007, align 4
+  %2009 = fmul float %2006, %2008
+  %2010 = load float, float* %1990, align 4
+  %2011 = fadd float %2010, %2009
+  store float %2011, float* %1990, align 4
+  %2012 = getelementptr inbounds i8, i8* %1762, i64 28
+  %2013 = bitcast i8* %2012 to float*
+  %2014 = load float, float* %2013, align 4
+  %2015 = getelementptr inbounds float, float* %0, i64 14
+  %2016 = load float, float* %2015, align 4
+  %2017 = fmul float %2014, %2016
+  %2018 = load float, float* %1990, align 4
+  %2019 = fadd float %2018, %2017
+  store float %2019, float* %1990, align 4
+  %2020 = getelementptr inbounds float, float* %2, i64 7
+  store float 0.000000e+00, float* %2020, align 4
+  %2021 = getelementptr inbounds float, float* %2, i64 7
+  %2022 = load float, float* %1927, align 4
+  %2023 = getelementptr inbounds float, float* %0, i64 3
+  %2024 = load float, float* %2023, align 4
+  %2025 = fmul float %2022, %2024
+  %2026 = fadd float %2025, 0.000000e+00
+  store float %2026, float* %2021, align 4
+  %2027 = getelementptr inbounds i8, i8* %1762, i64 20
+  %2028 = bitcast i8* %2027 to float*
+  %2029 = load float, float* %2028, align 4
+  %2030 = getelementptr inbounds float, float* %0, i64 7
+  %2031 = load float, float* %2030, align 4
+  %2032 = fmul float %2029, %2031
+  %2033 = load float, float* %2021, align 4
+  %2034 = fadd float %2033, %2032
+  store float %2034, float* %2021, align 4
+  %2035 = getelementptr inbounds i8, i8* %1762, i64 24
+  %2036 = bitcast i8* %2035 to float*
+  %2037 = load float, float* %2036, align 4
+  %2038 = getelementptr inbounds float, float* %0, i64 11
+  %2039 = load float, float* %2038, align 4
+  %2040 = fmul float %2037, %2039
+  %2041 = load float, float* %2021, align 4
+  %2042 = fadd float %2041, %2040
+  store float %2042, float* %2021, align 4
+  %2043 = getelementptr inbounds i8, i8* %1762, i64 28
   %2044 = bitcast i8* %2043 to float*
-  %2045 = load float, float* %2033, align 4
-  %2046 = fmul float 2.000000e+00, %2045
-  %2047 = load float, float* %2033, align 4
-  %2048 = fmul float %2046, %2047
-  %2049 = fpext float %2048 to double
-  %2050 = fsub double 1.000000e+00, %2049
-  %2051 = fptrunc double %2050 to float
-  store float %2051, float* %2044, align 4
-  %2052 = load float, float* %2033, align 4
-  %2053 = fmul float 2.000000e+00, %2052
-  %2054 = getelementptr inbounds float, float* %2033, i64 1
-  %2055 = load float, float* %2054, align 4
-  %2056 = fmul float %2053, %2055
-  %2057 = fpext float %2056 to double
-  %2058 = fsub double 0.000000e+00, %2057
-  %2059 = fptrunc double %2058 to float
-  %2060 = getelementptr inbounds float, float* %2044, i64 1
-  store float %2059, float* %2060, align 4
-  %2061 = getelementptr inbounds float, float* %2033, i64 1
-  %2062 = load float, float* %2061, align 4
-  %2063 = fmul float 2.000000e+00, %2062
-  %2064 = load float, float* %2033, align 4
-  %2065 = fmul float %2063, %2064
-  %2066 = fpext float %2065 to double
-  %2067 = fsub double 0.000000e+00, %2066
-  %2068 = fptrunc double %2067 to float
-  %2069 = getelementptr inbounds float, float* %2044, i64 2
-  store float %2068, float* %2069, align 4
-  %2070 = load float, float* %2061, align 4
-  %2071 = fmul float 2.000000e+00, %2070
-  %2072 = getelementptr inbounds float, float* %2033, i64 1
-  %2073 = load float, float* %2072, align 4
-  %2074 = fmul float %2071, %2073
-  %2075 = fpext float %2074 to double
-  %2076 = fsub double 1.000000e+00, %2075
-  %2077 = fptrunc double %2076 to float
-  %2078 = getelementptr inbounds float, float* %2044, i64 3
-  store float %2077, float* %2078, align 4
-  %2079 = call i8* @calloc(i64 4, i64 16) #9
-  %2080 = bitcast i8* %2079 to float*
-  store float 1.000000e+00, float* %2080, align 4
-  %2081 = getelementptr inbounds float, float* %2080, i64 1
-  store float 0.000000e+00, float* %2081, align 4
-  %2082 = getelementptr inbounds float, float* %2080, i64 2
-  store float 0.000000e+00, float* %2082, align 4
-  %2083 = getelementptr inbounds float, float* %2080, i64 3
+  %2045 = load float, float* %2044, align 4
+  %2046 = getelementptr inbounds float, float* %0, i64 15
+  %2047 = load float, float* %2046, align 4
+  %2048 = fmul float %2045, %2047
+  %2049 = load float, float* %2021, align 4
+  %2050 = fadd float %2049, %2048
+  store float %2050, float* %2021, align 4
+  %2051 = getelementptr inbounds i8, i8* %1762, i64 32
+  %2052 = bitcast i8* %2051 to float*
+  %2053 = getelementptr inbounds float, float* %2, i64 8
+  store float 0.000000e+00, float* %2053, align 4
+  %2054 = getelementptr inbounds float, float* %2, i64 8
+  %2055 = load float, float* %2052, align 4
+  %2056 = load float, float* %0, align 4
+  %2057 = fmul float %2055, %2056
+  %2058 = fadd float %2057, 0.000000e+00
+  store float %2058, float* %2054, align 4
+  %2059 = getelementptr inbounds i8, i8* %1762, i64 36
+  %2060 = bitcast i8* %2059 to float*
+  %2061 = load float, float* %2060, align 4
+  %2062 = getelementptr inbounds float, float* %0, i64 4
+  %2063 = load float, float* %2062, align 4
+  %2064 = fmul float %2061, %2063
+  %2065 = load float, float* %2054, align 4
+  %2066 = fadd float %2065, %2064
+  store float %2066, float* %2054, align 4
+  %2067 = getelementptr inbounds i8, i8* %1762, i64 40
+  %2068 = bitcast i8* %2067 to float*
+  %2069 = load float, float* %2068, align 4
+  %2070 = getelementptr inbounds float, float* %0, i64 8
+  %2071 = load float, float* %2070, align 4
+  %2072 = fmul float %2069, %2071
+  %2073 = load float, float* %2054, align 4
+  %2074 = fadd float %2073, %2072
+  store float %2074, float* %2054, align 4
+  %2075 = getelementptr inbounds i8, i8* %1762, i64 44
+  %2076 = bitcast i8* %2075 to float*
+  %2077 = load float, float* %2076, align 4
+  %2078 = getelementptr inbounds float, float* %0, i64 12
+  %2079 = load float, float* %2078, align 4
+  %2080 = fmul float %2077, %2079
+  %2081 = load float, float* %2054, align 4
+  %2082 = fadd float %2081, %2080
+  store float %2082, float* %2054, align 4
+  %2083 = getelementptr inbounds float, float* %2, i64 9
   store float 0.000000e+00, float* %2083, align 4
-  %2084 = getelementptr inbounds float, float* %2080, i64 4
-  store float 0.000000e+00, float* %2084, align 4
-  %2085 = getelementptr inbounds float, float* %2080, i64 5
-  store float 1.000000e+00, float* %2085, align 4
-  %2086 = getelementptr inbounds float, float* %2080, i64 6
-  store float 0.000000e+00, float* %2086, align 4
-  %2087 = getelementptr inbounds float, float* %2080, i64 7
-  store float 0.000000e+00, float* %2087, align 4
-  %2088 = getelementptr inbounds float, float* %2080, i64 8
-  store float 0.000000e+00, float* %2088, align 4
-  %2089 = getelementptr inbounds float, float* %2080, i64 9
-  store float 0.000000e+00, float* %2089, align 4
-  %2090 = load float, float* %2044, align 4
-  %2091 = getelementptr inbounds float, float* %2080, i64 10
-  store float %2090, float* %2091, align 4
-  %2092 = getelementptr inbounds float, float* %2044, i64 1
-  %2093 = load float, float* %2092, align 4
-  %2094 = getelementptr inbounds float, float* %2080, i64 11
-  store float %2093, float* %2094, align 4
-  %2095 = getelementptr inbounds float, float* %2080, i64 12
-  store float 0.000000e+00, float* %2095, align 4
-  %2096 = getelementptr inbounds float, float* %2080, i64 13
-  store float 0.000000e+00, float* %2096, align 4
-  %2097 = getelementptr inbounds float, float* %2044, i64 2
-  %2098 = load float, float* %2097, align 4
-  %2099 = getelementptr inbounds float, float* %2080, i64 14
-  store float %2098, float* %2099, align 4
-  %2100 = getelementptr inbounds float, float* %2044, i64 3
-  %2101 = load float, float* %2100, align 4
-  %2102 = getelementptr inbounds float, float* %2080, i64 15
-  store float %2101, float* %2102, align 4
-  %2103 = call i8* @calloc(i64 4, i64 16) #9
-  %2104 = bitcast i8* %2103 to float*
-  store float 0.000000e+00, float* %2104, align 4
-  %2105 = load float, float* %2080, align 4
-  %2106 = load float, float* %1, align 4
-  %2107 = fmul float %2105, %2106
-  %2108 = load float, float* %2104, align 4
-  %2109 = fadd float %2108, %2107
-  store float %2109, float* %2104, align 4
-  %2110 = getelementptr inbounds float, float* %2080, i64 1
-  %2111 = load float, float* %2110, align 4
-  %2112 = getelementptr inbounds float, float* %1, i64 4
-  %2113 = load float, float* %2112, align 4
-  %2114 = fmul float %2111, %2113
-  %2115 = load float, float* %2104, align 4
-  %2116 = fadd float %2115, %2114
-  store float %2116, float* %2104, align 4
-  %2117 = getelementptr inbounds float, float* %2080, i64 2
+  %2084 = getelementptr inbounds float, float* %2, i64 9
+  %2085 = load float, float* %2052, align 4
+  %2086 = getelementptr inbounds float, float* %0, i64 1
+  %2087 = load float, float* %2086, align 4
+  %2088 = fmul float %2085, %2087
+  %2089 = fadd float %2088, 0.000000e+00
+  store float %2089, float* %2084, align 4
+  %2090 = getelementptr inbounds i8, i8* %1762, i64 36
+  %2091 = bitcast i8* %2090 to float*
+  %2092 = load float, float* %2091, align 4
+  %2093 = getelementptr inbounds float, float* %0, i64 5
+  %2094 = load float, float* %2093, align 4
+  %2095 = fmul float %2092, %2094
+  %2096 = load float, float* %2084, align 4
+  %2097 = fadd float %2096, %2095
+  store float %2097, float* %2084, align 4
+  %2098 = getelementptr inbounds i8, i8* %1762, i64 40
+  %2099 = bitcast i8* %2098 to float*
+  %2100 = load float, float* %2099, align 4
+  %2101 = getelementptr inbounds float, float* %0, i64 9
+  %2102 = load float, float* %2101, align 4
+  %2103 = fmul float %2100, %2102
+  %2104 = load float, float* %2084, align 4
+  %2105 = fadd float %2104, %2103
+  store float %2105, float* %2084, align 4
+  %2106 = getelementptr inbounds i8, i8* %1762, i64 44
+  %2107 = bitcast i8* %2106 to float*
+  %2108 = load float, float* %2107, align 4
+  %2109 = getelementptr inbounds float, float* %0, i64 13
+  %2110 = load float, float* %2109, align 4
+  %2111 = fmul float %2108, %2110
+  %2112 = load float, float* %2084, align 4
+  %2113 = fadd float %2112, %2111
+  store float %2113, float* %2084, align 4
+  %2114 = getelementptr inbounds float, float* %2, i64 10
+  store float 0.000000e+00, float* %2114, align 4
+  %2115 = getelementptr inbounds float, float* %2, i64 10
+  %2116 = load float, float* %2052, align 4
+  %2117 = getelementptr inbounds float, float* %0, i64 2
   %2118 = load float, float* %2117, align 4
-  %2119 = getelementptr inbounds float, float* %1, i64 8
-  %2120 = load float, float* %2119, align 4
-  %2121 = fmul float %2118, %2120
-  %2122 = load float, float* %2104, align 4
-  %2123 = fadd float %2122, %2121
-  store float %2123, float* %2104, align 4
-  %2124 = getelementptr inbounds float, float* %2080, i64 3
+  %2119 = fmul float %2116, %2118
+  %2120 = fadd float %2119, 0.000000e+00
+  store float %2120, float* %2115, align 4
+  %2121 = getelementptr inbounds i8, i8* %1762, i64 36
+  %2122 = bitcast i8* %2121 to float*
+  %2123 = load float, float* %2122, align 4
+  %2124 = getelementptr inbounds float, float* %0, i64 6
   %2125 = load float, float* %2124, align 4
-  %2126 = getelementptr inbounds float, float* %1, i64 12
-  %2127 = load float, float* %2126, align 4
-  %2128 = fmul float %2125, %2127
-  %2129 = load float, float* %2104, align 4
-  %2130 = fadd float %2129, %2128
-  store float %2130, float* %2104, align 4
-  %2131 = getelementptr inbounds float, float* %2104, i64 1
-  store float 0.000000e+00, float* %2131, align 4
-  %2132 = getelementptr inbounds float, float* %2104, i64 1
-  %2133 = load float, float* %2080, align 4
-  %2134 = getelementptr inbounds float, float* %1, i64 1
-  %2135 = load float, float* %2134, align 4
-  %2136 = fmul float %2133, %2135
-  %2137 = load float, float* %2132, align 4
-  %2138 = fadd float %2137, %2136
-  store float %2138, float* %2132, align 4
-  %2139 = getelementptr inbounds float, float* %2080, i64 1
-  %2140 = load float, float* %2139, align 4
-  %2141 = getelementptr inbounds float, float* %1, i64 5
-  %2142 = load float, float* %2141, align 4
-  %2143 = fmul float %2140, %2142
-  %2144 = load float, float* %2132, align 4
-  %2145 = fadd float %2144, %2143
-  store float %2145, float* %2132, align 4
-  %2146 = getelementptr inbounds float, float* %2080, i64 2
-  %2147 = load float, float* %2146, align 4
-  %2148 = getelementptr inbounds float, float* %1, i64 9
+  %2126 = fmul float %2123, %2125
+  %2127 = load float, float* %2115, align 4
+  %2128 = fadd float %2127, %2126
+  store float %2128, float* %2115, align 4
+  %2129 = getelementptr inbounds i8, i8* %1762, i64 40
+  %2130 = bitcast i8* %2129 to float*
+  %2131 = load float, float* %2130, align 4
+  %2132 = getelementptr inbounds float, float* %0, i64 10
+  %2133 = load float, float* %2132, align 4
+  %2134 = fmul float %2131, %2133
+  %2135 = load float, float* %2115, align 4
+  %2136 = fadd float %2135, %2134
+  store float %2136, float* %2115, align 4
+  %2137 = getelementptr inbounds i8, i8* %1762, i64 44
+  %2138 = bitcast i8* %2137 to float*
+  %2139 = load float, float* %2138, align 4
+  %2140 = getelementptr inbounds float, float* %0, i64 14
+  %2141 = load float, float* %2140, align 4
+  %2142 = fmul float %2139, %2141
+  %2143 = load float, float* %2115, align 4
+  %2144 = fadd float %2143, %2142
+  store float %2144, float* %2115, align 4
+  %2145 = getelementptr inbounds float, float* %2, i64 11
+  store float 0.000000e+00, float* %2145, align 4
+  %2146 = getelementptr inbounds float, float* %2, i64 11
+  %2147 = load float, float* %2052, align 4
+  %2148 = getelementptr inbounds float, float* %0, i64 3
   %2149 = load float, float* %2148, align 4
   %2150 = fmul float %2147, %2149
-  %2151 = load float, float* %2132, align 4
-  %2152 = fadd float %2151, %2150
-  store float %2152, float* %2132, align 4
-  %2153 = getelementptr inbounds float, float* %2080, i64 3
+  %2151 = fadd float %2150, 0.000000e+00
+  store float %2151, float* %2146, align 4
+  %2152 = getelementptr inbounds i8, i8* %1762, i64 36
+  %2153 = bitcast i8* %2152 to float*
   %2154 = load float, float* %2153, align 4
-  %2155 = getelementptr inbounds float, float* %1, i64 13
+  %2155 = getelementptr inbounds float, float* %0, i64 7
   %2156 = load float, float* %2155, align 4
   %2157 = fmul float %2154, %2156
-  %2158 = load float, float* %2132, align 4
+  %2158 = load float, float* %2146, align 4
   %2159 = fadd float %2158, %2157
-  store float %2159, float* %2132, align 4
-  %2160 = getelementptr inbounds float, float* %2104, i64 2
-  store float 0.000000e+00, float* %2160, align 4
-  %2161 = getelementptr inbounds float, float* %2104, i64 2
-  %2162 = load float, float* %2080, align 4
-  %2163 = getelementptr inbounds float, float* %1, i64 2
+  store float %2159, float* %2146, align 4
+  %2160 = getelementptr inbounds i8, i8* %1762, i64 40
+  %2161 = bitcast i8* %2160 to float*
+  %2162 = load float, float* %2161, align 4
+  %2163 = getelementptr inbounds float, float* %0, i64 11
   %2164 = load float, float* %2163, align 4
   %2165 = fmul float %2162, %2164
-  %2166 = load float, float* %2161, align 4
+  %2166 = load float, float* %2146, align 4
   %2167 = fadd float %2166, %2165
-  store float %2167, float* %2161, align 4
-  %2168 = getelementptr inbounds float, float* %2080, i64 1
-  %2169 = load float, float* %2168, align 4
-  %2170 = getelementptr inbounds float, float* %1, i64 6
-  %2171 = load float, float* %2170, align 4
-  %2172 = fmul float %2169, %2171
-  %2173 = load float, float* %2161, align 4
-  %2174 = fadd float %2173, %2172
-  store float %2174, float* %2161, align 4
-  %2175 = getelementptr inbounds float, float* %2080, i64 2
-  %2176 = load float, float* %2175, align 4
-  %2177 = getelementptr inbounds float, float* %1, i64 10
-  %2178 = load float, float* %2177, align 4
-  %2179 = fmul float %2176, %2178
-  %2180 = load float, float* %2161, align 4
-  %2181 = fadd float %2180, %2179
-  store float %2181, float* %2161, align 4
-  %2182 = getelementptr inbounds float, float* %2080, i64 3
-  %2183 = load float, float* %2182, align 4
-  %2184 = getelementptr inbounds float, float* %1, i64 14
-  %2185 = load float, float* %2184, align 4
-  %2186 = fmul float %2183, %2185
-  %2187 = load float, float* %2161, align 4
-  %2188 = fadd float %2187, %2186
-  store float %2188, float* %2161, align 4
-  %2189 = getelementptr inbounds float, float* %2104, i64 3
-  store float 0.000000e+00, float* %2189, align 4
-  %2190 = getelementptr inbounds float, float* %2104, i64 3
-  %2191 = load float, float* %2080, align 4
-  %2192 = getelementptr inbounds float, float* %1, i64 3
-  %2193 = load float, float* %2192, align 4
-  %2194 = fmul float %2191, %2193
-  %2195 = load float, float* %2190, align 4
-  %2196 = fadd float %2195, %2194
-  store float %2196, float* %2190, align 4
-  %2197 = getelementptr inbounds float, float* %2080, i64 1
-  %2198 = load float, float* %2197, align 4
-  %2199 = getelementptr inbounds float, float* %1, i64 7
-  %2200 = load float, float* %2199, align 4
-  %2201 = fmul float %2198, %2200
-  %2202 = load float, float* %2190, align 4
-  %2203 = fadd float %2202, %2201
-  store float %2203, float* %2190, align 4
-  %2204 = getelementptr inbounds float, float* %2080, i64 2
-  %2205 = load float, float* %2204, align 4
-  %2206 = getelementptr inbounds float, float* %1, i64 11
-  %2207 = load float, float* %2206, align 4
-  %2208 = fmul float %2205, %2207
-  %2209 = load float, float* %2190, align 4
-  %2210 = fadd float %2209, %2208
-  store float %2210, float* %2190, align 4
-  %2211 = getelementptr inbounds float, float* %2080, i64 3
+  store float %2167, float* %2146, align 4
+  %2168 = getelementptr inbounds i8, i8* %1762, i64 44
+  %2169 = bitcast i8* %2168 to float*
+  %2170 = load float, float* %2169, align 4
+  %2171 = getelementptr inbounds float, float* %0, i64 15
+  %2172 = load float, float* %2171, align 4
+  %2173 = fmul float %2170, %2172
+  %2174 = load float, float* %2146, align 4
+  %2175 = fadd float %2174, %2173
+  store float %2175, float* %2146, align 4
+  %2176 = getelementptr inbounds i8, i8* %1762, i64 48
+  %2177 = bitcast i8* %2176 to float*
+  %2178 = getelementptr inbounds float, float* %2, i64 12
+  store float 0.000000e+00, float* %2178, align 4
+  %2179 = getelementptr inbounds float, float* %2, i64 12
+  %2180 = load float, float* %2177, align 4
+  %2181 = load float, float* %0, align 4
+  %2182 = fmul float %2180, %2181
+  %2183 = fadd float %2182, 0.000000e+00
+  store float %2183, float* %2179, align 4
+  %2184 = getelementptr inbounds i8, i8* %1762, i64 52
+  %2185 = bitcast i8* %2184 to float*
+  %2186 = load float, float* %2185, align 4
+  %2187 = getelementptr inbounds float, float* %0, i64 4
+  %2188 = load float, float* %2187, align 4
+  %2189 = fmul float %2186, %2188
+  %2190 = load float, float* %2179, align 4
+  %2191 = fadd float %2190, %2189
+  store float %2191, float* %2179, align 4
+  %2192 = getelementptr inbounds i8, i8* %1762, i64 56
+  %2193 = bitcast i8* %2192 to float*
+  %2194 = load float, float* %2193, align 4
+  %2195 = getelementptr inbounds float, float* %0, i64 8
+  %2196 = load float, float* %2195, align 4
+  %2197 = fmul float %2194, %2196
+  %2198 = load float, float* %2179, align 4
+  %2199 = fadd float %2198, %2197
+  store float %2199, float* %2179, align 4
+  %2200 = getelementptr inbounds i8, i8* %1762, i64 60
+  %2201 = bitcast i8* %2200 to float*
+  %2202 = load float, float* %2201, align 4
+  %2203 = getelementptr inbounds float, float* %0, i64 12
+  %2204 = load float, float* %2203, align 4
+  %2205 = fmul float %2202, %2204
+  %2206 = load float, float* %2179, align 4
+  %2207 = fadd float %2206, %2205
+  store float %2207, float* %2179, align 4
+  %2208 = getelementptr inbounds float, float* %2, i64 13
+  store float 0.000000e+00, float* %2208, align 4
+  %2209 = getelementptr inbounds float, float* %2, i64 13
+  %2210 = load float, float* %2177, align 4
+  %2211 = getelementptr inbounds float, float* %0, i64 1
   %2212 = load float, float* %2211, align 4
-  %2213 = getelementptr inbounds float, float* %1, i64 15
-  %2214 = load float, float* %2213, align 4
-  %2215 = fmul float %2212, %2214
-  %2216 = load float, float* %2190, align 4
-  %2217 = fadd float %2216, %2215
-  store float %2217, float* %2190, align 4
-  %2218 = getelementptr inbounds float, float* %2080, i64 4
-  %2219 = getelementptr inbounds float, float* %2104, i64 4
-  store float 0.000000e+00, float* %2219, align 4
-  %2220 = getelementptr inbounds float, float* %2104, i64 4
-  %2221 = load float, float* %2218, align 4
-  %2222 = load float, float* %1, align 4
-  %2223 = fmul float %2221, %2222
-  %2224 = load float, float* %2220, align 4
-  %2225 = fadd float %2224, %2223
-  store float %2225, float* %2220, align 4
-  %2226 = getelementptr inbounds float, float* %2080, i64 5
+  %2213 = fmul float %2210, %2212
+  %2214 = fadd float %2213, 0.000000e+00
+  store float %2214, float* %2209, align 4
+  %2215 = getelementptr inbounds i8, i8* %1762, i64 52
+  %2216 = bitcast i8* %2215 to float*
+  %2217 = load float, float* %2216, align 4
+  %2218 = getelementptr inbounds float, float* %0, i64 5
+  %2219 = load float, float* %2218, align 4
+  %2220 = fmul float %2217, %2219
+  %2221 = load float, float* %2209, align 4
+  %2222 = fadd float %2221, %2220
+  store float %2222, float* %2209, align 4
+  %2223 = getelementptr inbounds i8, i8* %1762, i64 56
+  %2224 = bitcast i8* %2223 to float*
+  %2225 = load float, float* %2224, align 4
+  %2226 = getelementptr inbounds float, float* %0, i64 9
   %2227 = load float, float* %2226, align 4
-  %2228 = getelementptr inbounds float, float* %1, i64 4
-  %2229 = load float, float* %2228, align 4
-  %2230 = fmul float %2227, %2229
-  %2231 = load float, float* %2220, align 4
-  %2232 = fadd float %2231, %2230
-  store float %2232, float* %2220, align 4
-  %2233 = getelementptr inbounds float, float* %2080, i64 6
-  %2234 = load float, float* %2233, align 4
-  %2235 = getelementptr inbounds float, float* %1, i64 8
-  %2236 = load float, float* %2235, align 4
-  %2237 = fmul float %2234, %2236
-  %2238 = load float, float* %2220, align 4
-  %2239 = fadd float %2238, %2237
-  store float %2239, float* %2220, align 4
-  %2240 = getelementptr inbounds float, float* %2080, i64 7
-  %2241 = load float, float* %2240, align 4
-  %2242 = getelementptr inbounds float, float* %1, i64 12
+  %2228 = fmul float %2225, %2227
+  %2229 = load float, float* %2209, align 4
+  %2230 = fadd float %2229, %2228
+  store float %2230, float* %2209, align 4
+  %2231 = getelementptr inbounds i8, i8* %1762, i64 60
+  %2232 = bitcast i8* %2231 to float*
+  %2233 = load float, float* %2232, align 4
+  %2234 = getelementptr inbounds float, float* %0, i64 13
+  %2235 = load float, float* %2234, align 4
+  %2236 = fmul float %2233, %2235
+  %2237 = load float, float* %2209, align 4
+  %2238 = fadd float %2237, %2236
+  store float %2238, float* %2209, align 4
+  %2239 = getelementptr inbounds float, float* %2, i64 14
+  store float 0.000000e+00, float* %2239, align 4
+  %2240 = getelementptr inbounds float, float* %2, i64 14
+  %2241 = load float, float* %2177, align 4
+  %2242 = getelementptr inbounds float, float* %0, i64 2
   %2243 = load float, float* %2242, align 4
   %2244 = fmul float %2241, %2243
-  %2245 = load float, float* %2220, align 4
-  %2246 = fadd float %2245, %2244
-  store float %2246, float* %2220, align 4
-  %2247 = getelementptr inbounds float, float* %2104, i64 5
-  store float 0.000000e+00, float* %2247, align 4
-  %2248 = getelementptr inbounds float, float* %2104, i64 5
-  %2249 = load float, float* %2218, align 4
-  %2250 = getelementptr inbounds float, float* %1, i64 1
-  %2251 = load float, float* %2250, align 4
-  %2252 = fmul float %2249, %2251
-  %2253 = load float, float* %2248, align 4
-  %2254 = fadd float %2253, %2252
-  store float %2254, float* %2248, align 4
-  %2255 = getelementptr inbounds float, float* %2080, i64 5
+  %2245 = fadd float %2244, 0.000000e+00
+  store float %2245, float* %2240, align 4
+  %2246 = getelementptr inbounds i8, i8* %1762, i64 52
+  %2247 = bitcast i8* %2246 to float*
+  %2248 = load float, float* %2247, align 4
+  %2249 = getelementptr inbounds float, float* %0, i64 6
+  %2250 = load float, float* %2249, align 4
+  %2251 = fmul float %2248, %2250
+  %2252 = load float, float* %2240, align 4
+  %2253 = fadd float %2252, %2251
+  store float %2253, float* %2240, align 4
+  %2254 = getelementptr inbounds i8, i8* %1762, i64 56
+  %2255 = bitcast i8* %2254 to float*
   %2256 = load float, float* %2255, align 4
-  %2257 = getelementptr inbounds float, float* %1, i64 5
+  %2257 = getelementptr inbounds float, float* %0, i64 10
   %2258 = load float, float* %2257, align 4
   %2259 = fmul float %2256, %2258
-  %2260 = load float, float* %2248, align 4
+  %2260 = load float, float* %2240, align 4
   %2261 = fadd float %2260, %2259
-  store float %2261, float* %2248, align 4
-  %2262 = getelementptr inbounds float, float* %2080, i64 6
-  %2263 = load float, float* %2262, align 4
-  %2264 = getelementptr inbounds float, float* %1, i64 9
-  %2265 = load float, float* %2264, align 4
-  %2266 = fmul float %2263, %2265
-  %2267 = load float, float* %2248, align 4
-  %2268 = fadd float %2267, %2266
-  store float %2268, float* %2248, align 4
-  %2269 = getelementptr inbounds float, float* %2080, i64 7
-  %2270 = load float, float* %2269, align 4
-  %2271 = getelementptr inbounds float, float* %1, i64 13
-  %2272 = load float, float* %2271, align 4
-  %2273 = fmul float %2270, %2272
-  %2274 = load float, float* %2248, align 4
-  %2275 = fadd float %2274, %2273
-  store float %2275, float* %2248, align 4
-  %2276 = getelementptr inbounds float, float* %2104, i64 6
-  store float 0.000000e+00, float* %2276, align 4
-  %2277 = getelementptr inbounds float, float* %2104, i64 6
-  %2278 = load float, float* %2218, align 4
-  %2279 = getelementptr inbounds float, float* %1, i64 2
-  %2280 = load float, float* %2279, align 4
-  %2281 = fmul float %2278, %2280
-  %2282 = load float, float* %2277, align 4
-  %2283 = fadd float %2282, %2281
-  store float %2283, float* %2277, align 4
-  %2284 = getelementptr inbounds float, float* %2080, i64 5
-  %2285 = load float, float* %2284, align 4
-  %2286 = getelementptr inbounds float, float* %1, i64 6
+  store float %2261, float* %2240, align 4
+  %2262 = getelementptr inbounds i8, i8* %1762, i64 60
+  %2263 = bitcast i8* %2262 to float*
+  %2264 = load float, float* %2263, align 4
+  %2265 = getelementptr inbounds float, float* %0, i64 14
+  %2266 = load float, float* %2265, align 4
+  %2267 = fmul float %2264, %2266
+  %2268 = load float, float* %2240, align 4
+  %2269 = fadd float %2268, %2267
+  store float %2269, float* %2240, align 4
+  %2270 = getelementptr inbounds float, float* %2, i64 15
+  store float 0.000000e+00, float* %2270, align 4
+  %2271 = getelementptr inbounds float, float* %2, i64 15
+  %2272 = load float, float* %2177, align 4
+  %2273 = getelementptr inbounds float, float* %0, i64 3
+  %2274 = load float, float* %2273, align 4
+  %2275 = fmul float %2272, %2274
+  %2276 = fadd float %2275, 0.000000e+00
+  store float %2276, float* %2271, align 4
+  %2277 = getelementptr inbounds i8, i8* %1762, i64 52
+  %2278 = bitcast i8* %2277 to float*
+  %2279 = load float, float* %2278, align 4
+  %2280 = getelementptr inbounds float, float* %0, i64 7
+  %2281 = load float, float* %2280, align 4
+  %2282 = fmul float %2279, %2281
+  %2283 = load float, float* %2271, align 4
+  %2284 = fadd float %2283, %2282
+  store float %2284, float* %2271, align 4
+  %2285 = getelementptr inbounds i8, i8* %1762, i64 56
+  %2286 = bitcast i8* %2285 to float*
   %2287 = load float, float* %2286, align 4
-  %2288 = fmul float %2285, %2287
-  %2289 = load float, float* %2277, align 4
-  %2290 = fadd float %2289, %2288
-  store float %2290, float* %2277, align 4
-  %2291 = getelementptr inbounds float, float* %2080, i64 6
-  %2292 = load float, float* %2291, align 4
-  %2293 = getelementptr inbounds float, float* %1, i64 10
-  %2294 = load float, float* %2293, align 4
-  %2295 = fmul float %2292, %2294
-  %2296 = load float, float* %2277, align 4
-  %2297 = fadd float %2296, %2295
-  store float %2297, float* %2277, align 4
-  %2298 = getelementptr inbounds float, float* %2080, i64 7
-  %2299 = load float, float* %2298, align 4
-  %2300 = getelementptr inbounds float, float* %1, i64 14
-  %2301 = load float, float* %2300, align 4
-  %2302 = fmul float %2299, %2301
-  %2303 = load float, float* %2277, align 4
-  %2304 = fadd float %2303, %2302
-  store float %2304, float* %2277, align 4
-  %2305 = getelementptr inbounds float, float* %2104, i64 7
-  store float 0.000000e+00, float* %2305, align 4
-  %2306 = getelementptr inbounds float, float* %2104, i64 7
-  %2307 = load float, float* %2218, align 4
-  %2308 = getelementptr inbounds float, float* %1, i64 3
-  %2309 = load float, float* %2308, align 4
-  %2310 = fmul float %2307, %2309
-  %2311 = load float, float* %2306, align 4
-  %2312 = fadd float %2311, %2310
-  store float %2312, float* %2306, align 4
-  %2313 = getelementptr inbounds float, float* %2080, i64 5
-  %2314 = load float, float* %2313, align 4
-  %2315 = getelementptr inbounds float, float* %1, i64 7
-  %2316 = load float, float* %2315, align 4
-  %2317 = fmul float %2314, %2316
-  %2318 = load float, float* %2306, align 4
-  %2319 = fadd float %2318, %2317
-  store float %2319, float* %2306, align 4
-  %2320 = getelementptr inbounds float, float* %2080, i64 6
-  %2321 = load float, float* %2320, align 4
-  %2322 = getelementptr inbounds float, float* %1, i64 11
-  %2323 = load float, float* %2322, align 4
-  %2324 = fmul float %2321, %2323
-  %2325 = load float, float* %2306, align 4
-  %2326 = fadd float %2325, %2324
-  store float %2326, float* %2306, align 4
-  %2327 = getelementptr inbounds float, float* %2080, i64 7
-  %2328 = load float, float* %2327, align 4
-  %2329 = getelementptr inbounds float, float* %1, i64 15
-  %2330 = load float, float* %2329, align 4
-  %2331 = fmul float %2328, %2330
-  %2332 = load float, float* %2306, align 4
-  %2333 = fadd float %2332, %2331
-  store float %2333, float* %2306, align 4
-  %2334 = getelementptr inbounds float, float* %2080, i64 8
-  %2335 = getelementptr inbounds float, float* %2104, i64 8
-  store float 0.000000e+00, float* %2335, align 4
-  %2336 = getelementptr inbounds float, float* %2104, i64 8
-  %2337 = load float, float* %2334, align 4
-  %2338 = load float, float* %1, align 4
-  %2339 = fmul float %2337, %2338
-  %2340 = load float, float* %2336, align 4
-  %2341 = fadd float %2340, %2339
-  store float %2341, float* %2336, align 4
-  %2342 = getelementptr inbounds float, float* %2080, i64 9
-  %2343 = load float, float* %2342, align 4
-  %2344 = getelementptr inbounds float, float* %1, i64 4
-  %2345 = load float, float* %2344, align 4
-  %2346 = fmul float %2343, %2345
-  %2347 = load float, float* %2336, align 4
-  %2348 = fadd float %2347, %2346
-  store float %2348, float* %2336, align 4
-  %2349 = getelementptr inbounds float, float* %2080, i64 10
-  %2350 = load float, float* %2349, align 4
-  %2351 = getelementptr inbounds float, float* %1, i64 8
-  %2352 = load float, float* %2351, align 4
-  %2353 = fmul float %2350, %2352
-  %2354 = load float, float* %2336, align 4
-  %2355 = fadd float %2354, %2353
-  store float %2355, float* %2336, align 4
-  %2356 = getelementptr inbounds float, float* %2080, i64 11
-  %2357 = load float, float* %2356, align 4
-  %2358 = getelementptr inbounds float, float* %1, i64 12
-  %2359 = load float, float* %2358, align 4
-  %2360 = fmul float %2357, %2359
-  %2361 = load float, float* %2336, align 4
-  %2362 = fadd float %2361, %2360
-  store float %2362, float* %2336, align 4
-  %2363 = getelementptr inbounds float, float* %2104, i64 9
-  store float 0.000000e+00, float* %2363, align 4
-  %2364 = getelementptr inbounds float, float* %2104, i64 9
-  %2365 = load float, float* %2334, align 4
-  %2366 = getelementptr inbounds float, float* %1, i64 1
-  %2367 = load float, float* %2366, align 4
-  %2368 = fmul float %2365, %2367
-  %2369 = load float, float* %2364, align 4
-  %2370 = fadd float %2369, %2368
-  store float %2370, float* %2364, align 4
-  %2371 = getelementptr inbounds float, float* %2080, i64 9
-  %2372 = load float, float* %2371, align 4
-  %2373 = getelementptr inbounds float, float* %1, i64 5
-  %2374 = load float, float* %2373, align 4
-  %2375 = fmul float %2372, %2374
-  %2376 = load float, float* %2364, align 4
-  %2377 = fadd float %2376, %2375
-  store float %2377, float* %2364, align 4
-  %2378 = getelementptr inbounds float, float* %2080, i64 10
-  %2379 = load float, float* %2378, align 4
-  %2380 = getelementptr inbounds float, float* %1, i64 9
-  %2381 = load float, float* %2380, align 4
-  %2382 = fmul float %2379, %2381
-  %2383 = load float, float* %2364, align 4
-  %2384 = fadd float %2383, %2382
-  store float %2384, float* %2364, align 4
-  %2385 = getelementptr inbounds float, float* %2080, i64 11
-  %2386 = load float, float* %2385, align 4
-  %2387 = getelementptr inbounds float, float* %1, i64 13
-  %2388 = load float, float* %2387, align 4
-  %2389 = fmul float %2386, %2388
-  %2390 = load float, float* %2364, align 4
-  %2391 = fadd float %2390, %2389
-  store float %2391, float* %2364, align 4
-  %2392 = getelementptr inbounds float, float* %2104, i64 10
-  store float 0.000000e+00, float* %2392, align 4
-  %2393 = getelementptr inbounds float, float* %2104, i64 10
-  %2394 = load float, float* %2334, align 4
-  %2395 = getelementptr inbounds float, float* %1, i64 2
-  %2396 = load float, float* %2395, align 4
-  %2397 = fmul float %2394, %2396
-  %2398 = load float, float* %2393, align 4
-  %2399 = fadd float %2398, %2397
-  store float %2399, float* %2393, align 4
-  %2400 = getelementptr inbounds float, float* %2080, i64 9
-  %2401 = load float, float* %2400, align 4
-  %2402 = getelementptr inbounds float, float* %1, i64 6
-  %2403 = load float, float* %2402, align 4
-  %2404 = fmul float %2401, %2403
-  %2405 = load float, float* %2393, align 4
-  %2406 = fadd float %2405, %2404
-  store float %2406, float* %2393, align 4
-  %2407 = getelementptr inbounds float, float* %2080, i64 10
-  %2408 = load float, float* %2407, align 4
-  %2409 = getelementptr inbounds float, float* %1, i64 10
-  %2410 = load float, float* %2409, align 4
-  %2411 = fmul float %2408, %2410
-  %2412 = load float, float* %2393, align 4
-  %2413 = fadd float %2412, %2411
-  store float %2413, float* %2393, align 4
-  %2414 = getelementptr inbounds float, float* %2080, i64 11
-  %2415 = load float, float* %2414, align 4
-  %2416 = getelementptr inbounds float, float* %1, i64 14
-  %2417 = load float, float* %2416, align 4
-  %2418 = fmul float %2415, %2417
-  %2419 = load float, float* %2393, align 4
-  %2420 = fadd float %2419, %2418
-  store float %2420, float* %2393, align 4
-  %2421 = getelementptr inbounds float, float* %2104, i64 11
-  store float 0.000000e+00, float* %2421, align 4
-  %2422 = getelementptr inbounds float, float* %2104, i64 11
-  %2423 = load float, float* %2334, align 4
-  %2424 = getelementptr inbounds float, float* %1, i64 3
-  %2425 = load float, float* %2424, align 4
-  %2426 = fmul float %2423, %2425
-  %2427 = load float, float* %2422, align 4
-  %2428 = fadd float %2427, %2426
-  store float %2428, float* %2422, align 4
-  %2429 = getelementptr inbounds float, float* %2080, i64 9
-  %2430 = load float, float* %2429, align 4
-  %2431 = getelementptr inbounds float, float* %1, i64 7
-  %2432 = load float, float* %2431, align 4
-  %2433 = fmul float %2430, %2432
-  %2434 = load float, float* %2422, align 4
-  %2435 = fadd float %2434, %2433
-  store float %2435, float* %2422, align 4
-  %2436 = getelementptr inbounds float, float* %2080, i64 10
-  %2437 = load float, float* %2436, align 4
-  %2438 = getelementptr inbounds float, float* %1, i64 11
-  %2439 = load float, float* %2438, align 4
-  %2440 = fmul float %2437, %2439
-  %2441 = load float, float* %2422, align 4
-  %2442 = fadd float %2441, %2440
-  store float %2442, float* %2422, align 4
-  %2443 = getelementptr inbounds float, float* %2080, i64 11
-  %2444 = load float, float* %2443, align 4
-  %2445 = getelementptr inbounds float, float* %1, i64 15
-  %2446 = load float, float* %2445, align 4
-  %2447 = fmul float %2444, %2446
-  %2448 = load float, float* %2422, align 4
-  %2449 = fadd float %2448, %2447
-  store float %2449, float* %2422, align 4
-  %2450 = getelementptr inbounds float, float* %2080, i64 12
-  %2451 = getelementptr inbounds float, float* %2104, i64 12
-  store float 0.000000e+00, float* %2451, align 4
-  %2452 = getelementptr inbounds float, float* %2104, i64 12
-  %2453 = load float, float* %2450, align 4
-  %2454 = load float, float* %1, align 4
-  %2455 = fmul float %2453, %2454
-  %2456 = load float, float* %2452, align 4
-  %2457 = fadd float %2456, %2455
-  store float %2457, float* %2452, align 4
-  %2458 = getelementptr inbounds float, float* %2080, i64 13
-  %2459 = load float, float* %2458, align 4
-  %2460 = getelementptr inbounds float, float* %1, i64 4
-  %2461 = load float, float* %2460, align 4
-  %2462 = fmul float %2459, %2461
-  %2463 = load float, float* %2452, align 4
-  %2464 = fadd float %2463, %2462
-  store float %2464, float* %2452, align 4
-  %2465 = getelementptr inbounds float, float* %2080, i64 14
-  %2466 = load float, float* %2465, align 4
-  %2467 = getelementptr inbounds float, float* %1, i64 8
-  %2468 = load float, float* %2467, align 4
-  %2469 = fmul float %2466, %2468
-  %2470 = load float, float* %2452, align 4
-  %2471 = fadd float %2470, %2469
-  store float %2471, float* %2452, align 4
-  %2472 = getelementptr inbounds float, float* %2080, i64 15
-  %2473 = load float, float* %2472, align 4
-  %2474 = getelementptr inbounds float, float* %1, i64 12
-  %2475 = load float, float* %2474, align 4
-  %2476 = fmul float %2473, %2475
-  %2477 = load float, float* %2452, align 4
-  %2478 = fadd float %2477, %2476
-  store float %2478, float* %2452, align 4
-  %2479 = getelementptr inbounds float, float* %2104, i64 13
-  store float 0.000000e+00, float* %2479, align 4
-  %2480 = getelementptr inbounds float, float* %2104, i64 13
-  %2481 = load float, float* %2450, align 4
-  %2482 = getelementptr inbounds float, float* %1, i64 1
-  %2483 = load float, float* %2482, align 4
-  %2484 = fmul float %2481, %2483
-  %2485 = load float, float* %2480, align 4
-  %2486 = fadd float %2485, %2484
-  store float %2486, float* %2480, align 4
-  %2487 = getelementptr inbounds float, float* %2080, i64 13
-  %2488 = load float, float* %2487, align 4
-  %2489 = getelementptr inbounds float, float* %1, i64 5
-  %2490 = load float, float* %2489, align 4
-  %2491 = fmul float %2488, %2490
-  %2492 = load float, float* %2480, align 4
-  %2493 = fadd float %2492, %2491
-  store float %2493, float* %2480, align 4
-  %2494 = getelementptr inbounds float, float* %2080, i64 14
-  %2495 = load float, float* %2494, align 4
-  %2496 = getelementptr inbounds float, float* %1, i64 9
-  %2497 = load float, float* %2496, align 4
-  %2498 = fmul float %2495, %2497
-  %2499 = load float, float* %2480, align 4
-  %2500 = fadd float %2499, %2498
-  store float %2500, float* %2480, align 4
-  %2501 = getelementptr inbounds float, float* %2080, i64 15
-  %2502 = load float, float* %2501, align 4
-  %2503 = getelementptr inbounds float, float* %1, i64 13
-  %2504 = load float, float* %2503, align 4
-  %2505 = fmul float %2502, %2504
-  %2506 = load float, float* %2480, align 4
-  %2507 = fadd float %2506, %2505
-  store float %2507, float* %2480, align 4
-  %2508 = getelementptr inbounds float, float* %2104, i64 14
-  store float 0.000000e+00, float* %2508, align 4
-  %2509 = getelementptr inbounds float, float* %2104, i64 14
-  %2510 = load float, float* %2450, align 4
-  %2511 = getelementptr inbounds float, float* %1, i64 2
-  %2512 = load float, float* %2511, align 4
-  %2513 = fmul float %2510, %2512
-  %2514 = load float, float* %2509, align 4
-  %2515 = fadd float %2514, %2513
-  store float %2515, float* %2509, align 4
-  %2516 = getelementptr inbounds float, float* %2080, i64 13
-  %2517 = load float, float* %2516, align 4
-  %2518 = getelementptr inbounds float, float* %1, i64 6
-  %2519 = load float, float* %2518, align 4
-  %2520 = fmul float %2517, %2519
-  %2521 = load float, float* %2509, align 4
-  %2522 = fadd float %2521, %2520
-  store float %2522, float* %2509, align 4
-  %2523 = getelementptr inbounds float, float* %2080, i64 14
-  %2524 = load float, float* %2523, align 4
-  %2525 = getelementptr inbounds float, float* %1, i64 10
-  %2526 = load float, float* %2525, align 4
-  %2527 = fmul float %2524, %2526
-  %2528 = load float, float* %2509, align 4
-  %2529 = fadd float %2528, %2527
-  store float %2529, float* %2509, align 4
-  %2530 = getelementptr inbounds float, float* %2080, i64 15
-  %2531 = load float, float* %2530, align 4
-  %2532 = getelementptr inbounds float, float* %1, i64 14
-  %2533 = load float, float* %2532, align 4
-  %2534 = fmul float %2531, %2533
-  %2535 = load float, float* %2509, align 4
-  %2536 = fadd float %2535, %2534
-  store float %2536, float* %2509, align 4
-  %2537 = getelementptr inbounds float, float* %2104, i64 15
-  store float 0.000000e+00, float* %2537, align 4
-  %2538 = getelementptr inbounds float, float* %2104, i64 15
-  %2539 = load float, float* %2450, align 4
-  %2540 = getelementptr inbounds float, float* %1, i64 3
-  %2541 = load float, float* %2540, align 4
-  %2542 = fmul float %2539, %2541
-  %2543 = load float, float* %2538, align 4
-  %2544 = fadd float %2543, %2542
-  store float %2544, float* %2538, align 4
-  %2545 = getelementptr inbounds float, float* %2080, i64 13
-  %2546 = load float, float* %2545, align 4
-  %2547 = getelementptr inbounds float, float* %1, i64 7
-  %2548 = load float, float* %2547, align 4
-  %2549 = fmul float %2546, %2548
-  %2550 = load float, float* %2538, align 4
-  %2551 = fadd float %2550, %2549
-  store float %2551, float* %2538, align 4
-  %2552 = getelementptr inbounds float, float* %2080, i64 14
-  %2553 = load float, float* %2552, align 4
-  %2554 = getelementptr inbounds float, float* %1, i64 11
-  %2555 = load float, float* %2554, align 4
-  %2556 = fmul float %2553, %2555
-  %2557 = load float, float* %2538, align 4
-  %2558 = fadd float %2557, %2556
-  store float %2558, float* %2538, align 4
-  %2559 = getelementptr inbounds float, float* %2080, i64 15
-  %2560 = load float, float* %2559, align 4
-  %2561 = getelementptr inbounds float, float* %1, i64 15
-  %2562 = load float, float* %2561, align 4
-  %2563 = fmul float %2560, %2562
-  %2564 = load float, float* %2538, align 4
-  %2565 = fadd float %2564, %2563
-  store float %2565, float* %2538, align 4
-  %2566 = call i8* @__memcpy_chk(i8* %25, i8* %2103, i64 64, i64 %27) #8
-  store float 0.000000e+00, float* %2104, align 4
-  %2567 = load float, float* %2080, align 4
-  %2568 = load float, float* %2, align 4
-  %2569 = fmul float %2567, %2568
-  %2570 = load float, float* %2104, align 4
-  %2571 = fadd float %2570, %2569
-  store float %2571, float* %2104, align 4
-  %2572 = getelementptr inbounds float, float* %2080, i64 1
-  %2573 = load float, float* %2572, align 4
-  %2574 = getelementptr inbounds float, float* %2, i64 4
-  %2575 = load float, float* %2574, align 4
-  %2576 = fmul float %2573, %2575
-  %2577 = load float, float* %2104, align 4
-  %2578 = fadd float %2577, %2576
-  store float %2578, float* %2104, align 4
-  %2579 = getelementptr inbounds float, float* %2080, i64 2
-  %2580 = load float, float* %2579, align 4
-  %2581 = getelementptr inbounds float, float* %2, i64 8
-  %2582 = load float, float* %2581, align 4
-  %2583 = fmul float %2580, %2582
-  %2584 = load float, float* %2104, align 4
-  %2585 = fadd float %2584, %2583
-  store float %2585, float* %2104, align 4
-  %2586 = getelementptr inbounds float, float* %2080, i64 3
-  %2587 = load float, float* %2586, align 4
-  %2588 = getelementptr inbounds float, float* %2, i64 12
-  %2589 = load float, float* %2588, align 4
-  %2590 = fmul float %2587, %2589
-  %2591 = load float, float* %2104, align 4
-  %2592 = fadd float %2591, %2590
-  store float %2592, float* %2104, align 4
-  %2593 = getelementptr inbounds float, float* %2104, i64 1
-  store float 0.000000e+00, float* %2593, align 4
-  %2594 = getelementptr inbounds float, float* %2104, i64 1
-  %2595 = load float, float* %2080, align 4
-  %2596 = getelementptr inbounds float, float* %2, i64 1
-  %2597 = load float, float* %2596, align 4
-  %2598 = fmul float %2595, %2597
-  %2599 = load float, float* %2594, align 4
-  %2600 = fadd float %2599, %2598
-  store float %2600, float* %2594, align 4
-  %2601 = getelementptr inbounds float, float* %2080, i64 1
-  %2602 = load float, float* %2601, align 4
-  %2603 = getelementptr inbounds float, float* %2, i64 5
-  %2604 = load float, float* %2603, align 4
-  %2605 = fmul float %2602, %2604
-  %2606 = load float, float* %2594, align 4
-  %2607 = fadd float %2606, %2605
-  store float %2607, float* %2594, align 4
-  %2608 = getelementptr inbounds float, float* %2080, i64 2
-  %2609 = load float, float* %2608, align 4
-  %2610 = getelementptr inbounds float, float* %2, i64 9
-  %2611 = load float, float* %2610, align 4
-  %2612 = fmul float %2609, %2611
-  %2613 = load float, float* %2594, align 4
-  %2614 = fadd float %2613, %2612
-  store float %2614, float* %2594, align 4
-  %2615 = getelementptr inbounds float, float* %2080, i64 3
-  %2616 = load float, float* %2615, align 4
-  %2617 = getelementptr inbounds float, float* %2, i64 13
-  %2618 = load float, float* %2617, align 4
-  %2619 = fmul float %2616, %2618
-  %2620 = load float, float* %2594, align 4
-  %2621 = fadd float %2620, %2619
-  store float %2621, float* %2594, align 4
-  %2622 = getelementptr inbounds float, float* %2104, i64 2
-  store float 0.000000e+00, float* %2622, align 4
-  %2623 = getelementptr inbounds float, float* %2104, i64 2
-  %2624 = load float, float* %2080, align 4
-  %2625 = getelementptr inbounds float, float* %2, i64 2
-  %2626 = load float, float* %2625, align 4
-  %2627 = fmul float %2624, %2626
-  %2628 = load float, float* %2623, align 4
-  %2629 = fadd float %2628, %2627
-  store float %2629, float* %2623, align 4
-  %2630 = getelementptr inbounds float, float* %2080, i64 1
-  %2631 = load float, float* %2630, align 4
-  %2632 = getelementptr inbounds float, float* %2, i64 6
-  %2633 = load float, float* %2632, align 4
-  %2634 = fmul float %2631, %2633
-  %2635 = load float, float* %2623, align 4
-  %2636 = fadd float %2635, %2634
-  store float %2636, float* %2623, align 4
-  %2637 = getelementptr inbounds float, float* %2080, i64 2
-  %2638 = load float, float* %2637, align 4
-  %2639 = getelementptr inbounds float, float* %2, i64 10
-  %2640 = load float, float* %2639, align 4
-  %2641 = fmul float %2638, %2640
-  %2642 = load float, float* %2623, align 4
-  %2643 = fadd float %2642, %2641
-  store float %2643, float* %2623, align 4
-  %2644 = getelementptr inbounds float, float* %2080, i64 3
-  %2645 = load float, float* %2644, align 4
-  %2646 = getelementptr inbounds float, float* %2, i64 14
-  %2647 = load float, float* %2646, align 4
-  %2648 = fmul float %2645, %2647
-  %2649 = load float, float* %2623, align 4
-  %2650 = fadd float %2649, %2648
-  store float %2650, float* %2623, align 4
-  %2651 = getelementptr inbounds float, float* %2104, i64 3
-  store float 0.000000e+00, float* %2651, align 4
-  %2652 = getelementptr inbounds float, float* %2104, i64 3
-  %2653 = load float, float* %2080, align 4
-  %2654 = getelementptr inbounds float, float* %2, i64 3
-  %2655 = load float, float* %2654, align 4
-  %2656 = fmul float %2653, %2655
-  %2657 = load float, float* %2652, align 4
-  %2658 = fadd float %2657, %2656
-  store float %2658, float* %2652, align 4
-  %2659 = getelementptr inbounds float, float* %2080, i64 1
-  %2660 = load float, float* %2659, align 4
-  %2661 = getelementptr inbounds float, float* %2, i64 7
-  %2662 = load float, float* %2661, align 4
-  %2663 = fmul float %2660, %2662
-  %2664 = load float, float* %2652, align 4
-  %2665 = fadd float %2664, %2663
-  store float %2665, float* %2652, align 4
-  %2666 = getelementptr inbounds float, float* %2080, i64 2
-  %2667 = load float, float* %2666, align 4
-  %2668 = getelementptr inbounds float, float* %2, i64 11
-  %2669 = load float, float* %2668, align 4
-  %2670 = fmul float %2667, %2669
-  %2671 = load float, float* %2652, align 4
-  %2672 = fadd float %2671, %2670
-  store float %2672, float* %2652, align 4
-  %2673 = getelementptr inbounds float, float* %2080, i64 3
-  %2674 = load float, float* %2673, align 4
-  %2675 = getelementptr inbounds float, float* %2, i64 15
-  %2676 = load float, float* %2675, align 4
-  %2677 = fmul float %2674, %2676
-  %2678 = load float, float* %2652, align 4
-  %2679 = fadd float %2678, %2677
-  store float %2679, float* %2652, align 4
-  %2680 = getelementptr inbounds float, float* %2080, i64 4
-  %2681 = getelementptr inbounds float, float* %2104, i64 4
-  store float 0.000000e+00, float* %2681, align 4
-  %2682 = getelementptr inbounds float, float* %2104, i64 4
-  %2683 = load float, float* %2680, align 4
-  %2684 = load float, float* %2, align 4
-  %2685 = fmul float %2683, %2684
-  %2686 = load float, float* %2682, align 4
-  %2687 = fadd float %2686, %2685
-  store float %2687, float* %2682, align 4
-  %2688 = getelementptr inbounds float, float* %2080, i64 5
-  %2689 = load float, float* %2688, align 4
-  %2690 = getelementptr inbounds float, float* %2, i64 4
-  %2691 = load float, float* %2690, align 4
-  %2692 = fmul float %2689, %2691
-  %2693 = load float, float* %2682, align 4
-  %2694 = fadd float %2693, %2692
-  store float %2694, float* %2682, align 4
-  %2695 = getelementptr inbounds float, float* %2080, i64 6
-  %2696 = load float, float* %2695, align 4
-  %2697 = getelementptr inbounds float, float* %2, i64 8
-  %2698 = load float, float* %2697, align 4
-  %2699 = fmul float %2696, %2698
-  %2700 = load float, float* %2682, align 4
-  %2701 = fadd float %2700, %2699
-  store float %2701, float* %2682, align 4
-  %2702 = getelementptr inbounds float, float* %2080, i64 7
-  %2703 = load float, float* %2702, align 4
-  %2704 = getelementptr inbounds float, float* %2, i64 12
-  %2705 = load float, float* %2704, align 4
-  %2706 = fmul float %2703, %2705
-  %2707 = load float, float* %2682, align 4
-  %2708 = fadd float %2707, %2706
-  store float %2708, float* %2682, align 4
-  %2709 = getelementptr inbounds float, float* %2104, i64 5
-  store float 0.000000e+00, float* %2709, align 4
-  %2710 = getelementptr inbounds float, float* %2104, i64 5
-  %2711 = load float, float* %2680, align 4
-  %2712 = getelementptr inbounds float, float* %2, i64 1
-  %2713 = load float, float* %2712, align 4
-  %2714 = fmul float %2711, %2713
-  %2715 = load float, float* %2710, align 4
-  %2716 = fadd float %2715, %2714
-  store float %2716, float* %2710, align 4
-  %2717 = getelementptr inbounds float, float* %2080, i64 5
-  %2718 = load float, float* %2717, align 4
-  %2719 = getelementptr inbounds float, float* %2, i64 5
-  %2720 = load float, float* %2719, align 4
-  %2721 = fmul float %2718, %2720
-  %2722 = load float, float* %2710, align 4
-  %2723 = fadd float %2722, %2721
-  store float %2723, float* %2710, align 4
-  %2724 = getelementptr inbounds float, float* %2080, i64 6
-  %2725 = load float, float* %2724, align 4
-  %2726 = getelementptr inbounds float, float* %2, i64 9
-  %2727 = load float, float* %2726, align 4
-  %2728 = fmul float %2725, %2727
-  %2729 = load float, float* %2710, align 4
-  %2730 = fadd float %2729, %2728
-  store float %2730, float* %2710, align 4
-  %2731 = getelementptr inbounds float, float* %2080, i64 7
-  %2732 = load float, float* %2731, align 4
-  %2733 = getelementptr inbounds float, float* %2, i64 13
-  %2734 = load float, float* %2733, align 4
-  %2735 = fmul float %2732, %2734
-  %2736 = load float, float* %2710, align 4
-  %2737 = fadd float %2736, %2735
-  store float %2737, float* %2710, align 4
-  %2738 = getelementptr inbounds float, float* %2104, i64 6
-  store float 0.000000e+00, float* %2738, align 4
-  %2739 = getelementptr inbounds float, float* %2104, i64 6
-  %2740 = load float, float* %2680, align 4
-  %2741 = getelementptr inbounds float, float* %2, i64 2
-  %2742 = load float, float* %2741, align 4
-  %2743 = fmul float %2740, %2742
-  %2744 = load float, float* %2739, align 4
-  %2745 = fadd float %2744, %2743
-  store float %2745, float* %2739, align 4
-  %2746 = getelementptr inbounds float, float* %2080, i64 5
-  %2747 = load float, float* %2746, align 4
-  %2748 = getelementptr inbounds float, float* %2, i64 6
-  %2749 = load float, float* %2748, align 4
-  %2750 = fmul float %2747, %2749
-  %2751 = load float, float* %2739, align 4
-  %2752 = fadd float %2751, %2750
-  store float %2752, float* %2739, align 4
-  %2753 = getelementptr inbounds float, float* %2080, i64 6
-  %2754 = load float, float* %2753, align 4
-  %2755 = getelementptr inbounds float, float* %2, i64 10
-  %2756 = load float, float* %2755, align 4
-  %2757 = fmul float %2754, %2756
-  %2758 = load float, float* %2739, align 4
-  %2759 = fadd float %2758, %2757
-  store float %2759, float* %2739, align 4
-  %2760 = getelementptr inbounds float, float* %2080, i64 7
-  %2761 = load float, float* %2760, align 4
-  %2762 = getelementptr inbounds float, float* %2, i64 14
-  %2763 = load float, float* %2762, align 4
-  %2764 = fmul float %2761, %2763
-  %2765 = load float, float* %2739, align 4
-  %2766 = fadd float %2765, %2764
-  store float %2766, float* %2739, align 4
-  %2767 = getelementptr inbounds float, float* %2104, i64 7
-  store float 0.000000e+00, float* %2767, align 4
-  %2768 = getelementptr inbounds float, float* %2104, i64 7
-  %2769 = load float, float* %2680, align 4
-  %2770 = getelementptr inbounds float, float* %2, i64 3
-  %2771 = load float, float* %2770, align 4
-  %2772 = fmul float %2769, %2771
-  %2773 = load float, float* %2768, align 4
-  %2774 = fadd float %2773, %2772
-  store float %2774, float* %2768, align 4
-  %2775 = getelementptr inbounds float, float* %2080, i64 5
-  %2776 = load float, float* %2775, align 4
-  %2777 = getelementptr inbounds float, float* %2, i64 7
-  %2778 = load float, float* %2777, align 4
-  %2779 = fmul float %2776, %2778
-  %2780 = load float, float* %2768, align 4
-  %2781 = fadd float %2780, %2779
-  store float %2781, float* %2768, align 4
-  %2782 = getelementptr inbounds float, float* %2080, i64 6
-  %2783 = load float, float* %2782, align 4
-  %2784 = getelementptr inbounds float, float* %2, i64 11
-  %2785 = load float, float* %2784, align 4
-  %2786 = fmul float %2783, %2785
-  %2787 = load float, float* %2768, align 4
-  %2788 = fadd float %2787, %2786
-  store float %2788, float* %2768, align 4
-  %2789 = getelementptr inbounds float, float* %2080, i64 7
-  %2790 = load float, float* %2789, align 4
-  %2791 = getelementptr inbounds float, float* %2, i64 15
-  %2792 = load float, float* %2791, align 4
-  %2793 = fmul float %2790, %2792
-  %2794 = load float, float* %2768, align 4
-  %2795 = fadd float %2794, %2793
-  store float %2795, float* %2768, align 4
-  %2796 = getelementptr inbounds float, float* %2080, i64 8
-  %2797 = getelementptr inbounds float, float* %2104, i64 8
-  store float 0.000000e+00, float* %2797, align 4
-  %2798 = getelementptr inbounds float, float* %2104, i64 8
-  %2799 = load float, float* %2796, align 4
-  %2800 = load float, float* %2, align 4
-  %2801 = fmul float %2799, %2800
-  %2802 = load float, float* %2798, align 4
-  %2803 = fadd float %2802, %2801
-  store float %2803, float* %2798, align 4
-  %2804 = getelementptr inbounds float, float* %2080, i64 9
-  %2805 = load float, float* %2804, align 4
-  %2806 = getelementptr inbounds float, float* %2, i64 4
-  %2807 = load float, float* %2806, align 4
-  %2808 = fmul float %2805, %2807
-  %2809 = load float, float* %2798, align 4
-  %2810 = fadd float %2809, %2808
-  store float %2810, float* %2798, align 4
-  %2811 = getelementptr inbounds float, float* %2080, i64 10
-  %2812 = load float, float* %2811, align 4
-  %2813 = getelementptr inbounds float, float* %2, i64 8
-  %2814 = load float, float* %2813, align 4
-  %2815 = fmul float %2812, %2814
-  %2816 = load float, float* %2798, align 4
-  %2817 = fadd float %2816, %2815
-  store float %2817, float* %2798, align 4
-  %2818 = getelementptr inbounds float, float* %2080, i64 11
-  %2819 = load float, float* %2818, align 4
-  %2820 = getelementptr inbounds float, float* %2, i64 12
-  %2821 = load float, float* %2820, align 4
-  %2822 = fmul float %2819, %2821
-  %2823 = load float, float* %2798, align 4
-  %2824 = fadd float %2823, %2822
-  store float %2824, float* %2798, align 4
-  %2825 = getelementptr inbounds float, float* %2104, i64 9
-  store float 0.000000e+00, float* %2825, align 4
-  %2826 = getelementptr inbounds float, float* %2104, i64 9
-  %2827 = load float, float* %2796, align 4
-  %2828 = getelementptr inbounds float, float* %2, i64 1
-  %2829 = load float, float* %2828, align 4
-  %2830 = fmul float %2827, %2829
-  %2831 = load float, float* %2826, align 4
-  %2832 = fadd float %2831, %2830
-  store float %2832, float* %2826, align 4
-  %2833 = getelementptr inbounds float, float* %2080, i64 9
-  %2834 = load float, float* %2833, align 4
-  %2835 = getelementptr inbounds float, float* %2, i64 5
-  %2836 = load float, float* %2835, align 4
-  %2837 = fmul float %2834, %2836
-  %2838 = load float, float* %2826, align 4
-  %2839 = fadd float %2838, %2837
-  store float %2839, float* %2826, align 4
-  %2840 = getelementptr inbounds float, float* %2080, i64 10
-  %2841 = load float, float* %2840, align 4
-  %2842 = getelementptr inbounds float, float* %2, i64 9
-  %2843 = load float, float* %2842, align 4
-  %2844 = fmul float %2841, %2843
-  %2845 = load float, float* %2826, align 4
-  %2846 = fadd float %2845, %2844
-  store float %2846, float* %2826, align 4
-  %2847 = getelementptr inbounds float, float* %2080, i64 11
-  %2848 = load float, float* %2847, align 4
-  %2849 = getelementptr inbounds float, float* %2, i64 13
-  %2850 = load float, float* %2849, align 4
-  %2851 = fmul float %2848, %2850
-  %2852 = load float, float* %2826, align 4
-  %2853 = fadd float %2852, %2851
-  store float %2853, float* %2826, align 4
-  %2854 = getelementptr inbounds float, float* %2104, i64 10
-  store float 0.000000e+00, float* %2854, align 4
-  %2855 = getelementptr inbounds float, float* %2104, i64 10
-  %2856 = load float, float* %2796, align 4
-  %2857 = getelementptr inbounds float, float* %2, i64 2
-  %2858 = load float, float* %2857, align 4
-  %2859 = fmul float %2856, %2858
-  %2860 = load float, float* %2855, align 4
-  %2861 = fadd float %2860, %2859
-  store float %2861, float* %2855, align 4
-  %2862 = getelementptr inbounds float, float* %2080, i64 9
-  %2863 = load float, float* %2862, align 4
-  %2864 = getelementptr inbounds float, float* %2, i64 6
-  %2865 = load float, float* %2864, align 4
-  %2866 = fmul float %2863, %2865
-  %2867 = load float, float* %2855, align 4
-  %2868 = fadd float %2867, %2866
-  store float %2868, float* %2855, align 4
-  %2869 = getelementptr inbounds float, float* %2080, i64 10
-  %2870 = load float, float* %2869, align 4
-  %2871 = getelementptr inbounds float, float* %2, i64 10
-  %2872 = load float, float* %2871, align 4
-  %2873 = fmul float %2870, %2872
-  %2874 = load float, float* %2855, align 4
-  %2875 = fadd float %2874, %2873
-  store float %2875, float* %2855, align 4
-  %2876 = getelementptr inbounds float, float* %2080, i64 11
-  %2877 = load float, float* %2876, align 4
-  %2878 = getelementptr inbounds float, float* %2, i64 14
-  %2879 = load float, float* %2878, align 4
-  %2880 = fmul float %2877, %2879
-  %2881 = load float, float* %2855, align 4
-  %2882 = fadd float %2881, %2880
-  store float %2882, float* %2855, align 4
-  %2883 = getelementptr inbounds float, float* %2104, i64 11
-  store float 0.000000e+00, float* %2883, align 4
-  %2884 = getelementptr inbounds float, float* %2104, i64 11
-  %2885 = load float, float* %2796, align 4
-  %2886 = getelementptr inbounds float, float* %2, i64 3
-  %2887 = load float, float* %2886, align 4
-  %2888 = fmul float %2885, %2887
-  %2889 = load float, float* %2884, align 4
-  %2890 = fadd float %2889, %2888
-  store float %2890, float* %2884, align 4
-  %2891 = getelementptr inbounds float, float* %2080, i64 9
-  %2892 = load float, float* %2891, align 4
-  %2893 = getelementptr inbounds float, float* %2, i64 7
-  %2894 = load float, float* %2893, align 4
-  %2895 = fmul float %2892, %2894
-  %2896 = load float, float* %2884, align 4
-  %2897 = fadd float %2896, %2895
-  store float %2897, float* %2884, align 4
-  %2898 = getelementptr inbounds float, float* %2080, i64 10
-  %2899 = load float, float* %2898, align 4
-  %2900 = getelementptr inbounds float, float* %2, i64 11
-  %2901 = load float, float* %2900, align 4
-  %2902 = fmul float %2899, %2901
-  %2903 = load float, float* %2884, align 4
-  %2904 = fadd float %2903, %2902
-  store float %2904, float* %2884, align 4
-  %2905 = getelementptr inbounds float, float* %2080, i64 11
-  %2906 = load float, float* %2905, align 4
-  %2907 = getelementptr inbounds float, float* %2, i64 15
-  %2908 = load float, float* %2907, align 4
-  %2909 = fmul float %2906, %2908
-  %2910 = load float, float* %2884, align 4
-  %2911 = fadd float %2910, %2909
-  store float %2911, float* %2884, align 4
-  %2912 = getelementptr inbounds float, float* %2080, i64 12
-  %2913 = getelementptr inbounds float, float* %2104, i64 12
-  store float 0.000000e+00, float* %2913, align 4
-  %2914 = getelementptr inbounds float, float* %2104, i64 12
-  %2915 = load float, float* %2912, align 4
-  %2916 = load float, float* %2, align 4
-  %2917 = fmul float %2915, %2916
-  %2918 = load float, float* %2914, align 4
-  %2919 = fadd float %2918, %2917
-  store float %2919, float* %2914, align 4
-  %2920 = getelementptr inbounds float, float* %2080, i64 13
-  %2921 = load float, float* %2920, align 4
-  %2922 = getelementptr inbounds float, float* %2, i64 4
-  %2923 = load float, float* %2922, align 4
-  %2924 = fmul float %2921, %2923
-  %2925 = load float, float* %2914, align 4
-  %2926 = fadd float %2925, %2924
-  store float %2926, float* %2914, align 4
-  %2927 = getelementptr inbounds float, float* %2080, i64 14
-  %2928 = load float, float* %2927, align 4
-  %2929 = getelementptr inbounds float, float* %2, i64 8
-  %2930 = load float, float* %2929, align 4
-  %2931 = fmul float %2928, %2930
-  %2932 = load float, float* %2914, align 4
-  %2933 = fadd float %2932, %2931
-  store float %2933, float* %2914, align 4
-  %2934 = getelementptr inbounds float, float* %2080, i64 15
-  %2935 = load float, float* %2934, align 4
-  %2936 = getelementptr inbounds float, float* %2, i64 12
-  %2937 = load float, float* %2936, align 4
-  %2938 = fmul float %2935, %2937
-  %2939 = load float, float* %2914, align 4
-  %2940 = fadd float %2939, %2938
-  store float %2940, float* %2914, align 4
-  %2941 = getelementptr inbounds float, float* %2104, i64 13
-  store float 0.000000e+00, float* %2941, align 4
-  %2942 = getelementptr inbounds float, float* %2104, i64 13
-  %2943 = load float, float* %2912, align 4
-  %2944 = getelementptr inbounds float, float* %2, i64 1
-  %2945 = load float, float* %2944, align 4
-  %2946 = fmul float %2943, %2945
-  %2947 = load float, float* %2942, align 4
-  %2948 = fadd float %2947, %2946
-  store float %2948, float* %2942, align 4
-  %2949 = getelementptr inbounds float, float* %2080, i64 13
-  %2950 = load float, float* %2949, align 4
-  %2951 = getelementptr inbounds float, float* %2, i64 5
-  %2952 = load float, float* %2951, align 4
-  %2953 = fmul float %2950, %2952
-  %2954 = load float, float* %2942, align 4
-  %2955 = fadd float %2954, %2953
-  store float %2955, float* %2942, align 4
-  %2956 = getelementptr inbounds float, float* %2080, i64 14
-  %2957 = load float, float* %2956, align 4
-  %2958 = getelementptr inbounds float, float* %2, i64 9
-  %2959 = load float, float* %2958, align 4
-  %2960 = fmul float %2957, %2959
-  %2961 = load float, float* %2942, align 4
-  %2962 = fadd float %2961, %2960
-  store float %2962, float* %2942, align 4
-  %2963 = getelementptr inbounds float, float* %2080, i64 15
-  %2964 = load float, float* %2963, align 4
-  %2965 = getelementptr inbounds float, float* %2, i64 13
-  %2966 = load float, float* %2965, align 4
-  %2967 = fmul float %2964, %2966
-  %2968 = load float, float* %2942, align 4
-  %2969 = fadd float %2968, %2967
-  store float %2969, float* %2942, align 4
-  %2970 = getelementptr inbounds float, float* %2104, i64 14
-  store float 0.000000e+00, float* %2970, align 4
-  %2971 = getelementptr inbounds float, float* %2104, i64 14
-  %2972 = load float, float* %2912, align 4
-  %2973 = getelementptr inbounds float, float* %2, i64 2
-  %2974 = load float, float* %2973, align 4
-  %2975 = fmul float %2972, %2974
-  %2976 = load float, float* %2971, align 4
-  %2977 = fadd float %2976, %2975
-  store float %2977, float* %2971, align 4
-  %2978 = getelementptr inbounds float, float* %2080, i64 13
-  %2979 = load float, float* %2978, align 4
-  %2980 = getelementptr inbounds float, float* %2, i64 6
-  %2981 = load float, float* %2980, align 4
-  %2982 = fmul float %2979, %2981
-  %2983 = load float, float* %2971, align 4
-  %2984 = fadd float %2983, %2982
-  store float %2984, float* %2971, align 4
-  %2985 = getelementptr inbounds float, float* %2080, i64 14
-  %2986 = load float, float* %2985, align 4
-  %2987 = getelementptr inbounds float, float* %2, i64 10
-  %2988 = load float, float* %2987, align 4
-  %2989 = fmul float %2986, %2988
-  %2990 = load float, float* %2971, align 4
-  %2991 = fadd float %2990, %2989
-  store float %2991, float* %2971, align 4
-  %2992 = getelementptr inbounds float, float* %2080, i64 15
-  %2993 = load float, float* %2992, align 4
-  %2994 = getelementptr inbounds float, float* %2, i64 14
-  %2995 = load float, float* %2994, align 4
-  %2996 = fmul float %2993, %2995
-  %2997 = load float, float* %2971, align 4
-  %2998 = fadd float %2997, %2996
-  store float %2998, float* %2971, align 4
-  %2999 = getelementptr inbounds float, float* %2104, i64 15
-  store float 0.000000e+00, float* %2999, align 4
-  %3000 = getelementptr inbounds float, float* %2104, i64 15
-  %3001 = load float, float* %2912, align 4
-  %3002 = getelementptr inbounds float, float* %2, i64 3
-  %3003 = load float, float* %3002, align 4
-  %3004 = fmul float %3001, %3003
-  %3005 = load float, float* %3000, align 4
-  %3006 = fadd float %3005, %3004
-  store float %3006, float* %3000, align 4
-  %3007 = getelementptr inbounds float, float* %2080, i64 13
-  %3008 = load float, float* %3007, align 4
-  %3009 = getelementptr inbounds float, float* %2, i64 7
-  %3010 = load float, float* %3009, align 4
-  %3011 = fmul float %3008, %3010
-  %3012 = load float, float* %3000, align 4
-  %3013 = fadd float %3012, %3011
-  store float %3013, float* %3000, align 4
-  %3014 = getelementptr inbounds float, float* %2080, i64 14
-  %3015 = load float, float* %3014, align 4
-  %3016 = getelementptr inbounds float, float* %2, i64 11
-  %3017 = load float, float* %3016, align 4
-  %3018 = fmul float %3015, %3017
-  %3019 = load float, float* %3000, align 4
-  %3020 = fadd float %3019, %3018
-  store float %3020, float* %3000, align 4
-  %3021 = getelementptr inbounds float, float* %2080, i64 15
-  %3022 = load float, float* %3021, align 4
-  %3023 = getelementptr inbounds float, float* %2, i64 15
-  %3024 = load float, float* %3023, align 4
-  %3025 = fmul float %3022, %3024
-  %3026 = load float, float* %3000, align 4
-  %3027 = fadd float %3026, %3025
-  store float %3027, float* %3000, align 4
-  %3028 = call i8* @__memcpy_chk(i8* %28, i8* %2103, i64 64, i64 %30) #8
-  call void @free(i8* %1969)
-  call void @free(i8* %1971)
-  call void @free(i8* %2007)
-  call void @free(i8* %2009)
-  call void @free(i8* %2043)
-  call void @free(i8* %2079)
-  %3029 = getelementptr inbounds float, float* %1, i64 1
-  %3030 = load float, float* %3029, align 4
-  %3031 = getelementptr inbounds float, float* %1, i64 4
-  %3032 = load float, float* %3031, align 4
-  %3033 = getelementptr inbounds float, float* %1, i64 1
-  store float %3032, float* %3033, align 4
-  %3034 = getelementptr inbounds float, float* %1, i64 4
-  store float %3030, float* %3034, align 4
-  br label %3035
+  %2288 = getelementptr inbounds float, float* %0, i64 11
+  %2289 = load float, float* %2288, align 4
+  %2290 = fmul float %2287, %2289
+  %2291 = load float, float* %2271, align 4
+  %2292 = fadd float %2291, %2290
+  store float %2292, float* %2271, align 4
+  %2293 = getelementptr inbounds i8, i8* %1762, i64 60
+  %2294 = bitcast i8* %2293 to float*
+  %2295 = load float, float* %2294, align 4
+  %2296 = getelementptr inbounds float, float* %0, i64 15
+  %2297 = load float, float* %2296, align 4
+  %2298 = fmul float %2295, %2297
+  %2299 = load float, float* %2271, align 4
+  %2300 = fadd float %2299, %2298
+  store float %2300, float* %2271, align 4
+  %2301 = getelementptr inbounds float, float* %1, i64 1
+  %2302 = bitcast float* %2301 to i32*
+  %2303 = load i32, i32* %2302, align 4
+  %2304 = getelementptr inbounds float, float* %1, i64 4
+  %2305 = bitcast float* %2304 to i32*
+  %2306 = load i32, i32* %2305, align 4
+  %2307 = getelementptr inbounds float, float* %1, i64 1
+  %2308 = bitcast float* %2307 to i32*
+  store i32 %2306, i32* %2308, align 4
+  %2309 = getelementptr inbounds float, float* %1, i64 4
+  %2310 = bitcast float* %2309 to i32*
+  store i32 %2303, i32* %2310, align 4
+  br label %2311
 
-3035:                                             ; preds = %3035, %.preheader33
-  %indvars.iv3437 = phi i64 [ 2, %.preheader33 ], [ %indvars.iv.next35.1, %3035 ]
-  %3036 = add nuw nsw i64 0, %indvars.iv3437
-  %3037 = getelementptr inbounds float, float* %1, i64 %3036
-  %3038 = load float, float* %3037, align 4
-  %3039 = mul nuw nsw i64 %indvars.iv3437, 4
-  %3040 = getelementptr inbounds float, float* %1, i64 %3039
-  %3041 = load float, float* %3040, align 4
-  %3042 = add nuw nsw i64 0, %indvars.iv3437
-  %3043 = getelementptr inbounds float, float* %1, i64 %3042
-  store float %3041, float* %3043, align 4
-  %3044 = mul nuw nsw i64 %indvars.iv3437, 4
-  %3045 = getelementptr inbounds float, float* %1, i64 %3044
-  store float %3038, float* %3045, align 4
-  %indvars.iv.next35 = add nuw nsw i64 %indvars.iv3437, 1
-  %3046 = add nuw nsw i64 0, %indvars.iv.next35
-  %3047 = getelementptr inbounds float, float* %1, i64 %3046
-  %3048 = load float, float* %3047, align 4
-  %3049 = mul nuw nsw i64 %indvars.iv.next35, 4
-  %3050 = getelementptr inbounds float, float* %1, i64 %3049
-  %3051 = load float, float* %3050, align 4
-  %3052 = add nuw nsw i64 0, %indvars.iv.next35
-  %3053 = getelementptr inbounds float, float* %1, i64 %3052
-  store float %3051, float* %3053, align 4
-  %3054 = mul nuw nsw i64 %indvars.iv.next35, 4
-  %3055 = getelementptr inbounds float, float* %1, i64 %3054
-  store float %3048, float* %3055, align 4
-  %indvars.iv.next35.1 = add nuw nsw i64 %indvars.iv.next35, 1
-  %exitcond.1 = icmp ne i64 %indvars.iv.next35.1, 4
-  br i1 %exitcond.1, label %3035, label %.lr.ph.new.1
+2311:                                             ; preds = %2311, %.preheader26
+  %indvars.iv2730 = phi i64 [ 2, %.preheader26 ], [ %indvars.iv.next28.1, %2311 ]
+  %2312 = getelementptr inbounds float, float* %1, i64 %indvars.iv2730
+  %2313 = bitcast float* %2312 to i32*
+  %2314 = load i32, i32* %2313, align 4
+  %2315 = shl nuw nsw i64 %indvars.iv2730, 2
+  %2316 = getelementptr inbounds float, float* %1, i64 %2315
+  %2317 = bitcast float* %2316 to i32*
+  %2318 = load i32, i32* %2317, align 4
+  %2319 = getelementptr inbounds float, float* %1, i64 %indvars.iv2730
+  %2320 = bitcast float* %2319 to i32*
+  store i32 %2318, i32* %2320, align 4
+  %2321 = shl nuw nsw i64 %indvars.iv2730, 2
+  %2322 = getelementptr inbounds float, float* %1, i64 %2321
+  %2323 = bitcast float* %2322 to i32*
+  store i32 %2314, i32* %2323, align 4
+  %indvars.iv.next28 = or i64 %indvars.iv2730, 1
+  %2324 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next28
+  %2325 = bitcast float* %2324 to i32*
+  %2326 = load i32, i32* %2325, align 4
+  %2327 = shl nuw nsw i64 %indvars.iv.next28, 2
+  %2328 = getelementptr inbounds float, float* %1, i64 %2327
+  %2329 = bitcast float* %2328 to i32*
+  %2330 = load i32, i32* %2329, align 4
+  %2331 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next28
+  %2332 = bitcast float* %2331 to i32*
+  store i32 %2330, i32* %2332, align 4
+  %2333 = shl nuw nsw i64 %indvars.iv.next28, 2
+  %2334 = getelementptr inbounds float, float* %1, i64 %2333
+  %2335 = bitcast float* %2334 to i32*
+  store i32 %2326, i32* %2335, align 4
+  %indvars.iv.next28.1 = add nuw nsw i64 %indvars.iv2730, 2
+  %exitcond.1.not = icmp eq i64 %indvars.iv.next28.1, 4
+  br i1 %exitcond.1.not, label %.lr.ph.new.1, label %2311
 
-.lr.ph.new.1:                                     ; preds = %3035, %.lr.ph.new.1
-  %indvars.iv3437.1 = phi i64 [ %indvars.iv.next35.1.1, %.lr.ph.new.1 ], [ 2, %3035 ]
-  %3056 = add nuw nsw i64 4, %indvars.iv3437.1
-  %3057 = getelementptr inbounds float, float* %1, i64 %3056
-  %3058 = load float, float* %3057, align 4
-  %3059 = mul nuw nsw i64 %indvars.iv3437.1, 4
-  %3060 = add nuw nsw i64 %3059, 1
-  %3061 = getelementptr inbounds float, float* %1, i64 %3060
-  %3062 = load float, float* %3061, align 4
-  %3063 = add nuw nsw i64 4, %indvars.iv3437.1
-  %3064 = getelementptr inbounds float, float* %1, i64 %3063
-  store float %3062, float* %3064, align 4
-  %3065 = mul nuw nsw i64 %indvars.iv3437.1, 4
-  %3066 = add nuw nsw i64 %3065, 1
-  %3067 = getelementptr inbounds float, float* %1, i64 %3066
-  store float %3058, float* %3067, align 4
-  %indvars.iv.next35.1149 = add nuw nsw i64 %indvars.iv3437.1, 1
-  %3068 = add nuw nsw i64 4, %indvars.iv.next35.1149
-  %3069 = getelementptr inbounds float, float* %1, i64 %3068
-  %3070 = load float, float* %3069, align 4
-  %3071 = mul nuw nsw i64 %indvars.iv.next35.1149, 4
-  %3072 = add nuw nsw i64 %3071, 1
-  %3073 = getelementptr inbounds float, float* %1, i64 %3072
-  %3074 = load float, float* %3073, align 4
-  %3075 = add nuw nsw i64 4, %indvars.iv.next35.1149
-  %3076 = getelementptr inbounds float, float* %1, i64 %3075
-  store float %3074, float* %3076, align 4
-  %3077 = mul nuw nsw i64 %indvars.iv.next35.1149, 4
-  %3078 = add nuw nsw i64 %3077, 1
-  %3079 = getelementptr inbounds float, float* %1, i64 %3078
-  store float %3070, float* %3079, align 4
-  %indvars.iv.next35.1.1 = add nuw nsw i64 %indvars.iv.next35.1149, 1
-  %exitcond.1.1 = icmp ne i64 %indvars.iv.next35.1.1, 4
-  br i1 %exitcond.1.1, label %.lr.ph.new.1, label %.prol.preheader.2
+.lr.ph.new.1:                                     ; preds = %.lr.ph.new.1, %2311
+  %indvars.iv2730.1 = phi i64 [ %indvars.iv.next28.1.1, %.lr.ph.new.1 ], [ 2, %2311 ]
+  %2336 = add nuw nsw i64 %indvars.iv2730.1, 4
+  %2337 = getelementptr inbounds float, float* %1, i64 %2336
+  %2338 = bitcast float* %2337 to i32*
+  %2339 = load i32, i32* %2338, align 4
+  %2340 = shl nuw nsw i64 %indvars.iv2730.1, 2
+  %2341 = or i64 %2340, 1
+  %2342 = getelementptr inbounds float, float* %1, i64 %2341
+  %2343 = bitcast float* %2342 to i32*
+  %2344 = load i32, i32* %2343, align 4
+  %2345 = add nuw nsw i64 %indvars.iv2730.1, 4
+  %2346 = getelementptr inbounds float, float* %1, i64 %2345
+  %2347 = bitcast float* %2346 to i32*
+  store i32 %2344, i32* %2347, align 4
+  %2348 = shl nuw nsw i64 %indvars.iv2730.1, 2
+  %2349 = or i64 %2348, 1
+  %2350 = getelementptr inbounds float, float* %1, i64 %2349
+  %2351 = bitcast float* %2350 to i32*
+  store i32 %2339, i32* %2351, align 4
+  %indvars.iv.next28.1124 = or i64 %indvars.iv2730.1, 1
+  %2352 = add nuw nsw i64 %indvars.iv2730.1, 5
+  %2353 = getelementptr inbounds float, float* %1, i64 %2352
+  %2354 = bitcast float* %2353 to i32*
+  %2355 = load i32, i32* %2354, align 4
+  %2356 = shl nuw nsw i64 %indvars.iv.next28.1124, 2
+  %2357 = or i64 %2356, 1
+  %2358 = getelementptr inbounds float, float* %1, i64 %2357
+  %2359 = bitcast float* %2358 to i32*
+  %2360 = load i32, i32* %2359, align 4
+  %2361 = add nuw nsw i64 %indvars.iv2730.1, 5
+  %2362 = getelementptr inbounds float, float* %1, i64 %2361
+  %2363 = bitcast float* %2362 to i32*
+  store i32 %2360, i32* %2363, align 4
+  %2364 = shl nuw nsw i64 %indvars.iv.next28.1124, 2
+  %2365 = or i64 %2364, 1
+  %2366 = getelementptr inbounds float, float* %1, i64 %2365
+  %2367 = bitcast float* %2366 to i32*
+  store i32 %2355, i32* %2367, align 4
+  %indvars.iv.next28.1.1 = add nuw nsw i64 %indvars.iv2730.1, 2
+  %exitcond.1.1.not = icmp eq i64 %indvars.iv.next28.1.1, 4
+  br i1 %exitcond.1.1.not, label %.prol.preheader.2, label %.lr.ph.new.1
 
 .prol.preheader.2:                                ; preds = %.lr.ph.new.1
-  %3080 = getelementptr inbounds float, float* %1, i64 11
-  %3081 = load float, float* %3080, align 4
-  %3082 = getelementptr inbounds float, float* %1, i64 14
-  %3083 = load float, float* %3082, align 4
-  %3084 = getelementptr inbounds float, float* %1, i64 11
-  store float %3083, float* %3084, align 4
-  %3085 = getelementptr inbounds float, float* %1, i64 14
-  store float %3081, float* %3085, align 4
+  %2368 = getelementptr inbounds float, float* %1, i64 11
+  %2369 = bitcast float* %2368 to i32*
+  %2370 = load i32, i32* %2369, align 4
+  %2371 = getelementptr inbounds float, float* %1, i64 14
+  %2372 = bitcast float* %2371 to i32*
+  %2373 = load i32, i32* %2372, align 4
+  %2374 = getelementptr inbounds float, float* %1, i64 11
+  %2375 = bitcast float* %2374 to i32*
+  store i32 %2373, i32* %2375, align 4
+  %2376 = getelementptr inbounds float, float* %1, i64 14
+  %2377 = bitcast float* %2376 to i32*
+  store i32 %2370, i32* %2377, align 4
   ret void
 }
 
@@ -4404,42 +3487,29 @@ declare i64 @llvm.objectsize.i64.p0i8(i8*, i1 immarg, i1 immarg, i1 immarg) #1
 ; Function Attrs: allocsize(0,1)
 declare i8* @calloc(i64, i64) #4
 
-declare void @free(i8*) #5
-
 ; Function Attrs: noinline nounwind ssp uwtable
 define i32 @main() #2 {
-  %1 = alloca [16 x float], align 16
-  %2 = alloca [16 x float], align 16
-  %3 = alloca [16 x float], align 16
-  %4 = bitcast [16 x float]* %1 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %4, i8* align 16 bitcast ([16 x float]* @__const.main.A to i8*), i64 64, i1 false)
-  %5 = bitcast [16 x float]* %2 to i8*
-  call void @llvm.memset.p0i8.i64(i8* align 16 %5, i8 0, i64 64, i1 false)
-  %6 = bitcast [16 x float]* %3 to i8*
-  call void @llvm.memset.p0i8.i64(i8* align 16 %6, i8 0, i64 64, i1 false)
-  %7 = getelementptr inbounds [16 x float], [16 x float]* %1, i64 0, i64 0
-  %8 = getelementptr inbounds [16 x float], [16 x float]* %2, i64 0, i64 0
-  %9 = getelementptr inbounds [16 x float], [16 x float]* %3, i64 0, i64 0
-  call void @naive_fixed_qr_decomp(float* %7, float* %8, float* %9)
   ret i32 0
 }
 
 ; Function Attrs: argmemonly nounwind willreturn
-declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #6
+declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #5
 
 ; Function Attrs: argmemonly nounwind willreturn writeonly
-declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #7
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #6
+
+; Function Attrs: nounwind readnone speculatable willreturn
+declare float @llvm.sqrt.f32(float) #1
 
 attributes #0 = { alwaysinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone speculatable willreturn }
 attributes #2 = { noinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #3 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #4 = { allocsize(0,1) "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #5 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #6 = { argmemonly nounwind willreturn }
-attributes #7 = { argmemonly nounwind willreturn writeonly }
-attributes #8 = { nounwind }
-attributes #9 = { allocsize(0,1) }
+attributes #5 = { argmemonly nounwind willreturn }
+attributes #6 = { argmemonly nounwind willreturn writeonly }
+attributes #7 = { nounwind }
+attributes #8 = { nounwind allocsize(0,1) }
 
 !llvm.module.flags = !{!0, !1}
 !llvm.ident = !{!2}

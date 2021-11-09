@@ -101,22 +101,26 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
             }
         }
 
-        if (k == 0) {
-            memcpy(Q, q_t, sizeof(float) * SIZE * SIZE);  // Q = q_t
-            naive_fixed_matrix_multiply(q_t, A, R);       // R = q_t * A
-        } else {
-            float *res = (float *)calloc(sizeof(float), SIZE * SIZE);
-            naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
-            memcpy(Q, res, sizeof(float) * SIZE * SIZE);
-            naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
-            memcpy(R, res, sizeof(float) * SIZE * SIZE);
-        }
-        free(x);
-        free(e);
-        free(u);
-        free(v);
-        free(q_min);
-        free(q_t);
+        // memcpy(Q, q_t, sizeof(float) * SIZE * SIZE);  // Q = q_t
+        naive_fixed_matrix_multiply(q_t, A, R);  // R = q_t * A
+
+        // if (k == 0) {
+        //     memcpy(Q, q_t, sizeof(float) * SIZE * SIZE);  // Q = q_t
+        //     naive_fixed_matrix_multiply(q_t, A, R);       // R = q_t * A
+        // }
+        //  else {
+        //     float *res = (float *)calloc(sizeof(float), SIZE * SIZE);
+        //     naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
+        //     memcpy(Q, res, sizeof(float) * SIZE * SIZE);
+        //     naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
+        //     memcpy(R, res, sizeof(float) * SIZE * SIZE);
+        // }
+        // free(x);
+        // free(e);
+        // free(u);
+        // free(v);
+        // free(q_min);
+        // free(q_t);
     }
     naive_fixed_transpose(Q);
 }
@@ -125,5 +129,16 @@ int main(void) {
     float A[SIZE * SIZE] = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
     float Q[SIZE * SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     float R[SIZE * SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    naive_fixed_qr_decomp(A, Q, R);
+    // naive_fixed_qr_decomp(A, Q, R);
+    // for (int i = 0; i < SIZE; i++) {
+    //     for (int j = 0; j < SIZE; j++) {
+    //         printf("%f\n", A[i * SIZE + j]);
+    //     }
+    // }
+    // naive_fixed_transpose(A);
+    // for (int i = 0; i < SIZE; i++) {
+    //     for (int j = 0; j < SIZE; j++) {
+    //         printf("%f\n", A[i * SIZE + j]);
+    //     }
+    // }
 }

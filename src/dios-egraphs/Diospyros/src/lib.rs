@@ -27,6 +27,11 @@ extern "C" {
   fn isa_phi(val: LLVMValueRef) -> bool;
   fn isa_sextint(val: LLVMValueRef) -> bool;
   fn isa_sitofp(val: LLVMValueRef) -> bool;
+  fn isa_constaggregatezero(val: LLVMValueRef) -> bool;
+  fn isa_integertype(val: LLVMValueRef) -> bool;
+  fn isa_intptr(val: LLVMValueRef) -> bool;
+  fn isa_floattype(val: LLVMValueRef) -> bool;
+  fn isa_bitcast(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
   fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
   fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
@@ -209,7 +214,6 @@ unsafe fn to_expr_operand(
     ids[id_index] = used_id;
     used_bop_ids.push(used_id);
   } else if isa_bop(*operand) {
-    // println!("Here");
   } else if isa_constant(*operand) {
     to_expr_constant(&operand, enode_vec, ids, id_index);
   } else if isa_load(*operand) {
@@ -830,6 +834,10 @@ unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMV
     let cloned_inst = LLVMInstructionClone(Inst);
     LLVMInsertIntoBuilder(Builder, cloned_inst);
     return cloned_inst;
+  } else if isa_call(Inst) {
+    let cloned_inst = LLVMInstructionClone(Inst);
+    LLVMInsertIntoBuilder(Builder, cloned_inst);
+    return cloned_inst;
   }
   let cloned_inst = LLVMInstructionClone(Inst);
   let num_ops = LLVMGetNumOperands(Inst);
@@ -964,6 +972,7 @@ unsafe fn gep_to_egg(
     Id::from((next_idx) as usize),
     Id::from((next_idx + 1) as usize),
   ]);
+  LLVMPrint(expr);
   (*gep_map).insert(
     (Symbol::from(array_name), Symbol::from(&offsets_string)),
     expr,
@@ -1293,7 +1302,7 @@ unsafe fn translate_egg(
   context: LLVMContextRef,
   module: LLVMModuleRef,
 ) -> LLVMValueRef {
-  match enode {
+  let instr = match enode {
     VecLang::Symbol(_) => *symbol_map
       .get(enode)
       .expect("Symbol Should Exist in Symbol Map."),
@@ -1308,6 +1317,11 @@ unsafe fn translate_egg(
         let cloned_gep = LLVMInstructionClone(*gep_value);
         let new_gep = LLVMRecursiveAdd(builder, cloned_gep);
         LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
+      } else if isa_bitcast(*gep_value) || isa_sitofp(*gep_value) {
+        // TODO: DO NOT REGERATE CALLS. THESE SHOULD BE CACHED!!. e.g. a CALLOC
+        let cloned_bitcast = LLVMInstructionClone(*gep_value);
+        let new_bitcast = LLVMRecursiveAdd(builder, cloned_bitcast);
+        LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
       } else {
         LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
       }
@@ -1323,9 +1337,18 @@ unsafe fn translate_egg(
       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
       for (idx, &eggid) in idvec.iter().enumerate() {
         let elt = &vec[usize::from(eggid)];
-        let elt_val = translate_egg(
+        let mut elt_val = translate_egg(
           elt, vec, gep_map, store_map, symbol_map, builder, context, module,
         );
+        // check if the elt is an int
+        if isa_integertype(elt_val) {
+          elt_val = LLVMBuildSIToFP(
+            builder,
+            elt_val,
+            LLVMFloatTypeInContext(context),
+            b"\0".as_ptr() as *const _,
+          );
+        }
         vector = LLVMBuildInsertElement(
           builder,
           vector,
@@ -1333,6 +1356,7 @@ unsafe fn translate_egg(
           LLVMConstInt(LLVMInt32Type(), idx as u64, 0),
           b"\0".as_ptr() as *const _,
         );
+        LLVMPrint(elt_val);
       }
       vector
     }
@@ -1367,7 +1391,11 @@ unsafe fn translate_egg(
         context,
         module,
       );
-      if isa_constant(left) && isa_constant(right) {
+      if isa_constant(left)
+        && !isa_constaggregatezero(left)
+        && isa_constant(right)
+        && !isa_constaggregatezero(right)
+      {
         let mut loses_info = 1;
         let nright = LLVMConstRealGetDouble(right, &mut loses_info);
         let new_right = build_constant_float(nright, context);
@@ -1380,18 +1408,19 @@ unsafe fn translate_egg(
           builder,
           b"\0".as_ptr() as *const _,
         );
-      } else if isa_constant(right) {
+      } else if isa_constant(right) && !isa_constaggregatezero(right) {
         let mut loses_info = 1;
         let n = LLVMConstRealGetDouble(right, &mut loses_info);
         let new_right = build_constant_float(n, context);
         return translate_binop(enode, left, new_right, builder, b"\0".as_ptr() as *const _);
-      } else if isa_constant(left) {
+      } else if isa_constant(left) && !isa_constaggregatezero(left) {
         let mut loses_info = 1;
         let n = LLVMConstRealGetDouble(left, &mut loses_info);
         let new_left = build_constant_float(n, context);
         return translate_binop(enode, new_left, right, builder, b"\0".as_ptr() as *const _);
       } else {
-        return translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _);
+        let result = translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _);
+        return result;
       }
     }
     VecLang::Concat([v1, v2]) => {
@@ -1577,7 +1606,8 @@ unsafe fn translate_egg(
       translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
     }
     VecLang::Ite(..) => panic!("Ite is not handled."),
-  }
+  };
+  instr
 }
 
 unsafe fn egg_to_llvm(
@@ -1610,8 +1640,17 @@ unsafe fn egg_to_llvm(
   // Add in the Stores
   for (i, (_, addr)) in store_map.iter().enumerate() {
     let index = LLVMConstInt(LLVMInt32Type(), i as u64, 0);
-    let extracted_value =
+    let mut extracted_value =
       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
+    // check if the extracted type is an float and the address is a int ptr
+    if isa_floattype(extracted_value) && isa_intptr(*addr) {
+      extracted_value = LLVMBuildFPToSI(
+        builder,
+        extracted_value,
+        LLVMIntTypeInContext(context, 32),
+        b"\0".as_ptr() as *const _,
+      );
+    }
     if isa_argument(*addr) {
       LLVMBuildStore(builder, extracted_value, *addr);
     } else {
