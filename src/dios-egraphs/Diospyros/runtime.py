@@ -29,15 +29,14 @@ N = 10  # num times to test run
 
 def run_test(file):
   print("running " + file)
-  # os.popen("make emit-save test=" + file + "; clang test.ll")
-  subprocess.run(["make", "emit-save", "test={}".format(file)], check=True)
-  # r = subprocess.run(["clang", "test.ll"])
-  # if r.stderr.readline():
-  #   print("bruh")
-  test = time_file("./a.out", N)
-  subprocess.run(["clang", file])
-  orig = time_file("./a.out", N)
-  return test, orig
+  try:
+    subprocess.run(["make", "emit-save", "test={}".format(file)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    test = time_file("./a.out", N)
+    subprocess.run(["clang", "-lm", file])
+    orig = time_file("./a.out", N)
+    return test, orig
+  except:
+    return -1, -1
 
 def time_file(file, n):
   s = []
@@ -60,6 +59,9 @@ def main():
     try:
       if filename.endswith(".c"):
         rts_test, rts_orig = run_test(direc + filename)
+        if (rts_test, rts_orig) == (-1, -1):
+          print(filename + " failed; skipping")
+          continue
         files += [filename]
         runtimes += [np.mean(rts_test), np.mean(rts_orig)]
         stds += [np.std(rts_test), np.std(rts_orig)]
