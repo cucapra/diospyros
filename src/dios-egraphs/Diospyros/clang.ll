@@ -4,6 +4,7 @@ target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16
 target triple = "x86_64-apple-macosx10.14.0"
 
 @__const.main.A = private unnamed_addr constant [16 x float] [float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00], align 16
+@.str = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
 
 ; Function Attrs: alwaysinline nounwind ssp uwtable
 define float @sgn(float %0) #0 {
@@ -1190,16 +1191,70 @@ declare void @free(i8*) #5
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define i32 @main() #2 {
-  %1 = alloca [16 x float], align 16
+  %1 = alloca i32, align 4
   %2 = alloca [16 x float], align 16
   %3 = alloca [16 x float], align 16
-  %4 = bitcast [16 x float]* %1 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %4, i8* align 16 bitcast ([16 x float]* @__const.main.A to i8*), i64 64, i1 false)
-  %5 = bitcast [16 x float]* %2 to i8*
-  call void @llvm.memset.p0i8.i64(i8* align 16 %5, i8 0, i64 64, i1 false)
-  %6 = bitcast [16 x float]* %3 to i8*
-  call void @llvm.memset.p0i8.i64(i8* align 16 %6, i8 0, i64 64, i1 false)
-  ret i32 0
+  %4 = alloca [16 x float], align 16
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32 0, i32* %1, align 4
+  %7 = bitcast [16 x float]* %2 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %7, i8* align 16 bitcast ([16 x float]* @__const.main.A to i8*), i64 64, i1 false)
+  %8 = bitcast [16 x float]* %3 to i8*
+  call void @llvm.memset.p0i8.i64(i8* align 16 %8, i8 0, i64 64, i1 false)
+  %9 = bitcast [16 x float]* %4 to i8*
+  call void @llvm.memset.p0i8.i64(i8* align 16 %9, i8 0, i64 64, i1 false)
+  %10 = getelementptr inbounds [16 x float], [16 x float]* %2, i64 0, i64 0
+  %11 = getelementptr inbounds [16 x float], [16 x float]* %3, i64 0, i64 0
+  %12 = getelementptr inbounds [16 x float], [16 x float]* %4, i64 0, i64 0
+  call void @naive_fixed_qr_decomp(float* %10, float* %11, float* %12)
+  store i32 0, i32* %5, align 4
+  br label %13
+
+13:                                               ; preds = %34, %0
+  %14 = load i32, i32* %5, align 4
+  %15 = icmp slt i32 %14, 4
+  br i1 %15, label %16, label %37
+
+16:                                               ; preds = %13
+  store i32 0, i32* %6, align 4
+  br label %17
+
+17:                                               ; preds = %30, %16
+  %18 = load i32, i32* %6, align 4
+  %19 = icmp slt i32 %18, 4
+  br i1 %19, label %20, label %33
+
+20:                                               ; preds = %17
+  %21 = load i32, i32* %5, align 4
+  %22 = mul nsw i32 %21, 4
+  %23 = load i32, i32* %6, align 4
+  %24 = add nsw i32 %22, %23
+  %25 = sext i32 %24 to i64
+  %26 = getelementptr inbounds [16 x float], [16 x float]* %2, i64 0, i64 %25
+  %27 = load float, float* %26, align 4
+  %28 = fpext float %27 to double
+  %29 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %28)
+  br label %30
+
+30:                                               ; preds = %20
+  %31 = load i32, i32* %6, align 4
+  %32 = add nsw i32 %31, 1
+  store i32 %32, i32* %6, align 4
+  br label %17
+
+33:                                               ; preds = %17
+  br label %34
+
+34:                                               ; preds = %33
+  %35 = load i32, i32* %5, align 4
+  %36 = add nsw i32 %35, 1
+  store i32 %36, i32* %5, align 4
+  br label %13
+
+37:                                               ; preds = %13
+  %38 = load i32, i32* %1, align 4
+  ret i32 %38
 }
 
 ; Function Attrs: argmemonly nounwind willreturn
@@ -1207,6 +1262,8 @@ declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noa
 
 ; Function Attrs: argmemonly nounwind willreturn writeonly
 declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #7
+
+declare i32 @printf(i8*, ...) #5
 
 attributes #0 = { alwaysinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone speculatable willreturn }

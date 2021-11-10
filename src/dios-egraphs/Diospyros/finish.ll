@@ -4,6 +4,7 @@ target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16
 target triple = "x86_64-apple-macosx10.14.0"
 
 @__const.main.A = private unnamed_addr constant [16 x float] [float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00, float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+00], align 16
+@.str = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
 
 ; Function Attrs: alwaysinline nounwind ssp uwtable
 define float @sgn(float %0) #0 {
@@ -15517,6 +15518,84 @@ declare void @free(i8*) #5
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define i32 @main() #2 {
+.preheader:
+  %0 = alloca [16 x float], align 16
+  %1 = alloca [16 x float], align 16
+  %2 = alloca [16 x float], align 16
+  %3 = bitcast [16 x float]* %0 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* nonnull align 16 dereferenceable(64) %3, i8* nonnull align 16 dereferenceable(64) bitcast ([16 x float]* @__const.main.A to i8*), i64 64, i1 false)
+  %4 = bitcast [16 x float]* %1 to i8*
+  call void @llvm.memset.p0i8.i64(i8* nonnull align 16 dereferenceable(64) %4, i8 0, i64 64, i1 false)
+  %5 = bitcast [16 x float]* %2 to i8*
+  call void @llvm.memset.p0i8.i64(i8* nonnull align 16 dereferenceable(64) %5, i8 0, i64 64, i1 false)
+  %6 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 0
+  %7 = getelementptr inbounds [16 x float], [16 x float]* %1, i64 0, i64 0
+  %8 = getelementptr inbounds [16 x float], [16 x float]* %2, i64 0, i64 0
+  call void @naive_fixed_qr_decomp(float* nonnull %6, float* nonnull %7, float* nonnull %8)
+  %9 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 0
+  %10 = load float, float* %9, align 16
+  %11 = fpext float %10 to double
+  %12 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %11) #9
+  %13 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 1
+  %14 = load float, float* %13, align 4
+  %15 = fpext float %14 to double
+  %16 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %15) #9
+  %17 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 2
+  %18 = load float, float* %17, align 8
+  %19 = fpext float %18 to double
+  %20 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %19) #9
+  %21 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 3
+  %22 = load float, float* %21, align 4
+  %23 = fpext float %22 to double
+  %24 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %23) #9
+  %25 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 4
+  %26 = load float, float* %25, align 16
+  %27 = fpext float %26 to double
+  %28 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %27) #9
+  %29 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 5
+  %30 = load float, float* %29, align 4
+  %31 = fpext float %30 to double
+  %32 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %31) #9
+  %33 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 6
+  %34 = load float, float* %33, align 8
+  %35 = fpext float %34 to double
+  %36 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %35) #9
+  %37 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 7
+  %38 = load float, float* %37, align 4
+  %39 = fpext float %38 to double
+  %40 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %39) #9
+  %41 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 8
+  %42 = load float, float* %41, align 16
+  %43 = fpext float %42 to double
+  %44 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %43) #9
+  %45 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 9
+  %46 = load float, float* %45, align 4
+  %47 = fpext float %46 to double
+  %48 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %47) #9
+  %49 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 10
+  %50 = load float, float* %49, align 8
+  %51 = fpext float %50 to double
+  %52 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %51) #9
+  %53 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 11
+  %54 = load float, float* %53, align 4
+  %55 = fpext float %54 to double
+  %56 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %55) #9
+  %57 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 12
+  %58 = load float, float* %57, align 16
+  %59 = fpext float %58 to double
+  %60 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %59) #9
+  %61 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 13
+  %62 = load float, float* %61, align 4
+  %63 = fpext float %62 to double
+  %64 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %63) #9
+  %65 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 14
+  %66 = load float, float* %65, align 8
+  %67 = fpext float %66 to double
+  %68 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %67) #9
+  %69 = getelementptr inbounds [16 x float], [16 x float]* %0, i64 0, i64 15
+  %70 = load float, float* %69, align 4
+  %71 = fpext float %70 to double
+  %72 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double %71) #9
   ret i32 0
 }
 
@@ -15525,6 +15604,8 @@ declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noa
 
 ; Function Attrs: argmemonly nounwind willreturn writeonly
 declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #7
+
+declare i32 @printf(i8*, ...) #5
 
 ; Function Attrs: nounwind readnone speculatable willreturn
 declare float @llvm.sqrt.f32(float) #1
