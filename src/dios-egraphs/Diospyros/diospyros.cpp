@@ -212,6 +212,17 @@ extern "C" bool isa_fptrunc(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM FPExtInst/LLVMValueRef FPExtInst
+ */
+extern "C" bool isa_fpext(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<FPExtInst>(unwrapped);
+}
+
+/**
  * True iff a value is an LLVM AllocInst/LLVMValueRef AllocInst
  */
 extern "C" bool isa_alloca(LLVMValueRef val) {
@@ -302,6 +313,30 @@ extern "C" bool isa_constaggregatezero(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM ConstFP/LLVMValueRef
+ * ConstFP
+ */
+extern "C" bool isa_constfp(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<ConstantFP>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM 	ConstantAggregate/LLVMValueRef
+ * ConstantAggregate
+ */
+extern "C" bool isa_constaggregate(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<ConstantAggregate>(unwrapped);
+}
+
+/**
  * True iff a value is an LLVM 	bitcast/LLVMValueRef
  * bitcast
  */
@@ -311,6 +346,22 @@ extern "C" bool isa_bitcast(LLVMValueRef val) {
         return false;
     }
     return isa<BitCastInst>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM 	SQRT F32/LLVMValueRef
+ * SQRT F32
+ */
+extern "C" bool check_sqrt(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    if (auto *op = dyn_cast<CallInst>(unwrapped)) {
+        return op->getCalledFunction()->getName() == SQRT_FUNCTION_NAME;
+    }
+    // it is not a square root nor a call
+    return false;
 }
 
 /**
@@ -480,15 +531,10 @@ struct DiospyrosPass : public FunctionPass {
                     builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
                     LLVMContext &context = F.getContext();
-                    for (auto I : vec) {
-                        errs() << *unwrap(I) << "\n";
-                    }
                     optimize(wrap(mod), wrap(&context), wrap(&builder),
                              vec.data(), vec.size());
-                    errs() << "Before0\n";
                 }
             }
-            errs() << "Before1\n";
             std::reverse(bb_instrs.begin(), bb_instrs.end());
             for (auto &I : bb_instrs) {
                 if (I->isTerminator()) {
@@ -497,10 +543,12 @@ struct DiospyrosPass : public FunctionPass {
                     I->eraseFromParent();
                 }
             }
-            errs() << "Before2\n";
             BasicBlock::InstListType &final_instrs = B.getInstList();
             final_instrs.push_back(cloned_terminator);
-            errs() << "Before3\n";
+
+            for (auto &I : B) {
+                errs() << I << "\n";
+            }
         }
 
         // for (auto &B : F) {
@@ -613,6 +661,8 @@ struct DiospyrosPass : public FunctionPass {
         //         }
         //     }
         // }
+        errs() << F << "\n";
+        errs() << "Finished\n";
         return true;
     };
 };

@@ -17,21 +17,25 @@ extern "C" {
   fn isa_unop(val: LLVMValueRef) -> bool;
   fn isa_bop(val: LLVMValueRef) -> bool;
   fn isa_constant(val: LLVMValueRef) -> bool;
+  fn isa_constfp(val: LLVMValueRef) -> bool;
   fn isa_gep(val: LLVMValueRef) -> bool;
   fn isa_load(val: LLVMValueRef) -> bool;
   fn isa_store(val: LLVMValueRef) -> bool;
   fn isa_argument(val: LLVMValueRef) -> bool;
   fn isa_call(val: LLVMValueRef) -> bool;
   fn isa_fptrunc(val: LLVMValueRef) -> bool;
+  fn isa_fpext(val: LLVMValueRef) -> bool;
   fn isa_alloca(val: LLVMValueRef) -> bool;
   fn isa_phi(val: LLVMValueRef) -> bool;
   fn isa_sextint(val: LLVMValueRef) -> bool;
   fn isa_sitofp(val: LLVMValueRef) -> bool;
   fn isa_constaggregatezero(val: LLVMValueRef) -> bool;
+  fn isa_constaggregate(val: LLVMValueRef) -> bool;
   fn isa_integertype(val: LLVMValueRef) -> bool;
   fn isa_intptr(val: LLVMValueRef) -> bool;
   fn isa_floattype(val: LLVMValueRef) -> bool;
   fn isa_bitcast(val: LLVMValueRef) -> bool;
+  fn check_sqrt(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
   fn dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
   fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
@@ -972,7 +976,6 @@ unsafe fn gep_to_egg(
     Id::from((next_idx) as usize),
     Id::from((next_idx + 1) as usize),
   ]);
-  LLVMPrint(expr);
   (*gep_map).insert(
     (Symbol::from(array_name), Symbol::from(&offsets_string)),
     expr,
@@ -1174,6 +1177,7 @@ unsafe fn fpext_to_egg(
   id_map: &mut id_map,
   symbol_map: &mut symbol_map,
 ) -> (Vec<VecLang>, i32) {
+  assert!(isa_fpext(expr));
   let operand = LLVMGetOperand(expr, 0);
   return ref_to_egg(
     operand, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
@@ -1189,6 +1193,7 @@ unsafe fn sqrt_to_egg(
   id_map: &mut id_map,
   symbol_map: &mut symbol_map,
 ) -> (Vec<VecLang>, i32) {
+  assert!(check_sqrt(expr));
   let operand = LLVMGetOperand(expr, 0);
   let (mut new_enode_vec, next_idx1) = fpext_to_egg(
     operand, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
@@ -1207,10 +1212,14 @@ unsafe fn fptrunc_to_egg(
   id_map: &mut id_map,
   symbol_map: &mut symbol_map,
 ) -> (Vec<VecLang>, i32) {
+  assert!(isa_fptrunc(expr));
   let operand = LLVMGetOperand(expr, 0);
-  return sqrt_to_egg(
-    operand, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
-  );
+  if check_sqrt(operand) {
+    return sqrt_to_egg(
+      operand, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    );
+  }
+  panic!("TODO: Currently, only square roots are supported after fptrunc. ");
 }
 
 unsafe fn ref_to_egg(
@@ -1313,18 +1322,32 @@ unsafe fn translate_egg(
       let gep_value = gep_map
         .get(&(array_name, array_offsets))
         .expect("Symbol map lookup error: Cannot Find GEP");
-      if isa_gep(*gep_value) {
+      let load_value = if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
         let new_gep = LLVMRecursiveAdd(builder, cloned_gep);
+        println!("1");
         LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
-      } else if isa_bitcast(*gep_value) || isa_sitofp(*gep_value) {
+      } else if isa_bitcast(*gep_value) {
         // TODO: DO NOT REGERATE CALLS. THESE SHOULD BE CACHED!!. e.g. a CALLOC
         let cloned_bitcast = LLVMInstructionClone(*gep_value);
+        LLVMPrint(cloned_bitcast);
         let new_bitcast = LLVMRecursiveAdd(builder, cloned_bitcast);
+        LLVMPrint(new_bitcast);
+        println!("2");
         LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
+      } else if isa_sitofp(*gep_value) {
+        println!("3");
+        let cloned_sitofp = LLVMInstructionClone(*gep_value);
+        println!("After cloe");
+        let new_sitofp = LLVMRecursiveAdd(builder, cloned_sitofp);
+        // LLVMInsertIntoBuilder(builder, new_sitofp);
+        new_sitofp
       } else {
+        println!("4");
         LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
-      }
+      };
+      LLVMPrint(load_value);
+      return load_value;
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
       let idvec = boxed_ids.to_vec();
@@ -1356,7 +1379,6 @@ unsafe fn translate_egg(
           LLVMConstInt(LLVMInt32Type(), idx as u64, 0),
           b"\0".as_ptr() as *const _,
         );
-        LLVMPrint(elt_val);
       }
       vector
     }
@@ -1391,9 +1413,9 @@ unsafe fn translate_egg(
         context,
         module,
       );
-      if isa_constant(left)
+      if isa_constfp(left)
         && !isa_constaggregatezero(left)
-        && isa_constant(right)
+        && isa_constfp(right)
         && !isa_constaggregatezero(right)
       {
         let mut loses_info = 1;
@@ -1408,12 +1430,12 @@ unsafe fn translate_egg(
           builder,
           b"\0".as_ptr() as *const _,
         );
-      } else if isa_constant(right) && !isa_constaggregatezero(right) {
+      } else if isa_constfp(right) && !isa_constaggregatezero(right) {
         let mut loses_info = 1;
         let n = LLVMConstRealGetDouble(right, &mut loses_info);
         let new_right = build_constant_float(n, context);
         return translate_binop(enode, left, new_right, builder, b"\0".as_ptr() as *const _);
-      } else if isa_constant(left) && !isa_constaggregatezero(left) {
+      } else if isa_constfp(left) && !isa_constaggregatezero(left) {
         let mut loses_info = 1;
         let n = LLVMConstRealGetDouble(left, &mut loses_info);
         let new_left = build_constant_float(n, context);
