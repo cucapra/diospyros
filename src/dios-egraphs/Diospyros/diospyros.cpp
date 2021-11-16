@@ -510,6 +510,7 @@ struct DiospyrosPass : public FunctionPass {
                             vectorization_accumulator.push_back(inner_vector);
                         }
                         inner_vector = {};
+                        store_locations.clear();
                     }
                 }
                 bb_instrs.push_back(dyn_cast<Instruction>(&I));
