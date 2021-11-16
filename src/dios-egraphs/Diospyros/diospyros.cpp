@@ -504,14 +504,11 @@ struct DiospyrosPass : public FunctionPass {
                     inner_vector.push_back(wrap(op));
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
-                    if (store_locations.find(load_loc) !=
-                        store_locations.end()) {
-                        if (!inner_vector.empty()) {
-                            vectorization_accumulator.push_back(inner_vector);
-                        }
-                        inner_vector = {};
-                        store_locations.clear();
+                    if (!inner_vector.empty()) {
+                        vectorization_accumulator.push_back(inner_vector);
                     }
+                    inner_vector = {};
+                    store_locations.clear();
                 }
                 bb_instrs.push_back(dyn_cast<Instruction>(&I));
             }
