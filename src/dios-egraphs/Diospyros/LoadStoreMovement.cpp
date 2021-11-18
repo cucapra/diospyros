@@ -99,7 +99,7 @@ struct LoadStoreMovementPass : public FunctionPass {
             std::reverse(reversed_instructions.begin(),
                          reversed_instructions.end());
             BasicBlock::InstListType &bb_instrs = B.getInstList();
-            std::map<Instruction *, Instruction *> original_to_clone_map;
+            std::map<Instruction *, Instruction *> original_to_clone_map = {};
             for (auto &I : reversed_instructions) {
                 // we clone the original instruciton, then insert into builder
                 Instruction *cloned_instr = I->clone();
@@ -119,6 +119,10 @@ struct LoadStoreMovementPass : public FunctionPass {
                     }
                 }
                 bb_instrs.push_back(cloned_instr);
+                for (auto &U : I->uses()) {
+                    User *user = U.getUser();
+                    user->setOperand(U.getOperandNo(), cloned_instr);
+                }
             }
             // here we need to delete all original instructions, going forwards
             // with no reversal as they are in reversed order
@@ -130,29 +134,11 @@ struct LoadStoreMovementPass : public FunctionPass {
 
     void rewrite_loads(Function &F) {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+        std::map<Instruction *, Instruction *> original_to_clone_map = {};
+        std::vector<Instruction *> all_instructions = {};
         for (auto &B : F) {
-            bool has_float = false;
-            for (auto &I : B) {
-                if (I.getType()->isFloatTy()) {
-                    has_float = true;
-                }
-            }
-            if (!has_float) {
-                continue;
-            }
-            // We also skip over all basic blocks without stores
-            bool has_store = false;
-            for (auto &I : B) {
-                if (auto *op = dyn_cast<StoreInst>(&I)) {
-                    has_store = true;
-                }
-            }
-            if (!has_store) {
-                continue;
-            }
-
             std::vector<Instruction *> instructions = {};
-            std::vector<Instruction *> all_instructions = {};
+
             int head_pointer =
                 -1;  // points to head location in all_instructions
             Instruction *first_instr = NULL;
@@ -203,7 +189,6 @@ struct LoadStoreMovementPass : public FunctionPass {
             builder.SetInsertPoint(&B);
             // here we are going to add back our instructions
             BasicBlock::InstListType &bb_instrs = B.getInstList();
-            std::map<Instruction *, Instruction *> original_to_clone_map;
             for (auto &I : instructions) {
                 // we clone the original instruciton, then insert into builder
                 Instruction *cloned_instr = I->clone();
@@ -225,16 +210,18 @@ struct LoadStoreMovementPass : public FunctionPass {
                     }
                 }
                 bb_instrs.push_back(cloned_instr);
+                Instruction *instr = &(*I);
+                for (auto &U : instr->uses()) {
+                    User *user = U.getUser();
+                    user->setOperand(U.getOperandNo(), cloned_instr);
+                }
             }
-            // here we need to delete all original instructions, going
-            // forwards with no reversal as they are in reversed order
-            std::reverse(all_instructions.begin(), all_instructions.end());
-            for (auto &I : all_instructions) {
-                I->eraseFromParent();
-            }
-            for (auto &I : B) {
-                errs() << I << "\n";
-            }
+        }
+        // here we need to delete all original instructions, going
+        // forwards with no reversal as they are in reversed order
+        std::reverse(all_instructions.begin(), all_instructions.end());
+        for (auto &I : all_instructions) {
+            I->eraseFromParent();
         }
     }
 
@@ -251,6 +238,7 @@ struct LoadStoreMovementPass : public FunctionPass {
         }
         rewrite_stores(F);
         rewrite_loads(F);
+
         return true;
     }
 };
