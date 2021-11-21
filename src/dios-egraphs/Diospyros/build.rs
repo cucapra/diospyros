@@ -8,15 +8,27 @@ fn main() {
         .expect("llvm-config failed");
     let cxxflags = String::from_utf8(output.stdout).unwrap();
 
-    // Build the C++ file.
-    let mut build = cc::Build::new();
-    build
+    // Build the LoadStoreMovement C++ file.
+    let mut build_lsm = cc::Build::new();
+    build_lsm
+        .cpp(true)
+        .warnings(false) // LLVM headers have lots of spurious warnings.
+        .file("LoadStoreMovement.cpp");
+    for flag in cxxflags.split_ascii_whitespace() {
+        build_lsm.flag(&flag);
+    }
+    build_lsm.flag("-fexceptions");
+    build_lsm.compile("liblsmpass.a");
+
+    // Build the Diospyros C++ file.
+    let mut build_diospyros = cc::Build::new();
+    build_diospyros
         .cpp(true)
         .warnings(false) // LLVM headers have lots of spurious warnings.
         .file("diospyros.cpp");
     for flag in cxxflags.split_ascii_whitespace() {
-        build.flag(&flag);
+        build_diospyros.flag(&flag);
     }
-    build.flag("-fexceptions");
-    build.compile("libdiospass.a");
+    build_diospyros.flag("-fexceptions");
+    build_diospyros.compile("libdiospass.a");
 }

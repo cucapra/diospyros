@@ -7,6 +7,12 @@
 
 #define SIZE 4
 
+float sgn(float v) __attribute__((always_inline));
+float naive_norm(float *x, int m) __attribute__((always_inline));
+void naive_transpose(float *a, int n) __attribute__((always_inline));
+void naive_matrix_multiply(float *a, float *b, float *c, int row1, int col1,
+                           int col2) __attribute__((always_inline));
+
 float sgn(float v) { return (v > 0) - (v < 0); }
 
 // Naive implementation
@@ -117,9 +123,8 @@ void naive_qr_decomp(float *A, float *Q, float *R, int n) {
 }
 
 int main(void) {
-    int n = SIZE;
-    float A[SIZE] = {1, 2, 3, 4};
-    float Q[SIZE] = {0, 0, 0, 0};
-    float R[SIZE] = {0, 0, 0, 0};
-    naive_qr_decomp(A, Q, R, n);
+    float A[SIZE * SIZE] = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
+    float Q[SIZE * SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    float R[SIZE * SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    naive_qr_decomp(A, Q, R, SIZE);
 }

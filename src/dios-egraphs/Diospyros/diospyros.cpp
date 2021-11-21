@@ -212,6 +212,17 @@ extern "C" bool isa_fptrunc(LLVMValueRef val) {
 }
 
 /**
+ * True iff a value is an LLVM FPExtInst/LLVMValueRef FPExtInst
+ */
+extern "C" bool isa_fpext(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<FPExtInst>(unwrapped);
+}
+
+/**
  * True iff a value is an LLVM AllocInst/LLVMValueRef AllocInst
  */
 extern "C" bool isa_alloca(LLVMValueRef val) {
@@ -220,6 +231,137 @@ extern "C" bool isa_alloca(LLVMValueRef val) {
         return false;
     }
     return isa<AllocaInst>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM SExtInst/LLVMValueRef SExtInst
+ */
+extern "C" bool isa_sextint(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<SExtInst>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM PHINode/LLVMValueRef PHINode
+ */
+extern "C" bool isa_phi(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<PHINode>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM 	SIToFPInst/LLVMValueRef 	SIToFPInst
+ */
+extern "C" bool isa_sitofp(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<SIToFPInst>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM Int/LLVMValueRef 	Int
+ */
+extern "C" bool isa_integertype(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return unwrapped->getType()->isIntegerTy();
+}
+
+/**
+ * True iff a value is an LLVM IntPTr/LLVMValueRef ItPtr
+ */
+extern "C" bool isa_intptr(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    Type *t = unwrapped->getType();
+    return t->isPointerTy() && t->getContainedType(0)->isIntegerTy();
+}
+
+/**
+ * True iff a value is an LLVM Float/LLVMValueRef Float
+ */
+extern "C" bool isa_floattype(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return unwrapped->getType()->isFloatTy();
+}
+
+/**
+ * True iff a value is an LLVM 	ConstantAggregateZero/LLVMValueRef
+ * ConstantAggregateZero
+ */
+extern "C" bool isa_constaggregatezero(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<ConstantAggregateZero>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM ConstFP/LLVMValueRef
+ * ConstFP
+ */
+extern "C" bool isa_constfp(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<ConstantFP>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM 	ConstantAggregate/LLVMValueRef
+ * ConstantAggregate
+ */
+extern "C" bool isa_constaggregate(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<ConstantAggregate>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM 	bitcast/LLVMValueRef
+ * bitcast
+ */
+extern "C" bool isa_bitcast(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    return isa<BitCastInst>(unwrapped);
+}
+
+/**
+ * True iff a value is an LLVM 	SQRT F32/LLVMValueRef
+ * SQRT F32
+ */
+extern "C" bool check_sqrt(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    if (auto *op = dyn_cast<CallInst>(unwrapped)) {
+        return op->getCalledFunction()->getName() == SQRT_FUNCTION_NAME;
+    }
+    // it is not a square root nor a call
+    return false;
 }
 
 /**
@@ -336,6 +478,16 @@ struct DiospyrosPass : public FunctionPass {
             if (!has_float) {
                 continue;
             }
+            // We also skip over all basic blocks without stores
+            bool has_store = false;
+            for (auto &I : B) {
+                if (auto *op = dyn_cast<StoreInst>(&I)) {
+                    has_store = true;
+                }
+            }
+            if (!has_store) {
+                continue;
+            }
 
             // Grab the terminator from the LLVM Basic Block
             Instruction *terminator = B.getTerminator();
@@ -352,13 +504,11 @@ struct DiospyrosPass : public FunctionPass {
                     inner_vector.push_back(wrap(op));
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
-                    if (store_locations.find(load_loc) !=
-                        store_locations.end()) {
-                        if (!inner_vector.empty()) {
-                            vectorization_accumulator.push_back(inner_vector);
-                        }
-                        inner_vector = {};
+                    if (!inner_vector.empty()) {
+                        vectorization_accumulator.push_back(inner_vector);
                     }
+                    inner_vector = {};
+                    store_locations.clear();
                 }
                 bb_instrs.push_back(dyn_cast<Instruction>(&I));
             }
@@ -394,117 +544,6 @@ struct DiospyrosPass : public FunctionPass {
             BasicBlock::InstListType &final_instrs = B.getInstList();
             final_instrs.push_back(cloned_terminator);
         }
-
-        // for (auto &B : F) {
-        //     // uncomment to see basic block: good for debugging.
-        //     // errs() << B << "\n";
-
-        //     // We need to identify sequences of stores and loads to the same
-        //     // location and split them up into separate vectorizations
-        //     // We walk over a basic block, and identify binary operators,
-        //     loads,
-        //     // stores and calls.
-        //     // When a call is identified, we split up vectorization.
-        //     // For each store, we put it in a set. If a load uses a Value in
-        //     the
-        //     // store clear the set, and split up vectorization.
-        //     // Otherwise, add binary operators to the current vectorizxation
-        //     // vector.
-        //     // Order matters in each vector; we push back in the same order
-        //     // binary operators are found.
-        //     std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
-        //     std::vector<std::vector<int>> vectorization_type;
-        //     std::vector<LLVMValueRef> inner_vector = {};
-        //     std::vector<int> operator_type = {};
-        //     std::set<Value *> store_locations;
-        //     for (auto &I : B) {
-        //         if (auto *op = dyn_cast<UnaryOperator>(&I)) {
-        //             // current bug: unary operators are included for some
-        //             reason
-        //             // but I have no idea where or how
-        //         } else if (auto *op = dyn_cast<BinaryOperator>(&I)) {
-        //             // only include floating point operations
-        //             if (op->getType()->isFloatTy()) {
-        //                 inner_vector.push_back(wrap(op));
-        //                 operator_type.push_back(BINARY_OPERATOR);
-        //             }
-        //         } else if (auto *op = dyn_cast<StoreInst>(&I)) {
-        //             // get the store location (pointer)
-        //             Value *store_loc = op->getOperand(1);
-        //             store_locations.insert(store_loc);
-        //         } else if (auto *op = dyn_cast<LoadInst>(&I)) {
-        //             Value *load_loc = op->getOperand(0);
-        //             if (store_locations.find(load_loc) !=
-        //                 store_locations.end()) {
-        //                 store_locations.clear();
-        //                 if (!inner_vector.empty()) {
-        //                     vectorization_accumulator.push_back(inner_vector);
-        //                     vectorization_type.push_back(operator_type);
-        //                 }
-        //                 inner_vector = {};
-        //                 operator_type = {};
-        //             }
-        //         } else if (auto *op = dyn_cast<CallInst>(&I)) {
-        //             // should handle calls to double @llvm.sqrt.f64(double)
-        //             if (op->getCalledFunction()->getName() ==
-        //                 SQRT_FUNCTION_NAME) {
-        //                 // Value *sqrt_arg = op->getArgOperand(0);
-        //                 // inner_vector.push_back(wrap(sqrt_arg));
-        //                 // operator_type.push_back(SQRT_OPERATOR);
-        //             } else {
-        //                 store_locations.clear();
-        //                 if (!inner_vector.empty()) {
-        //                     vectorization_accumulator.push_back(inner_vector);
-        //                     vectorization_type.push_back(operator_type);
-        //                 }
-        //                 inner_vector = {};
-        //                 operator_type = {};
-        //             }
-        //         }
-        //     }
-        //     vectorization_accumulator.push_back(inner_vector);
-        //     vectorization_type.push_back(operator_type);
-
-        //     // vectorize each sequence of binary operators extracted
-        //     // and identified for vectorization.
-        //     // auto vec : vectorization_accumulator)
-        //     for (auto &&pair :
-        //          zip(vectorization_accumulator, vectorization_type)) {
-        //         auto vec = get<0>(pair);
-        //         auto operand_types = get<1>(pair);
-        //         if (not vec.empty()) {
-        //             has_changes = has_changes || true;
-        //             Value *last_val = unwrap(vec.back());
-        //             IRBuilder<> builder(dyn_cast<Instruction>(last_val));
-        //             Instruction *last_instr =
-        //             dyn_cast<Instruction>(last_val);
-        //             // figure out where next store is located after the last
-        //             // binary operation
-        //             while (not isa<StoreInst>(last_instr)) {
-        //                 Instruction *next_instr =
-        //                     last_instr->getNextNonDebugInstruction();
-        //                 if (next_instr != NULL) {
-        //                     last_instr = next_instr;
-        //                     builder.SetInsertPoint(&B,
-        //                                            ++builder.GetInsertPoint());
-        //                 } else {
-        //                     // This is a problematic situation: we depend on
-        //                     // knowing the stored address to write back an
-        //                     // extract element to. Should the code go here,
-        //                     the
-        //                     // llvm pass will be incorrect.
-        //                     assert(false);
-        //                 }
-        //             }
-        //             builder.SetInsertPoint(&B, ++builder.GetInsertPoint());
-
-        //             Module *mod = F.getParent();
-
-        //             optimize(wrap(mod), wrap(&builder), vec.data(),
-        //                      operand_types.data(), vec.size());
-        //         }
-        //     }
-        // }
         return true;
     };
 };
