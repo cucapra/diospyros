@@ -35,7 +35,8 @@ extern "C" {
   fn isa_intptr(val: LLVMValueRef) -> bool;
   fn isa_floattype(val: LLVMValueRef) -> bool;
   fn isa_bitcast(val: LLVMValueRef) -> bool;
-  fn check_sqrt(val: LLVMValueRef) -> bool;
+  fn isa_sqrt32(val: LLVMValueRef) -> bool;
+  fn isa_sqrt64(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
   fn _dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
   fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
@@ -47,6 +48,7 @@ extern "C" {
 // GEPMap : Maps the array name and array offset as symbols to the GEP
 // LLVM Value Ref that LLVM Generated
 type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
+type BitcastSet = BTreeSet<VecLang>;
 // VarMap : Maps a symbol to a llvm value ref representing a variable
 // type VarMap = BTreeMap<Symbol, LLVMValueRef>;
 // // BopMap : Maps a binary oeprator llvm value ref to an ID, indicating a
@@ -685,7 +687,7 @@ pub fn optimize(
   unsafe {
     // llvm to egg
     let llvm_instrs = from_raw_parts(bb, size);
-    let (expr, gep_map, store_map, symbol_map) = llvm_to_egg(llvm_instrs);
+    let (expr, gep_map, store_map, symbol_map, bitcast_set) = llvm_to_egg(llvm_instrs);
     // let (expr, gep_map, var_map, ops_to_replace) = to_expr(
     //   from_raw_parts(bb, size),
     //   from_raw_parts(operand_types, size),
@@ -702,6 +704,7 @@ pub fn optimize(
       &gep_map,
       &store_map,
       &symbol_map,
+      &bitcast_set,
       module,
       context,
       builder,
@@ -712,10 +715,10 @@ pub fn optimize(
 
 // ------------ NEW CONVERSION FROM LLVM IR TO EGG EXPRESSIONS -------
 
-type store_map = BTreeMap<i32, LLVMValueRef>;
-type gep_map = BTreeMap<VecLang, LLVMValueRef>;
-type id_map = BTreeSet<Id>;
-type symbol_map = BTreeMap<VecLang, LLVMValueRef>;
+type StoreMap = BTreeMap<i32, LLVMValueRef>;
+// type gep_map = BTreeMap<VecLang, LLVMValueRef>;
+type IdMap = BTreeSet<Id>;
+type SymbolMap = BTreeMap<VecLang, LLVMValueRef>;
 
 enum LLVMOpType {
   Argument,
@@ -728,15 +731,19 @@ enum LLVMOpType {
   Call,
   FPTrunc,
   SIToFP,
+  Bitcast,
+  Sqrt32,
+  Sqrt64,
+  FPExt,
 }
 
-unsafe fn is_pow2(n: u32) -> bool {
-  let mut pow = 1;
-  while pow < n {
-    pow *= 2;
-  }
-  return pow == n;
-}
+// unsafe fn is_pow2(n: u32) -> bool {
+//   let mut pow = 1;
+//   while pow < n {
+//     pow *= 2;
+//   }
+//   return pow == n;
+// }
 
 unsafe fn get_pow2(n: u32) -> u32 {
   let mut pow = 1;
@@ -796,12 +803,12 @@ unsafe fn build_concat<'a>(
   return enode_vec2;
 }
 
-unsafe fn LLVMPrint(Inst: LLVMValueRef) -> () {
-  LLVMDumpValue(Inst);
+unsafe fn _llvm_print(inst: LLVMValueRef) -> () {
+  LLVMDumpValue(inst);
   println!();
 }
 
-unsafe fn llvm_recursive_print(inst: LLVMValueRef) -> () {
+unsafe fn _llvm_recursive_print(inst: LLVMValueRef) -> () {
   if isa_argument(inst) {
     return LLVMDumpValue(inst);
   } else if isa_constant(inst) {
@@ -810,7 +817,7 @@ unsafe fn llvm_recursive_print(inst: LLVMValueRef) -> () {
   let num_ops = LLVMGetNumOperands(inst);
   for i in 0..num_ops {
     let operand = LLVMGetOperand(inst, i as u32);
-    llvm_recursive_print(operand);
+    _llvm_recursive_print(operand);
     print!(" ");
   }
   println!();
@@ -819,30 +826,30 @@ unsafe fn llvm_recursive_print(inst: LLVMValueRef) -> () {
   return;
 }
 
-unsafe fn LLVMRecursiveAdd(Builder: LLVMBuilderRef, Inst: LLVMValueRef) -> LLVMValueRef {
-  if isa_argument(Inst) {
-    return Inst;
-  } else if isa_constant(Inst) {
-    return Inst;
-  } else if isa_phi(Inst) {
-    return Inst;
-  } else if isa_alloca(Inst) {
-    let cloned_inst = LLVMInstructionClone(Inst);
-    LLVMInsertIntoBuilder(Builder, cloned_inst);
+unsafe fn llvm_recursive_add(builder: LLVMBuilderRef, inst: LLVMValueRef) -> LLVMValueRef {
+  if isa_argument(inst) {
+    return inst;
+  } else if isa_constant(inst) {
+    return inst;
+  } else if isa_phi(inst) {
+    return inst;
+  } else if isa_alloca(inst) {
+    let cloned_inst = LLVMInstructionClone(inst);
+    LLVMInsertIntoBuilder(builder, cloned_inst);
     return cloned_inst;
-  } else if isa_call(Inst) {
-    let cloned_inst = LLVMInstructionClone(Inst);
-    LLVMInsertIntoBuilder(Builder, cloned_inst);
+  } else if isa_call(inst) {
+    let cloned_inst = LLVMInstructionClone(inst);
+    LLVMInsertIntoBuilder(builder, cloned_inst);
     return cloned_inst;
   }
-  let cloned_inst = LLVMInstructionClone(Inst);
-  let num_ops = LLVMGetNumOperands(Inst);
+  let cloned_inst = LLVMInstructionClone(inst);
+  let num_ops = LLVMGetNumOperands(inst);
   for i in 0..num_ops {
-    let operand = LLVMGetOperand(Inst, i as u32);
-    let new_inst = LLVMRecursiveAdd(Builder, operand);
+    let operand = LLVMGetOperand(inst, i as u32);
+    let new_inst = llvm_recursive_add(builder, operand);
     LLVMSetOperand(cloned_inst, i as u32, new_inst);
   }
-  LLVMInsertIntoBuilder(Builder, cloned_inst);
+  LLVMInsertIntoBuilder(builder, cloned_inst);
   return cloned_inst;
 }
 
@@ -867,6 +874,14 @@ unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
     return LLVMOpType::FPTrunc;
   } else if isa_sitofp(*expr) {
     return LLVMOpType::SIToFP;
+  } else if isa_bitcast(*expr) {
+    return LLVMOpType::Bitcast;
+  } else if isa_sqrt32(*expr) {
+    return LLVMOpType::Sqrt32;
+  } else if isa_sqrt64(*expr) {
+    return LLVMOpType::Sqrt64;
+  } else if isa_fpext(*expr) {
+    return LLVMOpType::FPExt;
   } else {
     LLVMDumpValue(*expr);
     println!();
@@ -886,9 +901,10 @@ unsafe fn arg_to_egg(
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
   _gep_map: &mut GEPMap,
-  _store_map: &mut store_map,
-  _id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  _store_map: &mut StoreMap,
+  _id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  _bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let sym_name = gen_arg_name();
   let symbol = VecLang::Symbol(Symbol::from(sym_name));
@@ -902,17 +918,33 @@ unsafe fn bop_to_egg(
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let left = LLVMGetOperand(expr, 0);
   let right = LLVMGetOperand(expr, 1);
   let (v1, next_idx1) = ref_to_egg(
-    left, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    left,
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
   );
-  let (mut v2, next_idx2) =
-    ref_to_egg(right, v1, next_idx1, gep_map, store_map, id_map, symbol_map);
+  let (mut v2, next_idx2) = ref_to_egg(
+    right,
+    v1,
+    next_idx1,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
+  );
   // let mut concat = [&v1[..], &v2[..]].concat(); // https://users.rust-lang.org/t/how-to-concatenate-two-vectors/8324/3
   let ids = [
     Id::from((next_idx1 - 1) as usize),
@@ -927,13 +959,21 @@ unsafe fn unop_to_egg(
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let sub_expr = LLVMGetOperand(expr, 0);
   let (mut v, next_idx1) = ref_to_egg(
-    sub_expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    sub_expr,
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
   );
   let id = Id::from((next_idx1 - 1) as usize);
   v.push(choose_unop(&expr, id));
@@ -945,9 +985,10 @@ unsafe fn gep_to_egg(
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  _store_map: &mut store_map,
-  _id_map: &mut id_map,
-  _symbol_map: &mut symbol_map,
+  _store_map: &mut StoreMap,
+  _id_map: &mut IdMap,
+  _symbol_map: &mut SymbolMap,
+  _bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_argument(expr) || isa_gep(expr));
   // let mut enode_vec = Vec::new();
@@ -982,9 +1023,10 @@ unsafe fn address_to_egg(
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  _store_map: &mut store_map,
-  _id_map: &mut id_map,
-  _symbol_map: &mut symbol_map,
+  _store_map: &mut StoreMap,
+  _id_map: &mut IdMap,
+  _symbol_map: &mut SymbolMap,
+  _bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1017,9 +1059,10 @@ unsafe fn sitofp_to_egg(
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  _store_map: &mut store_map,
-  _id_map: &mut id_map,
-  _symbol_map: &mut symbol_map,
+  _store_map: &mut StoreMap,
+  _id_map: &mut IdMap,
+  _symbol_map: &mut SymbolMap,
+  _bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1052,22 +1095,44 @@ unsafe fn load_to_egg(
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let addr = LLVMGetOperand(expr, 0);
   if isa_argument(addr) {
     return load_arg_to_egg(
-      addr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      addr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     );
   } else if isa_gep(addr) {
     return gep_to_egg(
-      addr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      addr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     );
   } else {
     return address_to_egg(
-      addr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      addr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     );
   }
 }
@@ -1077,14 +1142,22 @@ unsafe fn store_to_egg(
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let data = LLVMGetOperand(expr, 0);
   let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator or addr in LLVM
   let (vec, next_idx1) = ref_to_egg(
-    data, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    data,
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
   );
   (*store_map).insert(next_idx1 - 1, addr);
   (*id_map).insert(Id::from((next_idx1 - 1) as usize));
@@ -1096,9 +1169,10 @@ unsafe fn const_to_egg(
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
   _gep_map: &mut GEPMap,
-  _store_map: &mut store_map,
-  _id_map: &mut id_map,
-  _symbol_map: &mut symbol_map,
+  _store_map: &mut StoreMap,
+  _id_map: &mut IdMap,
+  _symbol_map: &mut SymbolMap,
+  _bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   let value = get_constant_float(expr);
   enode_vec.push(VecLang::Num(value as i32));
@@ -1110,9 +1184,10 @@ unsafe fn load_arg_to_egg(
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  _store_map: &mut store_map,
-  _id_map: &mut id_map,
-  _symbol_map: &mut symbol_map,
+  _store_map: &mut StoreMap,
+  _id_map: &mut IdMap,
+  _symbol_map: &mut SymbolMap,
+  _bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_argument(expr) || isa_gep(expr));
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
@@ -1145,11 +1220,24 @@ unsafe fn load_call_to_egg(
   expr: LLVMValueRef,
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
-  _gep_map: &mut GEPMap,
-  _store_map: &mut store_map,
-  _id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  gep_map: &mut GEPMap,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
+  if isa_sqrt32(expr) {
+    return sqrt32_to_egg(
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
+    );
+  }
   let call_sym_name = gen_call_name();
   let call_sym = VecLang::Symbol(Symbol::from(call_sym_name));
   symbol_map.insert(call_sym.clone(), expr);
@@ -1162,34 +1250,64 @@ unsafe fn fpext_to_egg(
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fpext(expr));
   let operand = LLVMGetOperand(expr, 0);
   return ref_to_egg(
-    operand, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+    operand,
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
   );
 }
 
-unsafe fn sqrt_to_egg(
+unsafe fn sqrt32_to_egg(
   expr: LLVMValueRef,
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
-  assert!(check_sqrt(expr));
+  assert!(isa_sqrt32(expr));
   let operand = LLVMGetOperand(expr, 0);
-  let (mut new_enode_vec, next_idx1) = fpext_to_egg(
-    operand, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+  let (mut new_enode_vec, next_idx1) = ref_to_egg(
+    operand,
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
   );
   let sqrt_node = VecLang::Sqrt([Id::from((next_idx1 - 1) as usize)]);
   new_enode_vec.push(sqrt_node);
   return (new_enode_vec, next_idx1 + 1);
+}
+
+unsafe fn sqrt64_to_egg(
+  expr: LLVMValueRef,
+  _enode_vec: Vec<VecLang>,
+  _next_idx: i32,
+  _gep_map: &mut GEPMap,
+  _store_map: &mut StoreMap,
+  _id_map: &mut IdMap,
+  _symbol_map: &mut SymbolMap,
+  _bitcast_set: &mut BitcastSet,
+) -> (Vec<VecLang>, i32) {
+  assert!(isa_sqrt64(expr));
+  panic!("Currently, we do not handle calls to sqrt.f64 without fpext and fptrunc before and after!. This is the only 'context sensitive' instance in the dispatch matching. ")
 }
 
 unsafe fn fptrunc_to_egg(
@@ -1197,18 +1315,56 @@ unsafe fn fptrunc_to_egg(
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fptrunc(expr));
   let operand = LLVMGetOperand(expr, 0);
-  if check_sqrt(operand) {
-    return sqrt_to_egg(
-      operand, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+  if isa_sqrt64(operand) {
+    return sqrt64_to_egg(
+      operand,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     );
   }
-  panic!("TODO: Currently, only square roots are supported after fptrunc. ");
+  panic!("TODO: Currently, only square roots for f64 are supported after fptrunc. ");
+}
+
+unsafe fn bitcast_to_egg(
+  expr: LLVMValueRef,
+  enode_vec: Vec<VecLang>,
+  next_idx: i32,
+  gep_map: &mut GEPMap,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
+) -> (Vec<VecLang>, i32) {
+  assert!(isa_bitcast(expr));
+  let operand = LLVMGetOperand(expr, 0);
+  let result = ref_to_egg(
+    operand,
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
+  );
+  let last_index = result.1 - 1;
+  let last_node = &(result.0)[last_index as usize];
+  (*bitcast_set).insert(last_node.clone());
+  println!("Before bitcast");
+  println!("{:?}", last_node);
+  return result;
 }
 
 unsafe fn ref_to_egg(
@@ -1216,47 +1372,158 @@ unsafe fn ref_to_egg(
   enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
-  store_map: &mut store_map,
-  id_map: &mut id_map,
-  symbol_map: &mut symbol_map,
+  store_map: &mut StoreMap,
+  id_map: &mut IdMap,
+  symbol_map: &mut SymbolMap,
+  bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
   match match_llvm_op(&expr) {
     LLVMOpType::Bop => bop_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::Unop => unop_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::Constant => const_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::Gep => gep_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::Load => load_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::Store => store_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::Argument => arg_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::Call => load_call_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::FPTrunc => fptrunc_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
+    ),
+    LLVMOpType::FPExt => fpext_to_egg(
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
     LLVMOpType::SIToFP => sitofp_to_egg(
-      expr, enode_vec, next_idx, gep_map, store_map, id_map, symbol_map,
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
+    ),
+    LLVMOpType::Bitcast => bitcast_to_egg(
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
+    ),
+    LLVMOpType::Sqrt32 => sqrt32_to_egg(
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
+    ),
+    LLVMOpType::Sqrt64 => sqrt64_to_egg(
+      expr,
+      enode_vec,
+      next_idx,
+      gep_map,
+      store_map,
+      id_map,
+      symbol_map,
+      bitcast_set,
     ),
   }
 }
 
 unsafe fn llvm_to_egg(
   bb_vec: &[LLVMValueRef],
-) -> (RecExpr<VecLang>, GEPMap, store_map, symbol_map) {
+) -> (RecExpr<VecLang>, GEPMap, StoreMap, SymbolMap, BitcastSet) {
   let mut enode_vec = Vec::new();
   let (mut gep_map, mut store_map, mut id_map, mut symbol_map) = (
     BTreeMap::new(),
@@ -1264,6 +1531,7 @@ unsafe fn llvm_to_egg(
     BTreeSet::new(),
     BTreeMap::new(),
   );
+  let mut bitcast_set = BTreeSet::new();
   let mut next_idx = 0;
   for bop in bb_vec.iter() {
     if isa_store(*bop) {
@@ -1275,6 +1543,7 @@ unsafe fn llvm_to_egg(
         &mut store_map,
         &mut id_map,
         &mut symbol_map,
+        &mut bitcast_set,
       );
       next_idx = next_idx1;
       enode_vec = new_enode_vec;
@@ -1287,15 +1556,16 @@ unsafe fn llvm_to_egg(
   balanced_pad_vector(&mut final_vec, &mut enode_vec);
 
   let rec_expr = RecExpr::from(enode_vec);
-  (rec_expr, gep_map, store_map, symbol_map)
+  (rec_expr, gep_map, store_map, symbol_map, bitcast_set)
 }
 
 unsafe fn translate_egg(
   enode: &VecLang,
   vec: &[VecLang],
   gep_map: &GEPMap,
-  store_map: &store_map,
-  symbol_map: &symbol_map,
+  store_map: &StoreMap,
+  symbol_map: &SymbolMap,
+  bitcast_set: &BitcastSet,
   builder: LLVMBuilderRef,
   context: LLVMContextRef,
   module: LLVMModuleRef,
@@ -1313,21 +1583,21 @@ unsafe fn translate_egg(
         .expect("Symbol map lookup error: Cannot Find GEP");
       let load_value = if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
-        let new_gep = LLVMRecursiveAdd(builder, cloned_gep);
+        let new_gep = llvm_recursive_add(builder, cloned_gep);
         LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
       } else if isa_bitcast(*gep_value) {
         // TODO: DO NOT REGERATE CALLS. THESE SHOULD BE CACHED!!. e.g. a CALLOC
         let cloned_bitcast = LLVMInstructionClone(*gep_value);
-        let new_bitcast = LLVMRecursiveAdd(builder, cloned_bitcast);
+        let new_bitcast = llvm_recursive_add(builder, cloned_bitcast);
         LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
       } else if isa_sitofp(*gep_value) {
         let cloned_sitofp = LLVMInstructionClone(*gep_value);
-        let new_sitofp = LLVMRecursiveAdd(builder, cloned_sitofp);
+        let new_sitofp = llvm_recursive_add(builder, cloned_sitofp);
         new_sitofp
       } else {
         LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
       };
-      return load_value;
+      load_value
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
       let idvec = boxed_ids.to_vec();
@@ -1341,7 +1611,15 @@ unsafe fn translate_egg(
       for (idx, &eggid) in idvec.iter().enumerate() {
         let elt = &vec[usize::from(eggid)];
         let mut elt_val = translate_egg(
-          elt, vec, gep_map, store_map, symbol_map, builder, context, module,
+          elt,
+          vec,
+          gep_map,
+          store_map,
+          symbol_map,
+          bitcast_set,
+          builder,
+          context,
+          module,
         );
         // check if the elt is an int
         if isa_integertype(elt_val) {
@@ -1379,6 +1657,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1389,10 +1668,31 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
       );
+      let left = if LLVMTypeOf(left) == LLVMIntTypeInContext(context, 32) {
+        LLVMBuildBitCast(
+          builder,
+          left,
+          LLVMFloatTypeInContext(context),
+          b"\0".as_ptr() as *const _,
+        )
+      } else {
+        left
+      };
+      let right = if LLVMTypeOf(right) == LLVMIntTypeInContext(context, 32) {
+        LLVMBuildBitCast(
+          builder,
+          right,
+          LLVMFloatTypeInContext(context),
+          b"\0".as_ptr() as *const _,
+        )
+      } else {
+        right
+      };
       if isa_constfp(left)
         && !isa_constaggregatezero(left)
         && isa_constfp(right)
@@ -1403,26 +1703,25 @@ unsafe fn translate_egg(
         let new_right = build_constant_float(nright, context);
         let nleft = LLVMConstRealGetDouble(left, &mut loses_info);
         let new_left = build_constant_float(nleft, context);
-        return translate_binop(
+        translate_binop(
           enode,
           new_left,
           new_right,
           builder,
           b"\0".as_ptr() as *const _,
-        );
+        )
       } else if isa_constfp(right) && !isa_constaggregatezero(right) {
         let mut loses_info = 1;
         let n = LLVMConstRealGetDouble(right, &mut loses_info);
         let new_right = build_constant_float(n, context);
-        return translate_binop(enode, left, new_right, builder, b"\0".as_ptr() as *const _);
+        translate_binop(enode, left, new_right, builder, b"\0".as_ptr() as *const _)
       } else if isa_constfp(left) && !isa_constaggregatezero(left) {
         let mut loses_info = 1;
         let n = LLVMConstRealGetDouble(left, &mut loses_info);
         let new_left = build_constant_float(n, context);
-        return translate_binop(enode, new_left, right, builder, b"\0".as_ptr() as *const _);
+        translate_binop(enode, new_left, right, builder, b"\0".as_ptr() as *const _)
       } else {
-        let result = translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _);
-        return result;
+        translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
       }
     }
     VecLang::Concat([v1, v2]) => {
@@ -1432,6 +1731,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1442,6 +1742,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1503,6 +1804,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1513,6 +1815,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1523,6 +1826,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1544,6 +1848,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1557,6 +1862,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1576,6 +1882,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1601,6 +1908,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
+        bitcast_set,
         builder,
         context,
         module,
@@ -1617,14 +1925,15 @@ unsafe fn translate_egg(
     }
     VecLang::Ite(..) => panic!("Ite is not handled."),
   };
-  instr
+  return instr;
 }
 
 unsafe fn egg_to_llvm(
   expr: RecExpr<VecLang>,
   gep_map: &GEPMap,
-  store_map: &store_map,
-  symbol_map: &symbol_map,
+  store_map: &StoreMap,
+  symbol_map: &SymbolMap,
+  bitcast_set: &BitcastSet,
   module: LLVMModuleRef,
   context: LLVMContextRef,
   builder: LLVMBuilderRef,
@@ -1644,7 +1953,15 @@ unsafe fn egg_to_llvm(
     .last()
     .expect("No match for last element of vector of Egg Terms.");
   let vector = translate_egg(
-    last_enode, enode_vec, gep_map, store_map, symbol_map, builder, context, module,
+    last_enode,
+    enode_vec,
+    gep_map,
+    store_map,
+    symbol_map,
+    bitcast_set,
+    builder,
+    context,
+    module,
   );
 
   // Add in the Stores
@@ -1665,7 +1982,7 @@ unsafe fn egg_to_llvm(
       LLVMBuildStore(builder, extracted_value, *addr);
     } else {
       let cloned_addr = LLVMInstructionClone(*addr);
-      let new_addr = LLVMRecursiveAdd(builder, cloned_addr);
+      let new_addr = llvm_recursive_add(builder, cloned_addr);
       // LLVMReplaceAllUsesWith(*addr, new_addr);
       LLVMBuildStore(builder, extracted_value, new_addr);
     }

@@ -225,7 +225,7 @@ struct LoadStoreMovementPass : public FunctionPass {
         }
     }
 
-    virtual bool runOnFunction(Function &F) {
+    virtual bool runOnFunction(Function &F) override {
         /**
          * In this pass, we walk backwards finding the first load from the
          * bottom, and push it up as far as we can. We continue upwards,

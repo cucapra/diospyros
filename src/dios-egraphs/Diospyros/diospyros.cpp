@@ -30,7 +30,8 @@ extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
-const string SQRT_FUNCTION_NAME = "llvm.sqrt.f64";
+const string SQRT64_FUNCTION_NAME = "llvm.sqrt.f64";
+const string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
 
@@ -352,13 +353,29 @@ extern "C" bool isa_bitcast(LLVMValueRef val) {
  * True iff a value is an LLVM 	SQRT F32/LLVMValueRef
  * SQRT F32
  */
-extern "C" bool check_sqrt(LLVMValueRef val) {
+extern "C" bool isa_sqrt32(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
     if (unwrapped == NULL) {
         return false;
     }
     if (auto *op = dyn_cast<CallInst>(unwrapped)) {
-        return op->getCalledFunction()->getName() == SQRT_FUNCTION_NAME;
+        return op->getCalledFunction()->getName() == SQRT32_FUNCTION_NAME;
+    }
+    // it is not a square root nor a call
+    return false;
+}
+
+/**
+ * True iff a value is an LLVM 	SQRT F64/LLVMValueRef
+ * SQRT F64
+ */
+extern "C" bool isa_sqrt64(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    if (auto *op = dyn_cast<CallInst>(unwrapped)) {
+        return op->getCalledFunction()->getName() == SQRT64_FUNCTION_NAME;
     }
     // it is not a square root nor a call
     return false;
@@ -461,7 +478,7 @@ struct DiospyrosPass : public FunctionPass {
     static char ID;
     DiospyrosPass() : FunctionPass(ID) {}
 
-    virtual bool runOnFunction(Function &F) {
+    virtual bool runOnFunction(Function &F) override {
         // do not optimize on main function.
         if (F.getName() == "main") {
             return false;
