@@ -1392,7 +1392,14 @@ unsafe fn ref_to_egg(
   symbol_map: &mut SymbolMap,
   bitcast_set: &mut BitcastSet,
 ) -> (Vec<VecLang>, i32) {
-  match match_llvm_op(&expr) {
+  // if used_nodes.contains(&expr) {
+  //   let used_vector = used_nodes.get(&expr);
+  //   let used_vector_length = used_vector.length();
+  //   let new_vector = enode_vec.append(&mut used_vector);
+  //   used_nodes.append(expr, new_vector);
+  //   return (new_vector, next_idx + used_vector_length);
+  // }
+  let (vec, next_idx) = match match_llvm_op(&expr) {
     LLVMOpType::Bop => bop_to_egg(
       expr,
       enode_vec,
@@ -1533,7 +1540,8 @@ unsafe fn ref_to_egg(
       symbol_map,
       bitcast_set,
     ),
-  }
+  };
+  return (vec, next_idx);
 }
 
 unsafe fn llvm_to_egg(
