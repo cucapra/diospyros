@@ -387,21 +387,26 @@ unsafe fn translate_unop(
   enode: &VecLang,
   n: LLVMValueRef,
   builder: LLVMBuilderRef,
+  context: LLVMContextRef,
   module: LLVMModuleRef,
   name: *const c_char,
 ) -> LLVMValueRef {
   match enode {
     VecLang::Sgn(_) => {
-      let one = LLVMConstReal(LLVMFloatType(), 1 as f64);
-      let param_types = [LLVMFloatType(), LLVMFloatType()].as_mut_ptr();
-      let fn_type = LLVMFunctionType(LLVMFloatType(), param_types, 2, 0 as i32);
+      let one = LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64);
+      let param_types = [
+        LLVMFloatTypeInContext(context),
+        LLVMFloatTypeInContext(context),
+      ]
+      .as_mut_ptr();
+      let fn_type = LLVMFunctionType(LLVMFloatTypeInContext(context), param_types, 2, 0 as i32);
       let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
       let args = [one, n].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 2, name)
     }
     VecLang::Sqrt(_) => {
-      let param_types = [LLVMFloatType()].as_mut_ptr();
-      let fn_type = LLVMFunctionType(LLVMFloatType(), param_types, 1, 0 as i32);
+      let param_types = [LLVMFloatTypeInContext(context)].as_mut_ptr();
+      let fn_type = LLVMFunctionType(LLVMFloatTypeInContext(context), param_types, 1, 0 as i32);
       let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
       let args = [n].as_mut_ptr();
       LLVMBuildCall(builder, func, args, 1, name)
@@ -436,7 +441,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 // ) -> LLVMValueRef {
 //   match enode {
 //     VecLang::Symbol(s) => *var_map.get(s).expect("Var map lookup error"),
-//     VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
+//     VecLang::Num(n) => LLVMConstReal(LLVMFloatTypeInContext(context), *n as f64),
 //     VecLang::Get(..) => {
 //       let (array_name, array_offsets) = translate_get(enode, vec);
 //       let gep_value = gep_map
@@ -449,7 +454,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 //       let idvec_len = idvec.len();
 //       let mut zeros = Vec::new();
 //       for _ in 0..idvec_len {
-//         zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
+//         zeros.push(LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64));
 //       }
 //       let zeros_ptr = zeros.as_mut_ptr();
 //       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
@@ -460,7 +465,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 //           builder,
 //           vector,
 //           elt_val,
-//           LLVMConstInt(LLVMInt32Type(), idx as u64, 0),
+//           LLVMConstInt(LLVMIntTypeInContext(context, 32), idx as u64, 0),
 //           b"\0".as_ptr() as *const _,
 //         );
 //       }
@@ -520,7 +525,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 //       let size = v1_size + v2_size;
 //       let mut indices = Vec::new();
 //       for i in 0..size {
-//         indices.push(LLVMConstInt(LLVMInt32Type(), i as u64, 0));
+//         indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
 //       }
 //       let mask = indices.as_mut_ptr();
 //       let mask_vector = LLVMConstVector(mask, size);
@@ -609,7 +614,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 //       let vec_size = LLVMGetVectorSize(vec_type);
 //       let mut ones = Vec::new();
 //       for _ in 0..vec_size {
-//         ones.push(LLVMConstReal(LLVMFloatType(), 1 as f64));
+//         ones.push(LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64));
 //       }
 //       let ones_ptr = ones.as_mut_ptr();
 //       let ones_vector = LLVMConstVector(ones_ptr, vec_size);
@@ -655,7 +660,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 //   // we extract the correct index from the vector and
 //   // determine the store to that binary op, copy it and move it after the extraction
 //   for (i, op) in ops_to_replace.iter().enumerate() {
-//     let index = LLVMConstInt(LLVMInt32Type(), i as u64, 0);
+//     let index = LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0);
 //     let extracted_value =
 //       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
 //     // figure out where the next store is located, after the binary operation to replace.
@@ -1334,7 +1339,17 @@ unsafe fn fptrunc_to_egg(
       bitcast_set,
     );
   }
-  panic!("TODO: Currently, only square roots for f64 are supported after fptrunc. ");
+  return ref_to_egg(
+    operand,
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    bitcast_set,
+  );
+  // panic!("TODO: Currently, only square roots for f64 are supported after fptrunc. ");
 }
 
 unsafe fn bitcast_to_egg(
@@ -1574,7 +1589,7 @@ unsafe fn translate_egg(
     VecLang::Symbol(_) => *symbol_map
       .get(enode)
       .expect("Symbol Should Exist in Symbol Map."),
-    VecLang::Num(n) => LLVMConstReal(LLVMFloatType(), *n as f64),
+    VecLang::Num(n) => LLVMConstReal(LLVMFloatTypeInContext(context), *n as f64),
     // VecLang::Num(n) => build_constant_float(*n as f64, context),
     VecLang::Get(..) => {
       let (array_name, array_offsets) = translate_get(enode, vec);
@@ -1604,7 +1619,7 @@ unsafe fn translate_egg(
       let idvec_len = idvec.len();
       let mut zeros = Vec::new();
       for _ in 0..idvec_len {
-        zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
+        zeros.push(LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64));
       }
       let zeros_ptr = zeros.as_mut_ptr();
       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
@@ -1634,7 +1649,7 @@ unsafe fn translate_egg(
           builder,
           vector,
           elt_val,
-          LLVMConstInt(LLVMInt32Type(), idx as u64, 0),
+          LLVMConstInt(LLVMIntTypeInContext(context, 32), idx as u64, 0),
           b"\0".as_ptr() as *const _,
         );
       }
@@ -1763,14 +1778,14 @@ unsafe fn translate_egg(
         // replicate v2 size
         let mut zeros = Vec::new();
         for _ in 0..v2_size {
-          zeros.push(LLVMConstReal(LLVMFloatType(), 0 as f64));
+          zeros.push(LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64));
         }
         let zeros_ptr = zeros.as_mut_ptr();
         let zeros_vector = LLVMConstVector(zeros_ptr, v2_size);
         let size = 2 * v2_size;
         let mut indices = Vec::new();
         for i in 0..size {
-          indices.push(LLVMConstInt(LLVMInt32Type(), i as u64, 0));
+          indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
         }
         let mask = indices.as_mut_ptr();
         let mask_vector = LLVMConstVector(mask, size);
@@ -1785,7 +1800,7 @@ unsafe fn translate_egg(
       let size = v1_size + v2_size;
       let mut indices = Vec::new();
       for i in 0..size {
-        indices.push(LLVMConstInt(LLVMInt32Type(), i as u64, 0));
+        indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
       }
       let mask = indices.as_mut_ptr();
       let mask_vector = LLVMConstVector(mask, size);
@@ -1891,7 +1906,7 @@ unsafe fn translate_egg(
       let vec_size = LLVMGetVectorSize(vec_type);
       let mut ones = Vec::new();
       for _ in 0..vec_size {
-        ones.push(LLVMConstReal(LLVMFloatType(), 1 as f64));
+        ones.push(LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64));
       }
       let ones_ptr = ones.as_mut_ptr();
       let ones_vector = LLVMConstVector(ones_ptr, vec_size);
@@ -1921,7 +1936,14 @@ unsafe fn translate_egg(
           b"\0".as_ptr() as *const _,
         )
       }
-      translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
+      translate_unop(
+        enode,
+        number,
+        builder,
+        context,
+        module,
+        b"\0".as_ptr() as *const _,
+      )
     }
     VecLang::Ite(..) => panic!("Ite is not handled."),
   };
@@ -1966,7 +1988,7 @@ unsafe fn egg_to_llvm(
 
   // Add in the Stores
   for (i, (_, addr)) in store_map.iter().enumerate() {
-    let index = LLVMConstInt(LLVMInt32Type(), i as u64, 0);
+    let index = LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0);
     let mut extracted_value =
       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
     // check if the extracted type is an float and the address is a int ptr
