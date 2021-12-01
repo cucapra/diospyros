@@ -4,8 +4,8 @@
 
 void vsqrt(float a_in[SIZE], float b_out[SIZE], float c_out[SIZE]) {
     for (int i = 0; i < SIZE; i++) {
-        b_out[i] = sqrt(a_in[i]);
-        c_out[i] = sqrt(a_in[i]);
+        b_out[i] = sqrtf(a_in[i]);
+        c_out[i] = sqrtf(a_in[i]);
     }
 }
 
