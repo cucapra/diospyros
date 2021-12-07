@@ -24,9 +24,11 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
-                         LLVMBuilderRef builder, LLVMValueRef const *bb,
-                         std::size_t size);
+extern "C" std::vector<LLVMValueRef> optimize(LLVMModuleRef mod,
+                                              LLVMContextRef context,
+                                              LLVMBuilderRef builder,
+                                              LLVMValueRef const *bb,
+                                              std::size_t size);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
@@ -531,8 +533,12 @@ struct DiospyrosPass : public FunctionPass {
             }
             vectorization_accumulator.push_back(inner_vector);
 
+            // Acquire each of the instructions in the "run" that terminates at
+            // a store We will send these instructions to optimize.
+
             int vec_length = vectorization_accumulator.size();
             int counter = 0;
+            std::vector<LLVMValueRef> translated_exprs = {};
             for (auto &vec : vectorization_accumulator) {
                 ++counter;
                 if (not vec.empty()) {
@@ -546,8 +552,21 @@ struct DiospyrosPass : public FunctionPass {
                     builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
                     LLVMContext &context = F.getContext();
-                    optimize(wrap(mod), wrap(&context), wrap(&builder),
-                             vec.data(), vec.size());
+                    std::vector<LLVMValueRef> new_translated_exprs =
+                        optimize(wrap(mod), wrap(&context), wrap(&builder),
+                                 vec.data(), vec.size());
+                    std::vector<LLVMValueRef> concat = {};
+                    concat.reserve(
+                        translated_exprs.size() +
+                        new_translated_exprs.size());  // preallocate memory
+                    concat.insert(concat.end(), translated_exprs.begin(),
+                                  translated_exprs.end());
+                    concat.insert(concat.end(), new_translated_exprs.begin(),
+                                  new_translated_exprs.end());
+                    translated_exprs = concat;
+                }
+                for (auto e : translated_exprs) {
+                    errs() << e << "\n";
                 }
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());

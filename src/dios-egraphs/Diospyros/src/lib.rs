@@ -48,7 +48,6 @@ extern "C" {
 // GEPMap : Maps the array name and array offset as symbols to the GEP
 // LLVM Value Ref that LLVM Generated
 type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
-type BitcastSet = BTreeSet<VecLang>;
 // VarMap : Maps a symbol to a llvm value ref representing a variable
 // type VarMap = BTreeMap<Symbol, LLVMValueRef>;
 // // BopMap : Maps a binary oeprator llvm value ref to an ID, indicating a
@@ -688,11 +687,14 @@ pub fn optimize(
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
   size: size_t,
-) -> () {
+) -> *mut LLVMValueRef {
   unsafe {
     // llvm to egg
     let llvm_instrs = from_raw_parts(bb, size);
-    let (expr, gep_map, store_map, symbol_map, bitcast_set) = llvm_to_egg(llvm_instrs);
+    let translated_exprs: &mut Vec<LLVMValueRef> = &mut Vec::new();
+    let (expr, gep_map, store_map, symbol_map, translated_exprs) =
+      llvm_to_egg(llvm_instrs, translated_exprs);
+
     // let (expr, gep_map, var_map, ops_to_replace) = to_expr(
     //   from_raw_parts(bb, size),
     //   from_raw_parts(operand_types, size),
@@ -709,12 +711,14 @@ pub fn optimize(
       &gep_map,
       &store_map,
       &symbol_map,
-      &bitcast_set,
+      &translated_exprs,
       module,
       context,
       builder,
     );
     // to_llvm(module, best, &GEPMap, &var_map, &ops_to_replace, builder);
+
+    return translated_exprs.clone().as_mut_ptr();
   }
 }
 
@@ -909,7 +913,7 @@ unsafe fn arg_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  _bitcast_set: &mut BitcastSet,
+  _translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let sym_name = gen_arg_name();
   let symbol = VecLang::Symbol(Symbol::from(sym_name));
@@ -926,7 +930,7 @@ unsafe fn bop_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let left = LLVMGetOperand(expr, 0);
   let right = LLVMGetOperand(expr, 1);
@@ -938,7 +942,7 @@ unsafe fn bop_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
   let (mut v2, next_idx2) = ref_to_egg(
     right,
@@ -948,7 +952,7 @@ unsafe fn bop_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
   // let mut concat = [&v1[..], &v2[..]].concat(); // https://users.rust-lang.org/t/how-to-concatenate-two-vectors/8324/3
   let ids = [
@@ -967,7 +971,7 @@ unsafe fn unop_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let sub_expr = LLVMGetOperand(expr, 0);
   let (mut v, next_idx1) = ref_to_egg(
@@ -978,7 +982,7 @@ unsafe fn unop_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
   let id = Id::from((next_idx1 - 1) as usize);
   v.push(choose_unop(&expr, id));
@@ -993,7 +997,7 @@ unsafe fn gep_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _bitcast_set: &mut BitcastSet,
+  _translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_argument(expr) || isa_gep(expr));
   // let mut enode_vec = Vec::new();
@@ -1031,7 +1035,7 @@ unsafe fn address_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _bitcast_set: &mut BitcastSet,
+  _translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1067,7 +1071,7 @@ unsafe fn sitofp_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _bitcast_set: &mut BitcastSet,
+  _translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1103,7 +1107,7 @@ unsafe fn load_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let addr = LLVMGetOperand(expr, 0);
   if isa_argument(addr) {
@@ -1115,7 +1119,7 @@ unsafe fn load_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     );
   } else if isa_gep(addr) {
     return gep_to_egg(
@@ -1126,7 +1130,7 @@ unsafe fn load_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     );
   } else {
     return address_to_egg(
@@ -1137,7 +1141,7 @@ unsafe fn load_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     );
   }
 }
@@ -1150,7 +1154,7 @@ unsafe fn store_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let data = LLVMGetOperand(expr, 0);
   let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator or addr in LLVM
@@ -1162,7 +1166,7 @@ unsafe fn store_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
   (*store_map).insert(next_idx1 - 1, addr);
   (*id_map).insert(Id::from((next_idx1 - 1) as usize));
@@ -1177,7 +1181,7 @@ unsafe fn const_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _bitcast_set: &mut BitcastSet,
+  _translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   let value = get_constant_float(expr);
   enode_vec.push(VecLang::Num(value as i32));
@@ -1192,7 +1196,7 @@ unsafe fn load_arg_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _bitcast_set: &mut BitcastSet,
+  _translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_argument(expr) || isa_gep(expr));
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
@@ -1229,7 +1233,7 @@ unsafe fn load_call_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   if isa_sqrt32(expr) {
     return sqrt32_to_egg(
@@ -1240,7 +1244,7 @@ unsafe fn load_call_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     );
   }
   let call_sym_name = gen_call_name();
@@ -1258,7 +1262,7 @@ unsafe fn fpext_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fpext(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1270,7 +1274,7 @@ unsafe fn fpext_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
 }
 
@@ -1282,7 +1286,7 @@ unsafe fn sqrt32_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_sqrt32(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1294,7 +1298,7 @@ unsafe fn sqrt32_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
   let sqrt_node = VecLang::Sqrt([Id::from((next_idx1 - 1) as usize)]);
   new_enode_vec.push(sqrt_node);
@@ -1309,7 +1313,7 @@ unsafe fn sqrt64_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _bitcast_set: &mut BitcastSet,
+  _translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_sqrt64(expr));
   panic!("Currently, we do not handle calls to sqrt.f64 without fpext and fptrunc before and after!. This is the only 'context sensitive' instance in the dispatch matching. ")
@@ -1323,7 +1327,7 @@ unsafe fn fptrunc_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fptrunc(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1336,7 +1340,7 @@ unsafe fn fptrunc_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     );
   }
   return ref_to_egg(
@@ -1347,7 +1351,7 @@ unsafe fn fptrunc_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
   // panic!("TODO: Currently, only square roots for f64 are supported after fptrunc. ");
 }
@@ -1360,7 +1364,7 @@ unsafe fn bitcast_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_bitcast(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1372,13 +1376,8 @@ unsafe fn bitcast_to_egg(
     store_map,
     id_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
   );
-  let last_index = result.1 - 1;
-  let last_node = &(result.0)[last_index as usize];
-  (*bitcast_set).insert(last_node.clone());
-  println!("Before bitcast");
-  println!("{:?}", last_node);
   return result;
 }
 
@@ -1390,7 +1389,7 @@ unsafe fn ref_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  bitcast_set: &mut BitcastSet,
+  translated_exprs: &mut Vec<LLVMValueRef>,
 ) -> (Vec<VecLang>, i32) {
   // if used_nodes.contains(&expr) {
   //   let used_vector = used_nodes.get(&expr);
@@ -1399,6 +1398,7 @@ unsafe fn ref_to_egg(
   //   used_nodes.append(expr, new_vector);
   //   return (new_vector, next_idx + used_vector_length);
   // }
+  if translated_exprs.contains(&expr) {}
   let (vec, next_idx) = match match_llvm_op(&expr) {
     LLVMOpType::Bop => bop_to_egg(
       expr,
@@ -1408,7 +1408,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Unop => unop_to_egg(
       expr,
@@ -1418,7 +1418,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Constant => const_to_egg(
       expr,
@@ -1428,7 +1428,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Gep => gep_to_egg(
       expr,
@@ -1438,7 +1438,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Load => load_to_egg(
       expr,
@@ -1448,7 +1448,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Store => store_to_egg(
       expr,
@@ -1458,7 +1458,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Argument => arg_to_egg(
       expr,
@@ -1468,7 +1468,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Call => load_call_to_egg(
       expr,
@@ -1478,7 +1478,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::FPTrunc => fptrunc_to_egg(
       expr,
@@ -1488,7 +1488,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::FPExt => fpext_to_egg(
       expr,
@@ -1498,7 +1498,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::SIToFP => sitofp_to_egg(
       expr,
@@ -1508,7 +1508,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Bitcast => bitcast_to_egg(
       expr,
@@ -1518,7 +1518,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Sqrt32 => sqrt32_to_egg(
       expr,
@@ -1528,7 +1528,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
     LLVMOpType::Sqrt64 => sqrt64_to_egg(
       expr,
@@ -1538,7 +1538,7 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      bitcast_set,
+      translated_exprs,
     ),
   };
   return (vec, next_idx);
@@ -1546,7 +1546,14 @@ unsafe fn ref_to_egg(
 
 unsafe fn llvm_to_egg(
   bb_vec: &[LLVMValueRef],
-) -> (RecExpr<VecLang>, GEPMap, StoreMap, SymbolMap, BitcastSet) {
+  translated_exprs: &mut Vec<LLVMValueRef>,
+) -> (
+  RecExpr<VecLang>,
+  GEPMap,
+  StoreMap,
+  SymbolMap,
+  Vec<LLVMValueRef>,
+) {
   let mut enode_vec = Vec::new();
   let (mut gep_map, mut store_map, mut id_map, mut symbol_map) = (
     BTreeMap::new(),
@@ -1554,7 +1561,6 @@ unsafe fn llvm_to_egg(
     BTreeSet::new(),
     BTreeMap::new(),
   );
-  let mut bitcast_set = BTreeSet::new();
   let mut next_idx = 0;
   for bop in bb_vec.iter() {
     if isa_store(*bop) {
@@ -1566,7 +1572,7 @@ unsafe fn llvm_to_egg(
         &mut store_map,
         &mut id_map,
         &mut symbol_map,
-        &mut bitcast_set,
+        translated_exprs,
       );
       next_idx = next_idx1;
       enode_vec = new_enode_vec;
@@ -1579,7 +1585,13 @@ unsafe fn llvm_to_egg(
   balanced_pad_vector(&mut final_vec, &mut enode_vec);
 
   let rec_expr = RecExpr::from(enode_vec);
-  (rec_expr, gep_map, store_map, symbol_map, bitcast_set)
+  (
+    rec_expr,
+    gep_map,
+    store_map,
+    symbol_map,
+    translated_exprs.to_vec(),
+  )
 }
 
 unsafe fn translate_egg(
@@ -1588,7 +1600,7 @@ unsafe fn translate_egg(
   gep_map: &GEPMap,
   store_map: &StoreMap,
   symbol_map: &SymbolMap,
-  bitcast_set: &BitcastSet,
+  translated_exprs: &Vec<LLVMValueRef>,
   builder: LLVMBuilderRef,
   context: LLVMContextRef,
   module: LLVMModuleRef,
@@ -1639,7 +1651,7 @@ unsafe fn translate_egg(
           gep_map,
           store_map,
           symbol_map,
-          bitcast_set,
+          translated_exprs,
           builder,
           context,
           module,
@@ -1680,7 +1692,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1691,7 +1703,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1754,7 +1766,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1765,7 +1777,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1827,7 +1839,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1838,7 +1850,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1849,7 +1861,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1871,7 +1883,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1885,7 +1897,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1905,7 +1917,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1931,7 +1943,7 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        bitcast_set,
+        translated_exprs,
         builder,
         context,
         module,
@@ -1963,7 +1975,7 @@ unsafe fn egg_to_llvm(
   gep_map: &GEPMap,
   store_map: &StoreMap,
   symbol_map: &SymbolMap,
-  bitcast_set: &BitcastSet,
+  translated_exprs: &Vec<LLVMValueRef>,
   module: LLVMModuleRef,
   context: LLVMContextRef,
   builder: LLVMBuilderRef,
@@ -1988,7 +2000,7 @@ unsafe fn egg_to_llvm(
     gep_map,
     store_map,
     symbol_map,
-    bitcast_set,
+    translated_exprs,
     builder,
     context,
     module,
