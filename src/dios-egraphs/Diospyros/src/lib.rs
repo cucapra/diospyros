@@ -10,6 +10,7 @@ use std::{
   os::raw::c_char,
   slice::from_raw_parts,
 };
+use std::mem;
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
@@ -680,6 +681,13 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 
 /// Main function to optimize: Takes in a basic block of instructions,
 /// optimizes it, and then translates it to LLVM IR code, in place.
+
+#[repr(C)]
+pub struct VectorPointerSize {
+  vec_pointer: *const LLVMValueRef,
+  size: size_t,
+}
+
 #[no_mangle]
 pub fn optimize(
   module: LLVMModuleRef,
@@ -687,7 +695,7 @@ pub fn optimize(
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
   size: size_t,
-) -> *mut LLVMValueRef {
+) -> VectorPointerSize {
   unsafe {
     // llvm to egg
     let llvm_instrs = from_raw_parts(bb, size);
@@ -718,7 +726,12 @@ pub fn optimize(
     );
     // to_llvm(module, best, &GEPMap, &var_map, &ops_to_replace, builder);
 
-    return translated_exprs.clone().as_mut_ptr();
+    // https://stackoverflow.com/questions/39224904/how-to-expose-a-rust-vect-to-ffi
+    let mut boxed_slice: Box<[LLVMValueRef]> = translated_exprs.into_boxed_slice();
+    let array: *mut LLVMValueRef = boxed_slice.as_mut_ptr();
+    let array_len: usize = boxed_slice.len();
+    mem::forget(boxed_slice);
+    return VectorPointerSize {vec_pointer:array, size:array_len,}
   }
 }
 
@@ -1398,7 +1411,8 @@ unsafe fn ref_to_egg(
   //   used_nodes.append(expr, new_vector);
   //   return (new_vector, next_idx + used_vector_length);
   // }
-  if translated_exprs.contains(&expr) {}
+  _llvm_print(expr);
+  translated_exprs.push(expr);
   let (vec, next_idx) = match match_llvm_op(&expr) {
     LLVMOpType::Bop => bop_to_egg(
       expr,

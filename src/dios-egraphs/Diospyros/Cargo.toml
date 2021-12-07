@@ -15,11 +15,9 @@ clap = "2.33.2"
 lexpr = "0.2.5"
 llvm-sys = { version = "110", features = ["no-llvm-linking"] }
 libc = "0.2.98"
-cxx = "1.0"
 
 [build-dependencies]
 cc = "1.0"
-cxx-build = "1.0"
 
 [lib]
 name = "llvmlib"
