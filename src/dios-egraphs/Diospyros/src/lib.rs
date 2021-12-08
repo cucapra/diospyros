@@ -3,11 +3,11 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
-use std::mem;
 use std::{
   cmp,
   collections::{BTreeMap, BTreeSet},
   ffi::CStr,
+  mem,
   os::raw::c_char,
   slice::from_raw_parts,
 };
@@ -64,6 +64,7 @@ type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
 // static mut SYMBOL_IDX: i32 = 0;
 static mut ARG_IDX: i32 = 0;
 static mut CALL_IDX: i32 = 0;
+static mut NODE_IDX: u32 = 0;
 
 // unsafe fn gen_symbol_name() -> String {
 //   SYMBOL_IDX += 1;
@@ -71,6 +72,11 @@ static mut CALL_IDX: i32 = 0;
 //   let result = format!("{}{}", string, SYMBOL_IDX.to_string());
 //   result
 // }
+
+unsafe fn gen_node_idx() -> u32 {
+  NODE_IDX += 1;
+  return NODE_IDX;
+}
 
 unsafe fn gen_arg_name() -> String {
   ARG_IDX += 1;
@@ -684,7 +690,7 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 
 #[repr(C)]
 pub struct IntLLVMPair {
-  node_int: i32,
+  node_int: u32,
   arg: LLVMValueRef,
 }
 
@@ -696,8 +702,8 @@ pub struct LLVMPair {
 
 #[repr(C)]
 pub struct VectorPointerSize {
-  vec_pointer: *const LLVMValueRef,
-  size: size_t,
+  llvm_pointer: *const LLVMPair,
+  llvm_pointer_size: size_t,
 }
 
 #[no_mangle]
@@ -707,24 +713,24 @@ pub fn optimize(
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
   size: size_t,
-  past_instrs: *const LLVMValueRef,
+  past_instrs: *const LLVMPair,
   past_size: size_t,
 ) -> VectorPointerSize {
   unsafe {
     // llvm to egg
     let llvm_instrs = from_raw_parts(bb, size);
     let past_llvm_instrs = from_raw_parts(past_instrs, past_size);
-    let mut translated_exprs = Vec::new();
-    for instr in past_llvm_instrs {
-      translated_exprs.push(*instr);
+    let mut llvm_arg_pairs = Vec::new();
+    for instr_pair in past_llvm_instrs {
+      let new_instr_pair = LLVMPair {
+        original_value: instr_pair.original_value,
+        new_value: instr_pair.new_value,
+      };
+      llvm_arg_pairs.push(new_instr_pair);
     }
-    let (expr, gep_map, store_map, symbol_map, translated_exprs) =
-      llvm_to_egg(llvm_instrs, &mut translated_exprs);
-
-    // let (expr, gep_map, var_map, ops_to_replace) = to_expr(
-    //   from_raw_parts(bb, size),
-    //   from_raw_parts(operand_types, size),
-    // );
+    let mut node_to_arg = Vec::new();
+    let (expr, gep_map, store_map, symbol_map) =
+      llvm_to_egg(llvm_instrs, &mut llvm_arg_pairs, &mut node_to_arg);
 
     // optimization pass
     eprintln!("{}", expr.pretty(10));
@@ -737,21 +743,28 @@ pub fn optimize(
       &gep_map,
       &store_map,
       &symbol_map,
-      &translated_exprs,
+      &mut llvm_arg_pairs, // does this work properly?, IDK? Need to return mut value
+      &node_to_arg,
       module,
       context,
       builder,
     );
-    // to_llvm(module, best, &GEPMap, &var_map, &ops_to_replace, builder);
+
+    let mut final_llvm_arg_pairs = Vec::new();
+    for pair in llvm_arg_pairs {
+      final_llvm_arg_pairs.push(pair);
+    }
 
     // https://stackoverflow.com/questions/39224904/how-to-expose-a-rust-vect-to-ffi
-    let mut boxed_slice: Box<[LLVMValueRef]> = translated_exprs.into_boxed_slice();
-    let array: *mut LLVMValueRef = boxed_slice.as_mut_ptr();
-    let array_len: usize = boxed_slice.len();
-    mem::forget(boxed_slice);
+    let mut llvm_arg_pairs_boxed_slice: Box<[LLVMPair]> = final_llvm_arg_pairs.into_boxed_slice();
+    let llvm_arg_pairs_array: *mut LLVMPair = llvm_arg_pairs_boxed_slice.as_mut_ptr();
+    let llvm_arg_pairs_array_len: usize = llvm_arg_pairs_boxed_slice.len();
+    mem::forget(llvm_arg_pairs_boxed_slice);
+
+    // TODO: FIX THIS
     return VectorPointerSize {
-      vec_pointer: array,
-      size: array_len,
+      llvm_pointer: llvm_arg_pairs_array,
+      llvm_pointer_size: llvm_arg_pairs_array_len,
     };
   }
 }
@@ -947,7 +960,8 @@ unsafe fn arg_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  _translated_exprs: &mut Vec<LLVMValueRef>,
+  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let sym_name = gen_arg_name();
   let symbol = VecLang::Symbol(Symbol::from(sym_name));
@@ -964,7 +978,8 @@ unsafe fn bop_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let left = LLVMGetOperand(expr, 0);
   let right = LLVMGetOperand(expr, 1);
@@ -976,7 +991,8 @@ unsafe fn bop_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
   let (mut v2, next_idx2) = ref_to_egg(
     right,
@@ -986,7 +1002,8 @@ unsafe fn bop_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
   // let mut concat = [&v1[..], &v2[..]].concat(); // https://users.rust-lang.org/t/how-to-concatenate-two-vectors/8324/3
   let ids = [
@@ -1005,7 +1022,8 @@ unsafe fn unop_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let sub_expr = LLVMGetOperand(expr, 0);
   let (mut v, next_idx1) = ref_to_egg(
@@ -1016,7 +1034,8 @@ unsafe fn unop_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
   let id = Id::from((next_idx1 - 1) as usize);
   v.push(choose_unop(&expr, id));
@@ -1031,9 +1050,10 @@ unsafe fn gep_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _translated_exprs: &mut Vec<LLVMValueRef>,
+  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
-  assert!(isa_argument(expr) || isa_gep(expr));
+  assert!(isa_argument(expr) || isa_gep(expr) || isa_load(expr));
   // let mut enode_vec = Vec::new();
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1069,7 +1089,8 @@ unsafe fn address_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _translated_exprs: &mut Vec<LLVMValueRef>,
+  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1105,7 +1126,8 @@ unsafe fn sitofp_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _translated_exprs: &mut Vec<LLVMValueRef>,
+  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1141,7 +1163,8 @@ unsafe fn load_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let addr = LLVMGetOperand(expr, 0);
   if isa_argument(addr) {
@@ -1153,18 +1176,20 @@ unsafe fn load_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     );
   } else if isa_gep(addr) {
     return gep_to_egg(
-      addr,
+      expr, // we pass the entire instruction and not just the address
       enode_vec,
       next_idx,
       gep_map,
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     );
   } else {
     return address_to_egg(
@@ -1175,7 +1200,8 @@ unsafe fn load_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     );
   }
 }
@@ -1188,7 +1214,8 @@ unsafe fn store_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let data = LLVMGetOperand(expr, 0);
   let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator or addr in LLVM
@@ -1200,7 +1227,8 @@ unsafe fn store_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
   (*store_map).insert(next_idx1 - 1, addr);
   (*id_map).insert(Id::from((next_idx1 - 1) as usize));
@@ -1215,7 +1243,8 @@ unsafe fn const_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _translated_exprs: &mut Vec<LLVMValueRef>,
+  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let value = get_constant_float(expr);
   enode_vec.push(VecLang::Num(value as i32));
@@ -1230,7 +1259,8 @@ unsafe fn load_arg_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _translated_exprs: &mut Vec<LLVMValueRef>,
+  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_argument(expr) || isa_gep(expr));
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
@@ -1267,7 +1297,8 @@ unsafe fn load_call_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   if isa_sqrt32(expr) {
     return sqrt32_to_egg(
@@ -1278,7 +1309,8 @@ unsafe fn load_call_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     );
   }
   let call_sym_name = gen_call_name();
@@ -1296,7 +1328,8 @@ unsafe fn fpext_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fpext(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1308,7 +1341,8 @@ unsafe fn fpext_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
 }
 
@@ -1320,7 +1354,8 @@ unsafe fn sqrt32_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_sqrt32(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1332,7 +1367,8 @@ unsafe fn sqrt32_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
   let sqrt_node = VecLang::Sqrt([Id::from((next_idx1 - 1) as usize)]);
   new_enode_vec.push(sqrt_node);
@@ -1347,7 +1383,8 @@ unsafe fn sqrt64_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _translated_exprs: &mut Vec<LLVMValueRef>,
+  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_sqrt64(expr));
   panic!("Currently, we do not handle calls to sqrt.f64 without fpext and fptrunc before and after!. This is the only 'context sensitive' instance in the dispatch matching. ")
@@ -1361,7 +1398,8 @@ unsafe fn fptrunc_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fptrunc(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1374,7 +1412,8 @@ unsafe fn fptrunc_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     );
   }
   return ref_to_egg(
@@ -1385,7 +1424,8 @@ unsafe fn fptrunc_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
   // panic!("TODO: Currently, only square roots for f64 are supported after fptrunc. ");
 }
@@ -1398,7 +1438,8 @@ unsafe fn bitcast_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_bitcast(expr));
   let operand = LLVMGetOperand(expr, 0);
@@ -1410,32 +1451,38 @@ unsafe fn bitcast_to_egg(
     store_map,
     id_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg,
   );
   return result;
 }
 
 unsafe fn ref_to_egg(
   expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
+  mut enode_vec: Vec<VecLang>,
   next_idx: i32,
   gep_map: &mut GEPMap,
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  translated_exprs: &mut Vec<LLVMValueRef>,
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
-  // if used_nodes.contains(&expr) {
-  //   let used_vector = used_nodes.get(&expr);
-  //   let used_vector_length = used_vector.length();
-  //   let new_vector = enode_vec.append(&mut used_vector);
-  //   used_nodes.append(expr, new_vector);
-  //   return (new_vector, next_idx + used_vector_length);
-  // }
-  if translated_exprs.contains(&expr) {
-    return (enode_vec, next_idx);
+  for pair in llvm_arg_pairs {
+    if pair.original_value == expr {
+      // Here we create a new numbered variable node
+      let var_idx = gen_node_idx();
+      let var_idx_str = var_idx.to_string();
+      let special_var_node = VecLang::Symbol(Symbol::from(var_idx_str));
+      enode_vec.push(special_var_node);
+      let node_to_arg_pair = IntLLVMPair {
+        arg: expr,
+        node_int: var_idx,
+      };
+      node_to_arg.push(node_to_arg_pair);
+      return (enode_vec, next_idx + 1);
+    }
   }
-  translated_exprs.push(expr);
   let (vec, next_idx) = match match_llvm_op(&expr) {
     LLVMOpType::Bop => bop_to_egg(
       expr,
@@ -1445,7 +1492,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Unop => unop_to_egg(
       expr,
@@ -1455,7 +1503,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Constant => const_to_egg(
       expr,
@@ -1465,7 +1514,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Gep => gep_to_egg(
       expr,
@@ -1475,7 +1525,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Load => load_to_egg(
       expr,
@@ -1485,7 +1536,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Store => store_to_egg(
       expr,
@@ -1495,7 +1547,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Argument => arg_to_egg(
       expr,
@@ -1505,7 +1558,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Call => load_call_to_egg(
       expr,
@@ -1515,7 +1569,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::FPTrunc => fptrunc_to_egg(
       expr,
@@ -1525,7 +1580,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::FPExt => fpext_to_egg(
       expr,
@@ -1535,7 +1591,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::SIToFP => sitofp_to_egg(
       expr,
@@ -1545,7 +1602,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Bitcast => bitcast_to_egg(
       expr,
@@ -1555,7 +1613,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Sqrt32 => sqrt32_to_egg(
       expr,
@@ -1565,7 +1624,8 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
     LLVMOpType::Sqrt64 => sqrt64_to_egg(
       expr,
@@ -1575,22 +1635,18 @@ unsafe fn ref_to_egg(
       store_map,
       id_map,
       symbol_map,
-      translated_exprs,
+      llvm_arg_pairs,
+      node_to_arg,
     ),
   };
   return (vec, next_idx);
 }
 
-unsafe fn llvm_to_egg(
+unsafe fn llvm_to_egg<'a>(
   bb_vec: &[LLVMValueRef],
-  translated_exprs: &mut Vec<LLVMValueRef>,
-) -> (
-  RecExpr<VecLang>,
-  GEPMap,
-  StoreMap,
-  SymbolMap,
-  Vec<LLVMValueRef>,
-) {
+  llvm_arg_pairs: &Vec<LLVMPair>,
+  node_to_arg: &mut Vec<IntLLVMPair>,
+) -> (RecExpr<VecLang>, GEPMap, StoreMap, SymbolMap) {
   let mut enode_vec = Vec::new();
   let (mut gep_map, mut store_map, mut id_map, mut symbol_map) = (
     BTreeMap::new(),
@@ -1609,7 +1665,8 @@ unsafe fn llvm_to_egg(
         &mut store_map,
         &mut id_map,
         &mut symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg,
       );
       next_idx = next_idx1;
       enode_vec = new_enode_vec;
@@ -1622,13 +1679,7 @@ unsafe fn llvm_to_egg(
   balanced_pad_vector(&mut final_vec, &mut enode_vec);
 
   let rec_expr = RecExpr::from(enode_vec);
-  (
-    rec_expr,
-    gep_map,
-    store_map,
-    symbol_map,
-    translated_exprs.to_vec(),
-  )
+  (rec_expr, gep_map, store_map, symbol_map)
 }
 
 unsafe fn translate_egg(
@@ -1637,15 +1688,54 @@ unsafe fn translate_egg(
   gep_map: &GEPMap,
   store_map: &StoreMap,
   symbol_map: &SymbolMap,
-  translated_exprs: &Vec<LLVMValueRef>,
+  llvm_arg_pairs: &mut Vec<LLVMPair>,
+  node_to_arg_pair: &Vec<IntLLVMPair>,
   builder: LLVMBuilderRef,
   context: LLVMContextRef,
   module: LLVMModuleRef,
 ) -> LLVMValueRef {
   let instr = match enode {
-    VecLang::Symbol(_) => *symbol_map
-      .get(enode)
-      .expect("Symbol Should Exist in Symbol Map."),
+    VecLang::Symbol(symbol) => {
+      match symbol_map.get(enode) {
+        Some(llvm_instr) => *llvm_instr,
+        None => {
+          let mut matched = false;
+          let mut ret_value = LLVMBuildAdd(
+            builder,
+            LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64),
+            LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64),
+            b"nop\0".as_ptr() as *const _,
+          );
+          for node_arg_pair in node_to_arg_pair {
+            let llvm_node = node_arg_pair.arg;
+            let node_index = node_arg_pair.node_int;
+            let string_node_index = node_index.to_string();
+            if string_node_index.parse::<Symbol>().unwrap() == *symbol {
+              for llvm_pair in &mut *llvm_arg_pairs {
+                let original_llvm = llvm_pair.original_value;
+                let new_llvm = llvm_pair.new_value;
+                if original_llvm == llvm_node {
+                  matched = true;
+                  ret_value = new_llvm;
+                  break;
+                }
+              }
+            }
+            if matched {
+              break;
+            }
+          }
+          if matched {
+            ret_value
+          } else {
+            panic!("No Match in Node Arg Pair List.")
+          }
+        }
+      }
+      // *symbol_map
+      // .get(enode)
+      // .expect("Symbol Should Exist in Symbol Map.")
+    }
     VecLang::Num(n) => LLVMConstReal(LLVMFloatTypeInContext(context), *n as f64),
     // VecLang::Num(n) => build_constant_float(*n as f64, context),
     VecLang::Get(..) => {
@@ -1653,7 +1743,18 @@ unsafe fn translate_egg(
       let gep_value = gep_map
         .get(&(array_name, array_offsets))
         .expect("Symbol map lookup error: Cannot Find GEP");
-      let load_value = if isa_gep(*gep_value) {
+      let load_value = if isa_load(*gep_value) {
+        let addr = LLVMGetOperand(*gep_value, 0);
+        let cloned_gep = LLVMInstructionClone(addr);
+        let new_gep = llvm_recursive_add(builder, cloned_gep);
+        let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
+        let llvm_pair = LLVMPair {
+          original_value: *gep_value,
+          new_value: new_load,
+        };
+        llvm_arg_pairs.push(llvm_pair);
+        new_load
+      } else if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
         let new_gep = llvm_recursive_add(builder, cloned_gep);
         LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
@@ -1688,7 +1789,8 @@ unsafe fn translate_egg(
           gep_map,
           store_map,
           symbol_map,
-          translated_exprs,
+          llvm_arg_pairs,
+          node_to_arg_pair,
           builder,
           context,
           module,
@@ -1729,7 +1831,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1740,7 +1843,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1803,7 +1907,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1814,7 +1919,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1876,7 +1982,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1887,7 +1994,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1898,7 +2006,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1920,7 +2029,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1934,7 +2044,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1954,7 +2065,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -1980,7 +2092,8 @@ unsafe fn translate_egg(
         gep_map,
         store_map,
         symbol_map,
-        translated_exprs,
+        llvm_arg_pairs,
+        node_to_arg_pair,
         builder,
         context,
         module,
@@ -2012,7 +2125,8 @@ unsafe fn egg_to_llvm(
   gep_map: &GEPMap,
   store_map: &StoreMap,
   symbol_map: &SymbolMap,
-  translated_exprs: &Vec<LLVMValueRef>,
+  llvm_arg_pairs: &mut Vec<LLVMPair>,
+  node_to_arg_pair: &Vec<IntLLVMPair>,
   module: LLVMModuleRef,
   context: LLVMContextRef,
   builder: LLVMBuilderRef,
@@ -2037,7 +2151,8 @@ unsafe fn egg_to_llvm(
     gep_map,
     store_map,
     symbol_map,
-    translated_exprs,
+    llvm_arg_pairs,
+    node_to_arg_pair,
     builder,
     context,
     module,

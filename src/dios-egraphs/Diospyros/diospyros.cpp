@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <llvm-c/Core.h>
 
+#include <cstdint>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -24,20 +25,25 @@
 using namespace llvm;
 using namespace std;
 
+typedef struct IntLLVMPair {
+    uint32_t node_int;
+    LLVMValueRef arg;
+} IntLLVMPair;
+
 typedef struct LLVMPair {
     LLVMValueRef original_value;
     LLVMValueRef new_value;
-} Pair;
+} LLVMPair;
 
 typedef struct VectorPointerSize {
-    LLVMValueRef const *vec_pointer;
-    std::size_t size;
+    LLVMPair const *llvm_pointer;
+    std::size_t llvm_pointer_size;
 } VectorPointerSize;
 
 extern "C" VectorPointerSize optimize(LLVMModuleRef mod, LLVMContextRef context,
                                       LLVMBuilderRef builder,
                                       LLVMValueRef const *bb, std::size_t size,
-                                      LLVMValueRef const *past_instrs,
+                                      LLVMPair const *past_instrs,
                                       std::size_t past_size);
 
 const string ARRAY_NAME = "no-array-name";
@@ -548,7 +554,7 @@ struct DiospyrosPass : public FunctionPass {
 
             int vec_length = vectorization_accumulator.size();
             int counter = 0;
-            std::vector<LLVMValueRef> translated_exprs = {};
+            std::vector<LLVMPair> translated_exprs = {};
             for (auto &vec : vectorization_accumulator) {
                 ++counter;
                 if (not vec.empty()) {
@@ -566,9 +572,9 @@ struct DiospyrosPass : public FunctionPass {
                         wrap(mod), wrap(&context), wrap(&builder), vec.data(),
                         vec.size(), translated_exprs.data(),
                         translated_exprs.size());
-                    int size = pair.size;
+                    int size = pair.llvm_pointer_size;
 
-                    LLVMValueRef const *expr_array = pair.vec_pointer;
+                    LLVMPair const *expr_array = pair.llvm_pointer;
                     translated_exprs = {};
                     for (int i = 0; i < size; i++) {
                         translated_exprs.push_back(expr_array[i]);
