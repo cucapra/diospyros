@@ -20,10 +20,10 @@ int main(int argc, char **argv) {
     printf("second: %f\n", d_out[1]);
     printf("third: %f\n", d_out[2]);
     printf("fourth: %f\n", d_out[3]);
-    assert(c_out[0] == 6);
-    assert(c_out[1] == 8);
-    assert(c_out[2] == 10);
-    assert(c_out[3] == 12);
+    assert(d_out[0] == 15);
+    assert(d_out[1] == 18);
+    assert(d_out[2] == 21);
+    assert(d_out[3] == 24);
     // expected: 6, 8, 10, 12
     return 0;
 }
