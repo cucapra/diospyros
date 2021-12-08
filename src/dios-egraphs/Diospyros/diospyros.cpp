@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <llvm-c/Core.h>
 
+#include <cstdint>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -24,13 +25,31 @@
 using namespace llvm;
 using namespace std;
 
-extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
-                         LLVMBuilderRef builder, LLVMValueRef const *bb,
-                         std::size_t size);
+typedef struct IntLLVMPair {
+    uint32_t node_int;
+    LLVMValueRef arg;
+} IntLLVMPair;
+
+typedef struct LLVMPair {
+    LLVMValueRef original_value;
+    LLVMValueRef new_value;
+} LLVMPair;
+
+typedef struct VectorPointerSize {
+    LLVMPair const *llvm_pointer;
+    std::size_t llvm_pointer_size;
+} VectorPointerSize;
+
+extern "C" VectorPointerSize optimize(LLVMModuleRef mod, LLVMContextRef context,
+                                      LLVMBuilderRef builder,
+                                      LLVMValueRef const *bb, std::size_t size,
+                                      LLVMPair const *past_instrs,
+                                      std::size_t past_size);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
-const string SQRT_FUNCTION_NAME = "llvm.sqrt.f64";
+const string SQRT64_FUNCTION_NAME = "llvm.sqrt.f64";
+const string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
 
@@ -352,13 +371,29 @@ extern "C" bool isa_bitcast(LLVMValueRef val) {
  * True iff a value is an LLVM 	SQRT F32/LLVMValueRef
  * SQRT F32
  */
-extern "C" bool check_sqrt(LLVMValueRef val) {
+extern "C" bool isa_sqrt32(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
     if (unwrapped == NULL) {
         return false;
     }
     if (auto *op = dyn_cast<CallInst>(unwrapped)) {
-        return op->getCalledFunction()->getName() == SQRT_FUNCTION_NAME;
+        return op->getCalledFunction()->getName() == SQRT32_FUNCTION_NAME;
+    }
+    // it is not a square root nor a call
+    return false;
+}
+
+/**
+ * True iff a value is an LLVM 	SQRT F64/LLVMValueRef
+ * SQRT F64
+ */
+extern "C" bool isa_sqrt64(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    if (auto *op = dyn_cast<CallInst>(unwrapped)) {
+        return op->getCalledFunction()->getName() == SQRT64_FUNCTION_NAME;
     }
     // it is not a square root nor a call
     return false;
@@ -461,7 +496,7 @@ struct DiospyrosPass : public FunctionPass {
     static char ID;
     DiospyrosPass() : FunctionPass(ID) {}
 
-    virtual bool runOnFunction(Function &F) {
+    virtual bool runOnFunction(Function &F) override {
         // do not optimize on main function.
         if (F.getName() == "main") {
             return false;
@@ -514,8 +549,12 @@ struct DiospyrosPass : public FunctionPass {
             }
             vectorization_accumulator.push_back(inner_vector);
 
+            // Acquire each of the instructions in the "run" that terminates at
+            // a store We will send these instructions to optimize.
+
             int vec_length = vectorization_accumulator.size();
             int counter = 0;
+            std::vector<LLVMPair> translated_exprs = {};
             for (auto &vec : vectorization_accumulator) {
                 ++counter;
                 if (not vec.empty()) {
@@ -529,8 +568,17 @@ struct DiospyrosPass : public FunctionPass {
                     builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
                     LLVMContext &context = F.getContext();
-                    optimize(wrap(mod), wrap(&context), wrap(&builder),
-                             vec.data(), vec.size());
+                    VectorPointerSize pair = optimize(
+                        wrap(mod), wrap(&context), wrap(&builder), vec.data(),
+                        vec.size(), translated_exprs.data(),
+                        translated_exprs.size());
+                    int size = pair.llvm_pointer_size;
+
+                    LLVMPair const *expr_array = pair.llvm_pointer;
+                    translated_exprs = {};
+                    for (int i = 0; i < size; i++) {
+                        translated_exprs.push_back(expr_array[i]);
+                    }
                 }
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());

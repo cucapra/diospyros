@@ -68,9 +68,19 @@ struct LoadStoreMovementPass : public FunctionPass {
                             if (curr_instr->isTerminator()) {
                                 ++current_counter;
                                 break;
+                            } else if (auto *other_store_op =
+                                           dyn_cast<StoreInst>(curr_instr)) {
+                                if (AA->isNoAlias(
+                                        store_op->getOperand(1),
+                                        other_store_op->getOperand(1))) {
+                                    --current_counter;
+                                } else {
+                                    break;
+                                }
                             } else if (auto *load_op =
                                            dyn_cast<LoadInst>(curr_instr)) {
-                                if (AA->isNoAlias(store_op, load_op)) {
+                                if (AA->isNoAlias(store_op->getOperand(1),
+                                                  load_op->getOperand(0))) {
                                     --current_counter;
                                 } else {
                                     break;
@@ -156,9 +166,22 @@ struct LoadStoreMovementPass : public FunctionPass {
                                 if (auto *op = dyn_cast<AllocaInst>(&I)) {
                                     ++current_counter;
                                     break;
-                                } else if (auto *store_op = dyn_cast<StoreInst>(
-                                               curr_instr)) {
-                                    if (AA->isNoAlias(store_op, load_op)) {
+                                }
+                                // else if (auto *other_load_op =
+                                //                dyn_cast<LoadInst>(curr_instr))
+                                //                {
+                                //     if (AA->isNoAlias(
+                                //             other_load_op->getOperand(0),
+                                //             load_op->getOperand(0))) {
+                                //         --current_counter;
+                                //     } else {
+                                //         break;
+                                //     }
+                                // }
+                                else if (auto *store_op =
+                                             dyn_cast<StoreInst>(curr_instr)) {
+                                    if (AA->isNoAlias(store_op->getOperand(1),
+                                                      load_op->getOperand(0))) {
                                         --current_counter;
                                     } else {
                                         break;
@@ -225,7 +248,7 @@ struct LoadStoreMovementPass : public FunctionPass {
         }
     }
 
-    virtual bool runOnFunction(Function &F) {
+    virtual bool runOnFunction(Function &F) override {
         /**
          * In this pass, we walk backwards finding the first load from the
          * bottom, and push it up as far as we can. We continue upwards,

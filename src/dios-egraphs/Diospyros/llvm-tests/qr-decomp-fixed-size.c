@@ -20,7 +20,7 @@ float naive_norm(float *x, int m) {
     for (int i = 0; i < m; i++) {
         sum += pow(x[i], 2);
     }
-    return sqrt(sum);
+    return sqrtf(sum);
 }
 
 // Naive with fixed size
@@ -83,7 +83,7 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
         float *q_min = (float *)calloc(sizeof(float), m * m);
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < m; j++) {
-                float q_min_i = ((i == j) ? 1.0 : 0.0) - 2 * v[i] * v[j];
+                float q_min_i = ((i == j) ? 1.0f : 0.0f) - 2 * v[i] * v[j];
                 q_min[i * m + j] = q_min_i;
             }
         }
@@ -93,7 +93,7 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
             for (int j = 0; j < SIZE; j++) {
                 float q_t_i;
                 if ((i < k) || (j < k)) {
-                    q_t_i = (i == j) ? 1.0 : 0.0;
+                    q_t_i = (i == j) ? 1.0f : 0.0f;
                 } else {
                     q_t_i = q_min[(i - k) * m + (j - k)];
                 }
