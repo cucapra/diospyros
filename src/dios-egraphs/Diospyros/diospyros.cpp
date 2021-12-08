@@ -24,6 +24,11 @@
 using namespace llvm;
 using namespace std;
 
+typedef struct LLVMPair {
+    LLVMValueRef original_value;
+    LLVMValueRef new_value;
+} Pair;
+
 typedef struct VectorPointerSize {
     LLVMValueRef const *vec_pointer;
     std::size_t size;
@@ -31,7 +36,9 @@ typedef struct VectorPointerSize {
 
 extern "C" VectorPointerSize optimize(LLVMModuleRef mod, LLVMContextRef context,
                                       LLVMBuilderRef builder,
-                                      LLVMValueRef const *bb, std::size_t size);
+                                      LLVMValueRef const *bb, std::size_t size,
+                                      LLVMValueRef const *past_instrs,
+                                      std::size_t past_size);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
@@ -555,30 +562,17 @@ struct DiospyrosPass : public FunctionPass {
                     builder.SetInsertPoint(&B);
                     Module *mod = F.getParent();
                     LLVMContext &context = F.getContext();
-                    // std::vector<LLVMValueRef> new_translated_exprs =
-                    VectorPointerSize pair =
-                        optimize(wrap(mod), wrap(&context), wrap(&builder),
-                                 vec.data(), vec.size());
+                    VectorPointerSize pair = optimize(
+                        wrap(mod), wrap(&context), wrap(&builder), vec.data(),
+                        vec.size(), translated_exprs.data(),
+                        translated_exprs.size());
                     int size = pair.size;
-                    errs() << "length\n";
-                    errs() << size << "\n";
+
                     LLVMValueRef const *expr_array = pair.vec_pointer;
+                    translated_exprs = {};
                     for (int i = 0; i < size; i++) {
-                        errs() << "element " << i << "\n";
-                        errs() << *unwrap(expr_array[i]) << "\n";
+                        translated_exprs.push_back(expr_array[i]);
                     }
-                    // std::vector<LLVMValueRef> concat = {};
-                    // concat.reserve(
-                    //     translated_exprs.size() +
-                    //     new_translated_exprs.size());  // preallocate memory
-                    // concat.insert(concat.end(), translated_exprs.begin(),
-                    //               translated_exprs.end());
-                    // concat.insert(concat.end(), new_translated_exprs.begin(),
-                    //               new_translated_exprs.end());
-                    // translated_exprs = concat;
-                }
-                for (auto e : translated_exprs) {
-                    errs() << e << "\n";
                 }
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());

@@ -3,6 +3,7 @@ use dioslib::{config, rules, veclang::VecLang};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
+use std::mem;
 use std::{
   cmp,
   collections::{BTreeMap, BTreeSet},
@@ -10,7 +11,6 @@ use std::{
   os::raw::c_char,
   slice::from_raw_parts,
 };
-use std::mem;
 
 extern "C" {
   fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
@@ -683,6 +683,18 @@ unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol
 /// optimizes it, and then translates it to LLVM IR code, in place.
 
 #[repr(C)]
+pub struct IntLLVMPair {
+  node_int: i32,
+  arg: LLVMValueRef,
+}
+
+#[repr(C)]
+pub struct LLVMPair {
+  original_value: LLVMValueRef,
+  new_value: LLVMValueRef,
+}
+
+#[repr(C)]
 pub struct VectorPointerSize {
   vec_pointer: *const LLVMValueRef,
   size: size_t,
@@ -695,13 +707,19 @@ pub fn optimize(
   builder: LLVMBuilderRef,
   bb: *const LLVMValueRef,
   size: size_t,
+  past_instrs: *const LLVMValueRef,
+  past_size: size_t,
 ) -> VectorPointerSize {
   unsafe {
     // llvm to egg
     let llvm_instrs = from_raw_parts(bb, size);
-    let translated_exprs: &mut Vec<LLVMValueRef> = &mut Vec::new();
+    let past_llvm_instrs = from_raw_parts(past_instrs, past_size);
+    let mut translated_exprs = Vec::new();
+    for instr in past_llvm_instrs {
+      translated_exprs.push(*instr);
+    }
     let (expr, gep_map, store_map, symbol_map, translated_exprs) =
-      llvm_to_egg(llvm_instrs, translated_exprs);
+      llvm_to_egg(llvm_instrs, &mut translated_exprs);
 
     // let (expr, gep_map, var_map, ops_to_replace) = to_expr(
     //   from_raw_parts(bb, size),
@@ -731,7 +749,10 @@ pub fn optimize(
     let array: *mut LLVMValueRef = boxed_slice.as_mut_ptr();
     let array_len: usize = boxed_slice.len();
     mem::forget(boxed_slice);
-    return VectorPointerSize {vec_pointer:array, size:array_len,}
+    return VectorPointerSize {
+      vec_pointer: array,
+      size: array_len,
+    };
   }
 }
 
@@ -1411,7 +1432,9 @@ unsafe fn ref_to_egg(
   //   used_nodes.append(expr, new_vector);
   //   return (new_vector, next_idx + used_vector_length);
   // }
-  _llvm_print(expr);
+  if translated_exprs.contains(&expr) {
+    return (enode_vec, next_idx);
+  }
   translated_exprs.push(expr);
   let (vec, next_idx) = match match_llvm_op(&expr) {
     LLVMOpType::Bop => bop_to_egg(
