@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 
 #define I_ROWS 2
 #define I_COLS 2
@@ -39,13 +40,21 @@ void load_use_twice(float mat_in[I_ROWS][I_COLS], float f_in[F_ROWS][F_COLS],
 int main(void) {
     float mat_in[I_ROWS][I_COLS] = {{1, 2}, {3, 4}};
     float f_in[F_ROWS][F_COLS] = {{1, 1}, {1, 1}};
-    float mat_out[O_ROWS][O_COLS] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    float mat_out1[O_ROWS][O_COLS] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
     float mat_out2[O_ROWS][O_COLS] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
-    load_use_twice(mat_in, f_in, mat_out, mat_out2);
+    load_use_twice(mat_in, f_in, mat_out1, mat_out2);
     for (int i = 0; i < O_ROWS; i++) {
         for (int j = 0; j < O_COLS; j++) {
-            printf("output: %f\n", mat_out[i][j]);
+            printf("output: %f\n", mat_out1[i][j]);
             printf("output: %f\n", mat_out2[i][j]);
+        }
+    }
+    float output1[O_ROWS][O_COLS] = {{-1, 1, 2}, {4, 14, 10}, {5, 13, 8}};
+    float output2[O_ROWS][O_COLS] = {{3, 8, 5}, {10, 24, 14}, {7, 16, 9}};
+    for (int i = 0; i < O_ROWS; i++) {
+        for (int j = 0; j < O_COLS; j++) {
+            assert(output1[i][j] == mat_out1[i][j]);
+            assert(output2[i][j] == mat_out2[i][j]);
         }
     }
 // output: -1.000000
@@ -54,12 +63,14 @@ int main(void) {
 // output: 8.000000
 // output: 2.000000
 // output: 5.000000
+
 // output: 4.000000
 // output: 10.000000
 // output: 14.000000
 // output: 24.000000
 // output: 10.000000
 // output: 14.000000
+
 // output: 5.000000
 // output: 7.000000
 // output: 13.000000

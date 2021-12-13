@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 
 #define I_ROWS 2
 #define I_COLS 2
@@ -37,9 +38,11 @@ int main(void) {
     float f_in[F_ROWS][F_COLS] = {{1, 1}, {1, 1}};
     float mat_out[O_ROWS][O_COLS] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
     convolution(mat_in, f_in, mat_out);
+    float expected[O_ROWS][O_COLS] = {{1, 3, 2}, {4, 10, 6}, {3, 7, 4}};
     for (int i = 0; i < O_ROWS; i++) {
         for (int j = 0; j < O_COLS; j++) {
             printf("output: %f\n", mat_out[i][j]);
+            assert(mat_out[i][j] == expected[i][j]);
         }
     }
     // output: 1.000000
