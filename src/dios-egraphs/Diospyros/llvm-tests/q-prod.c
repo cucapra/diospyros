@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define SIZE 4
 
@@ -58,10 +59,14 @@ int main(void) {
     float r_q[SIZE] = {0, 0, 0, 0};
     float r_t[SIZE] = {0, 0, 0, 0};
     naive_quaternion_product(a_q, a_t, b_q, b_t, r_q, r_t);
+    float expectedq[SIZE] = {0, 0, 0, 0};
     for (int i = 0; i < SIZE; i++) {
         printf("%f\n", r_q[i]);
+        assert(expectedq[i] == r_q[i]);
     }
+    float expectedt[SIZE] = {2, 4, 6, 0};
     for (int i = 0; i < SIZE; i++) {
         printf("%f\n", r_t[i]);
+        assert(expectedt[i] == r_t[i]);
     }
 }

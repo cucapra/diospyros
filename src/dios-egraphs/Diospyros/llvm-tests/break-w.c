@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 #define SIZE 8
 
 void break_w_test(float a_in[SIZE], float scalar_in, float b_out[SIZE]) {
@@ -16,8 +17,10 @@ int main(void) {
     float scalar_in = 10;
     float b_out[SIZE] = {0, 0, 0, 0, 0, 0, 0, 0};
     break_w_test(a_in, scalar_in, b_out);
+    float expected[SIZE] = {10, 0, 0, 0, 50, 40, 30, 20};
     for (int i = 0; i < SIZE; i++) {
         printf("%f\n", b_out[i]);
+        assert(expected[i] == b_out[i]);
     }
     // 10.000000
     // 0.000000

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
@@ -18,7 +19,7 @@ float sgn(float v) { return (v > 0) - (v < 0); }
 float naive_norm(float *x, int m) {
     float sum = 0;
     for (int i = 0; i < m; i++) {
-        sum += pow(x[i], 2);
+        sum += x[i] * x[i];
     }
     return sqrtf(sum);
 }
@@ -77,7 +78,7 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
         }
         float norm_u = naive_norm(u, m);
         for (int i = 0; i < m; i++) {
-            v[i] = u[i] / norm_u;
+            v[i] = u[i] / (norm_u + 0.00001f);
         }
 
         float *q_min = (float *)calloc(sizeof(float), m * m);
@@ -126,21 +127,36 @@ int main(void) {
     float Q[SIZE * SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     float R[SIZE * SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     naive_fixed_qr_decomp(A, Q, R);
+    float expectedQ[SIZE * SIZE] = {
+        1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+    };
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
-            printf("%f\n", A[i * SIZE + j]);
+            printf("Q Output: %f\n", Q[i * SIZE + j]);
         }
     }
-    // naive_fixed_matrix_multiply(A, Q, R);
-    // for (int i = 0; i < SIZE; i++) {
-    //     for (int j = 0; j < SIZE; j++) {
-    //         printf("%f\n", A[i * SIZE + j]);
-    //     }
-    // }
-    // naive_fixed_transpose(A);
-    // for (int i = 0; i < SIZE; i++) {
-    //     for (int j = 0; j < SIZE; j++) {
-    //         printf("%f\n", A[i * SIZE + j]);
-    //     }
-    // }
+    float expectedR[SIZE * SIZE] = {
+        1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+    };
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            printf("R Output: %f\n", R[i * SIZE + j]);
+        }
+    }
+    // 1.000000
+    // 2.000000
+    // 3.000000
+    // 4.000000
+    // 1.000000
+    // 2.000000
+    // 3.000000
+    // 4.000000
+    // 1.000000
+    // 2.000000
+    // 3.000000
+    // 4.000000
+    // 1.000000
+    // 2.000000
+    // 3.000000
+    // 4.000000
 }

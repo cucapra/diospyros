@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #define ROWS 3
 #define COLS 3
@@ -28,8 +29,10 @@ int main(void) {
     float c_in[ROWS * COLS] = {9, 8, 7, 6, 5, 4, 3, 2, 1};
     float d_out[ROWS * COLS] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
     multimatrix_multiply(a_in, b_in, c_in, d_out);
+    float expected[ROWS * COLS] = {160, 200, 240, 100, 125, 150, 40, 50, 60};
     for (int i = 0; i < ROWS * COLS; i++) {
         printf("output: %f\n", d_out[i]);
+        assert(expected[i] == d_out[i]);
     }
     // output: 160.000000
     // output: 200.000000

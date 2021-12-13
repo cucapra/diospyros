@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 
 void cross_product(float lhs[3], float rhs[3], float result[3])
@@ -38,7 +39,9 @@ int main(void) {
     float p_in[4] = {0, 1, 2, 3};
     float result_out[4] = {0, 0, 0, 0};
     point_product(q_in, p_in, result_out);
-    for (int i = 0; i < 3; i++) {
+    float expected[4] = {0, 1, 2, 0};
+    for (int i = 0; i < 4; i++) {
         printf("%f\n", result_out[i]);
+        assert(expected[i] == result_out[i]);
     }
 }
