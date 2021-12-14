@@ -44,7 +44,8 @@ extern "C" VectorPointerSize optimize(LLVMModuleRef mod, LLVMContextRef context,
                                       LLVMBuilderRef builder,
                                       LLVMValueRef const *bb, std::size_t size,
                                       LLVMPair const *past_instrs,
-                                      std::size_t past_size);
+                                      std::size_t past_size,
+                                      bool run_egg);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
@@ -571,7 +572,7 @@ struct DiospyrosPass : public FunctionPass {
                     VectorPointerSize pair = optimize(
                         wrap(mod), wrap(&context), wrap(&builder), vec.data(),
                         vec.size(), translated_exprs.data(),
-                        translated_exprs.size());
+                        translated_exprs.size(), true);
                     int size = pair.llvm_pointer_size;
 
                     LLVMPair const *expr_array = pair.llvm_pointer;

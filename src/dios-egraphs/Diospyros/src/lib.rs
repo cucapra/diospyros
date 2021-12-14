@@ -715,6 +715,7 @@ pub fn optimize(
   size: size_t,
   past_instrs: *const LLVMPair,
   past_size: size_t,
+  run_egg: bool,
 ) -> VectorPointerSize {
   unsafe {
     // llvm to egg
@@ -732,14 +733,19 @@ pub fn optimize(
     let (expr, gep_map, store_map, symbol_map) =
       llvm_to_egg(llvm_instrs, &mut llvm_arg_pairs, &mut node_to_arg);
 
-    // optimization pass
-    eprintln!("{}", expr.pretty(10));
-    let (_, best) = rules::run(&expr, 180, true, false);
-    eprintln!("{}", best.pretty(10));
+    let mut result = expr.clone();
+    if run_egg {
+      // optimization pass
+      eprintln!("{}", expr.pretty(10));
+      let (_, best) = rules::run(&expr, 180, true, false);
+      eprintln!("{}", best.pretty(10));
+
+      result = best;
+    }
 
     // egg to llvm
     egg_to_llvm(
-      best,
+      result,
       &gep_map,
       &store_map,
       &symbol_map,
