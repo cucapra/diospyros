@@ -58,6 +58,14 @@ target/debug/libllvmlib.$(EXT): $(LIB)
 
 set-up-mac: 
 	$(SETUP)
+
+clean-ll:
+	rm *.ll
+
+clean-tmp:
+	rm *.tmp
  
 clean:
 	rm -rf target
+	rm *.ll
+	rm *.tmp
