@@ -8,7 +8,7 @@
 #define A_COLS 75
 #define B_COLS 75
 #define MAX_FLOAT 100.00f
-#define DELTA 0.00001f
+#define DELTA 0.1f
 
 void matrix_multiply(float a_in[A_ROWS][A_COLS], float b_in[A_COLS][B_COLS],
                      float c_out[A_ROWS][B_COLS]) {
