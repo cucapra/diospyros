@@ -716,6 +716,7 @@ pub fn optimize(
   past_instrs: *const LLVMPair,
   past_size: size_t,
   run_egg: bool,
+  print_opt: bool,
 ) -> VectorPointerSize {
   unsafe {
     // llvm to egg
@@ -736,9 +737,13 @@ pub fn optimize(
     let mut result = expr.clone();
     if run_egg {
       // optimization pass
-      eprintln!("{}", expr.pretty(10));
+      if print_opt {
+        eprintln!("{}", expr.pretty(10));
+      }
       let (_, best) = rules::run(&expr, 180, true, false);
-      eprintln!("{}", best.pretty(10));
+      if print_opt {
+        eprintln!("{}", best.pretty(10));
+      }
 
       result = best;
     }

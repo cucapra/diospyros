@@ -17,6 +17,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar/LoopUnrollPass.h"
@@ -24,6 +25,18 @@
 
 using namespace llvm;
 using namespace std;
+
+int main(int argc, char **argv) {
+    llvm::cl::ParseCommandLineOptions(argc, argv);
+}
+
+llvm::cl::opt<bool> RunOpt("r", llvm::cl::desc("Enable Egg Optimization."));
+llvm::cl::alias RunOptAlias("opt", llvm::cl::desc("Alias for -r"),
+                            llvm::cl::aliasopt(RunOpt));
+
+llvm::cl::opt<bool> PrintOpt("p", llvm::cl::desc("Print Egg Optimization."));
+llvm::cl::alias PrintOptAlias("print", llvm::cl::desc("Alias for -p"),
+                              llvm::cl::aliasopt(PrintOpt));
 
 typedef struct IntLLVMPair {
     uint32_t node_int;
@@ -44,8 +57,8 @@ extern "C" VectorPointerSize optimize(LLVMModuleRef mod, LLVMContextRef context,
                                       LLVMBuilderRef builder,
                                       LLVMValueRef const *bb, std::size_t size,
                                       LLVMPair const *past_instrs,
-                                      std::size_t past_size,
-                                      bool run_egg);
+                                      std::size_t past_size, bool run_egg,
+                                      bool print_opt);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
@@ -572,7 +585,7 @@ struct DiospyrosPass : public FunctionPass {
                     VectorPointerSize pair = optimize(
                         wrap(mod), wrap(&context), wrap(&builder), vec.data(),
                         vec.size(), translated_exprs.data(),
-                        translated_exprs.size(), true);
+                        translated_exprs.size(), RunOpt, PrintOpt);
                     int size = pair.llvm_pointer_size;
 
                     LLVMPair const *expr_array = pair.llvm_pointer;

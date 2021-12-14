@@ -45,7 +45,25 @@ run-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
 	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce clang.ll -o opt.ll
 	opt -S --cfl-steens-aa opt.ll -o aa.ll
-	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) aa.ll -o diospyros.ll
+	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt -mllvm -print=false aa.ll -o diospyros.ll
+	opt -S --adce --dse diospyros.ll -o dce.ll
+	$(CLANG) dce.ll
+	./a.out
+
+print-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
+	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce clang.ll -o opt.ll
+	opt -S --cfl-steens-aa opt.ll -o aa.ll
+	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt -mllvm -print=true aa.ll -o diospyros.ll
+	opt -S --adce --dse diospyros.ll -o dce.ll
+	$(CLANG) dce.ll
+	./a.out
+
+no-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
+	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce clang.ll -o opt.ll
+	opt -S --cfl-steens-aa opt.ll -o aa.ll
+	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt=false -mllvm -print=false aa.ll -o diospyros.ll
 	opt -S --adce --dse diospyros.ll -o dce.ll
 	$(CLANG) dce.ll
 	./a.out
