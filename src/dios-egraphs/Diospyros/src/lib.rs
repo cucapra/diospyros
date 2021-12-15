@@ -734,23 +734,18 @@ pub fn optimize(
     let (expr, gep_map, store_map, symbol_map) =
       llvm_to_egg(llvm_instrs, &mut llvm_arg_pairs, &mut node_to_arg);
 
-    let mut result = expr.clone();
-    if run_egg {
-      // optimization pass
-      if print_opt {
-        eprintln!("{}", expr.pretty(10));
-      }
-      let (_, best) = rules::run(&expr, 180, true, false);
-      if print_opt {
-        eprintln!("{}", best.pretty(10));
-      }
-
-      result = best;
+    // optimization pass
+    if print_opt {
+      eprintln!("{}", expr.pretty(10));
+    }
+    let (_, best) = rules::run(&expr, 180, true, !run_egg);
+    if print_opt {
+      eprintln!("{}", best.pretty(10));
     }
 
     // egg to llvm
     egg_to_llvm(
-      result,
+      best,
       &gep_map,
       &store_map,
       &symbol_map,
