@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #define SIZE 8
 
@@ -15,4 +16,12 @@ int main(void) {
     for (int i = 0; i < SIZE; i++) {
         printf("%f\n", b_in[i]);
     }
+    assert(b_in[0] == 10);
+    assert(b_in[1] == 20);
+    assert(b_in[2] == 30);
+    assert(b_in[3] == 40);
+    assert(b_in[4] == 50);
+    assert(b_in[5] == 60);
+    assert(b_in[6] == 70);
+    assert(b_in[7] == 80);
 }

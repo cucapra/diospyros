@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #define SIZE 8
 
@@ -18,6 +19,14 @@ int main(int argc, char **argv) {
     for (int i = 0; i < SIZE; i++) {
         printf("%f\n", b_out[i]);
     }
+    assert(b_out[0] == 1);
+    assert(b_out[1] == 2);
+    assert(b_out[2] == 3);
+    assert(b_out[3] == 4);
+    assert(b_out[4] == 6);
+    assert(b_out[5] == 7);
+    assert(b_out[6] == 8);
+    assert(b_out[7] == 9);
     // expected: 1, 2, 3, 4, 6, 7, 8, 9
     return 0;
 }

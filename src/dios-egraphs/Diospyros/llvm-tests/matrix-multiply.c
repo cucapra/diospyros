@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 
 #define A_ROWS 2
@@ -26,6 +27,10 @@ int main(void) {
     printf("second: %f\n", c_out[1]);
     printf("third: %f\n", c_out[2]);
     printf("fourth: %f\n", c_out[3]);
+    assert(c_out[0] == 7);
+    assert(c_out[1] == 10);
+    assert(c_out[2] == 15);
+    assert(c_out[3] == 22);
     // expected (7, 10, 15, 22)
     return 0;
 }

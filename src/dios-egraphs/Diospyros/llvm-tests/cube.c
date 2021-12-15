@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #define SIZE 8
@@ -14,6 +15,14 @@ int main(void) {
     for (int i = 0; i < SIZE; i++) {
         printf("%f\n", b_out[i]);
     }
+    assert(b_out[0] == 729);
+    assert(b_out[1] == 512);
+    assert(b_out[2] == 343);
+    assert(b_out[3] == 216);
+    assert(b_out[4] == 125);
+    assert(b_out[5] == 64);
+    assert(b_out[6] == 27);
+    assert(b_out[7] == 8);
     // 729.000000
     // 512.000000
     // 343.000000
