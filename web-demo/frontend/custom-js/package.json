@@ -9,7 +9,7 @@
   "dependencies": {
     "brace": "^0.11.1",
     "browserify": "^16.5.0",
-    "markdown-it": "^10.0.0"
+    "markdown-it": "^12.3.2"
   },
   "scripts": {
     "build": "./node_modules/.bin/browserify index.js -o bundle.js && cp bundle.js ../static/js"
