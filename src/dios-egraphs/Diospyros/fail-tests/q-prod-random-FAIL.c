@@ -105,11 +105,11 @@ int main(void) {
         expectedt[i] += a_t[i];
     }
     for (int i = 0; i < SIZE; i++) {
-        printf("Calculated r: %f\n", r_q[i]);
-        printf("Expected r: %f\n", expectedq[i]);
+        printf("Calculated q: %f\n", r_q[i]);
+        printf("Expected q: %f\n", expectedq[i]);
         assert(fabs(expectedq[i] - r_q[i]) < DELTA);
     }
-    for (int i = 0; i < SIZE; i++) {
+    for (int i = 0; i < 3; i++) {
         printf("Calculated t: %f\n", r_t[i]);
         printf("Expected t: %f\n", expectedt[i]);
         assert(fabs(expectedt[i] - r_t[i]) < DELTA);

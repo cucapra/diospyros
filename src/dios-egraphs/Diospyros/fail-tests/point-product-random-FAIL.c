@@ -82,7 +82,7 @@ int main(void) {
     for (int i = 0; i < 3; i++) {
         expected[i] = p_in[i] + q_in[3] * uv[i] + qxuv[i];
     }
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
         printf("Calculated: %f\n", result_out[i]);
         printf("Expected: %f\n", expected[i]);
         assert(fabs(expected[i] - result_out[i]) < DELTA);
