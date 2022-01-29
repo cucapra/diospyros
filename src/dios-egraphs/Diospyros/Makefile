@@ -68,10 +68,6 @@ no-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 	$(CLANG) build/dce.ll -o build/final
 	build/final
 
-test-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone $(test) | opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce | opt -S --cfl-steens-aa | $(CLANG) -x ir -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt -mllvm -print=false - | opt -S --adce --dse | $(CLANG) -x ir -o build/final -
-	build/final
-
 test: set-up-mac runt.sh runt.toml target/debug/libllvmlib.$(EXT)
 	runt
  
