@@ -511,8 +511,9 @@ struct DiospyrosPass : public FunctionPass {
     DiospyrosPass() : FunctionPass(ID) {}
 
     virtual bool runOnFunction(Function &F) override {
-        // do not optimize on main function.
-        if (F.getName() == "main") {
+        // do not optimize on main function or no_opt functions.
+        if (F.getName() == "main" ||
+            (F.getName().size() > 7 && F.getName().substr(0, 7) == "no_opt_")) {
             return false;
         }
         bool has_changes = false;

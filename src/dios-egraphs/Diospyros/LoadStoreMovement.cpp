@@ -256,7 +256,8 @@ struct LoadStoreMovementPass : public FunctionPass {
          *
          * We gr
          */
-        if (F.getName() == "main") {
+        if (F.getName() == "main" ||
+            (F.getName().size() > 7 && F.getName().substr(0, 7) == "no_opt_")) {
             return false;
         }
         rewrite_stores(F);
