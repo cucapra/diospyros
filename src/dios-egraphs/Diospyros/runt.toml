@@ -3,4 +3,4 @@ ver = "0.3.1"
 [[tests]]
 name = "llvm-diospyros tests"
 paths = [ "llvm-tests/*.c" ]
-cmd = "python3 runt.py {}"
+cmd = "bash runt.sh {}"
