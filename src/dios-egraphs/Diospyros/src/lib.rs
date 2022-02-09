@@ -2183,6 +2183,11 @@ unsafe fn egg_to_llvm(
     } else {
       let cloned_addr = LLVMInstructionClone(*addr);
       let new_addr = llvm_recursive_add(builder, cloned_addr);
+      LLVMDumpType(LLVMTypeOf(extracted_value));
+      println!();
+      LLVMDumpType(LLVMTypeOf(new_addr));
+      println!();
+      assert!(LLVMTypeOf(extracted_value) == LLVMGetElementType(LLVMTypeOf(new_addr)));
       // LLVMReplaceAllUsesWith(*addr, new_addr);
       LLVMBuildStore(builder, extracted_value, new_addr);
     }

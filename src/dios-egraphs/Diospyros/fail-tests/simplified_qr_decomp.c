@@ -91,7 +91,7 @@ void naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
 
     // Build identity matrix of size SIZE * SIZE
     // No Calloc is used here.
-    float I[SIZE * SIZE] = {0};
+    float I[SIZE * SIZE] = {0.0f};
     // float *I = (float *)calloc(sizeof(float), SIZE * SIZE);
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
@@ -101,17 +101,23 @@ void naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
 
     // Householder
     for (int k = 0; k < SIZE - 1; k++) {
-        // int m = SIZE - k;
+        int32_t m = SIZE - k;
 
-        // float x[SIZE] = {0};
-        // float e[SIZE] = {0};
-        // for (int i = 0; i < m; i++) {
-        //     int row = k + i;
-        //     x[i] = R[row * SIZE + k];
-        //     e[i] = I[row * SIZE + k];
-        // }
+        float x[m];
+        for (int i = 0; i < m; i++) {
+            x[i] = 0.0f;
+        }
+        float e[m];
+        for (int i = 0; i < m; i++) {
+            e[i] = 0.0f;
+        }
+        for (int i = 0; i < m; i++) {
+            int row = k + i;
+            x[i] = 1.0f;
+            e[i] = 2.0f;
+        }
 
-        // float alpha = -sgn(x[0]) * naive_norm(x, m);
+        float alpha = -sgn(x[0]) * naive_norm(x, m);
 
         // float u[SIZE] = {0};
         // float v[SIZE] = {0};
@@ -148,14 +154,14 @@ void naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
         //         q_t[i * SIZE + j] = q_t_i;
         //     }
         // }
-        float q_t[SIZE * SIZE] = {1};
+        float q_t[SIZE * SIZE] = {alpha};
         if (k == 0) {
             for (int i = 0; i < SIZE * SIZE; i++) {
                 Q[i] = q_t[i];
             }
             no_opt_naive_fixed_matrix_multiply(q_t, A, R);  // R = q_t * A
         } else {
-            float res[SIZE * SIZE] = {0};
+            float res[SIZE * SIZE] = {0.0f};
             no_opt_naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
             for (int i = 0; i < SIZE * SIZE; i++) {
                 Q[i] = res[i];
@@ -174,7 +180,7 @@ void no_opt_naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
         R[i] = A[i];
     }
 
-    float I[SIZE * SIZE] = {0};
+    float I[SIZE * SIZE] = {0.0f};
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             I[i * SIZE + j] = (i == j);
@@ -183,17 +189,23 @@ void no_opt_naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
 
     // Householder
     for (int k = 0; k < SIZE - 1; k++) {
-        // int m = SIZE - k;
+        int32_t m = SIZE - k;
 
-        // float x[SIZE] = {0};
-        // float e[SIZE] = {0};
-        // for (int i = 0; i < m; i++) {
-        //     int row = k + i;
-        //     x[i] = R[row * SIZE + k];
-        //     e[i] = I[row * SIZE + k];
-        // }
+        float x[m];
+        for (int i = 0; i < m; i++) {
+            x[i] = 0.0f;
+        }
+        float e[m];
+        for (int i = 0; i < m; i++) {
+            e[i] = 0.0f;
+        }
+        for (int i = 0; i < m; i++) {
+            int row = k + i;
+            x[i] = 1.0f;
+            e[i] = 2.0f;
+        }
 
-        // float alpha = -sgn(x[0]) * naive_norm(x, m);
+        float alpha = -sgn(x[0]) * naive_norm(x, m);
 
         // float u[SIZE] = {0};
         // float v[SIZE] = {0};
@@ -231,14 +243,14 @@ void no_opt_naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
         //     }
         // }
 
-        float q_t[SIZE * SIZE] = {1};
+        float q_t[SIZE * SIZE] = {alpha};
         if (k == 0) {
             for (int i = 0; i < SIZE * SIZE; i++) {
                 Q[i] = q_t[i];
             }
             no_opt_naive_fixed_matrix_multiply(q_t, A, R);  // R = q_t * A
         } else {
-            float res[SIZE * SIZE] = {0};
+            float res[SIZE * SIZE] = {0.0f};
             no_opt_naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
             for (int i = 0; i < SIZE * SIZE; i++) {
                 Q[i] = res[i];
