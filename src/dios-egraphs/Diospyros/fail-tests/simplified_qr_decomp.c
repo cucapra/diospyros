@@ -159,18 +159,19 @@ void naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
             for (int i = 0; i < SIZE * SIZE; i++) {
                 Q[i] = q_t[i];
             }
-            no_opt_naive_fixed_matrix_multiply(q_t, A, R);  // R = q_t * A
-        } else {
-            float res[SIZE * SIZE] = {0.0f};
-            no_opt_naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
-            for (int i = 0; i < SIZE * SIZE; i++) {
-                Q[i] = res[i];
-            }
-            no_opt_naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
-            for (int i = 0; i < SIZE * SIZE; i++) {
-                R[i] = res[i];
-            }
+            naive_fixed_matrix_multiply(q_t, A, R);  // R = q_t * A
         }
+        //  else {
+        //     float res[SIZE * SIZE] = {0.0f};
+        //     naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
+        //     for (int i = 0; i < SIZE * SIZE; i++) {
+        //         Q[i] = res[i];
+        //     }
+        //     naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
+        //     for (int i = 0; i < SIZE * SIZE; i++) {
+        //         R[i] = res[i];
+        //     }
+        // }
     }
     naive_fixed_transpose(Q);
 }
@@ -205,7 +206,7 @@ void no_opt_naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
             e[i] = 2.0f;
         }
 
-        float alpha = -sgn(x[0]) * naive_norm(x, m);
+        float alpha = -no_opt_sgn(x[0]) * no_opt_naive_norm(x, m);
 
         // float u[SIZE] = {0};
         // float v[SIZE] = {0};
@@ -249,19 +250,20 @@ void no_opt_naive_fixed_qr_decomp(float A[SIZE], float Q[SIZE], float R[SIZE]) {
                 Q[i] = q_t[i];
             }
             no_opt_naive_fixed_matrix_multiply(q_t, A, R);  // R = q_t * A
-        } else {
-            float res[SIZE * SIZE] = {0.0f};
-            no_opt_naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
-            for (int i = 0; i < SIZE * SIZE; i++) {
-                Q[i] = res[i];
-            }
-            no_opt_naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
-            for (int i = 0; i < SIZE * SIZE; i++) {
-                R[i] = res[i];
-            }
         }
+        // else {
+        //     float res[SIZE * SIZE] = {0.0f};
+        //     no_opt_naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
+        //     for (int i = 0; i < SIZE * SIZE; i++) {
+        //         Q[i] = res[i];
+        //     }
+        //     no_opt_naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
+        //     for (int i = 0; i < SIZE * SIZE; i++) {
+        //         R[i] = res[i];
+        //     }
+        // }
     }
-    naive_fixed_transpose(Q);
+    no_opt_naive_fixed_transpose(Q);
 }
 
 int main(void) {
