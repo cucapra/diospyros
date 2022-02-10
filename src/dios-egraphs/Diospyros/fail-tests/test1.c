@@ -7,6 +7,7 @@
 #include <string.h>
 
 #define SIZE 2
+#define DELTA 0.1f
 
 float sgn(float v) { return (v > 0) - (v < 0); }
 
@@ -80,5 +81,6 @@ int main(void) {
     for (int i = 0; i < SIZE; i++) {
         printf("A Output: %f\n", A[i]);
         printf("Expected A Output: %f\n", expectedA[i]);
+        assert(fabs(expectedA[i] - A[i]) < DELTA);
     }
 }
