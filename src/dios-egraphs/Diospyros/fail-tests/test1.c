@@ -32,11 +32,11 @@ void sample_test(float A[SIZE]) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float x[m];
+        float x[SIZE];
         for (int i = 0; i < m; i++) {
             x[i] = 0.0f;
         }
-        float e[m];
+        float e[SIZE];
         for (int i = 0; i < m; i++) {
             e[i] = 0.0f;
         }
@@ -54,11 +54,11 @@ void no_opt_sample_test(float A[SIZE]) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float x[m];
+        float x[SIZE];
         for (int i = 0; i < m; i++) {
             x[i] = 0.0f;
         }
-        float e[m];
+        float e[SIZE];
         for (int i = 0; i < m; i++) {
             e[i] = 0.0f;
         }

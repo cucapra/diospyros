@@ -2126,6 +2126,23 @@ unsafe fn translate_egg(
   return instr;
 }
 
+unsafe fn gen_type_cast(
+  val: LLVMValueRef,
+  typ1: LLVMTypeRef,
+  typ2: LLVMTypeRef,
+  context: LLVMContextRef,
+  builder: LLVMBuilderRef,
+) -> LLVMValueRef {
+  if typ1 == LLVMInt32TypeInContext(context) && typ2 == LLVMInt64TypeInContext(context) {
+    return LLVMBuildZExt(builder, val, typ2, b"\0".as_ptr() as *const _);
+  } else if typ1 == LLVMInt16TypeInContext(context) && typ2 == LLVMInt64TypeInContext(context) {
+    return LLVMBuildZExt(builder, val, typ2, b"\0".as_ptr() as *const _);
+  } else if typ1 == LLVMInt16TypeInContext(context) && typ2 == LLVMInt32TypeInContext(context) {
+    return LLVMBuildZExt(builder, val, typ2, b"\0".as_ptr() as *const _);
+  }
+  panic!("Cannot convert between {:?} {:?}\n.", typ1, typ2);
+}
+
 unsafe fn egg_to_llvm(
   expr: RecExpr<VecLang>,
   gep_map: &GEPMap,
@@ -2179,16 +2196,31 @@ unsafe fn egg_to_llvm(
       );
     }
     if isa_argument(*addr) {
+      if LLVMTypeOf(extracted_value) != LLVMGetElementType(LLVMTypeOf(*addr)) {
+        extracted_value = gen_type_cast(
+          extracted_value,
+          LLVMTypeOf(extracted_value),
+          LLVMGetElementType(LLVMTypeOf(*addr)),
+          context,
+          builder,
+        );
+      }
+      assert!(LLVMTypeOf(extracted_value) == LLVMGetElementType(LLVMTypeOf(*addr)));
       LLVMBuildStore(builder, extracted_value, *addr);
     } else {
       let cloned_addr = LLVMInstructionClone(*addr);
       let new_addr = llvm_recursive_add(builder, cloned_addr);
-      LLVMDumpType(LLVMTypeOf(extracted_value));
-      println!();
-      LLVMDumpType(LLVMTypeOf(new_addr));
-      println!();
-      assert!(LLVMTypeOf(extracted_value) == LLVMGetElementType(LLVMTypeOf(new_addr)));
+      if LLVMTypeOf(extracted_value) != LLVMGetElementType(LLVMTypeOf(new_addr)) {
+        extracted_value = gen_type_cast(
+          extracted_value,
+          LLVMTypeOf(extracted_value),
+          LLVMGetElementType(LLVMTypeOf(new_addr)),
+          context,
+          builder,
+        );
+      }
       // LLVMReplaceAllUsesWith(*addr, new_addr);
+      assert!(LLVMTypeOf(extracted_value) == LLVMGetElementType(LLVMTypeOf(new_addr)));
       LLVMBuildStore(builder, extracted_value, new_addr);
     }
   }
