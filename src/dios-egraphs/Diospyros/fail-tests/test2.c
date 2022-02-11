@@ -11,6 +11,9 @@
 #define SIZE 2
 #define DELTA 0.1f
 
+float sgn(float v) __attribute__((always_inline));
+float naive_norm(float *x, int m) __attribute__((always_inline));
+
 float sgn(float v) { return (v > 0) - (v < 0); }
 
 float no_opt_sgn(float v) { return (v > 0) - (v < 0); }

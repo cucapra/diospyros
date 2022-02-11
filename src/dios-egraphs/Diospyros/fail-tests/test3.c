@@ -9,6 +9,9 @@
 #define SIZE 2
 #define DELTA 0.1f
 
+float sgn(float v) __attribute__((always_inline));
+float naive_norm(float *x, int m) __attribute__((always_inline));
+
 float sgn(float v) { return (v > 0) - (v < 0); }
 
 float no_opt_sgn(float v) { return (v > 0) - (v < 0); }
@@ -78,12 +81,11 @@ void no_opt_sample_test(float A[SIZE], float Q[SIZE * SIZE]) {
         float alpha = -no_opt_sgn(x[0]) * no_opt_naive_norm(x, m);
         A[k] = alpha;
 
-        float q_t[SIZE * SIZE] = {alpha};
-        if (k == 0) {
-            for (int i = 0; i < SIZE * SIZE; i++) {
-                Q[i] = q_t[i];
-            }
-        }
+        // float q_t[SIZE * SIZE] = {alpha};
+
+        // for (int i = 0; i < SIZE * SIZE; i++) {
+        //     Q[i] = q_t[i];
+        // }
     }
 }
 
