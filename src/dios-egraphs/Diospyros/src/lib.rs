@@ -738,7 +738,11 @@ pub fn optimize(
     if print_opt {
       eprintln!("{}", expr.pretty(10));
     }
-    let (_, best) = rules::run(&expr, 180, true, !run_egg);
+    let mut best = expr.clone();
+    if run_egg {
+      let pair = rules::run(&expr, 180, true, !run_egg);
+      best = pair.1;
+    }
     if print_opt {
       eprintln!("{}", best.pretty(10));
     }
