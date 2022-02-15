@@ -903,11 +903,12 @@ unsafe fn llvm_recursive_add(builder: LLVMBuilderRef, inst: LLVMValueRef) -> LLV
     let cloned_inst = LLVMInstructionClone(inst);
     LLVMInsertIntoBuilder(builder, cloned_inst);
     return cloned_inst;
-  } else if isa_call(inst) {
-    let cloned_inst = LLVMInstructionClone(inst);
-    LLVMInsertIntoBuilder(builder, cloned_inst);
-    return cloned_inst;
   }
+  // else if isa_call(inst) {
+  //   let cloned_inst = LLVMInstructionClone(inst);
+  //   LLVMInsertIntoBuilder(builder, cloned_inst);
+  //   return cloned_inst;
+  // }
   let cloned_inst = LLVMInstructionClone(inst);
   let num_ops = LLVMGetNumOperands(inst);
   for i in 0..num_ops {
@@ -1707,7 +1708,7 @@ unsafe fn translate_egg(
   let instr = match enode {
     VecLang::Symbol(symbol) => {
       match symbol_map.get(enode) {
-        Some(llvm_instr) => *llvm_instr,
+        Some(llvm_instr) => llvm_recursive_add(builder, *llvm_instr),
         None => {
           let mut matched = false;
           let mut ret_value = LLVMBuildAdd(
