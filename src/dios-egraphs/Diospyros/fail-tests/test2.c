@@ -34,15 +34,14 @@ float no_opt_naive_norm(float *x, int m) {
     return sqrtf(sum);
 }
 
-void sample_test(float A[SIZE]) {
+void sample_test(float A[SIZE], float x[SIZE], float e[SIZE]) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float x[m];
         for (int i = 0; i < m; i++) {
             x[i] = 0.0f;
         }
-        float e[m];
+
         for (int i = 0; i < m; i++) {
             e[i] = 0.0f;
         }
@@ -56,15 +55,13 @@ void sample_test(float A[SIZE]) {
     }
 }
 
-void no_opt_sample_test(float A[SIZE]) {
+void no_opt_sample_test(float A[SIZE], float x[SIZE], float e[SIZE]) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float x[SIZE];
         for (int i = 0; i < m; i++) {
             x[i] = 0.0f;
         }
-        float e[SIZE];
         for (int i = 0; i < m; i++) {
             e[i] = 0.0f;
         }
@@ -80,9 +77,13 @@ void no_opt_sample_test(float A[SIZE]) {
 
 int main(void) {
     float A[SIZE] = {0};
-    sample_test(A);
+    float x[SIZE] = {0};
+    float e[SIZE] = {0};
+    sample_test(A, x, e);
     float expectedA[SIZE] = {0};
-    no_opt_sample_test(expectedA);
+    float expectedX[SIZE] = {0};
+    float expectedE[SIZE] = {0};
+    no_opt_sample_test(expectedA, expectedX, expectedE);
     for (int i = 0; i < SIZE; i++) {
         printf("A Output: %f\n", A[i]);
         printf("Expected A Output: %f\n", expectedA[i]);

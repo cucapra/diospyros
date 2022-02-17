@@ -32,15 +32,15 @@ float no_opt_naive_norm(float *x, int m) {
     return sqrtf(sum);
 }
 
-void sample_test(float A[SIZE], float Q[SIZE * SIZE]) {
+void sample_test(float A[SIZE], float x[SIZE], float e[SIZE],
+                 float Q[SIZE * SIZE]) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float x[SIZE];
         for (int i = 0; i < m; i++) {
             x[i] = 0.0f;
         }
-        float e[SIZE];
+
         for (int i = 0; i < m; i++) {
             e[i] = 0.0f;
         }
@@ -49,27 +49,26 @@ void sample_test(float A[SIZE], float Q[SIZE * SIZE]) {
             e[i] = 2.0f;
         }
 
-        float alpha = -sgn(x[0]) * naive_norm(x, m);
+        float alpha = -sgn(x[0]) * naive_norm(x, m) * naive_norm(e, m);
         A[k] = alpha;
 
-        float q_t[SIZE * SIZE] = {alpha};
+        // float q_t[SIZE * SIZE] = {alpha};
         if (k == 0) {
             for (int i = 0; i < SIZE * SIZE; i++) {
-                Q[i] = q_t[i];
+                Q[i] = alpha;
             }
         }
     }
 }
 
-void no_opt_sample_test(float A[SIZE], float Q[SIZE * SIZE]) {
+void no_opt_sample_test(float A[SIZE], float x[SIZE], float e[SIZE],
+                        float Q[SIZE * SIZE]) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float x[SIZE];
         for (int i = 0; i < m; i++) {
             x[i] = 0.0f;
         }
-        float e[SIZE];
         for (int i = 0; i < m; i++) {
             e[i] = 0.0f;
         }
@@ -78,7 +77,8 @@ void no_opt_sample_test(float A[SIZE], float Q[SIZE * SIZE]) {
             e[i] = 2.0f;
         }
 
-        float alpha = -no_opt_sgn(x[0]) * no_opt_naive_norm(x, m);
+        float alpha = -no_opt_sgn(x[0]) * no_opt_naive_norm(x, m) *
+                      no_opt_naive_norm(e, m);
         A[k] = alpha;
 
         // float q_t[SIZE * SIZE] = {alpha};
@@ -86,25 +86,35 @@ void no_opt_sample_test(float A[SIZE], float Q[SIZE * SIZE]) {
         // for (int i = 0; i < SIZE * SIZE; i++) {
         //     Q[i] = q_t[i];
         // }
+
+        if (k == 0) {
+            for (int i = 0; i < SIZE * SIZE; i++) {
+                Q[i] = alpha;
+            }
+        }
     }
 }
 
 int main(void) {
     float A[SIZE] = {0};
+    float x[SIZE] = {0};
+    float e[SIZE] = {0};
     float Q[SIZE * SIZE] = {0};
-    sample_test(A, Q);
+    sample_test(A, x, e, Q);
     float expectedA[SIZE] = {0};
+    float expectedX[SIZE] = {0};
+    float expectedE[SIZE] = {0};
     float expectedQ[SIZE * SIZE] = {0};
-    no_opt_sample_test(expectedA, expectedQ);
+    no_opt_sample_test(expectedA, expectedX, expectedE, expectedQ);
     for (int i = 0; i < SIZE; i++) {
         printf("A Output: %f\n", A[i]);
         printf("Expected A Output: %f\n", expectedA[i]);
-        // assert(fabs(expectedA[i] - A[i]) < DELTA);
+        assert(fabs(expectedA[i] - A[i]) < DELTA);
     }
 
     for (int i = 0; i < SIZE * SIZE; i++) {
         printf("Q Output: %f\n", Q[i]);
         printf("Expected Q Output: %f\n", expectedQ[i]);
-        // assert(fabs(expectedA[i] - A[i]) < DELTA);
+        assert(fabs(expectedQ[i] - Q[i]) < DELTA);
     }
 }
