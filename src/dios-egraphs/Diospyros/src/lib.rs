@@ -735,17 +735,19 @@ pub fn optimize(
       llvm_to_egg(llvm_instrs, &mut llvm_arg_pairs, &mut node_to_arg);
 
     // optimization pass
-    if print_opt {
-      eprintln!("{}", expr.pretty(10));
-    }
+    // if print_opt {
+    println!("In");
+    eprintln!("{}", expr.pretty(10));
+    // }
     let mut best = expr.clone();
     if run_egg {
       let pair = rules::run(&expr, 180, true, !run_egg);
       best = pair.1;
     }
-    if print_opt {
-      eprintln!("{}", best.pretty(10));
-    }
+    // if print_opt {
+    // println!("Out");
+    // eprintln!("{}", best.pretty(10));
+    // }
 
     // egg to llvm
     egg_to_llvm(
@@ -892,9 +894,19 @@ unsafe fn _llvm_recursive_print(inst: LLVMValueRef) -> () {
   return;
 }
 
-unsafe fn llvm_recursive_add(builder: LLVMBuilderRef, inst: LLVMValueRef) -> LLVMValueRef {
+unsafe fn llvm_recursive_add(
+  builder: LLVMBuilderRef,
+  inst: LLVMValueRef,
+  context: LLVMContextRef,
+) -> LLVMValueRef {
   if isa_argument(inst) {
-    return inst;
+    let mut indices = Vec::new();
+    for i in 0..1 {
+      indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
+    }
+    let indices_vector = indices.as_mut_ptr();
+    return LLVMBuildGEP(builder, inst, indices_vector, 1, b"\0".as_ptr() as *const _);
+    // return inst;
   } else if isa_constant(inst) {
     return inst;
   } else if isa_phi(inst) {
@@ -913,7 +925,7 @@ unsafe fn llvm_recursive_add(builder: LLVMBuilderRef, inst: LLVMValueRef) -> LLV
   let num_ops = LLVMGetNumOperands(inst);
   for i in 0..num_ops {
     let operand = LLVMGetOperand(inst, i as u32);
-    let new_inst = llvm_recursive_add(builder, operand);
+    let new_inst = llvm_recursive_add(builder, operand, context);
     LLVMSetOperand(cloned_inst, i as u32, new_inst);
   }
   LLVMInsertIntoBuilder(builder, cloned_inst);
@@ -1708,7 +1720,7 @@ unsafe fn translate_egg(
   let instr = match enode {
     VecLang::Symbol(symbol) => {
       match symbol_map.get(enode) {
-        Some(llvm_instr) => llvm_recursive_add(builder, *llvm_instr),
+        Some(llvm_instr) => llvm_recursive_add(builder, *llvm_instr, context),
         None => {
           let mut matched = false;
           let mut ret_value = LLVMBuildAdd(
@@ -1757,7 +1769,7 @@ unsafe fn translate_egg(
       let load_value = if isa_load(*gep_value) {
         let addr = LLVMGetOperand(*gep_value, 0);
         let cloned_gep = LLVMInstructionClone(addr);
-        let new_gep = llvm_recursive_add(builder, cloned_gep);
+        let new_gep = llvm_recursive_add(builder, cloned_gep, context);
         let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
         let llvm_pair = LLVMPair {
           original_value: *gep_value,
@@ -1767,16 +1779,16 @@ unsafe fn translate_egg(
         new_load
       } else if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
-        let new_gep = llvm_recursive_add(builder, cloned_gep);
+        let new_gep = llvm_recursive_add(builder, cloned_gep, context);
         LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
       } else if isa_bitcast(*gep_value) {
         // TODO: DO NOT REGERATE CALLS. THESE SHOULD BE CACHED!!. e.g. a CALLOC
         let cloned_bitcast = LLVMInstructionClone(*gep_value);
-        let new_bitcast = llvm_recursive_add(builder, cloned_bitcast);
+        let new_bitcast = llvm_recursive_add(builder, cloned_bitcast, context);
         LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
       } else if isa_sitofp(*gep_value) {
         let cloned_sitofp = LLVMInstructionClone(*gep_value);
-        let new_sitofp = llvm_recursive_add(builder, cloned_sitofp);
+        let new_sitofp = llvm_recursive_add(builder, cloned_sitofp, context);
         new_sitofp
       } else {
         LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
@@ -2214,7 +2226,7 @@ unsafe fn egg_to_llvm(
       LLVMBuildStore(builder, extracted_value, *addr);
     } else {
       let cloned_addr = LLVMInstructionClone(*addr);
-      let new_addr = llvm_recursive_add(builder, cloned_addr);
+      let new_addr = llvm_recursive_add(builder, cloned_addr, context);
       if LLVMTypeOf(extracted_value) != LLVMGetElementType(LLVMTypeOf(new_addr)) {
         extracted_value = gen_type_cast(
           extracted_value,
