@@ -35,7 +35,7 @@ emit: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 emit-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -O2 -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -emit-llvm -S -o - $(test)
 
-emit-save:
+emit-save: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
 	opt -S -always-inline --inline --mem2reg -simplifycfg --indvars -loops -loop-rotate --loop-simplify --loop-instsimplify --licm --unroll-threshold=10000 --loop-unroll --simplifycfg clang.ll -o opt.ll
 	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) opt.ll -o finish.ll
