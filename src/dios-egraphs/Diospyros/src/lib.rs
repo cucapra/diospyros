@@ -736,19 +736,17 @@ pub fn optimize(
       llvm_to_egg(llvm_instrs, &mut llvm_arg_pairs, &mut node_to_arg);
 
     // optimization pass
-    // if print_opt {
-    println!("In");
-    eprintln!("{}", expr.pretty(10));
-    // }
+    if print_opt {
+      eprintln!("{}", expr.pretty(10));
+    }
     let mut best = expr.clone();
     if run_egg {
       let pair = rules::run(&expr, 180, true, !run_egg);
       best = pair.1;
     }
-    // if print_opt {
-    // println!("Out");
-    // eprintln!("{}", best.pretty(10));
-    // }
+    if print_opt {
+      eprintln!("{}", best.pretty(10));
+    }
 
     // egg to llvm
     egg_to_llvm(
