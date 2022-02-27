@@ -13,6 +13,7 @@
 #include <string.h>
 
 #define SIZE 2
+#define DELTA 0.1f
 
 float sgn(float v) __attribute__((always_inline));
 float naive_norm(float *x, int m) __attribute__((always_inline));
@@ -170,12 +171,14 @@ int main(void) {
         for (int j = 0; j < SIZE; j++) {
             printf("Q Output: %f\n", Q[i * SIZE + j]);
             printf("Expected Q Output: %f\n", expectedQ[i * SIZE + j]);
+            assert(fabs(expectedQ[i] - Q[i]) < DELTA);
         }
     }
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             printf("R Output: %f\n", R[i * SIZE + j]);
             printf("Expected R Output: %f\n", expectedR[i * SIZE + j]);
+            assert(fabs(expectedR[i] - R[i]) < DELTA);
         }
     }
 }
