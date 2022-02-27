@@ -98,6 +98,9 @@ void no_opt_naive_fixed_qr_decomp(float Q[SIZE], float x[SIZE],
 int main(void) {
     float A[SIZE] = {1.1f, 2.1f, 3.1f, 4.1f};
     float Q[SIZE] = {0.0f};
+    for (int i = 0; i < SIZE; i++) {
+        Q[i] = 0.0f;
+    }
     float R[SIZE] = {1.0f};
     float i[SIZE] = {0.0f};
     float x[SIZE] = {1.2f, 1.3f, 1.4f, 1.5f};
@@ -105,6 +108,9 @@ int main(void) {
     float q_t[SIZE] = {0.0f};
     naive_fixed_qr_decomp(Q, x, q_t);
     float expectedQ[SIZE] = {0.0f};
+    for (int i = 0; i < SIZE; i++) {
+        expectedQ[i] = 0.0f;
+    }
     float expectedR[SIZE] = {1.0f};
     float expectedi[SIZE] = {0.0f};
     float expectedx[SIZE] = {1.2f, 1.3f, 1.4f, 1.5f};

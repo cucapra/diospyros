@@ -311,7 +311,7 @@ extern "C" bool isa_integertype(LLVMValueRef val) {
 }
 
 /**
- * True iff a value is an LLVM IntPTr/LLVMValueRef ItPtr
+ * True iff a value is an LLVM IntPTr/LLVMValueRef IntPtr
  */
 extern "C" bool isa_intptr(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
@@ -320,6 +320,18 @@ extern "C" bool isa_intptr(LLVMValueRef val) {
     }
     Type *t = unwrapped->getType();
     return t->isPointerTy() && t->getContainedType(0)->isIntegerTy();
+}
+
+/**
+ * True iff a value is an LLVM FloatPtr/LLVMValueRef FloatPtr
+ */
+extern "C" bool isa_floatptr(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    Type *t = unwrapped->getType();
+    return t->isPointerTy() && t->getContainedType(0)->isFloatTy();
 }
 
 /**

@@ -34,6 +34,7 @@ extern "C" {
   fn _isa_constaggregate(val: LLVMValueRef) -> bool;
   fn isa_integertype(val: LLVMValueRef) -> bool;
   fn isa_intptr(val: LLVMValueRef) -> bool;
+  fn isa_floatptr(val: LLVMValueRef) -> bool;
   fn isa_floattype(val: LLVMValueRef) -> bool;
   fn isa_bitcast(val: LLVMValueRef) -> bool;
   fn isa_sqrt32(val: LLVMValueRef) -> bool;
@@ -1784,7 +1785,18 @@ unsafe fn translate_egg(
       } else if isa_bitcast(*gep_value) {
         // TODO: DO NOT REGERATE CALLS. THESE SHOULD BE CACHED!!. e.g. a CALLOC
         let cloned_bitcast = LLVMInstructionClone(*gep_value);
-        let new_bitcast = llvm_recursive_add(builder, cloned_bitcast, context);
+        let mut new_bitcast = llvm_recursive_add(builder, cloned_bitcast, context);
+        // if bitcast was to i32, handle bitcast from float* to i32*
+        if !isa_floatptr(new_bitcast) {
+          let addr_space = LLVMGetPointerAddressSpace(LLVMTypeOf(new_bitcast));
+          let new_ptr_type = LLVMPointerType(LLVMFloatTypeInContext(context), addr_space);
+          new_bitcast = LLVMBuildBitCast(
+            builder,
+            new_bitcast,
+            new_ptr_type,
+            b"\0".as_ptr() as *const _,
+          );
+        }
         LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
       } else if isa_sitofp(*gep_value) {
         let cloned_sitofp = LLVMInstructionClone(*gep_value);
@@ -2204,28 +2216,35 @@ unsafe fn egg_to_llvm(
     let mut extracted_value =
       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
     // check if the extracted type is an float and the address is a int ptr
-    if isa_floattype(extracted_value) && isa_intptr(*addr) {
-      extracted_value = LLVMBuildFPToSI(
-        builder,
-        extracted_value,
-        LLVMIntTypeInContext(context, 32),
-        b"\0".as_ptr() as *const _,
-      );
-    }
-    if isa_argument(*addr) {
-      if LLVMTypeOf(extracted_value) != LLVMGetElementType(LLVMTypeOf(*addr)) {
+    let mut_addr = if !isa_floatptr(*addr) {
+      let addr_space = LLVMGetPointerAddressSpace(LLVMTypeOf(*addr));
+      let new_ptr_type = LLVMPointerType(LLVMFloatTypeInContext(context), addr_space);
+      LLVMBuildBitCast(builder, *addr, new_ptr_type, b"\0".as_ptr() as *const _)
+    } else {
+      *addr
+    };
+    // if isa_floattype(extracted_value) && isa_intptr(*mut_addr) {
+    //   extracted_value = LLVMBuildFPToSI(
+    //     builder,
+    //     extracted_value,
+    //     LLVMIntTypeInContext(context, 32),
+    //     b"\0".as_ptr() as *const _,
+    //   );
+    // }
+    if isa_argument(mut_addr) {
+      if LLVMTypeOf(extracted_value) != LLVMGetElementType(LLVMTypeOf(mut_addr)) {
         extracted_value = gen_type_cast(
           extracted_value,
           LLVMTypeOf(extracted_value),
-          LLVMGetElementType(LLVMTypeOf(*addr)),
+          LLVMGetElementType(LLVMTypeOf(mut_addr)),
           context,
           builder,
         );
       }
-      assert!(LLVMTypeOf(extracted_value) == LLVMGetElementType(LLVMTypeOf(*addr)));
-      LLVMBuildStore(builder, extracted_value, *addr);
+      assert!(LLVMTypeOf(extracted_value) == LLVMGetElementType(LLVMTypeOf(mut_addr)));
+      LLVMBuildStore(builder, extracted_value, mut_addr);
     } else {
-      let cloned_addr = LLVMInstructionClone(*addr);
+      let cloned_addr = LLVMInstructionClone(mut_addr);
       let new_addr = llvm_recursive_add(builder, cloned_addr, context);
       if LLVMTypeOf(extracted_value) != LLVMGetElementType(LLVMTypeOf(new_addr)) {
         extracted_value = gen_type_cast(
