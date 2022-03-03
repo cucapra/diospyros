@@ -33,9 +33,9 @@ extern "C" {
   fn isa_constaggregatezero(val: LLVMValueRef) -> bool;
   fn _isa_constaggregate(val: LLVMValueRef) -> bool;
   fn isa_integertype(val: LLVMValueRef) -> bool;
-  fn isa_intptr(val: LLVMValueRef) -> bool;
+  fn _isa_intptr(val: LLVMValueRef) -> bool;
   fn isa_floatptr(val: LLVMValueRef) -> bool;
-  fn isa_floattype(val: LLVMValueRef) -> bool;
+  fn _isa_floattype(val: LLVMValueRef) -> bool;
   fn isa_bitcast(val: LLVMValueRef) -> bool;
   fn isa_sqrt32(val: LLVMValueRef) -> bool;
   fn isa_sqrt64(val: LLVMValueRef) -> bool;
@@ -66,6 +66,7 @@ type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
 static mut ARG_IDX: i32 = 0;
 static mut CALL_IDX: i32 = 0;
 static mut NODE_IDX: u32 = 0;
+// static mut PHI_IDX: u32 = 0;
 
 // unsafe fn gen_symbol_name() -> String {
 //   SYMBOL_IDX += 1;
@@ -92,6 +93,13 @@ unsafe fn gen_call_name() -> String {
   let result = format!("{}{}", string, CALL_IDX.to_string());
   result
 }
+
+// unsafe fn gen_phi_name() -> String {
+//   PHI_IDX += 1;
+//   let string = "PHI".to_string();
+//   let result = format!("{}{}", string, PHI_IDX.to_string());
+//   result
+// }
 
 /// Converts LLVMValueRef binop to equivalent VecLang Binop node
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
@@ -802,6 +810,7 @@ enum LLVMOpType {
   Sqrt32,
   Sqrt64,
   FPExt,
+  // Phi,
 }
 
 // unsafe fn is_pow2(n: u32) -> bool {
@@ -960,7 +969,11 @@ unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
     return LLVMOpType::Sqrt64;
   } else if isa_fpext(*expr) {
     return LLVMOpType::FPExt;
-  } else {
+  }
+  // else if isa_phi(*expr) {
+  //   return LLVMOpType::Phi;
+  // }
+  else {
     LLVMDumpValue(*expr);
     println!();
     panic!("ref_to_egg: Unmatched case for LLVMValueRef {:?}", *expr);
@@ -1479,6 +1492,35 @@ unsafe fn bitcast_to_egg(
   return result;
 }
 
+// unsafe fn phi_to_egg(
+//   expr: LLVMValueRef,
+//   mut enode_vec: Vec<VecLang>,
+//   next_idx: i32,
+//   gep_map: &mut GEPMap,
+//   _store_map: &mut StoreMap,
+//   _id_map: &mut IdMap,
+//   _symbol_map: &mut SymbolMap,
+//   _llvm_arg_pairs: &Vec<LLVMPair>,
+//   _node_to_arg: &mut Vec<IntLLVMPair>,
+// ) -> (Vec<VecLang>, i32) {
+//   assert!(isa_phi(expr));
+
+//   let phi_name = gen_phi_name();
+//   let symbol1 = Symbol::from(phi_name.clone());
+//   enode_vec.push(VecLang::Symbol(symbol1));
+//   let symbol2 = Symbol::from(phi_name);
+//   enode_vec.push(VecLang::Symbol(symbol2));
+
+//   let get_node = VecLang::Get([
+//     Id::from((next_idx) as usize),
+//     Id::from((next_idx + 1) as usize),
+//   ]);
+//   (*gep_map).insert((symbol1, symbol2), expr);
+//   enode_vec.push(get_node);
+
+//   return (enode_vec, next_idx + 3);
+// }
+
 unsafe fn ref_to_egg(
   expr: LLVMValueRef,
   mut enode_vec: Vec<VecLang>,
@@ -1660,6 +1702,17 @@ unsafe fn ref_to_egg(
       llvm_arg_pairs,
       node_to_arg,
     ),
+    // LLVMOpType::Phi => phi_to_egg(
+    //   expr,
+    //   enode_vec,
+    //   next_idx,
+    //   gep_map,
+    //   store_map,
+    //   id_map,
+    //   symbol_map,
+    //   llvm_arg_pairs,
+    //   node_to_arg,
+    // ),
   };
   return (vec, next_idx);
 }
@@ -1800,7 +1853,13 @@ unsafe fn translate_egg(
         let cloned_sitofp = LLVMInstructionClone(*gep_value);
         let new_sitofp = llvm_recursive_add(builder, cloned_sitofp, context);
         new_sitofp
-      } else {
+      }
+      // else if isa_phi(*gep_value) {
+      //   let cloned_phi = LLVMInstructionClone(*gep_value);
+      //   let new_phi = llvm_recursive_add(builder, cloned_phi, context);
+      //   new_phi
+      // }
+      else {
         LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
       };
       load_value
