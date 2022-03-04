@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SIZE 1
+#define SIZE 10
 
 void test(float A[SIZE], float B[SIZE], float C[SIZE]) {
     float x[SIZE] = {[0 ... SIZE - 1] = 3.0f};
@@ -11,13 +11,13 @@ void test(float A[SIZE], float B[SIZE], float C[SIZE]) {
         A[i] += x[i];
     }
     for (int i = 0; i < SIZE; i++) {
-        C[i] *= A[i];
+        C[i] += A[i];
     }
     for (int i = 0; i < SIZE; i++) {
         B[i] -= x[i];
     }
     for (int i = 0; i < SIZE; i++) {
-        C[i] *= B[i];
+        C[i] += B[i];
     }
 }
 

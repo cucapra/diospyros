@@ -101,6 +101,13 @@ unsafe fn gen_call_name() -> String {
 //   result
 // }
 
+// Reference Comparison: https://www.reddit.com/r/rust/comments/2r3wjk/is_there_way_to_compare_objects_by_address_in_rust/
+// Compares whether addresses of LLVMValueRefs are the same.
+// Not the contents of the Value Refs
+fn cmp(a1: &LLVMValueRef, a2: &LLVMValueRef) -> bool {
+  a1 as *const _ == a2 as *const _
+}
+
 /// Converts LLVMValueRef binop to equivalent VecLang Binop node
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
   match LLVMGetInstructionOpcode(*bop) {
@@ -941,7 +948,7 @@ unsafe fn llvm_recursive_add(
     for llvm_pair in &*llvm_arg_pairs {
       let original_llvm = llvm_pair.original_value;
       let new_llvm = llvm_pair.new_value;
-      if !matched && original_llvm == operand {
+      if !matched && cmp(&original_llvm, &operand) {
         matched = true;
         ret_value = new_llvm;
       }
@@ -954,6 +961,15 @@ unsafe fn llvm_recursive_add(
     }
   }
   LLVMInsertIntoBuilder(builder, cloned_inst);
+
+  if isa_load(inst) {
+    let pair = LLVMPair {
+      new_value: cloned_inst,
+      original_value: inst,
+    };
+    llvm_arg_pairs.push(pair);
+  }
+
   return cloned_inst;
 }
 
@@ -1550,7 +1566,7 @@ unsafe fn ref_to_egg(
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   for pair in llvm_arg_pairs {
-    if pair.original_value == expr {
+    if cmp(&pair.original_value, &expr) {
       // Here we create a new numbered variable node
       let var_idx = gen_node_idx();
       let var_idx_str = var_idx.to_string();
@@ -1806,7 +1822,7 @@ unsafe fn translate_egg(
               for llvm_pair in &mut *llvm_arg_pairs {
                 let original_llvm = llvm_pair.original_value;
                 let new_llvm = llvm_pair.new_value;
-                if original_llvm == llvm_node {
+                if cmp(&original_llvm, &llvm_node) {
                   matched = true;
                   ret_value = new_llvm;
                   break;
@@ -1836,16 +1852,29 @@ unsafe fn translate_egg(
         .get(&(array_name, array_offsets))
         .expect("Symbol map lookup error: Cannot Find GEP");
       let load_value = if isa_load(*gep_value) {
-        let addr = LLVMGetOperand(*gep_value, 0);
-        let cloned_gep = LLVMInstructionClone(addr);
-        let new_gep = llvm_recursive_add(builder, cloned_gep, context, llvm_arg_pairs);
-        let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
-        let llvm_pair = LLVMPair {
-          original_value: *gep_value,
-          new_value: new_load,
-        };
-        llvm_arg_pairs.push(llvm_pair);
-        new_load
+        let mut matched = false;
+        let mut matched_expr = *gep_value;
+        for pair in &*llvm_arg_pairs {
+          if cmp(&pair.original_value, &*gep_value) {
+            matched = true;
+            matched_expr = pair.new_value;
+            break;
+          }
+        }
+        if matched {
+          matched_expr
+        } else {
+          let addr = LLVMGetOperand(*gep_value, 0);
+          let cloned_gep = LLVMInstructionClone(addr);
+          let new_gep = llvm_recursive_add(builder, cloned_gep, context, llvm_arg_pairs);
+          let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
+          let llvm_pair = LLVMPair {
+            original_value: *gep_value,
+            new_value: new_load,
+          };
+          llvm_arg_pairs.push(llvm_pair);
+          new_load
+        }
       } else if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
         let new_gep = llvm_recursive_add(builder, cloned_gep, context, llvm_arg_pairs);
@@ -1870,14 +1899,27 @@ unsafe fn translate_egg(
         let cloned_sitofp = LLVMInstructionClone(*gep_value);
         let new_sitofp = llvm_recursive_add(builder, cloned_sitofp, context, llvm_arg_pairs);
         new_sitofp
-      }
-      // else if isa_phi(*gep_value) {
-      //   let cloned_phi = LLVMInstructionClone(*gep_value);
-      //   let new_phi = llvm_recursive_add(builder, cloned_phi, context);
-      //   new_phi
-      // }
-      else {
-        LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
+      } else {
+        let mut matched = false;
+        let mut matched_expr = *gep_value;
+        for pair in &*llvm_arg_pairs {
+          if cmp(&pair.original_value, &*gep_value) {
+            matched = true;
+            matched_expr = pair.new_value;
+            break;
+          }
+        }
+        if matched {
+          matched_expr
+        } else {
+          let new_load_value = LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _);
+          let llvm_pair = LLVMPair {
+            original_value: *gep_value,
+            new_value: new_load_value,
+          };
+          llvm_arg_pairs.push(llvm_pair);
+          new_load_value
+        }
       };
       load_value
     }
