@@ -906,6 +906,7 @@ unsafe fn llvm_recursive_add(
   builder: LLVMBuilderRef,
   inst: LLVMValueRef,
   context: LLVMContextRef,
+  llvm_arg_pairs: &mut Vec<LLVMPair>,
 ) -> LLVMValueRef {
   if isa_argument(inst) {
     let mut indices = Vec::new();
@@ -933,8 +934,24 @@ unsafe fn llvm_recursive_add(
   let num_ops = LLVMGetNumOperands(inst);
   for i in 0..num_ops {
     let operand = LLVMGetOperand(inst, i as u32);
-    let new_inst = llvm_recursive_add(builder, operand, context);
-    LLVMSetOperand(cloned_inst, i as u32, new_inst);
+
+    // search the llvm_arg_pairs
+    let mut matched = false;
+    let mut ret_value = operand;
+    for llvm_pair in &*llvm_arg_pairs {
+      let original_llvm = llvm_pair.original_value;
+      let new_llvm = llvm_pair.new_value;
+      if !matched && original_llvm == operand {
+        matched = true;
+        ret_value = new_llvm;
+      }
+    }
+    if matched {
+      LLVMSetOperand(cloned_inst, i as u32, ret_value);
+    } else {
+      let new_inst = llvm_recursive_add(builder, operand, context, llvm_arg_pairs);
+      LLVMSetOperand(cloned_inst, i as u32, new_inst);
+    }
   }
   LLVMInsertIntoBuilder(builder, cloned_inst);
   return cloned_inst;
@@ -1772,7 +1789,7 @@ unsafe fn translate_egg(
   let instr = match enode {
     VecLang::Symbol(symbol) => {
       match symbol_map.get(enode) {
-        Some(llvm_instr) => llvm_recursive_add(builder, *llvm_instr, context),
+        Some(llvm_instr) => llvm_recursive_add(builder, *llvm_instr, context, llvm_arg_pairs),
         None => {
           let mut matched = false;
           let mut ret_value = LLVMBuildAdd(
@@ -1821,7 +1838,7 @@ unsafe fn translate_egg(
       let load_value = if isa_load(*gep_value) {
         let addr = LLVMGetOperand(*gep_value, 0);
         let cloned_gep = LLVMInstructionClone(addr);
-        let new_gep = llvm_recursive_add(builder, cloned_gep, context);
+        let new_gep = llvm_recursive_add(builder, cloned_gep, context, llvm_arg_pairs);
         let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
         let llvm_pair = LLVMPair {
           original_value: *gep_value,
@@ -1831,12 +1848,12 @@ unsafe fn translate_egg(
         new_load
       } else if isa_gep(*gep_value) {
         let cloned_gep = LLVMInstructionClone(*gep_value);
-        let new_gep = llvm_recursive_add(builder, cloned_gep, context);
+        let new_gep = llvm_recursive_add(builder, cloned_gep, context, llvm_arg_pairs);
         LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
       } else if isa_bitcast(*gep_value) {
         // TODO: DO NOT REGERATE CALLS. THESE SHOULD BE CACHED!!. e.g. a CALLOC
         let cloned_bitcast = LLVMInstructionClone(*gep_value);
-        let mut new_bitcast = llvm_recursive_add(builder, cloned_bitcast, context);
+        let mut new_bitcast = llvm_recursive_add(builder, cloned_bitcast, context, llvm_arg_pairs);
         // if bitcast was to i32, handle bitcast from float* to i32*
         if !isa_floatptr(new_bitcast) {
           let addr_space = LLVMGetPointerAddressSpace(LLVMTypeOf(new_bitcast));
@@ -1851,7 +1868,7 @@ unsafe fn translate_egg(
         LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
       } else if isa_sitofp(*gep_value) {
         let cloned_sitofp = LLVMInstructionClone(*gep_value);
-        let new_sitofp = llvm_recursive_add(builder, cloned_sitofp, context);
+        let new_sitofp = llvm_recursive_add(builder, cloned_sitofp, context, llvm_arg_pairs);
         new_sitofp
       }
       // else if isa_phi(*gep_value) {
@@ -2302,7 +2319,7 @@ unsafe fn egg_to_llvm(
       LLVMBuildStore(builder, extracted_value, mut_addr);
     } else {
       let cloned_addr = LLVMInstructionClone(mut_addr);
-      let new_addr = llvm_recursive_add(builder, cloned_addr, context);
+      let new_addr = llvm_recursive_add(builder, cloned_addr, context, llvm_arg_pairs);
       if LLVMTypeOf(extracted_value) != LLVMGetElementType(LLVMTypeOf(new_addr)) {
         extracted_value = gen_type_cast(
           extracted_value,

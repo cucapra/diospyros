@@ -13,6 +13,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
@@ -516,6 +517,50 @@ extern "C" bool dfs_llvm_value_ref(LLVMValueRef current_instr,
     return dfs_llvm_instrs(current_user, match_user);
 }
 
+Instruction *dfs_instructions(Instruction *current_instr,
+                              std::vector<LLVMPair> &translated_exprs,
+                              BasicBlock &B) {
+    for (LLVMPair pair : translated_exprs) {
+        Instruction *original_val =
+            dyn_cast<Instruction>(unwrap(pair.original_value));
+        Instruction *new_val = dyn_cast<Instruction>(unwrap(pair.new_value));
+        if (current_instr == original_val) {
+            return new_val;
+        }
+    }
+
+    Instruction *cloned_instr = current_instr->clone();
+
+    int num_operands = current_instr->getNumOperands();
+    if (num_operands == 0) {
+        LLVMPair new_pair;
+        new_pair.original_value = wrap(current_instr);
+        new_pair.new_value = wrap(cloned_instr);
+        translated_exprs.push_back(new_pair);
+
+        BasicBlock::InstListType &intermediate_instrs = B.getInstList();
+        intermediate_instrs.push_back(cloned_instr);
+        return cloned_instr;
+    }
+
+    for (int i = 0; i < num_operands; i++) {
+        Instruction *arg = dyn_cast<Instruction>(current_instr->getOperand(i));
+        if (arg) {
+            Instruction *cloned_arg =
+                dfs_instructions(arg, translated_exprs, B);
+            cloned_instr->setOperand(i, cloned_arg);
+        }
+    }
+    LLVMPair new_pair;
+    new_pair.original_value = wrap(current_instr);
+    new_pair.new_value = wrap(cloned_instr);
+    translated_exprs.push_back(new_pair);
+
+    BasicBlock::InstListType &intermediate_instrs = B.getInstList();
+    intermediate_instrs.push_back(cloned_instr);
+    return cloned_instr;
+}
+
 /**
  * Below is the main DiospyrosPass that activates the Rust lib.rs code,
  * which calls the Egg vectorizer and rewrites the optimized code in place.
@@ -553,13 +598,19 @@ struct DiospyrosPass : public FunctionPass {
                 continue;
             }
             // We also skip over all basic blocks without stores
-            bool has_store = false;
+            bool has_store_or_mem_intrinsic = false;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<StoreInst>(&I)) {
-                    has_store = true;
+                    has_store_or_mem_intrinsic = true;
+                } else if (auto *op = dyn_cast<MemSetInst>(&I)) {
+                    has_store_or_mem_intrinsic = true;
+                } else if (auto *op = dyn_cast<MemCpyInst>(&I)) {
+                    has_store_or_mem_intrinsic = true;
+                } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
+                    has_store_or_mem_intrinsic = true;
                 }
             }
-            if (!has_store) {
+            if (!has_store_or_mem_intrinsic) {
                 for (auto &I : B) {
                     auto *op = wrap(dyn_cast<Instruction>(&I));
                     LLVMPair new_pair;
@@ -602,6 +653,30 @@ struct DiospyrosPass : public FunctionPass {
                     Value *store_loc = op->getOperand(1);
                     store_locations.insert(store_loc);
                     inner_vector.push_back(wrap(op));
+                } else if (auto *op = dyn_cast<MemSetInst>(&I)) {
+                    if (!inner_vector.empty()) {
+                        vectorization_accumulator.push_back(inner_vector);
+                    }
+                    inner_vector = {wrap(op)};
+                    vectorization_accumulator.push_back(inner_vector);
+                    inner_vector = {};
+                    store_locations.clear();
+                } else if (auto *op = dyn_cast<MemCpyInst>(&I)) {
+                    if (!inner_vector.empty()) {
+                        vectorization_accumulator.push_back(inner_vector);
+                    }
+                    inner_vector = {wrap(op)};
+                    vectorization_accumulator.push_back(inner_vector);
+                    inner_vector = {};
+                    store_locations.clear();
+                } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
+                    if (!inner_vector.empty()) {
+                        vectorization_accumulator.push_back(inner_vector);
+                    }
+                    inner_vector = {wrap(op)};
+                    vectorization_accumulator.push_back(inner_vector);
+                    inner_vector = {};
+                    store_locations.clear();
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
                     if (!inner_vector.empty()) {
@@ -628,22 +703,30 @@ struct DiospyrosPass : public FunctionPass {
                     IRBuilder<> builder(dyn_cast<Instruction>(last_store));
                     Instruction *store_instr =
                         dyn_cast<Instruction>(last_store);
-                    assert(isa<StoreInst>(store_instr));
-                    builder.SetInsertPoint(store_instr);
-                    builder.SetInsertPoint(&B);
-                    Module *mod = F.getParent();
-                    LLVMContext &context = F.getContext();
-                    VectorPointerSize pair = optimize(
-                        wrap(mod), wrap(&context), wrap(&builder), vec.data(),
-                        vec.size(), translated_exprs.data(),
-                        translated_exprs.size(), RunOpt, PrintOpt);
-                    int size = pair.llvm_pointer_size;
+                    if (auto *op = dyn_cast<StoreInst>(store_instr)) {
+                        assert(isa<StoreInst>(store_instr));
+                        builder.SetInsertPoint(store_instr);
+                        builder.SetInsertPoint(&B);
+                        Module *mod = F.getParent();
+                        LLVMContext &context = F.getContext();
+                        VectorPointerSize pair = optimize(
+                            wrap(mod), wrap(&context), wrap(&builder),
+                            vec.data(), vec.size(), translated_exprs.data(),
+                            translated_exprs.size(), RunOpt, PrintOpt);
+                        int size = pair.llvm_pointer_size;
 
-                    LLVMPair const *expr_array = pair.llvm_pointer;
-                    // translated_exprs = {};
-                    for (int i = 0; i < size; i++) {
-                        translated_exprs.push_back(expr_array[i]);
+                        LLVMPair const *expr_array = pair.llvm_pointer;
+                        // translated_exprs = {};
+                        for (int i = 0; i < size; i++) {
+                            translated_exprs.push_back(expr_array[i]);
+                        }
+                    } else {
+                        assert(isa<MemSetInst>(last_store) ||
+                               isa<MemCpyInst>(last_store) ||
+                               isa<MemMoveInst>(last_store));
+                        dfs_instructions(store_instr, translated_exprs, B);
                     }
+
                     // Trim down translated_exprs
                     std::vector<LLVMPair> new_translated_exprs = {};
                     if (translated_exprs.size() >=

@@ -7,7 +7,7 @@
 
 void test(float A[SIZE]) {
     for (int i = 0; i < SIZE; i++) {
-        float x[SIZE] = {0.0f};
+        float x[SIZE] = {[0 ... SIZE - 1] = 0.0f};
         for (int j = 0; j < SIZE; j++) {
             x[j] = 1.0f;
         }
@@ -20,7 +20,7 @@ void test(float A[SIZE]) {
 }
 
 int main() {
-    float A[SIZE] = {0.0f};
+    float A[SIZE] = {[0 ... SIZE - 1] = 0.0f};
     for (int i = 0; i < SIZE; i++) {
         A[i] = (float)i;
     }
