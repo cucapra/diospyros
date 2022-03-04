@@ -67,12 +67,16 @@ const string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
 
+/** Number of instructions to search back and see if translated - we keep less
+ * to search faster; but actually cutting it short is unsound. */
+const int NUM_TRANSLATED_INSTRUCTIONS = 1000;
+
 /**
  * Fresh counters for temps and array generation
  */
-int FRESH_INT_COUNTER = 0;
-int FRESH_ARRAY_COUNTER = 0;
-int FRESH_TEMP_COUNTER = 0;
+static int FRESH_INT_COUNTER = 0;
+static int FRESH_ARRAY_COUNTER = 0;
+static int FRESH_TEMP_COUNTER = 0;
 
 /**
  * Generates a Fresh Index
@@ -529,6 +533,7 @@ struct DiospyrosPass : public FunctionPass {
             return false;
         }
         bool has_changes = false;
+        std::vector<LLVMPair> translated_exprs = {};
         for (auto &B : F) {
             // We skip over basic blocks without floating point types
             bool has_float = false;
@@ -538,6 +543,13 @@ struct DiospyrosPass : public FunctionPass {
                 }
             }
             if (!has_float) {
+                for (auto &I : B) {
+                    auto *op = wrap(dyn_cast<Instruction>(&I));
+                    LLVMPair new_pair;
+                    new_pair.original_value = op;
+                    new_pair.new_value = op;
+                    translated_exprs.push_back(new_pair);
+                }
                 continue;
             }
             // We also skip over all basic blocks without stores
@@ -548,6 +560,32 @@ struct DiospyrosPass : public FunctionPass {
                 }
             }
             if (!has_store) {
+                for (auto &I : B) {
+                    auto *op = wrap(dyn_cast<Instruction>(&I));
+                    LLVMPair new_pair;
+                    new_pair.original_value = op;
+                    new_pair.new_value = op;
+                    translated_exprs.push_back(new_pair);
+                }
+                continue;
+            }
+
+            // We also skip over all basic blocks with Select as that is not
+            // translatable into Egg
+            bool has_select = false;
+            for (auto &I : B) {
+                if (auto *op = dyn_cast<SelectInst>(&I)) {
+                    has_select = true;
+                }
+            }
+            if (has_select) {
+                for (auto &I : B) {
+                    auto *op = wrap(dyn_cast<Instruction>(&I));
+                    LLVMPair new_pair;
+                    new_pair.original_value = op;
+                    new_pair.new_value = op;
+                    translated_exprs.push_back(new_pair);
+                }
                 continue;
             }
 
@@ -581,7 +619,7 @@ struct DiospyrosPass : public FunctionPass {
 
             int vec_length = vectorization_accumulator.size();
             int counter = 0;
-            std::vector<LLVMPair> translated_exprs = {};
+            // std::vector<LLVMPair> translated_exprs = {};
             for (auto &vec : vectorization_accumulator) {
                 ++counter;
                 if (not vec.empty()) {
@@ -602,9 +640,20 @@ struct DiospyrosPass : public FunctionPass {
                     int size = pair.llvm_pointer_size;
 
                     LLVMPair const *expr_array = pair.llvm_pointer;
-                    translated_exprs = {};
+                    // translated_exprs = {};
                     for (int i = 0; i < size; i++) {
                         translated_exprs.push_back(expr_array[i]);
+                    }
+                    // Trim down translated_exprs
+                    std::vector<LLVMPair> new_translated_exprs = {};
+                    if (translated_exprs.size() >=
+                        NUM_TRANSLATED_INSTRUCTIONS) {
+                        for (int i = 0; i < NUM_TRANSLATED_INSTRUCTIONS; i++) {
+                            LLVMPair final_instr = translated_exprs.back();
+                            translated_exprs.pop_back();
+                            new_translated_exprs.push_back(final_instr);
+                        }
+                        translated_exprs = new_translated_exprs;
                     }
                 }
             }
@@ -618,6 +667,17 @@ struct DiospyrosPass : public FunctionPass {
             }
             BasicBlock::InstListType &final_instrs = B.getInstList();
             final_instrs.push_back(cloned_terminator);
+
+            // Trim down translated_exprs
+            std::vector<LLVMPair> new_translated_exprs = {};
+            if (translated_exprs.size() >= NUM_TRANSLATED_INSTRUCTIONS) {
+                for (int i = 0; i < NUM_TRANSLATED_INSTRUCTIONS; i++) {
+                    LLVMPair final_instr = translated_exprs.back();
+                    translated_exprs.pop_back();
+                    new_translated_exprs.push_back(final_instr);
+                }
+                translated_exprs = new_translated_exprs;
+            }
         }
         return true;
     };
