@@ -1965,8 +1965,6 @@ unsafe fn translate_egg(
         .get(&(array_name, array_offsets))
         .expect("Symbol map lookup error: Cannot Find GEP");
       let load_value = if isa_load(*gep_value) {
-        println!("Load");
-        _llvm_print(*gep_value);
         let mut matched = false;
         let mut matched_expr = *gep_value;
         for pair in &*llvm_arg_pairs {
@@ -2015,7 +2013,6 @@ unsafe fn translate_egg(
         let new_sitofp = llvm_recursive_add(builder, *gep_value, context, llvm_arg_pairs);
         new_sitofp
       } else if isa_argument(*gep_value) {
-        _llvm_print(*gep_value);
         let new_load_value = LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _);
         new_load_value
       } else {
