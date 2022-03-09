@@ -65,6 +65,12 @@ const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
 const string SQRT64_FUNCTION_NAME = "llvm.sqrt.f64";
 const string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
+const string MEMSET_PREFIX = "memset";
+const string LLVM_MEMSET_PREFIX = "llvm.memset";
+const string MEMMOVE_PREFIX = "memmove";
+const string MEMCOPY_PREFIX = "memcopy";
+const string MAIN_FUNCTION_NAME = "main";
+const string NO_OPT_PREFIX = "no_opt_";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
 
@@ -437,8 +443,11 @@ extern "C" float get_constant_float(LLVMValueRef val) {
     Value *v = unwrap(val);
     if (auto *num = dyn_cast<ConstantFP>(v)) {
         return num->getValue().convertToFloat();
+    } else if (auto *num = dyn_cast<ConstantInt>(v)) {
+        return num->getValue().bitsToFloat();
     }
-    return -1;
+    errs() << "Not a Constant Float or Constant Int " << *unwrap(val) << "\n";
+    throw "LLVM Value Must be a Constant Float or Constant Int";
 }
 
 extern "C" LLVMValueRef build_constant_float(double n, LLVMContextRef context) {
@@ -519,7 +528,7 @@ extern "C" bool dfs_llvm_value_ref(LLVMValueRef current_instr,
 
 Instruction *dfs_instructions(Instruction *current_instr,
                               std::vector<LLVMPair> &translated_exprs,
-                              BasicBlock &B) {
+                              BasicBlock *B) {
     for (LLVMPair pair : translated_exprs) {
         Instruction *original_val =
             dyn_cast<Instruction>(unwrap(pair.original_value));
@@ -533,22 +542,28 @@ Instruction *dfs_instructions(Instruction *current_instr,
 
     int num_operands = current_instr->getNumOperands();
     if (num_operands == 0) {
+        BasicBlock::InstListType &intermediate_instrs = B->getInstList();
+        intermediate_instrs.push_back(cloned_instr);
+
         LLVMPair new_pair;
         new_pair.original_value = wrap(current_instr);
         new_pair.new_value = wrap(cloned_instr);
         translated_exprs.push_back(new_pair);
 
-        BasicBlock::InstListType &intermediate_instrs = B.getInstList();
-        intermediate_instrs.push_back(cloned_instr);
         return cloned_instr;
     }
 
     for (int i = 0; i < num_operands; i++) {
         Instruction *arg = dyn_cast<Instruction>(current_instr->getOperand(i));
-        if (arg) {
+        if (arg != NULL) {
             Instruction *cloned_arg =
                 dfs_instructions(arg, translated_exprs, B);
             cloned_instr->setOperand(i, cloned_arg);
+
+            LLVMPair new_pair;
+            new_pair.original_value = wrap(arg);
+            new_pair.new_value = wrap(cloned_arg);
+            translated_exprs.push_back(new_pair);
         }
     }
     LLVMPair new_pair;
@@ -556,9 +571,42 @@ Instruction *dfs_instructions(Instruction *current_instr,
     new_pair.new_value = wrap(cloned_instr);
     translated_exprs.push_back(new_pair);
 
-    BasicBlock::InstListType &intermediate_instrs = B.getInstList();
+    BasicBlock::InstListType &intermediate_instrs = B->getInstList();
     intermediate_instrs.push_back(cloned_instr);
     return cloned_instr;
+}
+
+bool is_memset_variety(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        StringRef name = function->getName();
+        return (name.size() > MEMSET_PREFIX.size() &&
+                name.substr(0, MEMSET_PREFIX.size()) == MEMSET_PREFIX) ||
+               (name.size() > LLVM_MEMSET_PREFIX.size() &&
+                name.substr(0, LLVM_MEMSET_PREFIX.size()) ==
+                    LLVM_MEMSET_PREFIX);
+    }
+    return false;
+}
+
+bool is_memcopy_variety(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        StringRef name = function->getName();
+        return name.size() > MEMCOPY_PREFIX.size() &&
+               name.substr(0, MEMCOPY_PREFIX.size()) == MEMCOPY_PREFIX;
+    }
+    return false;
+}
+
+bool is_memmove_variety(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        StringRef name = function->getName();
+        return name.size() > MEMMOVE_PREFIX.size() &&
+               name.substr(0, MEMMOVE_PREFIX.size()) == MEMMOVE_PREFIX;
+    }
+    return false;
 }
 
 /**
@@ -573,8 +621,9 @@ struct DiospyrosPass : public FunctionPass {
 
     virtual bool runOnFunction(Function &F) override {
         // do not optimize on main function or no_opt functions.
-        if (F.getName() == "main" ||
-            (F.getName().size() > 7 && F.getName().substr(0, 7) == "no_opt_")) {
+        if (F.getName() == MAIN_FUNCTION_NAME ||
+            (F.getName().size() > NO_OPT_PREFIX.size() &&
+             F.getName().substr(0, NO_OPT_PREFIX.size()) == NO_OPT_PREFIX)) {
             return false;
         }
         bool has_changes = false;
@@ -608,6 +657,14 @@ struct DiospyrosPass : public FunctionPass {
                     has_store_or_mem_intrinsic = true;
                 } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
                     has_store_or_mem_intrinsic = true;
+                } else if (CallInst *op = dyn_cast<CallInst>(&I)) {
+                    if (is_memset_variety(op)) {
+                        has_store_or_mem_intrinsic = true;
+                    } else if (is_memcopy_variety(op)) {
+                        has_store_or_mem_intrinsic = true;
+                    } else if (is_memmove_variety(op)) {
+                        has_store_or_mem_intrinsic = true;
+                    }
                 }
             }
             if (!has_store_or_mem_intrinsic) {
@@ -677,6 +734,35 @@ struct DiospyrosPass : public FunctionPass {
                     vectorization_accumulator.push_back(inner_vector);
                     inner_vector = {};
                     store_locations.clear();
+                } else if (CallInst *call_inst = dyn_cast<CallInst>(&I)) {
+                    if (is_memset_variety(call_inst)) {
+                        if (!inner_vector.empty()) {
+                            vectorization_accumulator.push_back(inner_vector);
+                        }
+                        Instruction *memset = dyn_cast<CallInst>(call_inst);
+                        inner_vector = {wrap(memset)};
+                        vectorization_accumulator.push_back(inner_vector);
+                        inner_vector = {};
+                        store_locations.clear();
+                    } else if (is_memcopy_variety(call_inst)) {
+                        if (!inner_vector.empty()) {
+                            vectorization_accumulator.push_back(inner_vector);
+                        }
+                        Instruction *memcopy = dyn_cast<CallInst>(call_inst);
+                        inner_vector = {wrap(memcopy)};
+                        vectorization_accumulator.push_back(inner_vector);
+                        inner_vector = {};
+                        store_locations.clear();
+                    } else if (is_memmove_variety(call_inst)) {
+                        if (!inner_vector.empty()) {
+                            vectorization_accumulator.push_back(inner_vector);
+                        }
+                        Instruction *memmove = dyn_cast<CallInst>(call_inst);
+                        inner_vector = {wrap(memmove)};
+                        vectorization_accumulator.push_back(inner_vector);
+                        inner_vector = {};
+                        store_locations.clear();
+                    }
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
                     if (!inner_vector.empty()) {
@@ -687,7 +773,9 @@ struct DiospyrosPass : public FunctionPass {
                 }
                 bb_instrs.push_back(dyn_cast<Instruction>(&I));
             }
-            vectorization_accumulator.push_back(inner_vector);
+            if (!inner_vector.empty()) {
+                vectorization_accumulator.push_back(inner_vector);
+            }
 
             // Acquire each of the instructions in the "run" that terminates at
             // a store We will send these instructions to optimize.
@@ -723,8 +811,18 @@ struct DiospyrosPass : public FunctionPass {
                     } else {
                         assert(isa<MemSetInst>(last_store) ||
                                isa<MemCpyInst>(last_store) ||
-                               isa<MemMoveInst>(last_store));
-                        dfs_instructions(store_instr, translated_exprs, B);
+                               isa<MemMoveInst>(last_store) ||
+                               (isa<CallInst>(last_store) &&
+                                is_memset_variety(
+                                    dyn_cast<CallInst>(last_store))) ||
+                               (isa<CallInst>(last_store) &&
+                                is_memcopy_variety(
+                                    dyn_cast<CallInst>(last_store))) ||
+                               (isa<CallInst>(last_store) &&
+                                is_memmove_variety(
+                                    dyn_cast<CallInst>(last_store))));
+
+                        dfs_instructions(store_instr, translated_exprs, &B);
                     }
 
                     // Trim down translated_exprs
@@ -745,6 +843,19 @@ struct DiospyrosPass : public FunctionPass {
                 if (I->isTerminator()) {
                     I->eraseFromParent();
                 } else if (isa<StoreInst>(I)) {
+                    I->eraseFromParent();
+                } else if ((isa<CallInst>(I) &&
+                            is_memset_variety(dyn_cast<CallInst>(I))) ||
+                           (isa<CallInst>(I) &&
+                            is_memcopy_variety(dyn_cast<CallInst>(I))) ||
+                           (isa<CallInst>(I) &&
+                            is_memmove_variety(dyn_cast<CallInst>(I)))) {
+                    I->eraseFromParent();
+                } else if (isa<MemSetInst>(I)) {
+                    I->eraseFromParent();
+                } else if (isa<MemCpyInst>(I)) {
+                    I->eraseFromParent();
+                } else if (isa<MemMoveInst>(I)) {
                     I->eraseFromParent();
                 }
             }
