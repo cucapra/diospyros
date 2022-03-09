@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SIZE 4
+#define SIZE 10
 
 void test(float A[SIZE]) {
     for (int i = 0; i < SIZE; i++) {

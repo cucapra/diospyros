@@ -77,6 +77,9 @@ no-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 	$(CLANG) build/dce.ll -o build/final
 	build/final
 
+run-diospyros: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt=false -mllvm -print=false $(test) -o build/diospyros.ll
+
 run-polybench: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -I polybench-tests/utilities -I polybench-tests/linear-algebra/kernels/atax $(test) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll 
 	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll

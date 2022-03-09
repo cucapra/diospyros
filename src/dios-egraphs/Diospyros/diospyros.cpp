@@ -76,7 +76,7 @@ const int BINARY_OPERATOR = 2;
 
 /** Number of instructions to search back and see if translated - we keep less
  * to search faster; but actually cutting it short is unsound. */
-const int NUM_TRANSLATED_INSTRUCTIONS = 1000;
+const int NUM_TRANSLATED_INSTRUCTIONS = 2000;
 
 /**
  * Fresh counters for temps and array generation
@@ -526,51 +526,94 @@ extern "C" bool dfs_llvm_value_ref(LLVMValueRef current_instr,
     return dfs_llvm_instrs(current_user, match_user);
 }
 
+// Instruction *dfs_instructions(Instruction *current_instr,
+//                               std::vector<LLVMPair> &translated_exprs,
+//                               BasicBlock *B) {
+//     for (LLVMPair pair : translated_exprs) {
+//         Instruction *original_val =
+//             dyn_cast<Instruction>(unwrap(pair.original_value));
+//         Instruction *new_val = dyn_cast<Instruction>(unwrap(pair.new_value));
+//         if (current_instr == original_val) {
+//             return new_val;
+//         }
+//     }
+
+//     Instruction *cloned_instr = current_instr->clone();
+
+//     int num_operands = current_instr->getNumOperands();
+//     if (num_operands == 0) {
+//         BasicBlock::InstListType &intermediate_instrs = B->getInstList();
+//         intermediate_instrs.push_back(cloned_instr);
+
+//         LLVMPair new_pair;
+//         new_pair.original_value = wrap(current_instr);
+//         new_pair.new_value = wrap(cloned_instr);
+//         translated_exprs.push_back(new_pair);
+
+//         return cloned_instr;
+//     }
+
+//     for (int i = 0; i < num_operands; i++) {
+//         Instruction *arg =
+//         dyn_cast<Instruction>(current_instr->getOperand(i)); if (arg != NULL)
+//         {
+//             Instruction *cloned_arg =
+//                 dfs_instructions(arg, translated_exprs, B);
+//             cloned_instr->setOperand(i, cloned_arg);
+
+//             LLVMPair new_pair;
+//             new_pair.original_value = wrap(arg);
+//             new_pair.new_value = wrap(cloned_arg);
+//             translated_exprs.push_back(new_pair);
+//         }
+//     }
+//     LLVMPair new_pair;
+//     new_pair.original_value = wrap(current_instr);
+//     new_pair.new_value = wrap(cloned_instr);
+//     translated_exprs.push_back(new_pair);
+
+//     BasicBlock::InstListType &intermediate_instrs = B->getInstList();
+//     intermediate_instrs.push_back(cloned_instr);
+//     return cloned_instr;
+// }
+
 Instruction *dfs_instructions(Instruction *current_instr,
                               std::vector<LLVMPair> &translated_exprs,
                               BasicBlock *B) {
-    for (LLVMPair pair : translated_exprs) {
-        Instruction *original_val =
-            dyn_cast<Instruction>(unwrap(pair.original_value));
-        Instruction *new_val = dyn_cast<Instruction>(unwrap(pair.new_value));
-        if (current_instr == original_val) {
-            return new_val;
-        }
-    }
-
     Instruction *cloned_instr = current_instr->clone();
-
-    int num_operands = current_instr->getNumOperands();
-    if (num_operands == 0) {
-        BasicBlock::InstListType &intermediate_instrs = B->getInstList();
-        intermediate_instrs.push_back(cloned_instr);
-
+    if (isa<Argument>(current_instr)) {
+        return current_instr;
+    } else if (isa<Constant>(current_instr)) {
+        return current_instr;
+    } else if (isa<AllocaInst>(current_instr)) {
+        for (LLVMPair pair : translated_exprs) {
+            Instruction *original_val =
+                dyn_cast<Instruction>(unwrap(pair.original_value));
+            Instruction *new_val =
+                dyn_cast<Instruction>(unwrap(pair.new_value));
+            if (current_instr == original_val) {
+                return new_val;
+            }
+        }
         LLVMPair new_pair;
         new_pair.original_value = wrap(current_instr);
         new_pair.new_value = wrap(cloned_instr);
         translated_exprs.push_back(new_pair);
 
+        BasicBlock::InstListType &intermediate_instrs = B->getInstList();
+        intermediate_instrs.push_back(cloned_instr);
         return cloned_instr;
     }
 
+    int num_operands = current_instr->getNumOperands();
     for (int i = 0; i < num_operands; i++) {
         Instruction *arg = dyn_cast<Instruction>(current_instr->getOperand(i));
         if (arg != NULL) {
             Instruction *cloned_arg =
                 dfs_instructions(arg, translated_exprs, B);
             cloned_instr->setOperand(i, cloned_arg);
-
-            LLVMPair new_pair;
-            new_pair.original_value = wrap(arg);
-            new_pair.new_value = wrap(cloned_arg);
-            translated_exprs.push_back(new_pair);
         }
     }
-    LLVMPair new_pair;
-    new_pair.original_value = wrap(current_instr);
-    new_pair.new_value = wrap(cloned_instr);
-    translated_exprs.push_back(new_pair);
-
     BasicBlock::InstListType &intermediate_instrs = B->getInstList();
     intermediate_instrs.push_back(cloned_instr);
     return cloned_instr;

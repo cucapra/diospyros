@@ -104,7 +104,7 @@ unsafe fn gen_call_name() -> String {
 // Reference Comparison: https://www.reddit.com/r/rust/comments/2r3wjk/is_there_way_to_compare_objects_by_address_in_rust/
 // Compares whether addresses of LLVMValueRefs are the same.
 // Not the contents of the Value Refs
-fn cmp_val_ref_address(a1: &LLVMValueRef, a2: &LLVMValueRef) -> bool {
+fn cmp_val_ref_address(a1: &llvm::LLVMValue, a2: &llvm::LLVMValue) -> bool {
   a1 as *const _ == a2 as *const _
 }
 
@@ -913,12 +913,99 @@ unsafe fn _llvm_recursive_print(inst: LLVMValueRef) -> () {
   return;
 }
 
+// unsafe fn llvm_recursive_add(
+//   builder: LLVMBuilderRef,
+//   inst: LLVMValueRef,
+//   context: LLVMContextRef,
+//   llvm_arg_pairs: &mut Vec<LLVMPair>,
+// ) -> LLVMValueRef {
+//   if isa_argument(inst) {
+//     let mut indices = Vec::new();
+//     for i in 0..1 {
+//       indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
+//     }
+//     let indices_vector = indices.as_mut_ptr();
+//     return LLVMBuildGEP(builder, inst, indices_vector, 1, b"\0".as_ptr() as *const _);
+//     // return inst;
+//   } else if isa_constant(inst) {
+//     return inst;
+//   } else if isa_phi(inst) {
+//     return inst;
+//   } else if isa_alloca(inst) {
+//     // We have this in the base case to stop reconstruction of allocas,
+//     // because allocas are like loads, and should not get reconstructioned
+//     // search the llvm_arg_pairs for allocas that were already created
+//     let mut matched = false;
+//     let mut ret_value = inst;
+//     for llvm_pair in &*llvm_arg_pairs {
+//       let original_llvm = llvm_pair.original_value;
+//       let new_llvm = llvm_pair.new_value;
+//       if cmp_val_ref_address(&original_llvm, &inst) {
+//         matched = true;
+//         ret_value = new_llvm;
+//         break;
+//       }
+//     }
+//     if matched {
+//       return ret_value;
+//     } else {
+//       // Don't clone Inst; we should only clone if recursive call,
+//       // which is handled previously
+//       return inst;
+//     }
+//   }
+//   // TODO: CALLs should not be rebuilt?
+//   // else if isa_call(inst) {
+//   //   let cloned_inst = LLVMInstructionClone(inst);
+//   //   LLVMInsertIntoBuilder(builder, cloned_inst);
+//   //   return cloned_inst;
+//   // }
+//   let cloned_inst = LLVMInstructionClone(inst);
+//   let num_ops = LLVMGetNumOperands(inst);
+//   for i in 0..num_ops {
+//     let operand = LLVMGetOperand(inst, i as u32);
+//     // search the llvm_arg_pairs
+//     let mut matched = false;
+//     let mut ret_value = operand;
+//     for llvm_pair in &mut *llvm_arg_pairs {
+//       let original_llvm = llvm_pair.original_value;
+//       let new_llvm = llvm_pair.new_value;
+//       if !matched && cmp_val_ref_address(&original_llvm, &operand) {
+//         matched = true;
+//         ret_value = new_llvm;
+//       }
+//     }
+//     if matched {
+//       LLVMSetOperand(cloned_inst, i as u32, ret_value);
+//     } else {
+//       let new_inst = llvm_recursive_add(builder, operand, context, llvm_arg_pairs);
+//       LLVMSetOperand(cloned_inst, i as u32, new_inst);
+
+//       let pair = LLVMPair {
+//         new_value: new_inst,
+//         original_value: operand,
+//       };
+//       llvm_arg_pairs.push(pair);
+//     }
+//   }
+//   LLVMInsertIntoBuilder(builder, cloned_inst);
+
+//   let pair = LLVMPair {
+//     new_value: cloned_inst,
+//     original_value: inst,
+//   };
+//   llvm_arg_pairs.push(pair);
+
+//   return cloned_inst;
+// }
+
 unsafe fn llvm_recursive_add(
   builder: LLVMBuilderRef,
   inst: LLVMValueRef,
   context: LLVMContextRef,
   llvm_arg_pairs: &mut Vec<LLVMPair>,
 ) -> LLVMValueRef {
+  let cloned_inst = LLVMInstructionClone(inst);
   if isa_argument(inst) {
     let mut indices = Vec::new();
     for i in 0..1 {
@@ -926,7 +1013,6 @@ unsafe fn llvm_recursive_add(
     }
     let indices_vector = indices.as_mut_ptr();
     return LLVMBuildGEP(builder, inst, indices_vector, 1, b"\0".as_ptr() as *const _);
-    // return inst;
   } else if isa_constant(inst) {
     return inst;
   } else if isa_phi(inst) {
@@ -940,7 +1026,7 @@ unsafe fn llvm_recursive_add(
     for llvm_pair in &*llvm_arg_pairs {
       let original_llvm = llvm_pair.original_value;
       let new_llvm = llvm_pair.new_value;
-      if cmp_val_ref_address(&original_llvm, &inst) {
+      if cmp_val_ref_address(&*original_llvm, &*inst) {
         matched = true;
         ret_value = new_llvm;
         break;
@@ -949,53 +1035,22 @@ unsafe fn llvm_recursive_add(
     if matched {
       return ret_value;
     } else {
-      // Don't clone Inst; we should only clone if recursive call,
-      // which is handled previously
-      return inst;
+      let pair = LLVMPair {
+        new_value: cloned_inst,
+        original_value: inst,
+      };
+      llvm_arg_pairs.push(pair);
+      LLVMInsertIntoBuilder(builder, cloned_inst);
+      return cloned_inst;
     }
   }
-  // TODO: CALLs should not be rebuilt?
-  // else if isa_call(inst) {
-  //   let cloned_inst = LLVMInstructionClone(inst);
-  //   LLVMInsertIntoBuilder(builder, cloned_inst);
-  //   return cloned_inst;
-  // }
-  let cloned_inst = LLVMInstructionClone(inst);
   let num_ops = LLVMGetNumOperands(inst);
   for i in 0..num_ops {
     let operand = LLVMGetOperand(inst, i as u32);
-    // search the llvm_arg_pairs
-    let mut matched = false;
-    let mut ret_value = operand;
-    for llvm_pair in &mut *llvm_arg_pairs {
-      let original_llvm = llvm_pair.original_value;
-      let new_llvm = llvm_pair.new_value;
-      if !matched && cmp_val_ref_address(&original_llvm, &operand) {
-        matched = true;
-        ret_value = new_llvm;
-      }
-    }
-    if matched {
-      LLVMSetOperand(cloned_inst, i as u32, ret_value);
-    } else {
-      let new_inst = llvm_recursive_add(builder, operand, context, llvm_arg_pairs);
-      LLVMSetOperand(cloned_inst, i as u32, new_inst);
-
-      let pair = LLVMPair {
-        new_value: new_inst,
-        original_value: operand,
-      };
-      llvm_arg_pairs.push(pair);
-    }
+    let new_operand = llvm_recursive_add(builder, operand, context, llvm_arg_pairs);
+    LLVMSetOperand(cloned_inst, i as u32, new_operand);
   }
   LLVMInsertIntoBuilder(builder, cloned_inst);
-
-  let pair = LLVMPair {
-    new_value: cloned_inst,
-    original_value: inst,
-  };
-  llvm_arg_pairs.push(pair);
-
   return cloned_inst;
 }
 
@@ -1592,7 +1647,7 @@ unsafe fn ref_to_egg(
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   for pair in llvm_arg_pairs {
-    if cmp_val_ref_address(&pair.original_value, &expr) {
+    if cmp_val_ref_address(&*pair.original_value, &*expr) {
       // Here we create a new numbered variable node
       let var_idx = gen_node_idx();
       let var_idx_str = var_idx.to_string();
@@ -1848,7 +1903,7 @@ unsafe fn translate_egg(
               for llvm_pair in &mut *llvm_arg_pairs {
                 let original_llvm = llvm_pair.original_value;
                 let new_llvm = llvm_pair.new_value;
-                if cmp_val_ref_address(&original_llvm, &llvm_node) {
+                if cmp_val_ref_address(&*original_llvm, &*llvm_node) {
                   matched = true;
                   ret_value = new_llvm;
                   break;
@@ -1881,7 +1936,7 @@ unsafe fn translate_egg(
         let mut matched = false;
         let mut matched_expr = *gep_value;
         for pair in &*llvm_arg_pairs {
-          if cmp_val_ref_address(&pair.original_value, &*gep_value) {
+          if cmp_val_ref_address(&*pair.original_value, &**gep_value) {
             matched = true;
             matched_expr = pair.new_value;
             break;
@@ -1891,8 +1946,8 @@ unsafe fn translate_egg(
           matched_expr
         } else {
           let addr = LLVMGetOperand(*gep_value, 0);
-          let cloned_gep = LLVMInstructionClone(addr);
-          let new_gep = llvm_recursive_add(builder, cloned_gep, context, llvm_arg_pairs);
+          // let cloned_gep = LLVMInstructionClone(addr);
+          let new_gep = llvm_recursive_add(builder, addr, context, llvm_arg_pairs);
           let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
           let llvm_pair = LLVMPair {
             original_value: *gep_value,
@@ -1922,14 +1977,15 @@ unsafe fn translate_egg(
         }
         LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
       } else if isa_sitofp(*gep_value) {
-        let cloned_sitofp = LLVMInstructionClone(*gep_value);
-        let new_sitofp = llvm_recursive_add(builder, cloned_sitofp, context, llvm_arg_pairs);
+        // let cloned_sitofp = LLVMInstructionClone(*gep_value);
+        let new_sitofp = llvm_recursive_add(builder, *gep_value, context, llvm_arg_pairs);
         new_sitofp
       } else {
+        // includes isa_alloca case
         let mut matched = false;
         let mut matched_expr = *gep_value;
         for pair in &*llvm_arg_pairs {
-          if cmp_val_ref_address(&pair.original_value, &*gep_value) {
+          if cmp_val_ref_address(&*pair.original_value, &**gep_value) {
             matched = true;
             matched_expr = pair.new_value;
             break;
