@@ -1013,7 +1013,22 @@ unsafe fn llvm_recursive_add(
     }
     let indices_vector = indices.as_mut_ptr();
     return LLVMBuildGEP(builder, inst, indices_vector, 1, b"\0".as_ptr() as *const _);
-  } else if isa_constant(inst) {
+  }
+  let mut matched = false;
+  let mut ret_value = inst;
+  for llvm_pair in &*llvm_arg_pairs {
+    let original_llvm = llvm_pair.original_value;
+    let new_llvm = llvm_pair.new_value;
+    if cmp_val_ref_address(&*original_llvm, &*inst) {
+      matched = true;
+      ret_value = new_llvm;
+      break;
+    }
+  }
+  if matched {
+    return ret_value;
+  }
+  if isa_constant(inst) {
     return inst;
   } else if isa_phi(inst) {
     return inst;
@@ -1051,6 +1066,12 @@ unsafe fn llvm_recursive_add(
     LLVMSetOperand(cloned_inst, i as u32, new_operand);
   }
   LLVMInsertIntoBuilder(builder, cloned_inst);
+
+  let pair = LLVMPair {
+    new_value: cloned_inst,
+    original_value: inst,
+  };
+  llvm_arg_pairs.push(pair);
   return cloned_inst;
 }
 
@@ -1202,7 +1223,7 @@ unsafe fn gep_to_egg(
   _llvm_arg_pairs: &Vec<LLVMPair>,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
-  assert!(isa_argument(expr) || isa_gep(expr) || isa_load(expr));
+  // assert!(isa_argument(expr) || isa_gep(expr) || isa_load(expr));
   // let mut enode_vec = Vec::new();
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
   enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
@@ -1315,44 +1336,55 @@ unsafe fn load_to_egg(
   llvm_arg_pairs: &Vec<LLVMPair>,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
-  let addr = LLVMGetOperand(expr, 0);
-  if isa_argument(addr) {
-    return load_arg_to_egg(
-      addr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    );
-  } else if isa_gep(addr) {
-    return gep_to_egg(
-      expr, // we pass the entire instruction and not just the address
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    );
-  } else {
-    return address_to_egg(
-      addr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    );
-  }
+  return gep_to_egg(
+    expr, // we pass the entire instruction and not just the address
+    enode_vec,
+    next_idx,
+    gep_map,
+    store_map,
+    id_map,
+    symbol_map,
+    llvm_arg_pairs,
+    node_to_arg,
+  );
+  // let addr = LLVMGetOperand(expr, 0);
+  // if isa_argument(addr) {
+  //   return load_arg_to_egg(
+  //     addr,
+  //     enode_vec,
+  //     next_idx,
+  //     gep_map,
+  //     store_map,
+  //     id_map,
+  //     symbol_map,
+  //     llvm_arg_pairs,
+  //     node_to_arg,
+  //   );
+  // } else if isa_gep(addr) {
+  //   return gep_to_egg(
+  //     expr, // we pass the entire instruction and not just the address
+  //     enode_vec,
+  //     next_idx,
+  //     gep_map,
+  //     store_map,
+  //     id_map,
+  //     symbol_map,
+  //     llvm_arg_pairs,
+  //     node_to_arg,
+  //   );
+  // } else {
+  //   return address_to_egg(
+  //     addr,
+  //     enode_vec,
+  //     next_idx,
+  //     gep_map,
+  //     store_map,
+  //     id_map,
+  //     symbol_map,
+  //     llvm_arg_pairs,
+  //     node_to_arg,
+  //   );
+  // }
 }
 
 unsafe fn store_to_egg(
@@ -1933,6 +1965,8 @@ unsafe fn translate_egg(
         .get(&(array_name, array_offsets))
         .expect("Symbol map lookup error: Cannot Find GEP");
       let load_value = if isa_load(*gep_value) {
+        println!("Load");
+        _llvm_print(*gep_value);
         let mut matched = false;
         let mut matched_expr = *gep_value;
         for pair in &*llvm_arg_pairs {
@@ -1980,6 +2014,10 @@ unsafe fn translate_egg(
         // let cloned_sitofp = LLVMInstructionClone(*gep_value);
         let new_sitofp = llvm_recursive_add(builder, *gep_value, context, llvm_arg_pairs);
         new_sitofp
+      } else if isa_argument(*gep_value) {
+        _llvm_print(*gep_value);
+        let new_load_value = LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _);
+        new_load_value
       } else {
         // includes isa_alloca case
         let mut matched = false;
@@ -2003,6 +2041,11 @@ unsafe fn translate_egg(
           new_load_value
         }
       };
+      let llvm_pair = LLVMPair {
+        original_value: *gep_value,
+        new_value: load_value,
+      };
+      llvm_arg_pairs.push(llvm_pair);
       load_value
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
