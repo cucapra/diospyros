@@ -760,7 +760,7 @@ pub fn optimize(
     }
     let mut best = expr.clone();
     if run_egg {
-      let pair = rules::run(&expr, 180, true, !run_egg);
+      let pair = rules::run(&expr, 3, true, !run_egg);
       best = pair.1;
     }
     if print_opt {

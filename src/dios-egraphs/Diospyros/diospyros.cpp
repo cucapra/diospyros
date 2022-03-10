@@ -76,7 +76,7 @@ const int BINARY_OPERATOR = 2;
 
 /** Number of instructions to search back and see if translated - we keep less
  * to search faster; but actually cutting it short is unsound. */
-const int NUM_TRANSLATED_INSTRUCTIONS = 2000;
+const int NUM_TRANSLATED_INSTRUCTIONS = 10000000;
 
 /**
  * Fresh counters for temps and array generation
