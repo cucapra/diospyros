@@ -74,10 +74,6 @@ const string NO_OPT_PREFIX = "no_opt_";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
 
-/** Number of instructions to search back and see if translated - we keep less
- * to search faster; but actually cutting it short is unsound. */
-const int NUM_TRANSLATED_INSTRUCTIONS = 10000000;
-
 /**
  * Fresh counters for temps and array generation
  */
@@ -870,15 +866,12 @@ struct DiospyrosPass : public FunctionPass {
 
                     // Trim down translated_exprs
                     std::vector<LLVMPair> new_translated_exprs = {};
-                    if (translated_exprs.size() >=
-                        NUM_TRANSLATED_INSTRUCTIONS) {
-                        for (int i = 0; i < NUM_TRANSLATED_INSTRUCTIONS; i++) {
-                            LLVMPair final_instr = translated_exprs.back();
-                            translated_exprs.pop_back();
-                            new_translated_exprs.push_back(final_instr);
-                        }
-                        translated_exprs = new_translated_exprs;
+                    for (int i = 0; i < translated_exprs.size(); i++) {
+                        LLVMPair final_instr = translated_exprs.back();
+                        translated_exprs.pop_back();
+                        new_translated_exprs.push_back(final_instr);
                     }
+                    translated_exprs = new_translated_exprs;
                 }
             }
             std::reverse(bb_instrs.begin(), bb_instrs.end());
@@ -907,14 +900,12 @@ struct DiospyrosPass : public FunctionPass {
 
             // Trim down translated_exprs
             std::vector<LLVMPair> new_translated_exprs = {};
-            if (translated_exprs.size() >= NUM_TRANSLATED_INSTRUCTIONS) {
-                for (int i = 0; i < NUM_TRANSLATED_INSTRUCTIONS; i++) {
-                    LLVMPair final_instr = translated_exprs.back();
-                    translated_exprs.pop_back();
-                    new_translated_exprs.push_back(final_instr);
-                }
-                translated_exprs = new_translated_exprs;
+            for (int i = 0; i < translated_exprs.size(); i++) {
+                LLVMPair final_instr = translated_exprs.back();
+                translated_exprs.pop_back();
+                new_translated_exprs.push_back(final_instr);
             }
+            translated_exprs = new_translated_exprs;
         }
         return true;
     };
