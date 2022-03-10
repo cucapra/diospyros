@@ -5,7 +5,7 @@ use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{
   cmp,
-  collections::{BTreeMap, BTreeSet},
+  collections::{BTreeMap, BTreeSet, HashMap},
   ffi::CStr,
   mem,
   os::raw::c_char,
@@ -50,6 +50,7 @@ extern "C" {
 // GEPMap : Maps the array name and array offset as symbols to the GEP
 // LLVM Value Ref that LLVM Generated
 type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
+type LLVMPairMap = HashMap<LLVMValueRef, LLVMValueRef>;
 // VarMap : Maps a symbol to a llvm value ref representing a variable
 // type VarMap = BTreeMap<Symbol, LLVMValueRef>;
 // // BopMap : Maps a binary oeprator llvm value ref to an ID, indicating a
@@ -742,14 +743,20 @@ pub fn optimize(
     // llvm to egg
     let llvm_instrs = from_raw_parts(bb, size);
     let past_llvm_instrs = from_raw_parts(past_instrs, past_size);
-    let mut llvm_arg_pairs = Vec::new();
+    // let mut llvm_arg_pairs = Vec::new();
+    let mut llvm_arg_pairs = HashMap::new();
     for instr_pair in past_llvm_instrs {
-      let new_instr_pair = LLVMPair {
-        original_value: instr_pair.original_value,
-        new_value: instr_pair.new_value,
-      };
-      llvm_arg_pairs.push(new_instr_pair);
+      let original_value = instr_pair.original_value;
+      let new_value = instr_pair.new_value;
+      llvm_arg_pairs.insert(original_value, new_value);
     }
+    // for instr_pair in past_llvm_instrs {
+    //   let new_instr_pair = LLVMPair {
+    //     original_value: instr_pair.original_value,
+    //     new_value: instr_pair.new_value,
+    //   };
+    //   llvm_arg_pairs.push(new_instr_pair);
+    // }
     let mut node_to_arg = Vec::new();
     let (expr, gep_map, store_map, symbol_map) =
       llvm_to_egg(llvm_instrs, &mut llvm_arg_pairs, &mut node_to_arg);
@@ -760,7 +767,7 @@ pub fn optimize(
     }
     let mut best = expr.clone();
     if run_egg {
-      let pair = rules::run(&expr, 3, true, !run_egg);
+      let pair = rules::run(&expr, 180, true, !run_egg);
       best = pair.1;
     }
     if print_opt {
@@ -780,8 +787,16 @@ pub fn optimize(
       builder,
     );
 
+    // let mut final_llvm_arg_pairs = Vec::new();
+    // for pair in llvm_arg_pairs {
+    //   final_llvm_arg_pairs.push(pair);
+    // }
     let mut final_llvm_arg_pairs = Vec::new();
-    for pair in llvm_arg_pairs {
+    for (unchanged_val, new_val) in llvm_arg_pairs.iter() {
+      let pair = LLVMPair {
+        original_value: *unchanged_val,
+        new_value: *new_val,
+      };
       final_llvm_arg_pairs.push(pair);
     }
 
@@ -917,7 +932,7 @@ unsafe fn _llvm_recursive_print(inst: LLVMValueRef) -> () {
 //   builder: LLVMBuilderRef,
 //   inst: LLVMValueRef,
 //   context: LLVMContextRef,
-//   llvm_arg_pairs: &mut Vec<LLVMPair>,
+//   llvm_arg_pairs: &mut LLVMPairMap,
 // ) -> LLVMValueRef {
 //   if isa_argument(inst) {
 //     let mut indices = Vec::new();
@@ -1003,7 +1018,7 @@ unsafe fn llvm_recursive_add(
   builder: LLVMBuilderRef,
   inst: LLVMValueRef,
   context: LLVMContextRef,
-  llvm_arg_pairs: &mut Vec<LLVMPair>,
+  llvm_arg_pairs: &mut LLVMPairMap,
 ) -> LLVMValueRef {
   let cloned_inst = LLVMInstructionClone(inst);
   if isa_argument(inst) {
@@ -1016,12 +1031,12 @@ unsafe fn llvm_recursive_add(
   }
   let mut matched = false;
   let mut ret_value = inst;
-  for llvm_pair in &*llvm_arg_pairs {
-    let original_llvm = llvm_pair.original_value;
-    let new_llvm = llvm_pair.new_value;
-    if cmp_val_ref_address(&*original_llvm, &*inst) {
+  for (original_val, new_val) in &*llvm_arg_pairs {
+    // let original_llvm = llvm_pair.original_value;
+    // let new_llvm = llvm_pair.new_value;
+    if cmp_val_ref_address(&**original_val, &*inst) {
       matched = true;
-      ret_value = new_llvm;
+      ret_value = *new_val;
       break;
     }
   }
@@ -1038,12 +1053,12 @@ unsafe fn llvm_recursive_add(
     // search the llvm_arg_pairs for allocas that were already created
     let mut matched = false;
     let mut ret_value = inst;
-    for llvm_pair in &*llvm_arg_pairs {
-      let original_llvm = llvm_pair.original_value;
-      let new_llvm = llvm_pair.new_value;
-      if cmp_val_ref_address(&*original_llvm, &*inst) {
+    for (original_val, new_val) in &*llvm_arg_pairs {
+      // let original_llvm = llvm_pair.original_value;
+      // let new_llvm = llvm_pair.new_value;
+      if cmp_val_ref_address(&**original_val, &*inst) {
         matched = true;
-        ret_value = new_llvm;
+        ret_value = *new_val;
         break;
       }
     }
@@ -1054,7 +1069,7 @@ unsafe fn llvm_recursive_add(
         new_value: cloned_inst,
         original_value: inst,
       };
-      llvm_arg_pairs.push(pair);
+      llvm_arg_pairs.insert(inst, cloned_inst);
       LLVMInsertIntoBuilder(builder, cloned_inst);
       return cloned_inst;
     }
@@ -1071,7 +1086,7 @@ unsafe fn llvm_recursive_add(
     new_value: cloned_inst,
     original_value: inst,
   };
-  llvm_arg_pairs.push(pair);
+  llvm_arg_pairs.insert(inst, cloned_inst);
   return cloned_inst;
 }
 
@@ -1130,7 +1145,7 @@ unsafe fn arg_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _llvm_arg_pairs: &LLVMPairMap,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let sym_name = gen_arg_name();
@@ -1148,7 +1163,7 @@ unsafe fn bop_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let left = LLVMGetOperand(expr, 0);
@@ -1192,7 +1207,7 @@ unsafe fn unop_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let sub_expr = LLVMGetOperand(expr, 0);
@@ -1220,7 +1235,7 @@ unsafe fn gep_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _llvm_arg_pairs: &LLVMPairMap,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   // assert!(isa_argument(expr) || isa_gep(expr) || isa_load(expr));
@@ -1259,7 +1274,7 @@ unsafe fn address_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _llvm_arg_pairs: &LLVMPairMap,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
@@ -1296,7 +1311,7 @@ unsafe fn sitofp_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _llvm_arg_pairs: &LLVMPairMap,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
@@ -1333,7 +1348,7 @@ unsafe fn load_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   return gep_to_egg(
@@ -1395,7 +1410,7 @@ unsafe fn store_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let data = LLVMGetOperand(expr, 0);
@@ -1424,7 +1439,7 @@ unsafe fn const_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _llvm_arg_pairs: &LLVMPairMap,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   let value = get_constant_float(expr);
@@ -1440,7 +1455,7 @@ unsafe fn load_arg_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _llvm_arg_pairs: &LLVMPairMap,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_argument(expr) || isa_gep(expr));
@@ -1478,7 +1493,7 @@ unsafe fn load_call_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   if isa_sqrt32(expr) {
@@ -1509,7 +1524,7 @@ unsafe fn fpext_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fpext(expr));
@@ -1535,7 +1550,7 @@ unsafe fn sqrt32_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_sqrt32(expr));
@@ -1564,7 +1579,7 @@ unsafe fn sqrt64_to_egg(
   _store_map: &mut StoreMap,
   _id_map: &mut IdMap,
   _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
+  _llvm_arg_pairs: &LLVMPairMap,
   _node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_sqrt64(expr));
@@ -1579,7 +1594,7 @@ unsafe fn fptrunc_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_fptrunc(expr));
@@ -1619,7 +1634,7 @@ unsafe fn bitcast_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
   assert!(isa_bitcast(expr));
@@ -1646,7 +1661,7 @@ unsafe fn bitcast_to_egg(
 //   _store_map: &mut StoreMap,
 //   _id_map: &mut IdMap,
 //   _symbol_map: &mut SymbolMap,
-//   _llvm_arg_pairs: &Vec<LLVMPair>,
+//   _llvm_arg_pairs: LLVMPairMap,
 //   _node_to_arg: &mut Vec<IntLLVMPair>,
 // ) -> (Vec<VecLang>, i32) {
 //   assert!(isa_phi(expr));
@@ -1675,11 +1690,11 @@ unsafe fn ref_to_egg(
   store_map: &mut StoreMap,
   id_map: &mut IdMap,
   symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
-  for pair in llvm_arg_pairs {
-    if cmp_val_ref_address(&*pair.original_value, &*expr) {
+  for (original_val, new_val) in llvm_arg_pairs.iter() {
+    if cmp_val_ref_address(&**original_val, &*expr) {
       // Here we create a new numbered variable node
       let var_idx = gen_node_idx();
       let var_idx_str = var_idx.to_string();
@@ -1865,7 +1880,7 @@ unsafe fn ref_to_egg(
 
 unsafe fn llvm_to_egg<'a>(
   bb_vec: &[LLVMValueRef],
-  llvm_arg_pairs: &Vec<LLVMPair>,
+  llvm_arg_pairs: &mut LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (RecExpr<VecLang>, GEPMap, StoreMap, SymbolMap) {
   let mut enode_vec = Vec::new();
@@ -1909,7 +1924,7 @@ unsafe fn translate_egg(
   gep_map: &GEPMap,
   store_map: &StoreMap,
   symbol_map: &SymbolMap,
-  llvm_arg_pairs: &mut Vec<LLVMPair>,
+  llvm_arg_pairs: &mut LLVMPairMap,
   node_to_arg_pair: &Vec<IntLLVMPair>,
   builder: LLVMBuilderRef,
   context: LLVMContextRef,
@@ -1932,12 +1947,12 @@ unsafe fn translate_egg(
             let node_index = node_arg_pair.node_int;
             let string_node_index = node_index.to_string();
             if string_node_index.parse::<Symbol>().unwrap() == *symbol {
-              for llvm_pair in &mut *llvm_arg_pairs {
-                let original_llvm = llvm_pair.original_value;
-                let new_llvm = llvm_pair.new_value;
-                if cmp_val_ref_address(&*original_llvm, &*llvm_node) {
+              for (original_val, new_val) in &mut *llvm_arg_pairs {
+                // let original_llvm = llvm_pair.original_value;
+                // let new_llvm = llvm_pair.new_value;
+                if cmp_val_ref_address(&**original_val, &*llvm_node) {
                   matched = true;
-                  ret_value = new_llvm;
+                  ret_value = *new_val;
                   break;
                 }
               }
@@ -1967,10 +1982,10 @@ unsafe fn translate_egg(
       let load_value = if isa_load(*gep_value) {
         let mut matched = false;
         let mut matched_expr = *gep_value;
-        for pair in &*llvm_arg_pairs {
-          if cmp_val_ref_address(&*pair.original_value, &**gep_value) {
+        for (original_val, new_val) in &*llvm_arg_pairs {
+          if cmp_val_ref_address(&**original_val, &**gep_value) {
             matched = true;
-            matched_expr = pair.new_value;
+            matched_expr = *new_val;
             break;
           }
         }
@@ -1985,7 +2000,7 @@ unsafe fn translate_egg(
             original_value: *gep_value,
             new_value: new_load,
           };
-          llvm_arg_pairs.push(llvm_pair);
+          llvm_arg_pairs.insert(*gep_value, new_load);
           new_load
         }
       } else if isa_gep(*gep_value) {
@@ -2019,10 +2034,10 @@ unsafe fn translate_egg(
         // includes isa_alloca case
         let mut matched = false;
         let mut matched_expr = *gep_value;
-        for pair in &*llvm_arg_pairs {
-          if cmp_val_ref_address(&*pair.original_value, &**gep_value) {
+        for (original_val, new_val) in &*llvm_arg_pairs {
+          if cmp_val_ref_address(&**original_val, &**gep_value) {
             matched = true;
-            matched_expr = pair.new_value;
+            matched_expr = *new_val;
             break;
           }
         }
@@ -2034,7 +2049,7 @@ unsafe fn translate_egg(
             original_value: *gep_value,
             new_value: new_load_value,
           };
-          llvm_arg_pairs.push(llvm_pair);
+          llvm_arg_pairs.insert(*gep_value, new_load_value);
           new_load_value
         }
       };
@@ -2042,7 +2057,7 @@ unsafe fn translate_egg(
         original_value: *gep_value,
         new_value: load_value,
       };
-      llvm_arg_pairs.push(llvm_pair);
+      llvm_arg_pairs.insert(*gep_value, load_value);
       load_value
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
@@ -2431,7 +2446,7 @@ unsafe fn egg_to_llvm(
   gep_map: &GEPMap,
   store_map: &StoreMap,
   symbol_map: &SymbolMap,
-  llvm_arg_pairs: &mut Vec<LLVMPair>,
+  llvm_arg_pairs: &mut LLVMPairMap,
   node_to_arg_pair: &Vec<IntLLVMPair>,
   module: LLVMModuleRef,
   context: LLVMContextRef,
