@@ -592,6 +592,8 @@ Instruction *dfs_instructions(Instruction *current_instr,
             }
         }
         LLVMPair new_pair;
+        assert(isa<AllocaInst>(current_instr) || isa<LoadInst>(current_instr));
+        assert(isa<AllocaInst>(cloned_instr) || isa<LoadInst>(cloned_instr));
         new_pair.original_value = wrap(current_instr);
         new_pair.new_value = wrap(cloned_instr);
         translated_exprs.push_back(new_pair);
@@ -608,6 +610,27 @@ Instruction *dfs_instructions(Instruction *current_instr,
             Instruction *cloned_arg =
                 dfs_instructions(arg, translated_exprs, B);
             cloned_instr->setOperand(i, cloned_arg);
+        }
+    }
+
+    if (isa<LoadInst>(current_instr)) {
+        bool load_in_map = false;
+        for (LLVMPair pair : translated_exprs) {
+            Instruction *original_val =
+                dyn_cast<Instruction>(unwrap(pair.original_value));
+            if (current_instr == original_val) {
+                load_in_map = true;
+            }
+        }
+        if (!load_in_map) {
+            LLVMPair new_pair;
+            assert(isa<AllocaInst>(current_instr) ||
+                   isa<LoadInst>(current_instr));
+            assert(isa<AllocaInst>(cloned_instr) ||
+                   isa<LoadInst>(cloned_instr));
+            new_pair.original_value = wrap(current_instr);
+            new_pair.new_value = wrap(cloned_instr);
+            translated_exprs.push_back(new_pair);
         }
     }
     BasicBlock::InstListType &intermediate_instrs = B->getInstList();
@@ -646,6 +669,16 @@ bool is_memmove_variety(CallInst *inst) {
                name.substr(0, MEMMOVE_PREFIX.size()) == MEMMOVE_PREFIX;
     }
     return false;
+}
+
+bool call_is_not_sqrt(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        return !(function->getName() == SQRT32_FUNCTION_NAME ||
+                 function->getName() == SQRT64_FUNCTION_NAME);
+    }
+    return true;  // just assume it is not a sqrt. This means no optimization
+                  // will be done
 }
 
 /**
@@ -802,6 +835,20 @@ struct DiospyrosPass : public FunctionPass {
                         inner_vector = {};
                         store_locations.clear();
                     }
+                    // else if (call_is_not_sqrt(call_inst)) {
+                    //     // All Calls that are not to sqrt functions
+                    //     // are not optimized.
+                    //     errs() << "There was a call!\n";
+                    //     errs() << *call_inst << "\n";
+                    //     if (!inner_vector.empty()) {
+                    //         vectorization_accumulator.push_back(inner_vector);
+                    //     }
+                    //     Instruction *call = dyn_cast<CallInst>(call_inst);
+                    //     inner_vector = {wrap(call)};
+                    //     vectorization_accumulator.push_back(inner_vector);
+                    //     inner_vector = {};
+                    //     store_locations.clear();
+                    // }
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
                     if (!inner_vector.empty()) {
@@ -859,7 +906,8 @@ struct DiospyrosPass : public FunctionPass {
                                     dyn_cast<CallInst>(last_store))) ||
                                (isa<CallInst>(last_store) &&
                                 is_memmove_variety(
-                                    dyn_cast<CallInst>(last_store))));
+                                    dyn_cast<CallInst>(last_store))) ||
+                               (isa<CallInst>(last_store)));
 
                         dfs_instructions(store_instr, translated_exprs, &B);
                     }

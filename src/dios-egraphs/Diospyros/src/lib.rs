@@ -748,6 +748,8 @@ pub fn optimize(
     for instr_pair in past_llvm_instrs {
       let original_value = instr_pair.original_value;
       let new_value = instr_pair.new_value;
+      assert!(isa_load(original_value) || isa_alloca(original_value));
+      assert!(isa_load(new_value) || isa_alloca(new_value));
       llvm_arg_pairs.insert(original_value, new_value);
     }
     // for instr_pair in past_llvm_instrs {
@@ -797,6 +799,12 @@ pub fn optimize(
         original_value: *unchanged_val,
         new_value: *new_val,
       };
+      assert!(isa_load(*unchanged_val) || isa_alloca(*unchanged_val));
+      assert!(isa_load(*new_val) || isa_alloca(*new_val));
+      // compare structurally, not pointer addresses
+      // _llvm_recursive_print(*unchanged_val);
+      // _llvm_recursive_print(*new_val);
+      // assert!(*unchanged_val == *new_val);
       final_llvm_arg_pairs.push(pair);
     }
 
@@ -1031,7 +1039,7 @@ unsafe fn llvm_recursive_add(
   }
   let mut matched = false;
   let mut ret_value = inst;
-  for (original_val, new_val) in &*llvm_arg_pairs {
+  for (original_val, new_val) in (&*llvm_arg_pairs).iter() {
     // let original_llvm = llvm_pair.original_value;
     // let new_llvm = llvm_pair.new_value;
     if cmp_val_ref_address(&**original_val, &*inst) {
@@ -1053,7 +1061,7 @@ unsafe fn llvm_recursive_add(
     // search the llvm_arg_pairs for allocas that were already created
     let mut matched = false;
     let mut ret_value = inst;
-    for (original_val, new_val) in &*llvm_arg_pairs {
+    for (original_val, new_val) in (&*llvm_arg_pairs).iter() {
       // let original_llvm = llvm_pair.original_value;
       // let new_llvm = llvm_pair.new_value;
       if cmp_val_ref_address(&**original_val, &*inst) {
@@ -1065,10 +1073,12 @@ unsafe fn llvm_recursive_add(
     if matched {
       return ret_value;
     } else {
-      let pair = LLVMPair {
-        new_value: cloned_inst,
-        original_value: inst,
-      };
+      // let pair = LLVMPair {
+      //   new_value: cloned_inst,
+      //   original_value: inst,
+      // };
+      assert!(isa_load(inst) || isa_alloca(inst));
+      assert!(isa_load(cloned_inst) || isa_alloca(cloned_inst));
       llvm_arg_pairs.insert(inst, cloned_inst);
       LLVMInsertIntoBuilder(builder, cloned_inst);
       return cloned_inst;
@@ -1082,11 +1092,23 @@ unsafe fn llvm_recursive_add(
   }
   LLVMInsertIntoBuilder(builder, cloned_inst);
 
-  let pair = LLVMPair {
-    new_value: cloned_inst,
-    original_value: inst,
-  };
-  llvm_arg_pairs.insert(inst, cloned_inst);
+  // let pair = LLVMPair {
+  //   new_value: cloned_inst,
+  //   original_value: inst,
+  // };
+  if isa_load(inst) {
+    let mut load_in_map = false;
+    for (original_inst, _) in (&*llvm_arg_pairs).iter() {
+      if cmp_val_ref_address(&**original_inst, &*inst) {
+        load_in_map = true;
+      }
+    }
+    if !load_in_map {
+      assert!(isa_load(inst) || isa_alloca(inst));
+      assert!(isa_load(cloned_inst) || isa_alloca(cloned_inst));
+      llvm_arg_pairs.insert(inst, cloned_inst);
+    }
+  }
   return cloned_inst;
 }
 
@@ -1266,7 +1288,7 @@ unsafe fn gep_to_egg(
   return (enode_vec, next_idx + 3);
 }
 
-unsafe fn address_to_egg(
+unsafe fn _address_to_egg(
   expr: LLVMValueRef,
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
@@ -1447,7 +1469,7 @@ unsafe fn const_to_egg(
   (enode_vec, next_idx + 1)
 }
 
-unsafe fn load_arg_to_egg(
+unsafe fn _load_arg_to_egg(
   expr: LLVMValueRef,
   mut enode_vec: Vec<VecLang>,
   next_idx: i32,
@@ -1693,7 +1715,7 @@ unsafe fn ref_to_egg(
   llvm_arg_pairs: &LLVMPairMap,
   node_to_arg: &mut Vec<IntLLVMPair>,
 ) -> (Vec<VecLang>, i32) {
-  for (original_val, new_val) in llvm_arg_pairs.iter() {
+  for (original_val, _) in llvm_arg_pairs.iter() {
     if cmp_val_ref_address(&**original_val, &*expr) {
       // Here we create a new numbered variable node
       let var_idx = gen_node_idx();
@@ -1947,7 +1969,7 @@ unsafe fn translate_egg(
             let node_index = node_arg_pair.node_int;
             let string_node_index = node_index.to_string();
             if string_node_index.parse::<Symbol>().unwrap() == *symbol {
-              for (original_val, new_val) in &mut *llvm_arg_pairs {
+              for (original_val, new_val) in (&mut *llvm_arg_pairs).iter() {
                 // let original_llvm = llvm_pair.original_value;
                 // let new_llvm = llvm_pair.new_value;
                 if cmp_val_ref_address(&**original_val, &*llvm_node) {
@@ -1982,7 +2004,7 @@ unsafe fn translate_egg(
       let load_value = if isa_load(*gep_value) {
         let mut matched = false;
         let mut matched_expr = *gep_value;
-        for (original_val, new_val) in &*llvm_arg_pairs {
+        for (original_val, new_val) in (&*llvm_arg_pairs).iter() {
           if cmp_val_ref_address(&**original_val, &**gep_value) {
             matched = true;
             matched_expr = *new_val;
@@ -1996,10 +2018,12 @@ unsafe fn translate_egg(
           // let cloned_gep = LLVMInstructionClone(addr);
           let new_gep = llvm_recursive_add(builder, addr, context, llvm_arg_pairs);
           let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
-          let llvm_pair = LLVMPair {
-            original_value: *gep_value,
-            new_value: new_load,
-          };
+          // let llvm_pair = LLVMPair {
+          //   original_value: *gep_value,
+          //   new_value: new_load,
+          // };
+          assert!(isa_load(*gep_value) || isa_alloca(*gep_value));
+          assert!(isa_load(new_load) || isa_alloca(new_load));
           llvm_arg_pairs.insert(*gep_value, new_load);
           new_load
         }
@@ -2034,7 +2058,7 @@ unsafe fn translate_egg(
         // includes isa_alloca case
         let mut matched = false;
         let mut matched_expr = *gep_value;
-        for (original_val, new_val) in &*llvm_arg_pairs {
+        for (original_val, new_val) in (&*llvm_arg_pairs).iter() {
           if cmp_val_ref_address(&**original_val, &**gep_value) {
             matched = true;
             matched_expr = *new_val;
@@ -2045,19 +2069,21 @@ unsafe fn translate_egg(
           matched_expr
         } else {
           let new_load_value = LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _);
-          let llvm_pair = LLVMPair {
-            original_value: *gep_value,
-            new_value: new_load_value,
-          };
+          // let llvm_pair = LLVMPair {
+          //   original_value: *gep_value,
+          //   new_value: new_load_value,
+          // };
+          assert!(isa_load(*gep_value) || isa_alloca(*gep_value));
+          assert!(isa_load(new_load_value) || isa_alloca(new_load_value));
           llvm_arg_pairs.insert(*gep_value, new_load_value);
           new_load_value
         }
       };
-      let llvm_pair = LLVMPair {
-        original_value: *gep_value,
-        new_value: load_value,
-      };
-      llvm_arg_pairs.insert(*gep_value, load_value);
+      // let llvm_pair = LLVMPair {
+      //   original_value: *gep_value,
+      //   new_value: load_value,
+      // };
+      // llvm_arg_pairs.insert(*gep_value, load_value);
       load_value
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
