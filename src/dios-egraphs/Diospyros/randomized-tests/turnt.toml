@@ -1,0 +1,1 @@
+command = "bash ../test-runner.sh randomized-tests/{filename}"

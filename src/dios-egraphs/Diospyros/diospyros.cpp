@@ -592,8 +592,9 @@ Instruction *dfs_instructions(Instruction *current_instr,
             }
         }
         LLVMPair new_pair;
-        assert(isa<AllocaInst>(current_instr) || isa<LoadInst>(current_instr));
-        assert(isa<AllocaInst>(cloned_instr) || isa<LoadInst>(cloned_instr));
+        // assert(isa<AllocaInst>(current_instr) ||
+        // isa<LoadInst>(current_instr)); assert(isa<AllocaInst>(cloned_instr)
+        // || isa<LoadInst>(cloned_instr));
         new_pair.original_value = wrap(current_instr);
         new_pair.new_value = wrap(cloned_instr);
         translated_exprs.push_back(new_pair);
@@ -613,26 +614,26 @@ Instruction *dfs_instructions(Instruction *current_instr,
         }
     }
 
-    if (isa<LoadInst>(current_instr)) {
-        bool load_in_map = false;
-        for (LLVMPair pair : translated_exprs) {
-            Instruction *original_val =
-                dyn_cast<Instruction>(unwrap(pair.original_value));
-            if (current_instr == original_val) {
-                load_in_map = true;
-            }
-        }
-        if (!load_in_map) {
-            LLVMPair new_pair;
-            assert(isa<AllocaInst>(current_instr) ||
-                   isa<LoadInst>(current_instr));
-            assert(isa<AllocaInst>(cloned_instr) ||
-                   isa<LoadInst>(cloned_instr));
-            new_pair.original_value = wrap(current_instr);
-            new_pair.new_value = wrap(cloned_instr);
-            translated_exprs.push_back(new_pair);
+    // if (isa<LoadInst>(current_instr)) {
+    bool in_map = false;
+    for (LLVMPair pair : translated_exprs) {
+        Instruction *original_val =
+            dyn_cast<Instruction>(unwrap(pair.original_value));
+        if (current_instr == original_val) {
+            in_map = true;
         }
     }
+    if (!in_map) {
+        LLVMPair new_pair;
+        // assert(isa<AllocaInst>(current_instr) ||
+        //        isa<LoadInst>(current_instr));
+        // assert(isa<AllocaInst>(cloned_instr) ||
+        //        isa<LoadInst>(cloned_instr));
+        new_pair.original_value = wrap(current_instr);
+        new_pair.new_value = wrap(cloned_instr);
+        translated_exprs.push_back(new_pair);
+    }
+    // }
     BasicBlock::InstListType &intermediate_instrs = B->getInstList();
     intermediate_instrs.push_back(cloned_instr);
     return cloned_instr;
