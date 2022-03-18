@@ -40,7 +40,6 @@ extern "C" {
   fn isa_sqrt32(val: LLVMValueRef) -> bool;
   fn isa_sqrt64(val: LLVMValueRef) -> bool;
   fn get_constant_float(val: LLVMValueRef) -> f32;
-  fn _dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
   fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
 }
 
