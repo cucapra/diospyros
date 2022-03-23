@@ -1,0 +1,1 @@
+Randomized Tests contains tests of large programs with random float array inputs. The correct result is taken to be the optimization without diospyros, and the diospyros pass is compared against the correct result.

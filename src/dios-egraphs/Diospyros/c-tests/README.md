@@ -1,0 +1,1 @@
+C tests contains tests of simple c programs that are run through the diospyros pass, and the outputs, which are printed out, are compared between optimization with and without diospyros. The "correct" result is taken to be optimization without diospyros. 

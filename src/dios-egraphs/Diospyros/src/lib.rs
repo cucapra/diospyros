@@ -435,12 +435,13 @@ unsafe fn llvm_recursive_add(
       in_map = true;
     }
   }
-  if !in_map {
-    // assert!(isa_load(inst) || isa_alloca(inst));
-    // assert!(isa_load(cloned_inst) || isa_alloca(cloned_inst));
-    llvm_arg_pairs.insert(inst, cloned_inst);
+  if isa_load(inst) {
+    if !in_map {
+      // assert!(isa_load(inst) || isa_alloca(inst));
+      // assert!(isa_load(cloned_inst) || isa_alloca(cloned_inst));
+      llvm_arg_pairs.insert(inst, cloned_inst);
+    }
   }
-  // }
   return cloned_inst;
 }
 
@@ -1304,16 +1305,16 @@ unsafe fn translate_egg(
           new_load_value
         }
       };
-      let mut matched = false;
-      for (original_val, _) in (&*llvm_arg_pairs).iter() {
-        if cmp_val_ref_address(&**original_val, &**gep_value) {
-          matched = true;
-          break;
-        }
-      }
-      if !matched {
-        llvm_arg_pairs.insert(*gep_value, load_value);
-      }
+      // let mut matched = false;
+      // for (original_val, _) in (&*llvm_arg_pairs).iter() {
+      //   if cmp_val_ref_address(&**original_val, &**gep_value) {
+      //     matched = true;
+      //     break;
+      //   }
+      // }
+      // if !matched {
+      //   llvm_arg_pairs.insert(*gep_value, load_value);
+      // }
       load_value
     }
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
