@@ -51,13 +51,13 @@ min-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 	build/final
 
 run-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
-	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
-	opt -S --cfl-steens-aa build/opt.ll -o build/aa.ll
-	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt -mllvm -print=false build/aa.ll -o build/diospyros.ll
-	opt -S --adce --dse build/diospyros.ll -o build/dce.ll
-	$(CLANG) build/dce.ll -o build/final
-	build/final
+	@$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
+	@opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
+	@opt -S --cfl-steens-aa build/opt.ll -o build/aa.ll
+	@$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt -mllvm -print=false build/aa.ll -o build/diospyros.ll
+	@opt -S --adce --dse build/diospyros.ll -o build/dce.ll
+	@$(CLANG) build/dce.ll -o build/final
+	@build/final
 
 print-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
@@ -78,21 +78,21 @@ no-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 	build/final
 
 run-opt-stdout: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
-	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
-	opt -S --cfl-steens-aa build/opt.ll -o build/aa.ll
-	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt -mllvm -print=false build/aa.ll -o build/diospyros.ll
-	opt -S --adce --dse build/diospyros.ll -o build/dce.ll
-	cat build/dce.ll
+	@$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
+	@opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
+	@opt -S --cfl-steens-aa build/opt.ll -o build/aa.ll
+	@$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt -mllvm -print=false build/aa.ll -o build/diospyros.ll
+	@opt -S --adce --dse build/diospyros.ll -o build/dce.ll
+	@cat build/dce.ll
 
 no-opt-stdout: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
-	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
-	opt -S --cfl-steens-aa build/opt.ll -o build/aa.ll
-	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt=false -mllvm -print=false build/aa.ll -o build/diospyros.ll
-	rm build/dce.ll
-	opt -S --adce --dse build/diospyros.ll -o build/dce.ll
-	cat build/dce.ll
+	@$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
+	@opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
+	@opt -S --cfl-steens-aa build/opt.ll -o build/aa.ll
+	@$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt=false -mllvm -print=false build/aa.ll -o build/diospyros.ll
+	@rm build/dce.ll
+	@opt -S --adce --dse build/diospyros.ll -o build/dce.ll
+	@cat build/dce.ll
 
 run-diospyros: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -mllvm -opt=false -mllvm -print=false $(test) -o build/diospyros.ll
@@ -110,10 +110,10 @@ test: set-up-mac runt.sh runt.toml target/debug/libllvmlib.$(EXT)
 	runt
  
 target/debug/libllvmlib.$(EXT): $(LIB)
-	cargo build
+	@cargo build
 
 set-up-mac: 
-	$(SETUP)
+	@$(SETUP)
 
 clean:
 	rm -r build/*

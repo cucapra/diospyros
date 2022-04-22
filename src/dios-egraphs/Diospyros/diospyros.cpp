@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <llvm-c/Core.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <set>
 #include <stdexcept>
@@ -561,6 +562,41 @@ bool call_is_not_sqrt(CallInst *inst) {
                   // will be done
 }
 
+std::vector<Instruction *> dfs_in_basic_block(
+    Instruction *instr, std::vector<Instruction *> basic_block_instrs,
+    std::vector<Instruction *> visited_instrs) {
+    if (isa<PHINode>(instr)) {
+        assert(false);
+    }
+    errs() << "Incoming instr\n";
+    errs() << *instr << "\n";
+    assert(std::find(basic_block_instrs.begin(), basic_block_instrs.end(),
+                     instr) != basic_block_instrs.end());
+    assert(std::find(visited_instrs.begin(), visited_instrs.end(), instr) ==
+           visited_instrs.end());
+    visited_instrs.push_back(instr);
+    std::vector<Instruction *> output = {};
+    int num_operands = instr->getNumOperands();
+    for (int i = 0; i < num_operands; i++) {
+        Instruction *arg = dyn_cast<Instruction>(instr->getOperand(i));
+        if (arg != NULL && !isa<PHINode>(arg) &&
+            std::find(visited_instrs.begin(), visited_instrs.end(), arg) ==
+                visited_instrs.end() &&
+            std::find(basic_block_instrs.begin(), basic_block_instrs.end(),
+                      arg) != basic_block_instrs.end() &&
+            arg->getNumOperands() > 0) {
+            errs() << "Incoming arg\n";
+            errs() << *arg << "\n";
+            std::vector<Instruction *> new_instrs =
+                dfs_in_basic_block(arg, basic_block_instrs, visited_instrs);
+            for (Instruction *new_instr : new_instrs) {
+                output.push_back(new_instr);
+            }
+        }
+    }
+    return output;
+}
+
 /**
  * Below is the main DiospyrosPass that activates the Rust lib.rs code,
  * which calls the Egg vectorizer and rewrites the optimized code in place.
@@ -581,9 +617,51 @@ struct DiospyrosPass : public FunctionPass {
         bool has_changes = false;
         std::vector<LLVMPair> translated_exprs = {};
         for (auto &B : F) {
+            // Emergency conditions
+            // Bail if instruction is not in list of handleable instructions
+            // TODO: need to identify not handleable instructions
+            bool has_excluded_instr = false;
+            for (auto &I : B) {
+                if (isa<PHINode>(I)) {
+                    has_excluded_instr = true;
+                }
+            }
+            if (has_excluded_instr) {
+                continue;
+            }
+
+            // Bail if instruction is used outside the current basic block
+            bool instr_used_twice = false;
+            for (auto &I : B) {
+                Instruction *original_instr = dyn_cast<Instruction>(&I);
+                for (auto &otherB : F) {
+                    if (otherB.getName() != B.getName()) {
+                        for (auto &otherI : otherB) {
+                            Instruction *other_instr =
+                                dyn_cast<Instruction>(&otherI);
+                            int num_operands = other_instr->getNumOperands();
+                            for (int i = 0; i < num_operands; i++) {
+                                Instruction *use = dyn_cast<Instruction>(
+                                    other_instr->getOperand(i));
+                                if (use != NULL) {
+                                    if (use == original_instr) {
+                                        instr_used_twice = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (instr_used_twice) {
+                continue;
+            }
+
             // We skip over basic blocks without floating point types
             bool has_float = false;
             for (auto &I : B) {
+                errs() << "All instructions\n";
+                errs() << I << "\n";
                 if (I.getType()->isFloatTy()) {
                     has_float = true;
                 }
@@ -598,7 +676,8 @@ struct DiospyrosPass : public FunctionPass {
                 }
                 continue;
             }
-            // We also skip over all basic blocks without stores
+            // We also skip over all basic blocks without stores or related
+            // memory operations
             bool has_store_or_mem_intrinsic = false;
             for (auto &I : B) {
                 if (auto *op = dyn_cast<StoreInst>(&I)) {
@@ -647,6 +726,16 @@ struct DiospyrosPass : public FunctionPass {
                     translated_exprs.push_back(new_pair);
                 }
                 continue;
+            }
+
+            // We grab all the block args: the phi nodes of the block
+            std::vector<Instruction *> phi_instrs = {};
+            for (auto &I : B) {
+                if (auto *op = dyn_cast<PHINode>(&I)) {
+                    Instruction *phi = dyn_cast<Instruction>(&I);
+                    assert(phi != NULL);
+                    phi_instrs.push_back(phi);
+                }
             }
 
             // Grab the terminator from the LLVM Basic Block
@@ -743,20 +832,95 @@ struct DiospyrosPass : public FunctionPass {
                 vectorization_accumulator.push_back(inner_vector);
             }
 
+            // acquire all instructions in a basic block
+            std::vector<Instruction *> basic_block_instrs = {};
+            for (auto &I : B) {
+                Instruction *instr = dyn_cast<Instruction>(&I);
+                assert(instr != NULL);
+                basic_block_instrs.push_back(instr);
+            }
+
             // Acquire each of the instructions in the "run" that terminates at
             // a store We will send these instructions to optimize.
 
-            int vec_length = vectorization_accumulator.size();
-            int counter = 0;
-            // std::vector<LLVMPair> translated_exprs = {};
+            // maintain list of all instructions processed thus far in basic
+            // block via DFS
+            std::vector<Instruction *> dfs_bb_instrs = {};
             for (auto &vec : vectorization_accumulator) {
-                ++counter;
                 if (not vec.empty()) {
+                    // check that a instruction is not used multiple times
+                    // within a chunk
+                    bool instr_used_twice_in_chunk = false;
+                    for (auto *instr : vec) {
+                        Instruction *first_instr =
+                            dyn_cast<Instruction>(unwrap(instr));
+                        for (auto *other_instr : vec) {
+                            Instruction *second_instr =
+                                dyn_cast<Instruction>(unwrap(instr));
+                            if (first_instr != second_instr) {
+                                int num_operands =
+                                    second_instr->getNumOperands();
+                                for (int i = 0; i < num_operands; i++) {
+                                    Instruction *use = dyn_cast<Instruction>(
+                                        second_instr->getOperand(i));
+                                    if (use != NULL) {
+                                        if (use == first_instr) {
+                                            instr_used_twice_in_chunk = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (instr_used_twice_in_chunk) {
+                        continue;
+                    }
+
+                    // check that an instruction is not used
+                    // outside the chunk
+                    bool instr_used_twice_outside_chunk = false;
+                    for (auto &chunk : vectorization_accumulator) {
+                        if (chunk != vec) {
+                            for (auto *first_instr : vec) {
+                                Instruction *first =
+                                    dyn_cast<Instruction>(unwrap(first_instr));
+                                for (auto *second_instr : chunk) {
+                                    Instruction *second = dyn_cast<Instruction>(
+                                        unwrap(second_instr));
+                                    int num_operands = second->getNumOperands();
+                                    for (int i = 0; i < num_operands; i++) {
+                                        Instruction *use =
+                                            dyn_cast<Instruction>(
+                                                second->getOperand(i));
+                                        if (use != NULL) {
+                                            if (use == first) {
+                                                instr_used_twice_outside_chunk =
+                                                    true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (instr_used_twice_outside_chunk) {
+                        continue;
+                    }
+
                     has_changes = has_changes || true;
                     Value *last_store = unwrap(vec.back());
                     IRBuilder<> builder(dyn_cast<Instruction>(last_store));
                     Instruction *store_instr =
                         dyn_cast<Instruction>(last_store);
+                    // gather all instructions
+                    // for (Instruction *bbinst : basic_block_instrs) {
+                    //     if (bbinst == store_instr) {
+                    //         errs() << "Match!\n";
+                    //         errs() << *store_instr << "\n";
+                    //     }
+                    // }
+                    // dfs_in_basic_block(store_instr, basic_block_instrs,
+                    //                    dfs_bb_instrs);
                     if (auto *op = dyn_cast<StoreInst>(store_instr)) {
                         assert(isa<StoreInst>(store_instr));
                         builder.SetInsertPoint(store_instr);
@@ -770,7 +934,6 @@ struct DiospyrosPass : public FunctionPass {
                         int size = pair.llvm_pointer_size;
 
                         LLVMPair const *expr_array = pair.llvm_pointer;
-                        // translated_exprs = {};
                         for (int i = 0; i < size; i++) {
                             translated_exprs.push_back(expr_array[i]);
                         }
@@ -802,6 +965,47 @@ struct DiospyrosPass : public FunctionPass {
                     translated_exprs = new_translated_exprs;
                 }
             }
+
+            // // grab unprocessed instructions
+            // std::vector<Instruction *> missed_instrs = {};
+            // for (auto &I : B) {
+            //     Instruction *instr = dyn_cast<Instruction>(&I);
+            //     assert(instr != NULL);
+            //     if (std::find(dfs_bb_instrs.begin(), dfs_bb_instrs.end(),
+            //                   instr) != dfs_bb_instrs.end()) {
+            //         errs() << "Missed instrs\n";
+            //         errs() << *instr << "\n";
+            //         missed_instrs.push_back(instr);
+            //     }
+            // }
+
+            // // add in unprocessed phi instructions at front of basic block
+            // BasicBlock::InstListType &intermediate_instrs = B.getInstList();
+            // for (Instruction *missed_instr : missed_instrs) {
+            //     if (isa<PHINode>(missed_instr)) {
+            //         intermediate_instrs.push_front(missed_instr);
+            //     }
+            // }
+
+            // // add in the "unprocessed" instructions that dfs on memory ops
+            // // missed
+            // for (Instruction *missed_instr : missed_instrs) {
+            //     if (!isa<PHINode>(missed_instr)) {
+            //         Instruction *cloned_instr = missed_instr->clone();
+            //         intermediate_instrs.push_back(cloned_instr);
+            //         for (auto &U : missed_instr->uses()) {
+            //             User *user = U.getUser();  // user of the add; could
+            //             be
+            //                                        // a store, for example
+            //             user->setOperand(U.getOperandNo(), cloned_instr);
+            //         }
+            //         errs() << "Adding instruction\n";
+            //         errs() << *missed_instr << "\n";
+            //     }
+            // }
+
+            // delete old instructions that are memory related; adce will handle
+            // rest
             std::reverse(bb_instrs.begin(), bb_instrs.end());
             for (auto &I : bb_instrs) {
                 if (I->isTerminator()) {
@@ -823,6 +1027,8 @@ struct DiospyrosPass : public FunctionPass {
                     I->eraseFromParent();
                 }
             }
+
+            // add back the terminator
             BasicBlock::InstListType &final_instrs = B.getInstList();
             final_instrs.push_back(cloned_terminator);
 

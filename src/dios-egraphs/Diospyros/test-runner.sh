@@ -1,4 +1,4 @@
-cd ..
+cd .. 1> /dev/null
 case $1 in 
     run-opt)
         make run-opt test=$2
@@ -13,4 +13,4 @@ case $1 in
         echo "match failure"
         ;;
 esac
-cd -
+cd - 1> /dev/null

@@ -5,7 +5,7 @@ use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{
   cmp,
-  collections::{BTreeMap, BTreeSet, HashMap},
+  collections::{BTreeMap, BTreeSet},
   ffi::CStr,
   mem,
   os::raw::c_char,
@@ -49,7 +49,7 @@ extern "C" {
 // GEPMap : Maps the array name and array offset as symbols to the GEP
 // LLVM Value Ref that LLVM Generated
 type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
-type LLVMPairMap = HashMap<LLVMValueRef, LLVMValueRef>;
+type LLVMPairMap = BTreeMap<LLVMValueRef, LLVMValueRef>;
 
 static mut ARG_IDX: i32 = 0;
 static mut CALL_IDX: i32 = 0;
@@ -202,7 +202,7 @@ pub fn optimize(
     // llvm to egg
     let llvm_instrs = from_raw_parts(bb, size);
     let past_llvm_instrs = from_raw_parts(past_instrs, past_size);
-    let mut llvm_arg_pairs = HashMap::new();
+    let mut llvm_arg_pairs = BTreeMap::new();
     for instr_pair in past_llvm_instrs {
       let original_value = instr_pair.original_value;
       let new_value = instr_pair.new_value;
@@ -268,7 +268,6 @@ pub fn optimize(
 // ------------ NEW CONVERSION FROM LLVM IR TO EGG EXPRESSIONS -------
 
 type StoreMap = BTreeMap<i32, LLVMValueRef>;
-// type gep_map = BTreeMap<VecLang, LLVMValueRef>;
 type IdMap = BTreeSet<Id>;
 type SymbolMap = BTreeMap<VecLang, LLVMValueRef>;
 
@@ -297,14 +296,31 @@ unsafe fn get_pow2(n: u32) -> u32 {
   return pow;
 }
 
+fn is_pow2(n: u32) -> bool {
+  if n == 1 {
+    return true;
+  } else if n % 2 == 1 {
+    return false;
+  }
+  return is_pow2(n / 2);
+}
+
 /// New Pad Vector should round the number of elements up to a power of 2, and then recursive
-/// divide each into the lane width. Assumes lane width is also a power of 2 in size
+/// divide each into the lane width. Assumes lane width is also a power of 2 in size.
+/// Raises assertion error if width is not a power of 2
+/// If the vector has less than the width, we do not pad, and just append that vector to enodevect
 unsafe fn balanced_pad_vector<'a>(
   binop_vec: &mut Vec<Id>,
   enode_vec: &'a mut Vec<VecLang>,
 ) -> &'a mut Vec<VecLang> {
   let width = config::vector_width();
+  assert!(is_pow2(width as u32));
   let length = binop_vec.len();
+  // Check vector less than width, and then return
+  if length < width {
+    enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
+    return enode_vec;
+  }
   let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
   let diff = closest_pow2 - (length as u32);
   for _ in 0..diff {
@@ -316,6 +332,7 @@ unsafe fn balanced_pad_vector<'a>(
   return build_concat(width, binop_vec, enode_vec);
 }
 
+/// Recursively concatenate vectors together
 unsafe fn build_concat<'a>(
   lane_width: usize,
   binop_vec: &mut Vec<Id>,
@@ -884,7 +901,7 @@ unsafe fn sqrt32_to_egg(
 }
 
 unsafe fn sqrt64_to_egg(
-  expr: LLVMValueRef,
+  _expr: LLVMValueRef,
   _enode_vec: Vec<VecLang>,
   _next_idx: i32,
   _gep_map: &mut GEPMap,
@@ -1202,6 +1219,8 @@ unsafe fn translate_egg(
   module: LLVMModuleRef,
 ) -> LLVMValueRef {
   let instr = match enode {
+    // VecLang::RegInfo(_) => panic!("RegInfo Currently Not Handled"),
+    VecLang::Reg(_) => panic!("Reg Currently Not Handled"),
     VecLang::Symbol(symbol) => match symbol_map.get(enode) {
       Some(llvm_instr) => llvm_recursive_add(builder, *llvm_instr, context, llvm_arg_pairs),
       None => {

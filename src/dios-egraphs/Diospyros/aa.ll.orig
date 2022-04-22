@@ -1,0 +1,516 @@
+; ModuleID = 'build/opt.ll'
+source_filename = "c-tests/inline-float.c"
+target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-apple-macosx10.14.0"
+
+@__const.main.A = private unnamed_addr constant [5 x float] [float 1.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00], align 16
+@__const.main.expectedA = private unnamed_addr constant [5 x float] [float 1.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00], align 16
+@.str = private unnamed_addr constant [14 x i8] c"C Output: %f\0A\00", align 1
+@.str.1 = private unnamed_addr constant [23 x i8] c"Expected C Output: %f\0A\00", align 1
+@__func__.main = private unnamed_addr constant [5 x i8] c"main\00", align 1
+@.str.2 = private unnamed_addr constant [23 x i8] c"c-tests/inline-float.c\00", align 1
+@.str.3 = private unnamed_addr constant [34 x i8] c"fabs(expectedC[i] - C[i]) < DELTA\00", align 1
+@.memset_pattern = private unnamed_addr constant [4 x float] [float 1.000000e+00, float 1.000000e+00, float 1.000000e+00, float 1.000000e+00], align 16
+@.memset_pattern.1 = private unnamed_addr constant [4 x float] [float 1.000000e+00, float 1.000000e+00, float 1.000000e+00, float 1.000000e+00], align 16
+
+; Function Attrs: noinline nounwind ssp uwtable
+define float @no_opt_test_inline(float* %0, float* %1, i32 %2) #0 {
+  %4 = icmp sgt i32 %2, 0
+  %smax6 = select i1 %4, i32 %2, i32 0
+  %wide.trip.count7 = zext i32 %smax6 to i64
+  br i1 %4, label %.lr.ph11, label %.preheader
+
+.lr.ph11:                                         ; preds = %3
+  %5 = add nsw i64 %wide.trip.count7, -1
+  %xtraiter14 = and i64 %wide.trip.count7, 3
+  %6 = icmp ult i64 %5, 3
+  br i1 %6, label %..preheader_crit_edge.unr-lcssa, label %.lr.ph11.new
+
+.lr.ph11.new:                                     ; preds = %.lr.ph11
+  %unroll_iter17 = and i64 %wide.trip.count7, 2147483644
+  br label %13
+
+..preheader_crit_edge.unr-lcssa:                  ; preds = %13, %.lr.ph11
+  %indvars.iv9.unr = phi i64 [ 0, %.lr.ph11 ], [ %indvars.iv.next5.3, %13 ]
+  %lcmp.mod16.not = icmp eq i64 %xtraiter14, 0
+  br i1 %lcmp.mod16.not, label %.preheader, label %.epil.preheader13
+
+.epil.preheader13:                                ; preds = %.epil.preheader13, %..preheader_crit_edge.unr-lcssa
+  %indvars.iv9.epil = phi i64 [ %indvars.iv.next5.epil, %.epil.preheader13 ], [ %indvars.iv9.unr, %..preheader_crit_edge.unr-lcssa ]
+  %epil.iter15 = phi i64 [ %epil.iter15.sub, %.epil.preheader13 ], [ %xtraiter14, %..preheader_crit_edge.unr-lcssa ]
+  %7 = getelementptr inbounds float, float* %0, i64 %indvars.iv9.epil
+  %8 = load float, float* %7, align 4
+  %9 = fmul float %8, 2.000000e+00
+  %10 = getelementptr inbounds float, float* %1, i64 %indvars.iv9.epil
+  store float %9, float* %10, align 4
+  %indvars.iv.next5.epil = add nuw nsw i64 %indvars.iv9.epil, 1
+  %epil.iter15.sub = add i64 %epil.iter15, -1
+  %epil.iter15.cmp.not = icmp eq i64 %epil.iter15.sub, 0
+  br i1 %epil.iter15.cmp.not, label %.preheader, label %.epil.preheader13, !llvm.loop !3
+
+.preheader:                                       ; preds = %.epil.preheader13, %..preheader_crit_edge.unr-lcssa, %3
+  br i1 %4, label %.lr.ph, label %._crit_edge
+
+.lr.ph:                                           ; preds = %.preheader
+  %11 = add nsw i64 %wide.trip.count7, -1
+  %xtraiter = and i64 %wide.trip.count7, 7
+  %12 = icmp ult i64 %11, 7
+  br i1 %12, label %._crit_edge.unr-lcssa, label %.lr.ph.new
+
+.lr.ph.new:                                       ; preds = %.lr.ph
+  %unroll_iter = and i64 %wide.trip.count7, 2147483640
+  br label %30
+
+13:                                               ; preds = %13, %.lr.ph11.new
+  %indvars.iv9 = phi i64 [ 0, %.lr.ph11.new ], [ %indvars.iv.next5.3, %13 ]
+  %niter18 = phi i64 [ %unroll_iter17, %.lr.ph11.new ], [ %niter18.nsub.3, %13 ]
+  %14 = getelementptr inbounds float, float* %0, i64 %indvars.iv9
+  %15 = load float, float* %14, align 4
+  %16 = fmul float %15, 2.000000e+00
+  %17 = getelementptr inbounds float, float* %1, i64 %indvars.iv9
+  store float %16, float* %17, align 4
+  %indvars.iv.next5 = or i64 %indvars.iv9, 1
+  %18 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next5
+  %19 = load float, float* %18, align 4
+  %20 = fmul float %19, 2.000000e+00
+  %21 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next5
+  store float %20, float* %21, align 4
+  %indvars.iv.next5.1 = or i64 %indvars.iv9, 2
+  %22 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next5.1
+  %23 = load float, float* %22, align 4
+  %24 = fmul float %23, 2.000000e+00
+  %25 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next5.1
+  store float %24, float* %25, align 4
+  %indvars.iv.next5.2 = or i64 %indvars.iv9, 3
+  %26 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next5.2
+  %27 = load float, float* %26, align 4
+  %28 = fmul float %27, 2.000000e+00
+  %29 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next5.2
+  store float %28, float* %29, align 4
+  %indvars.iv.next5.3 = add nuw nsw i64 %indvars.iv9, 4
+  %niter18.nsub.3 = add i64 %niter18, -4
+  %niter18.ncmp.3.not = icmp eq i64 %niter18.nsub.3, 0
+  br i1 %niter18.ncmp.3.not, label %..preheader_crit_edge.unr-lcssa, label %13
+
+30:                                               ; preds = %30, %.lr.ph.new
+  %.014 = phi float [ 0.000000e+00, %.lr.ph.new ], [ %54, %30 ]
+  %indvars.iv3 = phi i64 [ 0, %.lr.ph.new ], [ %indvars.iv.next.7, %30 ]
+  %niter = phi i64 [ %unroll_iter, %.lr.ph.new ], [ %niter.nsub.7, %30 ]
+  %31 = getelementptr inbounds float, float* %1, i64 %indvars.iv3
+  %32 = load float, float* %31, align 4
+  %33 = fadd float %.014, %32
+  %indvars.iv.next = or i64 %indvars.iv3, 1
+  %34 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next
+  %35 = load float, float* %34, align 4
+  %36 = fadd float %33, %35
+  %indvars.iv.next.1 = or i64 %indvars.iv3, 2
+  %37 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.1
+  %38 = load float, float* %37, align 4
+  %39 = fadd float %36, %38
+  %indvars.iv.next.2 = or i64 %indvars.iv3, 3
+  %40 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.2
+  %41 = load float, float* %40, align 4
+  %42 = fadd float %39, %41
+  %indvars.iv.next.3 = or i64 %indvars.iv3, 4
+  %43 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.3
+  %44 = load float, float* %43, align 4
+  %45 = fadd float %42, %44
+  %indvars.iv.next.4 = or i64 %indvars.iv3, 5
+  %46 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.4
+  %47 = load float, float* %46, align 4
+  %48 = fadd float %45, %47
+  %indvars.iv.next.5 = or i64 %indvars.iv3, 6
+  %49 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.5
+  %50 = load float, float* %49, align 4
+  %51 = fadd float %48, %50
+  %indvars.iv.next.6 = or i64 %indvars.iv3, 7
+  %52 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.6
+  %53 = load float, float* %52, align 4
+  %54 = fadd float %51, %53
+  %indvars.iv.next.7 = add nuw nsw i64 %indvars.iv3, 8
+  %niter.nsub.7 = add i64 %niter, -8
+  %niter.ncmp.7.not = icmp eq i64 %niter.nsub.7, 0
+  br i1 %niter.ncmp.7.not, label %._crit_edge.unr-lcssa, label %30
+
+._crit_edge.unr-lcssa:                            ; preds = %30, %.lr.ph
+  %split.ph = phi float [ undef, %.lr.ph ], [ %54, %30 ]
+  %.014.unr = phi float [ 0.000000e+00, %.lr.ph ], [ %54, %30 ]
+  %indvars.iv3.unr = phi i64 [ 0, %.lr.ph ], [ %indvars.iv.next.7, %30 ]
+  %lcmp.mod.not = icmp eq i64 %xtraiter, 0
+  br i1 %lcmp.mod.not, label %._crit_edge, label %.epil.preheader
+
+.epil.preheader:                                  ; preds = %.epil.preheader, %._crit_edge.unr-lcssa
+  %.014.epil = phi float [ %57, %.epil.preheader ], [ %.014.unr, %._crit_edge.unr-lcssa ]
+  %indvars.iv3.epil = phi i64 [ %indvars.iv.next.epil, %.epil.preheader ], [ %indvars.iv3.unr, %._crit_edge.unr-lcssa ]
+  %epil.iter = phi i64 [ %epil.iter.sub, %.epil.preheader ], [ %xtraiter, %._crit_edge.unr-lcssa ]
+  %55 = getelementptr inbounds float, float* %1, i64 %indvars.iv3.epil
+  %56 = load float, float* %55, align 4
+  %57 = fadd float %.014.epil, %56
+  %indvars.iv.next.epil = add nuw nsw i64 %indvars.iv3.epil, 1
+  %epil.iter.sub = add i64 %epil.iter, -1
+  %epil.iter.cmp.not = icmp eq i64 %epil.iter.sub, 0
+  br i1 %epil.iter.cmp.not, label %._crit_edge, label %.epil.preheader, !llvm.loop !5
+
+._crit_edge:                                      ; preds = %.epil.preheader, %._crit_edge.unr-lcssa, %.preheader
+  %.01.lcssa = phi float [ 0.000000e+00, %.preheader ], [ %split.ph, %._crit_edge.unr-lcssa ], [ %57, %.epil.preheader ]
+  ret float %.01.lcssa
+}
+
+; Function Attrs: noinline nounwind ssp uwtable
+define void @no_opt_test(float* %0, float* %1, float* %2) #0 {
+  %4 = call float @no_opt_test_inline(float* %0, float* %1, i32 5)
+  store float %4, float* %2, align 4
+  %5 = getelementptr inbounds float, float* %2, i64 1
+  store float %4, float* %5, align 4
+  %6 = getelementptr inbounds float, float* %2, i64 2
+  store float %4, float* %6, align 4
+  %7 = getelementptr inbounds float, float* %2, i64 3
+  store float %4, float* %7, align 4
+  %8 = getelementptr inbounds float, float* %2, i64 4
+  store float %4, float* %8, align 4
+  ret void
+}
+
+; Function Attrs: alwaysinline nounwind ssp uwtable
+define float @test_inline(float* %0, float* %1, i32 %2) #1 {
+  %4 = icmp sgt i32 %2, 0
+  %smax6 = select i1 %4, i32 %2, i32 0
+  %wide.trip.count7 = zext i32 %smax6 to i64
+  br i1 %4, label %.lr.ph11, label %.preheader
+
+.lr.ph11:                                         ; preds = %3
+  %5 = add nsw i64 %wide.trip.count7, -1
+  %xtraiter14 = and i64 %wide.trip.count7, 3
+  %6 = icmp ult i64 %5, 3
+  br i1 %6, label %..preheader_crit_edge.unr-lcssa, label %.lr.ph11.new
+
+.lr.ph11.new:                                     ; preds = %.lr.ph11
+  %unroll_iter17 = and i64 %wide.trip.count7, 2147483644
+  br label %13
+
+..preheader_crit_edge.unr-lcssa:                  ; preds = %13, %.lr.ph11
+  %indvars.iv9.unr = phi i64 [ 0, %.lr.ph11 ], [ %indvars.iv.next5.3, %13 ]
+  %lcmp.mod16.not = icmp eq i64 %xtraiter14, 0
+  br i1 %lcmp.mod16.not, label %.preheader, label %.epil.preheader13
+
+.epil.preheader13:                                ; preds = %.epil.preheader13, %..preheader_crit_edge.unr-lcssa
+  %indvars.iv9.epil = phi i64 [ %indvars.iv.next5.epil, %.epil.preheader13 ], [ %indvars.iv9.unr, %..preheader_crit_edge.unr-lcssa ]
+  %epil.iter15 = phi i64 [ %epil.iter15.sub, %.epil.preheader13 ], [ %xtraiter14, %..preheader_crit_edge.unr-lcssa ]
+  %7 = getelementptr inbounds float, float* %0, i64 %indvars.iv9.epil
+  %8 = load float, float* %7, align 4
+  %9 = fmul float %8, 2.000000e+00
+  %10 = getelementptr inbounds float, float* %1, i64 %indvars.iv9.epil
+  store float %9, float* %10, align 4
+  %indvars.iv.next5.epil = add nuw nsw i64 %indvars.iv9.epil, 1
+  %epil.iter15.sub = add i64 %epil.iter15, -1
+  %epil.iter15.cmp.not = icmp eq i64 %epil.iter15.sub, 0
+  br i1 %epil.iter15.cmp.not, label %.preheader, label %.epil.preheader13, !llvm.loop !6
+
+.preheader:                                       ; preds = %.epil.preheader13, %..preheader_crit_edge.unr-lcssa, %3
+  br i1 %4, label %.lr.ph, label %._crit_edge
+
+.lr.ph:                                           ; preds = %.preheader
+  %11 = add nsw i64 %wide.trip.count7, -1
+  %xtraiter = and i64 %wide.trip.count7, 7
+  %12 = icmp ult i64 %11, 7
+  br i1 %12, label %._crit_edge.unr-lcssa, label %.lr.ph.new
+
+.lr.ph.new:                                       ; preds = %.lr.ph
+  %unroll_iter = and i64 %wide.trip.count7, 2147483640
+  br label %30
+
+13:                                               ; preds = %13, %.lr.ph11.new
+  %indvars.iv9 = phi i64 [ 0, %.lr.ph11.new ], [ %indvars.iv.next5.3, %13 ]
+  %niter18 = phi i64 [ %unroll_iter17, %.lr.ph11.new ], [ %niter18.nsub.3, %13 ]
+  %14 = getelementptr inbounds float, float* %0, i64 %indvars.iv9
+  %15 = load float, float* %14, align 4
+  %16 = fmul float %15, 2.000000e+00
+  %17 = getelementptr inbounds float, float* %1, i64 %indvars.iv9
+  store float %16, float* %17, align 4
+  %indvars.iv.next5 = or i64 %indvars.iv9, 1
+  %18 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next5
+  %19 = load float, float* %18, align 4
+  %20 = fmul float %19, 2.000000e+00
+  %21 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next5
+  store float %20, float* %21, align 4
+  %indvars.iv.next5.1 = or i64 %indvars.iv9, 2
+  %22 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next5.1
+  %23 = load float, float* %22, align 4
+  %24 = fmul float %23, 2.000000e+00
+  %25 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next5.1
+  store float %24, float* %25, align 4
+  %indvars.iv.next5.2 = or i64 %indvars.iv9, 3
+  %26 = getelementptr inbounds float, float* %0, i64 %indvars.iv.next5.2
+  %27 = load float, float* %26, align 4
+  %28 = fmul float %27, 2.000000e+00
+  %29 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next5.2
+  store float %28, float* %29, align 4
+  %indvars.iv.next5.3 = add nuw nsw i64 %indvars.iv9, 4
+  %niter18.nsub.3 = add i64 %niter18, -4
+  %niter18.ncmp.3.not = icmp eq i64 %niter18.nsub.3, 0
+  br i1 %niter18.ncmp.3.not, label %..preheader_crit_edge.unr-lcssa, label %13
+
+30:                                               ; preds = %30, %.lr.ph.new
+  %.014 = phi float [ 0.000000e+00, %.lr.ph.new ], [ %54, %30 ]
+  %indvars.iv3 = phi i64 [ 0, %.lr.ph.new ], [ %indvars.iv.next.7, %30 ]
+  %niter = phi i64 [ %unroll_iter, %.lr.ph.new ], [ %niter.nsub.7, %30 ]
+  %31 = getelementptr inbounds float, float* %1, i64 %indvars.iv3
+  %32 = load float, float* %31, align 4
+  %33 = fadd float %.014, %32
+  %indvars.iv.next = or i64 %indvars.iv3, 1
+  %34 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next
+  %35 = load float, float* %34, align 4
+  %36 = fadd float %33, %35
+  %indvars.iv.next.1 = or i64 %indvars.iv3, 2
+  %37 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.1
+  %38 = load float, float* %37, align 4
+  %39 = fadd float %36, %38
+  %indvars.iv.next.2 = or i64 %indvars.iv3, 3
+  %40 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.2
+  %41 = load float, float* %40, align 4
+  %42 = fadd float %39, %41
+  %indvars.iv.next.3 = or i64 %indvars.iv3, 4
+  %43 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.3
+  %44 = load float, float* %43, align 4
+  %45 = fadd float %42, %44
+  %indvars.iv.next.4 = or i64 %indvars.iv3, 5
+  %46 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.4
+  %47 = load float, float* %46, align 4
+  %48 = fadd float %45, %47
+  %indvars.iv.next.5 = or i64 %indvars.iv3, 6
+  %49 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.5
+  %50 = load float, float* %49, align 4
+  %51 = fadd float %48, %50
+  %indvars.iv.next.6 = or i64 %indvars.iv3, 7
+  %52 = getelementptr inbounds float, float* %1, i64 %indvars.iv.next.6
+  %53 = load float, float* %52, align 4
+  %54 = fadd float %51, %53
+  %indvars.iv.next.7 = add nuw nsw i64 %indvars.iv3, 8
+  %niter.nsub.7 = add i64 %niter, -8
+  %niter.ncmp.7.not = icmp eq i64 %niter.nsub.7, 0
+  br i1 %niter.ncmp.7.not, label %._crit_edge.unr-lcssa, label %30
+
+._crit_edge.unr-lcssa:                            ; preds = %30, %.lr.ph
+  %split.ph = phi float [ undef, %.lr.ph ], [ %54, %30 ]
+  %.014.unr = phi float [ 0.000000e+00, %.lr.ph ], [ %54, %30 ]
+  %indvars.iv3.unr = phi i64 [ 0, %.lr.ph ], [ %indvars.iv.next.7, %30 ]
+  %lcmp.mod.not = icmp eq i64 %xtraiter, 0
+  br i1 %lcmp.mod.not, label %._crit_edge, label %.epil.preheader
+
+.epil.preheader:                                  ; preds = %.epil.preheader, %._crit_edge.unr-lcssa
+  %.014.epil = phi float [ %57, %.epil.preheader ], [ %.014.unr, %._crit_edge.unr-lcssa ]
+  %indvars.iv3.epil = phi i64 [ %indvars.iv.next.epil, %.epil.preheader ], [ %indvars.iv3.unr, %._crit_edge.unr-lcssa ]
+  %epil.iter = phi i64 [ %epil.iter.sub, %.epil.preheader ], [ %xtraiter, %._crit_edge.unr-lcssa ]
+  %55 = getelementptr inbounds float, float* %1, i64 %indvars.iv3.epil
+  %56 = load float, float* %55, align 4
+  %57 = fadd float %.014.epil, %56
+  %indvars.iv.next.epil = add nuw nsw i64 %indvars.iv3.epil, 1
+  %epil.iter.sub = add i64 %epil.iter, -1
+  %epil.iter.cmp.not = icmp eq i64 %epil.iter.sub, 0
+  br i1 %epil.iter.cmp.not, label %._crit_edge, label %.epil.preheader, !llvm.loop !7
+
+._crit_edge:                                      ; preds = %.epil.preheader, %._crit_edge.unr-lcssa, %.preheader
+  %.01.lcssa = phi float [ 0.000000e+00, %.preheader ], [ %split.ph, %._crit_edge.unr-lcssa ], [ %57, %.epil.preheader ]
+  ret float %.01.lcssa
+}
+
+; Function Attrs: noinline nounwind ssp uwtable
+define void @test(float* %0, float* %1, float* %2) #0 {
+.preheader4:
+  %3 = load float, float* %0, align 4
+  %4 = fmul float %3, 2.000000e+00
+  store float %4, float* %1, align 4
+  %5 = getelementptr inbounds float, float* %0, i64 1
+  %6 = load float, float* %5, align 4
+  %7 = fmul float %6, 2.000000e+00
+  %8 = getelementptr inbounds float, float* %1, i64 1
+  store float %7, float* %8, align 4
+  %9 = getelementptr inbounds float, float* %0, i64 2
+  %10 = load float, float* %9, align 4
+  %11 = fmul float %10, 2.000000e+00
+  %12 = getelementptr inbounds float, float* %1, i64 2
+  store float %11, float* %12, align 4
+  %13 = getelementptr inbounds float, float* %0, i64 3
+  %14 = load float, float* %13, align 4
+  %15 = fmul float %14, 2.000000e+00
+  %16 = getelementptr inbounds float, float* %1, i64 3
+  store float %15, float* %16, align 4
+  %17 = getelementptr inbounds float, float* %0, i64 4
+  %18 = load float, float* %17, align 4
+  %19 = fmul float %18, 2.000000e+00
+  %20 = getelementptr inbounds float, float* %1, i64 4
+  store float %19, float* %20, align 4
+  %21 = fadd float %4, 0.000000e+00
+  %22 = fadd float %21, %7
+  %23 = fadd float %22, %11
+  %24 = fadd float %23, %15
+  %25 = fadd float %24, %19
+  store float %25, float* %2, align 4
+  %26 = getelementptr inbounds float, float* %2, i64 1
+  store float %25, float* %26, align 4
+  %27 = getelementptr inbounds float, float* %2, i64 2
+  store float %25, float* %27, align 4
+  %28 = getelementptr inbounds float, float* %2, i64 3
+  store float %25, float* %28, align 4
+  %29 = getelementptr inbounds float, float* %2, i64 4
+  store float %25, float* %29, align 4
+  ret void
+}
+
+; Function Attrs: noinline nounwind ssp uwtable
+define i32 @main() #0 {
+  %1 = alloca [5 x float], align 16
+  %2 = bitcast [5 x float]* %1 to i8*
+  %3 = alloca [5 x float], align 16
+  %4 = bitcast [5 x float]* %3 to i8*
+  %5 = alloca [5 x float], align 16
+  %6 = bitcast [5 x float]* %5 to i8*
+  %7 = alloca [5 x float], align 16
+  %8 = bitcast [5 x float]* %7 to i8*
+  %9 = alloca [5 x float], align 16
+  %10 = bitcast [5 x float]* %9 to i8*
+  %11 = alloca [5 x float], align 16
+  %12 = bitcast [5 x float]* %11 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* nonnull align 16 dereferenceable(20) %2, i8* nonnull align 16 dereferenceable(20) bitcast ([5 x float]* @__const.main.A to i8*), i64 20, i1 false)
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* nonnull align 16 dereferenceable(20) %4, i8* nonnull align 16 dereferenceable(20) bitcast ([5 x float]* @__const.main.expectedA to i8*), i64 20, i1 false)
+  call void @memset_pattern16(i8* nonnull %2, i8* bitcast ([4 x float]* @.memset_pattern to i8*), i64 20) #8
+  call void @memset_pattern16(i8* nonnull %4, i8* bitcast ([4 x float]* @.memset_pattern.1 to i8*), i64 20) #8
+  call void @llvm.memset.p0i8.i64(i8* nonnull align 16 dereferenceable(20) %6, i8 0, i64 20, i1 false)
+  call void @llvm.memset.p0i8.i64(i8* nonnull align 16 dereferenceable(20) %8, i8 0, i64 20, i1 false)
+  call void @llvm.memset.p0i8.i64(i8* nonnull align 16 dereferenceable(20) %10, i8 0, i64 20, i1 false)
+  call void @llvm.memset.p0i8.i64(i8* nonnull align 16 dereferenceable(20) %12, i8 0, i64 20, i1 false)
+  %13 = getelementptr inbounds [5 x float], [5 x float]* %1, i64 0, i64 0
+  %14 = getelementptr inbounds [5 x float], [5 x float]* %5, i64 0, i64 0
+  %15 = getelementptr inbounds [5 x float], [5 x float]* %9, i64 0, i64 0
+  call void @test(float* nonnull %13, float* nonnull %14, float* nonnull %15)
+  %16 = getelementptr inbounds [5 x float], [5 x float]* %3, i64 0, i64 0
+  %17 = getelementptr inbounds [5 x float], [5 x float]* %7, i64 0, i64 0
+  %18 = getelementptr inbounds [5 x float], [5 x float]* %11, i64 0, i64 0
+  call void @no_opt_test(float* nonnull %16, float* nonnull %17, float* nonnull %18)
+  %19 = load float, float* %15, align 16
+  %20 = fpext float %19 to double
+  %21 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i64 0, i64 0), double %20) #8
+  %22 = load float, float* %18, align 16
+  %23 = fpext float %22 to double
+  %24 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([23 x i8], [23 x i8]* @.str.1, i64 0, i64 0), double %23) #8
+  %25 = load float, float* %18, align 16
+  %26 = load float, float* %15, align 16
+  %27 = fsub float %25, %26
+  %28 = call float @llvm.fabs.f32(float %27)
+  %29 = fcmp uge float %28, 0x3FB99999A0000000
+  br i1 %29, label %44, label %30
+
+30:                                               ; preds = %0
+  %31 = getelementptr inbounds [5 x float], [5 x float]* %9, i64 0, i64 1
+  %32 = load float, float* %31, align 4
+  %33 = fpext float %32 to double
+  %34 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i64 0, i64 0), double %33) #8
+  %35 = getelementptr inbounds [5 x float], [5 x float]* %11, i64 0, i64 1
+  %36 = load float, float* %35, align 4
+  %37 = fpext float %36 to double
+  %38 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([23 x i8], [23 x i8]* @.str.1, i64 0, i64 0), double %37) #8
+  %39 = load float, float* %35, align 4
+  %40 = load float, float* %31, align 4
+  %41 = fsub float %39, %40
+  %42 = call float @llvm.fabs.f32(float %41)
+  %43 = fcmp uge float %42, 0x3FB99999A0000000
+  br i1 %43, label %44, label %45
+
+44:                                               ; preds = %73, %59, %45, %30, %0
+  call void @__assert_rtn(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @__func__.main, i64 0, i64 0), i8* getelementptr inbounds ([23 x i8], [23 x i8]* @.str.2, i64 0, i64 0), i32 75, i8* getelementptr inbounds ([34 x i8], [34 x i8]* @.str.3, i64 0, i64 0)) #9
+  unreachable
+
+45:                                               ; preds = %30
+  %46 = getelementptr inbounds [5 x float], [5 x float]* %9, i64 0, i64 2
+  %47 = load float, float* %46, align 8
+  %48 = fpext float %47 to double
+  %49 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i64 0, i64 0), double %48) #8
+  %50 = getelementptr inbounds [5 x float], [5 x float]* %11, i64 0, i64 2
+  %51 = load float, float* %50, align 8
+  %52 = fpext float %51 to double
+  %53 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([23 x i8], [23 x i8]* @.str.1, i64 0, i64 0), double %52) #8
+  %54 = load float, float* %50, align 8
+  %55 = load float, float* %46, align 8
+  %56 = fsub float %54, %55
+  %57 = call float @llvm.fabs.f32(float %56)
+  %58 = fcmp uge float %57, 0x3FB99999A0000000
+  br i1 %58, label %44, label %59
+
+59:                                               ; preds = %45
+  %60 = getelementptr inbounds [5 x float], [5 x float]* %9, i64 0, i64 3
+  %61 = load float, float* %60, align 4
+  %62 = fpext float %61 to double
+  %63 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i64 0, i64 0), double %62) #8
+  %64 = getelementptr inbounds [5 x float], [5 x float]* %11, i64 0, i64 3
+  %65 = load float, float* %64, align 4
+  %66 = fpext float %65 to double
+  %67 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([23 x i8], [23 x i8]* @.str.1, i64 0, i64 0), double %66) #8
+  %68 = load float, float* %64, align 4
+  %69 = load float, float* %60, align 4
+  %70 = fsub float %68, %69
+  %71 = call float @llvm.fabs.f32(float %70)
+  %72 = fcmp uge float %71, 0x3FB99999A0000000
+  br i1 %72, label %44, label %73
+
+73:                                               ; preds = %59
+  %74 = getelementptr inbounds [5 x float], [5 x float]* %9, i64 0, i64 4
+  %75 = load float, float* %74, align 16
+  %76 = fpext float %75 to double
+  %77 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i64 0, i64 0), double %76) #8
+  %78 = getelementptr inbounds [5 x float], [5 x float]* %11, i64 0, i64 4
+  %79 = load float, float* %78, align 16
+  %80 = fpext float %79 to double
+  %81 = call i32 (i8*, ...) @printf(i8* nonnull dereferenceable(1) getelementptr inbounds ([23 x i8], [23 x i8]* @.str.1, i64 0, i64 0), double %80) #8
+  %82 = load float, float* %78, align 16
+  %83 = load float, float* %74, align 16
+  %84 = fsub float %82, %83
+  %85 = call float @llvm.fabs.f32(float %84)
+  %86 = fcmp uge float %85, 0x3FB99999A0000000
+  br i1 %86, label %44, label %87
+
+87:                                               ; preds = %73
+  ret i32 0
+}
+
+; Function Attrs: argmemonly nounwind willreturn
+declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #2
+
+; Function Attrs: argmemonly nounwind willreturn writeonly
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #3
+
+declare i32 @printf(i8*, ...) #4
+
+; Function Attrs: nounwind readnone speculatable willreturn
+declare double @llvm.fabs.f64(double) #5
+
+; Function Attrs: noreturn
+declare void @__assert_rtn(i8*, i8*, i32, i8*) #6
+
+; Function Attrs: argmemonly nofree
+declare void @memset_pattern16(i8* nocapture, i8* nocapture readonly, i64) #7
+
+; Function Attrs: nounwind readnone speculatable willreturn
+declare float @llvm.fabs.f32(float) #5
+
+attributes #0 = { noinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { alwaysinline nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { argmemonly nounwind willreturn }
+attributes #3 = { argmemonly nounwind willreturn writeonly }
+attributes #4 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #5 = { nounwind readnone speculatable willreturn }
+attributes #6 = { noreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="true" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #7 = { argmemonly nofree }
+attributes #8 = { nounwind }
+attributes #9 = { noreturn nounwind }
+
+!llvm.module.flags = !{!0, !1}
+!llvm.ident = !{!2}
+
+!0 = !{i32 1, !"wchar_size", i32 4}
+!1 = !{i32 7, !"PIC Level", i32 2}
+!2 = !{!"clang version 11.0.1"}
+!3 = distinct !{!3, !4}
+!4 = !{!"llvm.loop.unroll.disable"}
+!5 = distinct !{!5, !4}
+!6 = distinct !{!6, !4}
+!7 = distinct !{!7, !4}
