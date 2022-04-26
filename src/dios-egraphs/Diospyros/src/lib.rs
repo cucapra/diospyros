@@ -51,9 +51,20 @@ extern "C" {
 type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
 type LLVMPairMap = BTreeMap<LLVMValueRef, LLVMValueRef>;
 
-static mut ARG_IDX: i32 = 0;
+static mut ARG_IDX: u32 = 0;
 static mut CALL_IDX: i32 = 0;
 static mut NODE_IDX: u32 = 0;
+static mut REG_IDX: u32 = 0;
+
+unsafe fn gen_arg_idx() -> u32 {
+  ARG_IDX += 1;
+  return ARG_IDX;
+}
+
+unsafe fn gen_reg_idx() -> u32 {
+  REG_IDX += 1;
+  return REG_IDX;
+}
 
 unsafe fn gen_node_idx() -> u32 {
   NODE_IDX += 1;
@@ -274,18 +285,13 @@ type SymbolMap = BTreeMap<VecLang, LLVMValueRef>;
 enum LLVMOpType {
   Argument,
   Constant,
-  Store,
-  Load,
-  Gep,
-  Unop,
-  Bop,
-  // Call,
-  // FPTrunc,
-  // SIToFP,
-  // Bitcast,
+  FNeg,
+  FAdd,
+  FSub,
+  FMul,
+  FDiv,
   Sqrt32,
-  Sqrt64,
-  // FPExt,
+  // TODO: SGN signum
   UnhandledLLVMOpCode,
 }
 
@@ -463,40 +469,70 @@ unsafe fn llvm_recursive_add(
   return cloned_inst;
 }
 
-unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
-  if isa_bop(*expr) {
-    return LLVMOpType::Bop;
-  } else if isa_unop(*expr) {
-    return LLVMOpType::Unop;
-  } else if isa_constant(*expr) {
+unsafe fn isa_fadd(llvm_instr: LLVMValueRef) -> bool {
+  match LLVMGetInstructionOpcode(llvm_instr) {
+    LLVMFadd => true,
+    _ => false,
+  }
+}
+
+unsafe fn isa_fsub(llvm_instr: LLVMValueRef) -> bool {
+  match LLVMGetInstructionOpcode(llvm_instr) {
+    LLVMFSub => true,
+    _ => false,
+  }
+}
+
+unsafe fn isa_fmul(llvm_instr: LLVMValueRef) -> bool {
+  match LLVMGetInstructionOpcode(llvm_instr) {
+    LLVMFMul => true,
+    _ => false,
+  }
+}
+
+unsafe fn isa_fdiv(llvm_instr: LLVMValueRef) -> bool {
+  match LLVMGetInstructionOpcode(llvm_instr) {
+    LLVMFDiv => true,
+    _ => false,
+  }
+}
+
+unsafe fn isa_fneg(llvm_instr: LLVMValueRef) -> bool {
+  match LLVMGetInstructionOpcode(llvm_instr) {
+    LLVMFNeg => true,
+    _ => false,
+  }
+}
+
+unsafe fn isa_supported_binop(llvm_instr: LLVMValueRef) -> bool {
+  return isa_fadd(llvm_instr)
+    || isa_fmul(llvm_instr)
+    || isa_fdiv(llvm_instr)
+    || isa_fsub(llvm_instr);
+}
+
+unsafe fn isa_supported_unop(llvm_instr: LLVMValueRef) -> bool {
+  return isa_fneg(llvm_instr);
+
+unsafe fn match_llvm_op(llvm_instr: &LLVMValueRef) -> LLVMOpType {
+  if isa_fadd(*llvm_instr) {
+    return LLVMOpType::FAdd;
+  } else if isa_fsub(*llvm_instr) {
+    return LLVMOpType::FSub;
+  } else if isa_fmul(*llvm_instr) {
+    return LLVMOpType::FMul;
+  } else if isa_fdiv(*llvm_instr) {
+    return LLVMOpType::FDiv;
+  } else if isa_fneg(*llvm_instr) {
+    return LLVMOpType::FNeg;
+  } else if isa_constant(*llvm_instr) {
     return LLVMOpType::Constant;
-  } else if isa_gep(*expr) {
-    return LLVMOpType::Gep;
-  } else if isa_load(*expr) {
-    return LLVMOpType::Load;
-  } else if isa_store(*expr) {
-    return LLVMOpType::Store;
-  } else if isa_argument(*expr) {
+  } else if isa_argument(*llvm_instr) {
     return LLVMOpType::Argument;
-  } else if isa_call(*expr) {
-    return LLVMOpType::Call;
-  } else if isa_fptrunc(*expr) {
-    return LLVMOpType::FPTrunc;
-  } else if isa_sitofp(*expr) {
-    return LLVMOpType::SIToFP;
-  } else if isa_bitcast(*expr) {
-    return LLVMOpType::Bitcast;
-  } else if isa_sqrt32(*expr) {
+  } else if isa_sqrt32(*llvm_instr) {
     return LLVMOpType::Sqrt32;
-  } else if isa_sqrt64(*expr) {
-    return LLVMOpType::Sqrt64;
-  } else if isa_fpext(*expr) {
-    return LLVMOpType::FPExt;
   } else {
     return LLVMOpType::UnhandledLLVMOpCode;
-    // LLVMDumpValue(*expr);
-    // println!();
-    // panic!("ref_to_egg: Unmatched case for LLVMValueRef {:?}", *expr);
   }
 }
 
@@ -1210,240 +1246,108 @@ unsafe fn llvm_to_egg<'a>(
 
 // ---- Construction Zone -------
 
-struct LLVM2EggState<'a> {
-  llvm2egg: &'a BTreeMap<LLVMValueRef, VecLang>,
+/// LLVM2EggState Contains Egg to LLVM Translation Metadata 
+struct LLVM2EggState<'a, 'b> {
+  llvm2reg: &'a BTreeMap<LLVMValueRef, VecLang>,
+  llvm2arg: &'b BTreeMap<LLVMValueRef, VecLang>,
 }
 
+/// Translates LLVM Arg to an Egg Argument Node
 unsafe fn new___arg_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
+  next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  let sym_name = gen_arg_name();
-  let symbol = VecLang::Symbol(Symbol::from(sym_name));
-  symbol_map.insert(symbol.clone(), expr);
-  enode_vec.push(symbol);
-  return (enode_vec, next_idx + 1);
+) -> (Vec<VecLang>, u32) {
+  assert!(isa_argument(llvm_instr));
+  let argument_idx = gen_arg_idx();
+  let argument_node = VecLang::Arg(argument_idx);
+  egg_nodes.push(argument_node);
+  translation_metadata.llvm2arg.insert(llvm_instr, argument_node);
+  return (egg_nodes, next_node_idx + 1);
 }
 
+/// Translates Supported Binop Instruction to an Egg Bunary Operator Node
+/// 
+/// Supported Binary Operators are: FAdd, FSub, FMul, FDiv
 unsafe fn new___bop_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
+  next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  let left = LLVMGetOperand(expr, 0);
-  let right = LLVMGetOperand(expr, 1);
-  let (v1, next_idx1) = ref_to_egg(
+) -> (Vec<VecLang>, u32) {
+  assert!(isa_supported_binop(llvm_instr));
+  let left = LLVMGetOperand(llvm_instr, 0);
+  let right = LLVMGetOperand(llvm_instr, 1);
+  let (left_egg_nodes, left_next_idx) = new___ref_to_egg(
     left,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
+    egg_nodes,
+    next_node_idx,
+    translation_metadata
   );
-  let (mut v2, next_idx2) = ref_to_egg(
+  let (mut right_egg_nodes, right_next_idx) = new___ref_to_egg(
     right,
-    v1,
-    next_idx1,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
+    left_egg_nodes,
+    left_next_idx,
+    translation_metadata
   );
   let ids = [
-    Id::from((next_idx1 - 1) as usize),
-    Id::from((next_idx2 - 1) as usize),
+    Id::from((left_next_idx - 1) as usize),
+    Id::from((right_next_idx - 1) as usize),
   ];
-  v2.push(choose_binop(&expr, ids));
-  (v2, next_idx2 + 1)
+  right_egg_nodes.push(choose_binop(&llvm_instr, ids));
+  (right_egg_nodes, right_next_idx + 1)
 }
 
+/// Translates Supported Unop Instruction to an Egg Unary Operator Node
+/// 
+/// Supported Unary Operators are: FNeg
 unsafe fn new___unop_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
+  next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  let sub_expr = LLVMGetOperand(expr, 0);
-  let (mut v, next_idx1) = ref_to_egg(
-    sub_expr,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
+) -> (Vec<VecLang>, u32) {
+  assert!(isa_supported_unop(llvm_instr));
+  let neg_expr = LLVMGetOperand(llvm_instr, 0);
+  let (mut new_egg_nodes, new_next_idx) = new___ref_to_egg(
+    neg_expr,
+    egg_nodes,
+    next_node_idx,
+    translation_metadata
   );
-  let id = Id::from((next_idx1 - 1) as usize);
-  v.push(choose_unop(&expr, id));
-  (v, next_idx1 + 1)
+  let id = Id::from((new_next_idx - 1) as usize);
+  new_egg_nodes.push(choose_unop(&llvm_instr, id));
+  (new_egg_nodes, new_next_idx + 1)
 }
 
-unsafe fn new___gep_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  // // assert!(isa_argument(expr) || isa_gep(expr) || isa_load(expr));
-  // let mut enode_vec = Vec::new();
-  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
-  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
-
-  let num_gep_operands = LLVMGetNumOperands(expr);
-  let mut indices = Vec::new();
-  for operand_idx in 1..num_gep_operands {
-    let array_offset = llvm_index(expr, operand_idx);
-    indices.push(array_offset);
-  }
-  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
-  let offsets_symbol = Symbol::from(&offsets_string);
-  enode_vec.push(VecLang::Symbol(offsets_symbol));
-
-  let get_node = VecLang::Get([
-    Id::from((next_idx) as usize),
-    Id::from((next_idx + 1) as usize),
-  ]);
-  (*gep_map).insert(
-    (Symbol::from(array_name), Symbol::from(&offsets_string)),
-    expr,
-  );
-  enode_vec.push(get_node);
-
-  return (enode_vec, next_idx + 3);
-}
-
-unsafe fn new___sitofp_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  panic!("Unhandled: TODO: Eliminate sitofp enum to force translation to a register.");
-}
-
-unsafe fn new___load_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  return gep_to_egg(
-    expr, // we pass the entire instruction and not just the address
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-}
-
-unsafe fn new___store_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  let data = LLVMGetOperand(expr, 0);
-  let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator or addr in LLVM
-  let (vec, next_idx1) = ref_to_egg(
-    data,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  (*store_map).insert(next_idx1 - 1, addr);
-  (*id_map).insert(Id::from((next_idx1 - 1) as usize));
-  return (vec, next_idx1);
-}
-
+/// Translates Const Instruction to an Egg Number Node
 unsafe fn new___const_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
+  next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  let value = get_constant_float(expr);
-  enode_vec.push(VecLang::Num(value as i32));
-  (enode_vec, next_idx + 1)
+) -> (Vec<VecLang>, u32) {
+  assert!(isa_constant(llvm_instr));
+  let value = get_constant_float(llvm_instr);
+  egg_nodes.push(VecLang::Num(value as i32));
+  (egg_nodes, next_node_idx + 1)
 }
 
-unsafe fn new___call_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  panic!("Unhandled: TODO: Eliminate call enum to force translation to a register.");
-}
-
-unsafe fn new___fpext_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  panic!("Unhandled: TODO: Eliminate fpext enum to force translation to a register.");
-}
-
+/// Translates Sqrt 32 Instruction to an Egg Square Root Node
 unsafe fn new___sqrt32_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
+  next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  // assert!(isa_sqrt32(expr));
-  let operand = LLVMGetOperand(expr, 0);
-  let (mut new_enode_vec, next_idx1) =
+) -> (Vec<VecLang>, u32) {
+  assert!(isa_sqrt32(llvm_instr));
+  let operand = LLVMGetOperand(llvm_instr, 0);
+  let (mut new_enode_vec, new_next_node_idx) =
     new___ref_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
-  let sqrt_node = VecLang::Sqrt([Id::from((next_idx1 - 1) as usize)]);
+  let sqrt_node = VecLang::Sqrt([Id::from((new_next_node_idx - 1) as usize)]);
   new_enode_vec.push(sqrt_node);
-  return (new_enode_vec, next_idx1 + 1);
-}
-
-/// TODO: Fix Immediately: Remove Context Sensitive Matching!!!
-unsafe fn new___sqrt64_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  panic!("Currently, we do not handle calls to sqrt.f64 without fpext and fptrunc before and after!. This is the only 'context sensitive' instance in the dispatch matching. ")
-}
-
-unsafe fn new___fptrunc_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  panic!("Unhandled: TODO: Eliminate fptrunc enum to force translation to a register.");
-}
-
-unsafe fn new___bitcast_to_egg(
-  llvm_instr: LLVMValueRef,
-  mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
-  mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  panic!("Unhandled: TODO: Eliminate bitcast enum to force translation to a register.");
+  (new_enode_vec, new_next_node_idx + 1)
 }
 
 /// Translates an Unhandled OpCode to an Egg Register.
@@ -1453,10 +1357,14 @@ unsafe fn new___bitcast_to_egg(
 unsafe fn new___unhandled_opcode_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
+  next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
-  panic!("Unimplemented: TODO Translate to a register.");
+) -> (Vec<VecLang>, u32) {
+  let register_idx = gen_reg_idx();
+  let register_node = VecLang::Reg(register_idx);
+  egg_nodes.push(register_node);
+  translation_metadata.llvm2reg.insert(llvm_instr, register_node);
+  (egg_nodes, next_node_idx + 1)
 }
 
 /// Recursively Translate LLVM Instruction to Egg Nodes.
@@ -1465,14 +1373,14 @@ unsafe fn new___unhandled_opcode_to_egg(
 unsafe fn new___ref_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
-  next_node_idx: i32,
+  next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
-) -> (Vec<VecLang>, i32) {
+) -> (Vec<VecLang>, u32) {
   // If, on a different pass, the instruction was translated already, then
   // just used the egg node representing the translation
-  if translation_metadata.llvm2egg.contains_key(&llvm_instr) {
+  if translation_metadata.llvm2reg.contains_key(&llvm_instr) {
     let translated_egg_node = translation_metadata
-      .llvm2egg
+      .llvm2reg
       .get(&llvm_instr)
       .expect("Key must exist");
     egg_nodes.push(*translated_egg_node);
@@ -1481,19 +1389,14 @@ unsafe fn new___ref_to_egg(
   // Recurse Backwards on the current instruction, translating its children,
   // based on the opcode of the parent.
   return match match_llvm_op(&llvm_instr) {
-    LLVMOpType::Bop => new___bop_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata),
-    LLVMOpType::Unop => {
+    LLVMOpType::FAdd | LLVMOpType::FSub | LLVMOpType::FMul | LLVMOpType::FDiv => {
+      new___bop_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
+    }
+    LLVMOpType::FNeg => {
       new___unop_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
     }
     LLVMOpType::Constant => {
       new___const_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
-    }
-    LLVMOpType::Gep => new___gep_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata),
-    LLVMOpType::Load => {
-      new___load_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
-    }
-    LLVMOpType::Store => {
-      new___store_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
     }
     LLVMOpType::Argument => {
       new___arg_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
@@ -1501,36 +1404,64 @@ unsafe fn new___ref_to_egg(
     LLVMOpType::Sqrt32 => {
       new___sqrt32_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
     }
-    LLVMOpType::Sqrt64 => {
-      new___sqrt64_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
-    }
     LLVMOpType::UnhandledLLVMOpCode => {
       new___unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
     }
   };
 }
 
-unsafe fn new_llvm_to_egg(
+unsafe fn start_translating_ref_to_egg(
+  llvm_instr: LLVMValueRef,
+  mut egg_nodes: Vec<VecLang>,
+  next_node_idx: u32,
+  mut translation_metadata: LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+  // TODO: We need to record the "start" instruction so we can stitch it back into the LLVM code
+  // This start should be placed in translation metadata
+  return new___ref_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
+}
+
+unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
+  return match match_llvm_op(&llvm_instr) {
+    LLVMOpType::FAdd
+    | LLVMOpType::FMul
+    | LLVMOpType::FDiv
+    | LLVMOpType::FSub
+    | LLVMOpType::FNeg
+    | LLVMOpType::Constant
+    | LLVMOpType::Sqrt32 => true,
+    LLVMOpType::Argument | LLVMOpType::UnhandledLLVMOpCode => false,
+  };
+}
+
+unsafe fn new___llvm_to_egg(
   llvm_instrs_in_chunk: &[LLVMValueRef],
   // TODO: feed this in as an argument llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang>,
 ) -> RecExpr<VecLang> {
   let mut egg_nodes: Vec<VecLang> = Vec::new();
 
-  // Map from (translated / opaque) llvm instructions to egg graph nodes
-  let llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang> = BTreeMap::new();
+  // Map from (translated / opaque) llvm instructions to register egg graph nodes
+  let llvm_instr2reg_node: BTreeMap<LLVMValueRef, VecLang> = BTreeMap::new();
+  
+  // Map from (translated) llvm instructions to argument egg graph nodes
+  let llvm_instr2arg_node: BTreeMap<LLVMValueRef, VecLang> = BTreeMap::new(); 
 
   // State Variable To Hold Maps During Translation
-  let mut llvm2egg_state = LLVM2EggState {
-    llvm2egg: &llvm_instr2egg_node,
+  let mut translation_metadata = LLVM2EggState {
+    llvm2reg: &llvm_instr2reg_node,
+    llvm2arg: &llvm_instr2arg_node,
   };
 
   // Index of next node to translate
-  let mut next_node_idx: i32 = 0;
+  let mut next_node_idx: u32 = 0;
+
 
   // for each store, iterate backwards from that store and translate to egg
   for llvm_instr in llvm_instrs_in_chunk.iter() {
-    if isa_store(*llvm_instr) {
-      new___ref_to_egg()
+    if can_start_translation_instr(*llvm_instr) {
+      let (new_egg_nodes, new_next_node_idx) = start_translating_ref_to_egg(*llvm_instr, egg_nodes, next_node_idx, translation_metadata);
+      egg_nodes = new_egg_nodes;
+      next_node_idx = new_next_node_idx;
     }
   }
 
