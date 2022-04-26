@@ -1172,6 +1172,51 @@ unsafe fn ref_to_egg(
     return (vec, next_idx);
 }
 
+struct LLVM2EggState {
+    llvm2egg: &BTreeMap<LLVMValueRef, VecLang>,
+}
+
+unsafe fn ref_to_egg(
+    llvm_instr: LLVMValueRef,
+    next_node_idx: i64,
+    mut egg_nodes: Vec<VecLang>,
+    mut translation_metadata: LLVM2EggState,
+) -> Vec<VecLang> {
+    if (translation_metadata.llvm2egg.contains_key(llvm_instr)) {
+        let translated_egg_node = translation_metadata
+            .llvm2egg
+            .get(llvm_instr)
+            .expect("Key must exist");
+        egg_nodes.push(translated_egg_node);
+        return (egg_nodes, next_node_idx + 1);
+    }
+    panic!("Unimplemented");
+}
+
+unsafe fn llvm_to_egg(llvm_instrs_in_chunk: &[LLVMValueRef]) -> RecExpr<VecLang> {
+    let mut egg_nodes: Vec<VecLang> = Vec::new();
+
+    // Map from (translated) llvm instructions to egg graph nodes
+    let mut llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang> = BTreeMap::new();
+
+    // State Variable To Hold Maps During Translation
+    let mut llvm2egg_state = LLVM2EggState {
+        llvm2egg: llvm_instr2egg_node,
+    };
+
+    // Index of next node to translate
+    let mut next_node_idx: i64 = 0;
+
+    // for each store, iterate backwards from that store and translate to egg
+    for llvm_instr in llvm_instrs_in_chunk.iter() {
+        if isa_store(*llvm_instr) {
+            ref_to_egg()
+        }
+    }
+
+    panic!("Unimplemented");
+}
+
 unsafe fn llvm_to_egg<'a>(
     bb_vec: &[LLVMValueRef],
     llvm_arg_pairs: &mut LLVMPairMap,
