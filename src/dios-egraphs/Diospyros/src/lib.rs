@@ -1247,9 +1247,13 @@ unsafe fn llvm_to_egg<'a>(
 // ---- Construction Zone -------
 
 /// LLVM2EggState Contains Egg to LLVM Translation Metadata 
-struct LLVM2EggState<'a, 'b> {
+struct LLVM2EggState<'a, 'b, 'c, 'd, 'e> {
   llvm2reg: &'a BTreeMap<LLVMValueRef, VecLang>,
   llvm2arg: &'b BTreeMap<LLVMValueRef, VecLang>,
+  instructions_in_chunk: &'c BTreeSet<LLVMValueRef>,
+  restricted_instructions: &'d BTreeSet<LLVMValueRef>,
+  start_instructions: Vec<LLVMValueRef>,
+  start_ids: &'e BTreeSet<Id>,
 }
 
 /// Translates LLVM Arg to an Egg Argument Node
@@ -1370,6 +1374,7 @@ unsafe fn new___unhandled_opcode_to_egg(
 /// Recursively Translate LLVM Instruction to Egg Nodes.
 ///
 /// TODO: Take care of chunk boundaries: translation should never overreach a chunk
+/// TODO: May need to keep track of llvm instructions across chunks
 unsafe fn new___ref_to_egg(
   llvm_instr: LLVMValueRef,
   mut egg_nodes: Vec<VecLang>,
@@ -1386,9 +1391,17 @@ unsafe fn new___ref_to_egg(
     egg_nodes.push(*translated_egg_node);
     return (egg_nodes, next_node_idx + 1);
   }
+  // If the current llvm instruction is a "restricted" instruction, do not translate, but make it a register
+  if translation_metadata.restricted_instructions.contains(&llvm_instr){
+    return new___unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata); 
+  }
+  // If the current llvm instruction is not in the current chunk, we must return a register
+  if !translation_metadata.instructions_in_chunk.contains(&llvm_instr) {
+    return new___unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
+  }
   // Recurse Backwards on the current instruction, translating its children,
   // based on the opcode of the parent.
-  return match match_llvm_op(&llvm_instr) {
+  return match_llvm_op(&llvm_instr) {
     LLVMOpType::FAdd | LLVMOpType::FSub | LLVMOpType::FMul | LLVMOpType::FDiv => {
       new___bop_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
     }
@@ -1416,8 +1429,8 @@ unsafe fn start_translating_ref_to_egg(
   next_node_idx: u32,
   mut translation_metadata: LLVM2EggState,
 ) -> (Vec<VecLang>, u32) {
-  // TODO: We need to record the "start" instruction so we can stitch it back into the LLVM code
-  // This start should be placed in translation metadata
+  translation_metadata.start_instructions.push(llvm_instr);
+  translation_metadata.start_ids.insert(Id::from(next_node_idx as usize));
   return new___ref_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
 }
 
@@ -1436,6 +1449,7 @@ unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
 
 unsafe fn new___llvm_to_egg(
   llvm_instrs_in_chunk: &[LLVMValueRef],
+  restricted_instrs: &[LLVMValueRef],
   // TODO: feed this in as an argument llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang>,
 ) -> RecExpr<VecLang> {
   let mut egg_nodes: Vec<VecLang> = Vec::new();
@@ -1446,15 +1460,36 @@ unsafe fn new___llvm_to_egg(
   // Map from (translated) llvm instructions to argument egg graph nodes
   let llvm_instr2arg_node: BTreeMap<LLVMValueRef, VecLang> = BTreeMap::new(); 
 
+  // Ordered Vector of Starting LLVM instructions where translation began
+  let start_instructions: Vec<LLVMValueRef> = Vec::new();
+
+  // Ordered Set of Instructions in Chunk
+  let instructions_in_chunk: BTreeSet<LLVMValueRef> = BTreeSet::new();
+  for llvm_instr in llvm_instrs_in_chunk.iter() {
+    instructions_in_chunk.insert(*llvm_instr);
+  }
+
+  // Ordered Set of Ids
+  let start_ids: BTreeSet<Id> = BTreeSet::new();
+
+  // Ordered Set of Instructions NOT TO BE Translated, except as registers
+  let restricted_instrs: BTreeSet<LLVMValueRef> = BTreeSet::new();
+  for llvm_instr in llvm_instrs_in_chunk.iter() {
+    restricted_instrs.insert(*llvm_instr);
+  }
+
   // State Variable To Hold Maps During Translation
   let mut translation_metadata = LLVM2EggState {
     llvm2reg: &llvm_instr2reg_node,
     llvm2arg: &llvm_instr2arg_node,
+    instructions_in_chunk: &instructions_in_chunk,
+    restricted_instructions: &restricted_instrs,
+    start_instructions: start_instructions,
+    start_ids: &start_ids,
   };
 
   // Index of next node to translate
   let mut next_node_idx: u32 = 0;
-
 
   // for each store, iterate backwards from that store and translate to egg
   for llvm_instr in llvm_instrs_in_chunk.iter() {
@@ -1465,7 +1500,16 @@ unsafe fn new___llvm_to_egg(
     }
   }
 
-  panic!("Unimplemented");
+  // Generate a padded vector
+  let mut outer_vec_ids = Vec::new();
+  for id in translation_metadata.start_ids.iter() {
+    outer_vec_ids.push(*id);
+  }
+  balanced_pad_vector(&mut outer_vec_ids, &mut egg_nodes);
+
+  let rec_expr = RecExpr::from(egg_nodes);
+
+  return rec_expr;
 }
 
 // ---- Construction Zone -------
