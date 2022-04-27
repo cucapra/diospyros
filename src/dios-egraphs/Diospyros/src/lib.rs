@@ -543,16 +543,14 @@ unsafe fn choose_unop(unop: &LLVMValueRef, id: Id) -> VecLang {
   }
 }
 
-// ---- Construction Zone -------
-
 /// LLVM2EggState Contains Egg to LLVM Translation Metadata
-struct LLVM2EggState<'a, 'b, 'c, 'd, 'e> {
-  llvm2reg: &'a BTreeMap<LLVMValueRef, VecLang>,
-  llvm2arg: &'b BTreeMap<LLVMValueRef, VecLang>,
-  instructions_in_chunk: &'c BTreeSet<LLVMValueRef>,
-  restricted_instructions: &'d BTreeSet<LLVMValueRef>,
+struct LLVM2EggState {
+  llvm2reg: BTreeMap<LLVMValueRef, VecLang>,
+  llvm2arg: BTreeMap<LLVMValueRef, VecLang>,
+  instructions_in_chunk: BTreeSet<LLVMValueRef>,
+  restricted_instructions: BTreeSet<LLVMValueRef>,
   start_instructions: Vec<LLVMValueRef>,
-  start_ids: &'e BTreeSet<Id>,
+  start_ids: BTreeSet<Id>,
 }
 
 /// Translates LLVM Arg to an Egg Argument Node
@@ -743,8 +741,9 @@ unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
 unsafe fn llvm_to_egg(
   llvm_instrs_in_chunk: &[LLVMValueRef],
   restricted_instrs: &[LLVMValueRef],
+  vectorize: bool,
   // TODO: feed this in as an argument llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang>,
-) -> RecExpr<VecLang> {
+) -> (RecExpr<VecLang>, LLVM2EggState) {
   let mut egg_nodes: Vec<VecLang> = Vec::new();
 
   // Map from (translated / opaque) llvm instructions to register egg graph nodes
@@ -772,12 +771,12 @@ unsafe fn llvm_to_egg(
 
   // State Variable To Hold Maps During Translation
   let mut translation_metadata = LLVM2EggState {
-    llvm2reg: &llvm_instr2reg_node,
-    llvm2arg: &llvm_instr2arg_node,
-    instructions_in_chunk: &instructions_in_chunk,
-    restricted_instructions: &restricted_instrs,
+    llvm2reg: llvm_instr2reg_node,
+    llvm2arg: llvm_instr2arg_node,
+    instructions_in_chunk: instructions_in_chunk,
+    restricted_instructions: restricted_instrs,
     start_instructions: start_instructions,
-    start_ids: &start_ids,
+    start_ids: start_ids,
   };
 
   // Index of next node to translate
@@ -793,6 +792,8 @@ unsafe fn llvm_to_egg(
     }
   }
 
+  // If vectorize is true, then generate the vector, with padding
+  // TODO: Implement a switch to not vectorize
   // Generate a padded vector
   let mut outer_vec_ids = Vec::new();
   for id in translation_metadata.start_ids.iter() {
@@ -802,7 +803,381 @@ unsafe fn llvm_to_egg(
 
   let rec_expr = RecExpr::from(egg_nodes);
 
-  return rec_expr;
+  return (rec_expr, translation_metadata);
+}
+
+// ---- Construction Zone -------
+
+/// Egg2LLVMState represent the state needed to translate from Egg to LLVM
+struct Egg2LLVMState {
+  llvm2egg_metadata: LLVM2EggState,
+  egg_nodes_vector: [VecLang],
+  builder: LLVMBuilderRef,
+  context: LLVMContextRef,
+  module: LLVMModuleRef,
+}
+
+unsafe fn new___arg_to_llvm(
+  egg_node: &VecLang,
+  translation_metadata: Egg2LLVMState,
+) -> LLVMValueRef {
+  panic!("Unimplemented");
+}
+
+unsafe fn new___reg_to_llvm(
+  egg_node: &VecLang,
+  translation_metadata: Egg2LLVMState,
+) -> LLVMValueRef {
+  panic!("Unimplemented");
+}
+
+unsafe fn new___num_to_llvm(n: &i32, md: Egg2LLVMState) -> LLVMValueRef {
+  LLVMConstReal(LLVMFloatTypeInContext(md.context), *n as f64)
+}
+
+unsafe fn new___vec_to_llvm(boxed_ids: Box<[Id]>, md: Egg2LLVMState) -> LLVMValueRef {
+  // Convert the Boxed Ids to a Vector, and generate a vector of zeros
+  let idvec = boxed_ids.to_vec();
+  let idvec_len = idvec.len();
+  let mut zeros = Vec::new();
+  for _ in 0..idvec_len {
+    zeros.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 0 as f64));
+  }
+
+  // Convert the Vector of Zeros to a Mut PTr to construct an LLVM Zero Vector
+  let zeros_ptr = zeros.as_mut_ptr();
+  let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
+  for (idx, &eggid) in idvec.iter().enumerate() {
+    let elt = &md.egg_nodes_vector[usize::from(eggid)];
+    let mut elt_val = new___egg_to_llvm(elt, md);
+    // TODO: Can We Eliminate this BitCast in the future??
+    // With the new formulation, will we ever have an integer type?
+    // Check if the elt is an int
+    if isa_integertype(elt_val) {
+      elt_val = LLVMBuildBitCast(
+        md.builder,
+        elt_val,
+        LLVMFloatTypeInContext(md.context),
+        b"\0".as_ptr() as *const _,
+      );
+    }
+
+    // Construct the Vector
+    vector = LLVMBuildInsertElement(
+      md.builder,
+      vector,
+      elt_val,
+      LLVMConstInt(LLVMIntTypeInContext(md.context, 32), idx as u64, 0),
+      b"\0".as_ptr() as *const _,
+    );
+  }
+  vector
+}
+
+// TODO: Segregate Vec and Scalar Binops?
+unsafe fn new___binop_to_llvm(
+  binop_node: &VecLang,
+  left_id: &Id,
+  right_id: &Id,
+  md: Egg2LLVMState,
+) -> LLVMValueRef {
+  let left = new___egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_id)], md);
+  let right = new___egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_id)], md);
+
+  // TODO: Can We Remove these Casts?
+  let left = if LLVMTypeOf(left) == LLVMIntTypeInContext(md.context, 32) {
+    LLVMBuildBitCast(
+      md.builder,
+      left,
+      LLVMFloatTypeInContext(md.context),
+      b"\0".as_ptr() as *const _,
+    )
+  } else {
+    left
+  };
+
+  // TODO: Can We Remove these Casts?
+  let right = if LLVMTypeOf(right) == LLVMIntTypeInContext(md.context, 32) {
+    LLVMBuildBitCast(
+      md.builder,
+      right,
+      LLVMFloatTypeInContext(md.context),
+      b"\0".as_ptr() as *const _,
+    )
+  } else {
+    right
+  };
+
+  // TODO: Can we eliminate these cases?
+  if isa_constfp(left)
+    && !isa_constaggregatezero(left)
+    && isa_constfp(right)
+    && !isa_constaggregatezero(right)
+  {
+    let mut loses_info = 1;
+    let nright = LLVMConstRealGetDouble(right, &mut loses_info);
+    let new_right = build_constant_float(nright, md.context);
+    let nleft = LLVMConstRealGetDouble(left, &mut loses_info);
+    let new_left = build_constant_float(nleft, md.context);
+    translate_binop(
+      binop_node,
+      new_left,
+      new_right,
+      md.builder,
+      b"\0".as_ptr() as *const _,
+    )
+  } else if isa_constfp(right) && !isa_constaggregatezero(right) {
+    let mut loses_info = 1;
+    let n = LLVMConstRealGetDouble(right, &mut loses_info);
+    let new_right = build_constant_float(n, md.context);
+    translate_binop(
+      binop_node,
+      left,
+      new_right,
+      md.builder,
+      b"\0".as_ptr() as *const _,
+    )
+  } else if isa_constfp(left) && !isa_constaggregatezero(left) {
+    let mut loses_info = 1;
+    let n = LLVMConstRealGetDouble(left, &mut loses_info);
+    let new_left = build_constant_float(n, md.context);
+    translate_binop(
+      binop_node,
+      new_left,
+      right,
+      md.builder,
+      b"\0".as_ptr() as *const _,
+    )
+  } else {
+    translate_binop(
+      binop_node,
+      left,
+      right,
+      md.builder,
+      b"\0".as_ptr() as *const _,
+    )
+  }
+}
+
+unsafe fn new___concat_to_llvm(
+  left_vector: &Id,
+  right_vector: &Id,
+  md: Egg2LLVMState,
+) -> LLVMValueRef {
+  {
+    let trans_v1 = new___egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_vector)], md);
+    let mut trans_v2 = new___egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_vector)], md);
+
+    // In LLVM, it turns out all vectors need to be length power of 2
+    // if the 2 vectors are not the same size, double the length of the smaller vector by padding with 0's in it
+    // manually concatenate 2 vectors by using a LLVM shuffle operation.
+    let v1_type = LLVMTypeOf(trans_v1);
+    let v1_size = LLVMGetVectorSize(v1_type);
+    let v2_type = LLVMTypeOf(trans_v2);
+    let v2_size = LLVMGetVectorSize(v2_type);
+
+    // TODO: HACKY FIX FOR NOW
+    // assume both v1 and v2 are pow of 2 size
+    // assume v2 size smaller or equal to v1 size
+    // assume v2 is 1/2 size of v1
+    if v1_size != v2_size {
+      // replicate v2 size
+      let mut zeros = Vec::new();
+      for _ in 0..v2_size {
+        zeros.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 0 as f64));
+      }
+      let zeros_ptr = zeros.as_mut_ptr();
+      let zeros_vector = LLVMConstVector(zeros_ptr, v2_size);
+      let size = 2 * v2_size;
+      let mut indices = Vec::new();
+      for i in 0..size {
+        indices.push(LLVMConstInt(
+          LLVMIntTypeInContext(md.context, 32),
+          i as u64,
+          0,
+        ));
+      }
+      let mask = indices.as_mut_ptr();
+      let mask_vector = LLVMConstVector(mask, size);
+      trans_v2 = LLVMBuildShuffleVector(
+        md.builder,
+        trans_v2,
+        zeros_vector,
+        mask_vector,
+        b"\0".as_ptr() as *const _,
+      );
+    }
+
+    let size = v1_size + v2_size;
+    let mut indices = Vec::new();
+    for i in 0..size {
+      indices.push(LLVMConstInt(
+        LLVMIntTypeInContext(md.context, 32),
+        i as u64,
+        0,
+      ));
+    }
+
+    let mask = indices.as_mut_ptr();
+    let mask_vector = LLVMConstVector(mask, size);
+    LLVMBuildShuffleVector(
+      md.builder,
+      trans_v1,
+      trans_v2,
+      mask_vector,
+      b"\0".as_ptr() as *const _,
+    )
+  }
+}
+
+unsafe fn new___mac_to_llvm(
+  accumulator_vector: &Id,
+  left_prod_vector: &Id,
+  right_prod_vector: &Id,
+  md: Egg2LLVMState,
+) -> LLVMValueRef {
+  let trans_acc = new___egg_to_llvm(&md.egg_nodes_vector[usize::from(*accumulator_vector)], md);
+  let trans_v1 = new___egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_prod_vector)], md);
+  let trans_v2 = new___egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_prod_vector)], md);
+  let vec_type = LLVMTypeOf(trans_acc);
+  let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
+  let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
+  let func = LLVMAddFunction(md.module, b"llvm.fma.f32\0".as_ptr() as *const _, fn_type);
+  let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
+  LLVMBuildCall(md.builder, func, args, 3, b"\0".as_ptr() as *const _)
+}
+
+unsafe fn new___egg_to_llvm(
+  egg_node: &VecLang,
+  translation_metadata: Egg2LLVMState,
+) -> LLVMValueRef {
+  match egg_node {
+    VecLang::Symbol(..) => {
+      panic!("Symbol was found. Egg to LLVM Translation does not handle symbol nodes.")
+    }
+    VecLang::Get(..) => {
+      panic!("Get was found. Egg to LLVM Translation does not handle get nodes.")
+    }
+    VecLang::Ite(..) => panic!("Ite was found. Egg to LLVM Translation does not handle ite nodes."),
+    VecLang::Sgn(..) => panic!("Sgn was found. Egg to LLVM Translation does not handle sgn nodes. TODO: In the future, tis node will be handled alongside sqrt and neg scalar nodes."),
+    VecLang::Arg(_) => new___arg_to_llvm(egg_node, translation_metadata),
+    VecLang::Reg(_) => new___reg_to_llvm(egg_node, translation_metadata),
+    VecLang::Num(n) => new___num_to_llvm(n, translation_metadata),
+    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
+      new___vec_to_llvm(*boxed_ids, translation_metadata)
+    }
+    VecLang::VecAdd([l, r])
+    | VecLang::VecMinus([l, r])
+    | VecLang::VecMul([l, r])
+    | VecLang::VecDiv([l, r])
+    | VecLang::Add([l, r])
+    | VecLang::Minus([l, r])
+    | VecLang::Mul([l, r])
+    | VecLang::Div([l, r])
+    | VecLang::Or([l, r])
+    | VecLang::And([l, r])
+    | VecLang::Lt([l, r]) => new___binop_to_llvm(egg_node, l, r, translation_metadata),
+    VecLang::Concat([v1, v2]) => new___concat_to_llvm(v1, v2, translation_metadata),
+    VecLang::VecMAC([acc, v1, v2]) => new___mac_to_llvm(acc, v1, v2, translation_metadata),
+
+    
+    // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
+    // TODO: LLVM actually supports many more vector intrinsics, including
+    // vector sine/cosine instructions for floats.
+    VecLang::VecNeg([v]) => {
+      let neg_vector = translate_egg(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        store_map,
+        symbol_map,
+        llvm_arg_pairs,
+        node_to_arg_pair,
+        builder,
+        context,
+        module,
+      );
+      LLVMBuildFNeg(builder, neg_vector, b"\0".as_ptr() as *const _)
+    }
+    VecLang::VecSqrt([v]) => {
+      let sqrt_vec = translate_egg(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        store_map,
+        symbol_map,
+        llvm_arg_pairs,
+        node_to_arg_pair,
+        builder,
+        context,
+        module,
+      );
+      let vec_type = LLVMTypeOf(sqrt_vec);
+      let param_types = [vec_type].as_mut_ptr();
+      let fn_type = LLVMFunctionType(vec_type, param_types, 1, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+      let args = [sqrt_vec].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 1, b"\0".as_ptr() as *const _)
+    }
+    // compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
+    VecLang::VecSgn([v]) => {
+      let sgn_vec = translate_egg(
+        &vec[usize::from(*v)],
+        vec,
+        gep_map,
+        store_map,
+        symbol_map,
+        llvm_arg_pairs,
+        node_to_arg_pair,
+        builder,
+        context,
+        module,
+      );
+      let vec_type = LLVMTypeOf(sgn_vec);
+      let vec_size = LLVMGetVectorSize(vec_type);
+      let mut ones = Vec::new();
+      for _ in 0..vec_size {
+        ones.push(LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64));
+      }
+      let ones_ptr = ones.as_mut_ptr();
+      let ones_vector = LLVMConstVector(ones_ptr, vec_size);
+      let param_types = [vec_type, vec_type].as_mut_ptr();
+      let fn_type = LLVMFunctionType(vec_type, param_types, 2, 0 as i32);
+      let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
+      let args = [ones_vector, sgn_vec].as_mut_ptr();
+      LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
+    }
+    VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) => {
+      let mut number = translate_egg(
+        &vec[usize::from(*n)],
+        vec,
+        gep_map,
+        store_map,
+        symbol_map,
+        llvm_arg_pairs,
+        node_to_arg_pair,
+        builder,
+        context,
+        module,
+      );
+      if isa_integertype(number) {
+        number = LLVMBuildBitCast(
+          builder,
+          number,
+          LLVMFloatTypeInContext(context),
+          b"\0".as_ptr() as *const _,
+        );
+      }
+      translate_unop(
+        enode,
+        number,
+        builder,
+        context,
+        module,
+        b"\0".as_ptr() as *const _,
+      )
+    }
+  }
 }
 
 // ---- Construction Zone -------
