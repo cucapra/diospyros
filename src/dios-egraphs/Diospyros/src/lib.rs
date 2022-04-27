@@ -564,6 +564,7 @@ unsafe fn arg_to_egg(
   let argument_idx = gen_arg_idx();
   let argument_node = VecLang::Arg(argument_idx);
   egg_nodes.push(argument_node);
+  assert!(!translation_metadata.llvm2arg.contains_key(&llvm_instr));
   translation_metadata
     .llvm2arg
     .insert(llvm_instr, argument_node);
@@ -654,6 +655,7 @@ unsafe fn unhandled_opcode_to_egg(
   let register_idx = gen_reg_idx();
   let register_node = VecLang::Reg(register_idx);
   egg_nodes.push(register_node);
+  assert!(!translation_metadata.llvm2reg.contains_key(&llvm_instr));
   translation_metadata
     .llvm2reg
     .insert(llvm_instr, register_node);
@@ -818,11 +820,33 @@ struct Egg2LLVMState<'a> {
 }
 
 unsafe fn arg_to_llvm(egg_node: &VecLang, translation_metadata: Egg2LLVMState) -> LLVMValueRef {
-  panic!("Unimplemented");
+  // TODO: Make More Efficient with BTREEMAP?
+  let llvm2arg = translation_metadata.llvm2egg_metadata.llvm2arg;
+  for (llvm_instr, arg_node) in llvm2arg.iter() {
+    // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
+    if arg_node == egg_node {
+      return *llvm_instr;
+    }
+  }
+  panic!(
+    "Expected a successful lookup in llvm2arg, but cannot find Argument Egg Node: {:?}.",
+    egg_node
+  );
 }
 
 unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: Egg2LLVMState) -> LLVMValueRef {
-  panic!("Unimplemented");
+  // TODO: Make More Efficient with BTREEMAP?
+  let llvm2reg = translation_metadata.llvm2egg_metadata.llvm2reg;
+  for (llvm_instr, reg_node) in llvm2reg.iter() {
+    // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
+    if reg_node == egg_node {
+      return *llvm_instr;
+    }
+  }
+  panic!(
+    "Expected a successful lookup in llvm2reg, but cannot find Register Egg Node: {:?}.",
+    egg_node
+  );
 }
 
 unsafe fn num_to_llvm(n: &i32, md: Egg2LLVMState) -> LLVMValueRef {
