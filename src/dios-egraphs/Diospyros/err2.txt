@@ -1,3 +1,0 @@
-opt: build/diospyros.ll:192:38: error: expected type
-  %11 = phi i64 [ 0, %.lr.ph11 ], [ <badref>, %32 ]
-                                     ^
