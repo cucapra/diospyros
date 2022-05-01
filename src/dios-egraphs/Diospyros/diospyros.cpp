@@ -520,73 +520,73 @@ struct DiospyrosPass : public FunctionPass {
             // Assumes Alias Analysis Movement Pass has been done previously
             // Pulls out Instructions into sections of code called "Chunks"
             //
-            std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
-            std::vector<LLVMValueRef> inner_vector = {};
+            std::vector<std::vector<LLVMValueRef>> chunk_accumulator;
+            std::vector<LLVMValueRef> chunk_vector = {};
             for (auto &I : B) {
                 if (auto *op = dyn_cast<StoreInst>(&I)) {
                     Value *store_loc = op->getOperand(1);
-                    inner_vector.push_back(wrap(op));
+                    chunk_vector.push_back(wrap(op));
                 } else if (auto *op = dyn_cast<MemSetInst>(&I)) {
-                    if (!inner_vector.empty()) {
-                        vectorization_accumulator.push_back(inner_vector);
+                    if (!chunk_vector.empty()) {
+                        chunk_accumulator.push_back(chunk_vector);
                     }
-                    inner_vector = {wrap(op)};
-                    vectorization_accumulator.push_back(inner_vector);
-                    inner_vector = {};
+                    chunk_vector = {wrap(op)};
+                    chunk_accumulator.push_back(chunk_vector);
+                    chunk_vector = {};
                 } else if (auto *op = dyn_cast<MemCpyInst>(&I)) {
-                    if (!inner_vector.empty()) {
-                        vectorization_accumulator.push_back(inner_vector);
+                    if (!chunk_vector.empty()) {
+                        chunk_accumulator.push_back(chunk_vector);
                     }
-                    inner_vector = {wrap(op)};
-                    vectorization_accumulator.push_back(inner_vector);
-                    inner_vector = {};
+                    chunk_vector = {wrap(op)};
+                    chunk_accumulator.push_back(chunk_vector);
+                    chunk_vector = {};
                 } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
-                    if (!inner_vector.empty()) {
-                        vectorization_accumulator.push_back(inner_vector);
+                    if (!chunk_vector.empty()) {
+                        chunk_accumulator.push_back(chunk_vector);
                     }
-                    inner_vector = {wrap(op)};
-                    vectorization_accumulator.push_back(inner_vector);
-                    inner_vector = {};
+                    chunk_vector = {wrap(op)};
+                    chunk_accumulator.push_back(chunk_vector);
+                    chunk_vector = {};
                 } else if (CallInst *call_inst = dyn_cast<CallInst>(&I)) {
                     if (is_memset_variety(call_inst)) {
-                        if (!inner_vector.empty()) {
-                            vectorization_accumulator.push_back(inner_vector);
+                        if (!chunk_vector.empty()) {
+                            chunk_accumulator.push_back(chunk_vector);
                         }
                         Instruction *memset = dyn_cast<CallInst>(call_inst);
-                        inner_vector = {wrap(memset)};
-                        vectorization_accumulator.push_back(inner_vector);
-                        inner_vector = {};
+                        chunk_vector = {wrap(memset)};
+                        chunk_accumulator.push_back(chunk_vector);
+                        chunk_vector = {};
                     } else if (is_memcopy_variety(call_inst)) {
-                        if (!inner_vector.empty()) {
-                            vectorization_accumulator.push_back(inner_vector);
+                        if (!chunk_vector.empty()) {
+                            chunk_accumulator.push_back(chunk_vector);
                         }
                         Instruction *memcopy = dyn_cast<CallInst>(call_inst);
-                        inner_vector = {wrap(memcopy)};
-                        vectorization_accumulator.push_back(inner_vector);
-                        inner_vector = {};
+                        chunk_vector = {wrap(memcopy)};
+                        chunk_accumulator.push_back(chunk_vector);
+                        chunk_vector = {};
                     } else if (is_memmove_variety(call_inst)) {
-                        if (!inner_vector.empty()) {
-                            vectorization_accumulator.push_back(inner_vector);
+                        if (!chunk_vector.empty()) {
+                            chunk_accumulator.push_back(chunk_vector);
                         }
                         Instruction *memmove = dyn_cast<CallInst>(call_inst);
-                        inner_vector = {wrap(memmove)};
-                        vectorization_accumulator.push_back(inner_vector);
-                        inner_vector = {};
+                        chunk_vector = {wrap(memmove)};
+                        chunk_accumulator.push_back(chunk_vector);
+                        chunk_vector = {};
                     }
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
-                    if (!inner_vector.empty()) {
-                        vectorization_accumulator.push_back(inner_vector);
+                    if (!chunk_vector.empty()) {
+                        chunk_accumulator.push_back(chunk_vector);
                     }
-                    inner_vector = {};
+                    chunk_vector = {};
                 }
             }
-            if (!inner_vector.empty()) {
-                vectorization_accumulator.push_back(inner_vector);
+            if (!chunk_vector.empty()) {
+                chunk_accumulator.push_back(chunk_vector);
             }
 
-            for (int i = 0; i < vectorization_accumulator.size(); ++i) {
-                auto &chunk_vector = vectorization_accumulator[i];
+            for (int i = 0; i < chunk_accumulator.size(); ++i) {
+                auto &chunk_vector = chunk_accumulator[i];
                 if (chunk_vector.empty()) {
                     continue;
                 }
@@ -596,12 +596,11 @@ struct DiospyrosPass : public FunctionPass {
                 // TODO: only consider future chunks!
                 std::vector<LLVMValueRef> restricted_instrs = {};
                 for (auto chunk_instr : chunk_vector) {
-                    for (auto j = i + 1; j < vectorization_accumulator.size();
-                         ++j) {
+                    for (auto j = i + 1; j < chunk_accumulator.size(); ++j) {
                         // guaranteed to be a different chunk vector ahead of
                         // the origianl one.
                         bool must_restrict = false;
-                        auto &other_chunk_vector = vectorization_accumulator[i];
+                        auto &other_chunk_vector = chunk_accumulator[i];
                         for (auto other_chunk_instr : other_chunk_vector) {
                             if (unwrap(chunk_instr) ==
                                 unwrap(other_chunk_instr)) {
