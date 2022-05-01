@@ -40,27 +40,13 @@ llvm::cl::opt<bool> PrintOpt("p", llvm::cl::desc("Print Egg Optimization."));
 llvm::cl::alias PrintOptAlias("print", llvm::cl::desc("Alias for -p"),
                               llvm::cl::aliasopt(PrintOpt));
 
-typedef struct IntLLVMPair {
-    uint32_t node_int;
-    LLVMValueRef arg;
-} IntLLVMPair;
-
-typedef struct LLVMPair {
-    LLVMValueRef original_value;
-    LLVMValueRef new_value;
-} LLVMPair;
-
-typedef struct VectorPointerSize {
-    LLVMPair const *llvm_pointer;
-    std::size_t llvm_pointer_size;
-} VectorPointerSize;
-
-extern "C" VectorPointerSize optimize(LLVMModuleRef mod, LLVMContextRef context,
-                                      LLVMBuilderRef builder,
-                                      LLVMValueRef const *bb, std::size_t size,
-                                      LLVMPair const *past_instrs,
-                                      std::size_t past_size, bool run_egg,
-                                      bool print_opt);
+extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
+                         LLVMBuilderRef builder,
+                         LLVMValueRef const *chunk_instrs,
+                         std::size_t chunk_size,
+                         LLVMValueRef const *restricted_instrs,
+                         std::size_t restricted_size, bool run_egg,
+                         bool print_opt);
 
 const string ARRAY_NAME = "no-array-name";
 const string TEMP_NAME = "no-temp-name";
@@ -453,72 +439,6 @@ extern "C" LLVMValueRef build_constant_float(double n, LLVMContextRef context) {
     return wrap(ConstantFP::get(float_type, n));
 }
 
-Instruction *dfs_instructions(Instruction *current_instr,
-                              std::vector<LLVMPair> &translated_exprs,
-                              BasicBlock *B) {
-    Instruction *cloned_instr = current_instr->clone();
-    if (isa<Argument>(current_instr)) {
-        return current_instr;
-    } else if (isa<Constant>(current_instr)) {
-        return current_instr;
-    } else if (isa<AllocaInst>(current_instr)) {
-        for (LLVMPair pair : translated_exprs) {
-            Instruction *original_val =
-                dyn_cast<Instruction>(unwrap(pair.original_value));
-            Instruction *new_val =
-                dyn_cast<Instruction>(unwrap(pair.new_value));
-            if (current_instr == original_val) {
-                return new_val;
-            }
-        }
-        LLVMPair new_pair;
-        // assert(isa<AllocaInst>(current_instr) ||
-        // isa<LoadInst>(current_instr)); assert(isa<AllocaInst>(cloned_instr)
-        // || isa<LoadInst>(cloned_instr));
-        new_pair.original_value = wrap(current_instr);
-        new_pair.new_value = wrap(cloned_instr);
-        translated_exprs.push_back(new_pair);
-
-        BasicBlock::InstListType &intermediate_instrs = B->getInstList();
-        intermediate_instrs.push_back(cloned_instr);
-        return cloned_instr;
-    }
-
-    int num_operands = current_instr->getNumOperands();
-    for (int i = 0; i < num_operands; i++) {
-        Instruction *arg = dyn_cast<Instruction>(current_instr->getOperand(i));
-        if (arg != NULL) {
-            Instruction *cloned_arg =
-                dfs_instructions(arg, translated_exprs, B);
-            cloned_instr->setOperand(i, cloned_arg);
-        }
-    }
-
-    // if (isa<LoadInst>(current_instr)) {
-    bool in_map = false;
-    for (LLVMPair pair : translated_exprs) {
-        Instruction *original_val =
-            dyn_cast<Instruction>(unwrap(pair.original_value));
-        if (current_instr == original_val) {
-            in_map = true;
-        }
-    }
-    if (!in_map) {
-        LLVMPair new_pair;
-        // assert(isa<AllocaInst>(current_instr) ||
-        //        isa<LoadInst>(current_instr));
-        // assert(isa<AllocaInst>(cloned_instr) ||
-        //        isa<LoadInst>(cloned_instr));
-        new_pair.original_value = wrap(current_instr);
-        new_pair.new_value = wrap(cloned_instr);
-        translated_exprs.push_back(new_pair);
-    }
-    // }
-    BasicBlock::InstListType &intermediate_instrs = B->getInstList();
-    intermediate_instrs.push_back(cloned_instr);
-    return cloned_instr;
-}
-
 bool is_memset_variety(CallInst *inst) {
     Function *function = inst->getCalledFunction();
     if (function != NULL) {
@@ -562,41 +482,6 @@ bool call_is_not_sqrt(CallInst *inst) {
                   // will be done
 }
 
-std::vector<Instruction *> dfs_in_basic_block(
-    Instruction *instr, std::vector<Instruction *> basic_block_instrs,
-    std::vector<Instruction *> visited_instrs) {
-    if (isa<PHINode>(instr)) {
-        assert(false);
-    }
-    errs() << "Incoming instr\n";
-    errs() << *instr << "\n";
-    assert(std::find(basic_block_instrs.begin(), basic_block_instrs.end(),
-                     instr) != basic_block_instrs.end());
-    assert(std::find(visited_instrs.begin(), visited_instrs.end(), instr) ==
-           visited_instrs.end());
-    visited_instrs.push_back(instr);
-    std::vector<Instruction *> output = {};
-    int num_operands = instr->getNumOperands();
-    for (int i = 0; i < num_operands; i++) {
-        Instruction *arg = dyn_cast<Instruction>(instr->getOperand(i));
-        if (arg != NULL && !isa<PHINode>(arg) &&
-            std::find(visited_instrs.begin(), visited_instrs.end(), arg) ==
-                visited_instrs.end() &&
-            std::find(basic_block_instrs.begin(), basic_block_instrs.end(),
-                      arg) != basic_block_instrs.end() &&
-            arg->getNumOperands() > 0) {
-            errs() << "Incoming arg\n";
-            errs() << *arg << "\n";
-            std::vector<Instruction *> new_instrs =
-                dfs_in_basic_block(arg, basic_block_instrs, visited_instrs);
-            for (Instruction *new_instr : new_instrs) {
-                output.push_back(new_instr);
-            }
-        }
-    }
-    return output;
-}
-
 /**
  * Below is the main DiospyrosPass that activates the Rust lib.rs code,
  * which calls the Egg vectorizer and rewrites the optimized code in place.
@@ -615,141 +500,31 @@ struct DiospyrosPass : public FunctionPass {
             return false;
         }
         bool has_changes = false;
-        std::vector<LLVMPair> translated_exprs = {};
         for (auto &B : F) {
-            // Emergency conditions
-            // Bail if instruction is not in list of handleable instructions
-            // TODO: need to identify not handleable instructions
-            bool has_excluded_instr = false;
-            for (auto &I : B) {
-                if (isa<PHINode>(I)) {
-                    has_excluded_instr = true;
-                }
-            }
-            if (has_excluded_instr) {
-                continue;
-            }
+            // ------------ Construction Zone ---------------
 
-            // Bail if instruction is used outside the current basic block
-            bool instr_used_twice = false;
-            for (auto &I : B) {
-                Instruction *original_instr = dyn_cast<Instruction>(&I);
-                for (auto &otherB : F) {
-                    if (otherB.getName() != B.getName()) {
-                        for (auto &otherI : otherB) {
-                            Instruction *other_instr =
-                                dyn_cast<Instruction>(&otherI);
-                            int num_operands = other_instr->getNumOperands();
-                            for (int i = 0; i < num_operands; i++) {
-                                Instruction *use = dyn_cast<Instruction>(
-                                    other_instr->getOperand(i));
-                                if (use != NULL) {
-                                    if (use == original_instr) {
-                                        instr_used_twice = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if (instr_used_twice) {
-                continue;
-            }
-
+            // TODO: Consider removing as the new procedure can overcome this
             // We skip over basic blocks without floating point types
             bool has_float = false;
             for (auto &I : B) {
-                errs() << "All instructions\n";
-                errs() << I << "\n";
                 if (I.getType()->isFloatTy()) {
                     has_float = true;
                 }
             }
             if (!has_float) {
-                for (auto &I : B) {
-                    auto *op = wrap(dyn_cast<Instruction>(&I));
-                    LLVMPair new_pair;
-                    new_pair.original_value = op;
-                    new_pair.new_value = op;
-                    translated_exprs.push_back(new_pair);
-                }
-                continue;
-            }
-            // We also skip over all basic blocks without stores or related
-            // memory operations
-            bool has_store_or_mem_intrinsic = false;
-            for (auto &I : B) {
-                if (auto *op = dyn_cast<StoreInst>(&I)) {
-                    has_store_or_mem_intrinsic = true;
-                } else if (auto *op = dyn_cast<MemSetInst>(&I)) {
-                    has_store_or_mem_intrinsic = true;
-                } else if (auto *op = dyn_cast<MemCpyInst>(&I)) {
-                    has_store_or_mem_intrinsic = true;
-                } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
-                    has_store_or_mem_intrinsic = true;
-                } else if (CallInst *op = dyn_cast<CallInst>(&I)) {
-                    if (is_memset_variety(op)) {
-                        has_store_or_mem_intrinsic = true;
-                    } else if (is_memcopy_variety(op)) {
-                        has_store_or_mem_intrinsic = true;
-                    } else if (is_memmove_variety(op)) {
-                        has_store_or_mem_intrinsic = true;
-                    }
-                }
-            }
-            if (!has_store_or_mem_intrinsic) {
-                for (auto &I : B) {
-                    auto *op = wrap(dyn_cast<Instruction>(&I));
-                    LLVMPair new_pair;
-                    new_pair.original_value = op;
-                    new_pair.new_value = op;
-                    translated_exprs.push_back(new_pair);
-                }
                 continue;
             }
 
-            // We also skip over all basic blocks with Select as that is not
-            // translatable into Egg
-            bool has_select = false;
-            for (auto &I : B) {
-                if (auto *op = dyn_cast<SelectInst>(&I)) {
-                    has_select = true;
-                }
-            }
-            if (has_select) {
-                for (auto &I : B) {
-                    auto *op = wrap(dyn_cast<Instruction>(&I));
-                    LLVMPair new_pair;
-                    new_pair.original_value = op;
-                    new_pair.new_value = op;
-                    translated_exprs.push_back(new_pair);
-                }
-                continue;
-            }
+            // ------------ Construction Zone ---------------
 
-            // We grab all the block args: the phi nodes of the block
-            std::vector<Instruction *> phi_instrs = {};
-            for (auto &I : B) {
-                if (auto *op = dyn_cast<PHINode>(&I)) {
-                    Instruction *phi = dyn_cast<Instruction>(&I);
-                    assert(phi != NULL);
-                    phi_instrs.push_back(phi);
-                }
-            }
-
-            // Grab the terminator from the LLVM Basic Block
-            Instruction *terminator = B.getTerminator();
-            Instruction *cloned_terminator = terminator->clone();
-
+            // Assumes Alias Analysis Movement Pass has been done previously
+            // Pulls out Instructions into sections of code called "Chunks"
+            //
             std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
             std::vector<LLVMValueRef> inner_vector = {};
-            std::set<Value *> store_locations;
-            std::vector<Instruction *> bb_instrs = {};
             for (auto &I : B) {
                 if (auto *op = dyn_cast<StoreInst>(&I)) {
                     Value *store_loc = op->getOperand(1);
-                    store_locations.insert(store_loc);
                     inner_vector.push_back(wrap(op));
                 } else if (auto *op = dyn_cast<MemSetInst>(&I)) {
                     if (!inner_vector.empty()) {
@@ -758,7 +533,6 @@ struct DiospyrosPass : public FunctionPass {
                     inner_vector = {wrap(op)};
                     vectorization_accumulator.push_back(inner_vector);
                     inner_vector = {};
-                    store_locations.clear();
                 } else if (auto *op = dyn_cast<MemCpyInst>(&I)) {
                     if (!inner_vector.empty()) {
                         vectorization_accumulator.push_back(inner_vector);
@@ -766,7 +540,6 @@ struct DiospyrosPass : public FunctionPass {
                     inner_vector = {wrap(op)};
                     vectorization_accumulator.push_back(inner_vector);
                     inner_vector = {};
-                    store_locations.clear();
                 } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
                     if (!inner_vector.empty()) {
                         vectorization_accumulator.push_back(inner_vector);
@@ -774,7 +547,6 @@ struct DiospyrosPass : public FunctionPass {
                     inner_vector = {wrap(op)};
                     vectorization_accumulator.push_back(inner_vector);
                     inner_vector = {};
-                    store_locations.clear();
                 } else if (CallInst *call_inst = dyn_cast<CallInst>(&I)) {
                     if (is_memset_variety(call_inst)) {
                         if (!inner_vector.empty()) {
@@ -784,7 +556,6 @@ struct DiospyrosPass : public FunctionPass {
                         inner_vector = {wrap(memset)};
                         vectorization_accumulator.push_back(inner_vector);
                         inner_vector = {};
-                        store_locations.clear();
                     } else if (is_memcopy_variety(call_inst)) {
                         if (!inner_vector.empty()) {
                             vectorization_accumulator.push_back(inner_vector);
@@ -793,7 +564,6 @@ struct DiospyrosPass : public FunctionPass {
                         inner_vector = {wrap(memcopy)};
                         vectorization_accumulator.push_back(inner_vector);
                         inner_vector = {};
-                        store_locations.clear();
                     } else if (is_memmove_variety(call_inst)) {
                         if (!inner_vector.empty()) {
                             vectorization_accumulator.push_back(inner_vector);
@@ -802,246 +572,69 @@ struct DiospyrosPass : public FunctionPass {
                         inner_vector = {wrap(memmove)};
                         vectorization_accumulator.push_back(inner_vector);
                         inner_vector = {};
-                        store_locations.clear();
                     }
-                    // else if (call_is_not_sqrt(call_inst)) {
-                    //     // All Calls that are not to sqrt functions
-                    //     // are not optimized.
-                    //     errs() << "There was a call!\n";
-                    //     errs() << *call_inst << "\n";
-                    //     if (!inner_vector.empty()) {
-                    //         vectorization_accumulator.push_back(inner_vector);
-                    //     }
-                    //     Instruction *call = dyn_cast<CallInst>(call_inst);
-                    //     inner_vector = {wrap(call)};
-                    //     vectorization_accumulator.push_back(inner_vector);
-                    //     inner_vector = {};
-                    //     store_locations.clear();
-                    // }
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
                     if (!inner_vector.empty()) {
                         vectorization_accumulator.push_back(inner_vector);
                     }
                     inner_vector = {};
-                    store_locations.clear();
                 }
-                bb_instrs.push_back(dyn_cast<Instruction>(&I));
             }
             if (!inner_vector.empty()) {
                 vectorization_accumulator.push_back(inner_vector);
             }
 
-            // acquire all instructions in a basic block
-            std::vector<Instruction *> basic_block_instrs = {};
-            for (auto &I : B) {
-                Instruction *instr = dyn_cast<Instruction>(&I);
-                assert(instr != NULL);
-                basic_block_instrs.push_back(instr);
-            }
+            for (int i = 0; i < vectorization_accumulator.size(); ++i) {
+                auto &chunk_vector = vectorization_accumulator[i];
+                if (chunk_vector.empty()) {
+                    continue;
+                }
 
-            // Acquire each of the instructions in the "run" that terminates at
-            // a store We will send these instructions to optimize.
-
-            // maintain list of all instructions processed thus far in basic
-            // block via DFS
-            std::vector<Instruction *> dfs_bb_instrs = {};
-            for (auto &vec : vectorization_accumulator) {
-                if (not vec.empty()) {
-                    // check that a instruction is not used multiple times
-                    // within a chunk
-                    bool instr_used_twice_in_chunk = false;
-                    for (auto *instr : vec) {
-                        Instruction *first_instr =
-                            dyn_cast<Instruction>(unwrap(instr));
-                        for (auto *other_instr : vec) {
-                            Instruction *second_instr =
-                                dyn_cast<Instruction>(unwrap(instr));
-                            if (first_instr != second_instr) {
-                                int num_operands =
-                                    second_instr->getNumOperands();
-                                for (int i = 0; i < num_operands; i++) {
-                                    Instruction *use = dyn_cast<Instruction>(
-                                        second_instr->getOperand(i));
-                                    if (use != NULL) {
-                                        if (use == first_instr) {
-                                            instr_used_twice_in_chunk = true;
-                                        }
-                                    }
-                                }
+                // If an instruction is used multiple times outside the chunk,
+                // add it to a restricted list.
+                // TODO: only consider future chunks!
+                std::vector<LLVMValueRef> restricted_instrs = {};
+                for (auto chunk_instr : chunk_vector) {
+                    for (auto j = i + 1; j < vectorization_accumulator.size();
+                         ++j) {
+                        // guaranteed to be a different chunk vector ahead of
+                        // the origianl one.
+                        bool must_restrict = false;
+                        auto &other_chunk_vector = vectorization_accumulator[i];
+                        for (auto other_chunk_instr : other_chunk_vector) {
+                            if (unwrap(chunk_instr) ==
+                                unwrap(other_chunk_instr)) {
+                                restricted_instrs.push_back(chunk_instr);
+                                must_restrict = true;
+                                break;
                             }
                         }
-                    }
-                    if (instr_used_twice_in_chunk) {
-                        continue;
-                    }
-
-                    // check that an instruction is not used
-                    // outside the chunk
-                    bool instr_used_twice_outside_chunk = false;
-                    for (auto &chunk : vectorization_accumulator) {
-                        if (chunk != vec) {
-                            for (auto *first_instr : vec) {
-                                Instruction *first =
-                                    dyn_cast<Instruction>(unwrap(first_instr));
-                                for (auto *second_instr : chunk) {
-                                    Instruction *second = dyn_cast<Instruction>(
-                                        unwrap(second_instr));
-                                    int num_operands = second->getNumOperands();
-                                    for (int i = 0; i < num_operands; i++) {
-                                        Instruction *use =
-                                            dyn_cast<Instruction>(
-                                                second->getOperand(i));
-                                        if (use != NULL) {
-                                            if (use == first) {
-                                                instr_used_twice_outside_chunk =
-                                                    true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        if (must_restrict) {
+                            break;
                         }
                     }
-                    if (instr_used_twice_outside_chunk) {
-                        continue;
-                    }
-
-                    has_changes = has_changes || true;
-                    Value *last_store = unwrap(vec.back());
-                    IRBuilder<> builder(dyn_cast<Instruction>(last_store));
-                    Instruction *store_instr =
-                        dyn_cast<Instruction>(last_store);
-                    // gather all instructions
-                    // for (Instruction *bbinst : basic_block_instrs) {
-                    //     if (bbinst == store_instr) {
-                    //         errs() << "Match!\n";
-                    //         errs() << *store_instr << "\n";
-                    //     }
-                    // }
-                    // dfs_in_basic_block(store_instr, basic_block_instrs,
-                    //                    dfs_bb_instrs);
-                    if (auto *op = dyn_cast<StoreInst>(store_instr)) {
-                        assert(isa<StoreInst>(store_instr));
-                        builder.SetInsertPoint(store_instr);
-                        builder.SetInsertPoint(&B);
-                        Module *mod = F.getParent();
-                        LLVMContext &context = F.getContext();
-                        VectorPointerSize pair = optimize(
-                            wrap(mod), wrap(&context), wrap(&builder),
-                            vec.data(), vec.size(), translated_exprs.data(),
-                            translated_exprs.size(), RunOpt, PrintOpt);
-                        int size = pair.llvm_pointer_size;
-
-                        LLVMPair const *expr_array = pair.llvm_pointer;
-                        for (int i = 0; i < size; i++) {
-                            translated_exprs.push_back(expr_array[i]);
-                        }
-                    } else {
-                        assert(isa<MemSetInst>(last_store) ||
-                               isa<MemCpyInst>(last_store) ||
-                               isa<MemMoveInst>(last_store) ||
-                               (isa<CallInst>(last_store) &&
-                                is_memset_variety(
-                                    dyn_cast<CallInst>(last_store))) ||
-                               (isa<CallInst>(last_store) &&
-                                is_memcopy_variety(
-                                    dyn_cast<CallInst>(last_store))) ||
-                               (isa<CallInst>(last_store) &&
-                                is_memmove_variety(
-                                    dyn_cast<CallInst>(last_store))) ||
-                               (isa<CallInst>(last_store)));
-
-                        dfs_instructions(store_instr, translated_exprs, &B);
-                    }
-
-                    // Trim down translated_exprs
-                    std::vector<LLVMPair> new_translated_exprs = {};
-                    for (int i = 0; i < translated_exprs.size(); i++) {
-                        LLVMPair final_instr = translated_exprs.back();
-                        translated_exprs.pop_back();
-                        new_translated_exprs.push_back(final_instr);
-                    }
-                    translated_exprs = new_translated_exprs;
                 }
+
+                has_changes = has_changes || true;
+                Value *last_instr_val = unwrap(chunk_vector.back());
+                Instruction *last_instr = dyn_cast<Instruction>(last_instr_val);
+                assert(last_instr != NULL);
+                IRBuilder<> builder(last_instr);
+                builder.SetInsertPoint(&B);
+
+                Module *mod = F.getParent();
+                LLVMContext &context = F.getContext();
+                optimize(wrap(mod), wrap(&context), wrap(&builder),
+                         chunk_vector.data(), chunk_vector.size(),
+                         restricted_instrs.data(), restricted_instrs.size(),
+                         RunOpt, PrintOpt);
             }
 
-            // // grab unprocessed instructions
-            // std::vector<Instruction *> missed_instrs = {};
-            // for (auto &I : B) {
-            //     Instruction *instr = dyn_cast<Instruction>(&I);
-            //     assert(instr != NULL);
-            //     if (std::find(dfs_bb_instrs.begin(), dfs_bb_instrs.end(),
-            //                   instr) != dfs_bb_instrs.end()) {
-            //         errs() << "Missed instrs\n";
-            //         errs() << *instr << "\n";
-            //         missed_instrs.push_back(instr);
-            //     }
-            // }
-
-            // // add in unprocessed phi instructions at front of basic block
-            // BasicBlock::InstListType &intermediate_instrs = B.getInstList();
-            // for (Instruction *missed_instr : missed_instrs) {
-            //     if (isa<PHINode>(missed_instr)) {
-            //         intermediate_instrs.push_front(missed_instr);
-            //     }
-            // }
-
-            // // add in the "unprocessed" instructions that dfs on memory ops
-            // // missed
-            // for (Instruction *missed_instr : missed_instrs) {
-            //     if (!isa<PHINode>(missed_instr)) {
-            //         Instruction *cloned_instr = missed_instr->clone();
-            //         intermediate_instrs.push_back(cloned_instr);
-            //         for (auto &U : missed_instr->uses()) {
-            //             User *user = U.getUser();  // user of the add; could
-            //             be
-            //                                        // a store, for example
-            //             user->setOperand(U.getOperandNo(), cloned_instr);
-            //         }
-            //         errs() << "Adding instruction\n";
-            //         errs() << *missed_instr << "\n";
-            //     }
-            // }
-
-            // delete old instructions that are memory related; adce will handle
-            // rest
-            std::reverse(bb_instrs.begin(), bb_instrs.end());
-            for (auto &I : bb_instrs) {
-                if (I->isTerminator()) {
-                    I->eraseFromParent();
-                } else if (isa<StoreInst>(I)) {
-                    I->eraseFromParent();
-                } else if ((isa<CallInst>(I) &&
-                            is_memset_variety(dyn_cast<CallInst>(I))) ||
-                           (isa<CallInst>(I) &&
-                            is_memcopy_variety(dyn_cast<CallInst>(I))) ||
-                           (isa<CallInst>(I) &&
-                            is_memmove_variety(dyn_cast<CallInst>(I)))) {
-                    I->eraseFromParent();
-                } else if (isa<MemSetInst>(I)) {
-                    I->eraseFromParent();
-                } else if (isa<MemCpyInst>(I)) {
-                    I->eraseFromParent();
-                } else if (isa<MemMoveInst>(I)) {
-                    I->eraseFromParent();
-                }
-            }
-
-            // add back the terminator
-            BasicBlock::InstListType &final_instrs = B.getInstList();
-            final_instrs.push_back(cloned_terminator);
-
-            // Trim down translated_exprs
-            std::vector<LLVMPair> new_translated_exprs = {};
-            for (int i = 0; i < translated_exprs.size(); i++) {
-                LLVMPair final_instr = translated_exprs.back();
-                translated_exprs.pop_back();
-                new_translated_exprs.push_back(final_instr);
-            }
-            translated_exprs = new_translated_exprs;
+            // TODO: delete old instructions that are memory related; adce
+            // will handle the remainder
         }
-        return true;
+        return has_changes;
     };
 };
 }  // namespace

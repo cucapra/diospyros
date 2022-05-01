@@ -6,7 +6,6 @@ use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{
   cmp,
   collections::{BTreeMap, BTreeSet},
-  mem,
   os::raw::c_char,
   slice::from_raw_parts,
 };
@@ -58,7 +57,7 @@ unsafe fn gen_reg_idx() -> u32 {
 // Reference Comparison: https://www.reddit.com/r/rust/comments/2r3wjk/is_there_way_to_compare_objects_by_address_in_rust/
 // Compares whether addresses of LLVMValueRefs are the same.
 // Not the contents of the Value Refs
-fn _cmp_val_ref_address(a1: &llvm::LLVMValue, a2: &llvm::LLVMValue) -> bool {
+fn cmp_val_ref_address(a1: &llvm::LLVMValue, a2: &llvm::LLVMValue) -> bool {
   a1 as *const _ == a2 as *const _
 }
 
@@ -135,49 +134,32 @@ unsafe fn translate_unop(
 /// Main function to optimize: Takes in a basic block of instructions,
 /// optimizes it, and then translates it to LLVM IR code, in place.
 
-#[repr(C)]
-pub struct IntLLVMPair {
-  node_int: u32,
-  arg: LLVMValueRef,
-}
-
-#[repr(C)]
-pub struct LLVMPair {
-  original_value: LLVMValueRef,
-  new_value: LLVMValueRef,
-}
-
-#[repr(C)]
-pub struct VectorPointerSize {
-  llvm_pointer: *const LLVMPair,
-  llvm_pointer_size: size_t,
-}
-
 #[no_mangle]
 pub fn optimize(
   module: LLVMModuleRef,
   context: LLVMContextRef,
   builder: LLVMBuilderRef,
-  bb: *const LLVMValueRef,
-  size: size_t,
-  past_instrs: *const LLVMPair,
-  past_size: size_t,
+  chunk_instrs: *const LLVMValueRef,
+  chunk_size: size_t,
+  restricted_instrs: *const LLVMValueRef,
+  restricted_size: size_t,
   run_egg: bool,
   print_opt: bool,
-) -> VectorPointerSize {
+) -> () {
   unsafe {
+    // preprocessing of instructions
+    let chunk_llvm_instrs = from_raw_parts(chunk_instrs, chunk_size);
+    let restricted_llvm_instrs = from_raw_parts(restricted_instrs, restricted_size);
+
     // llvm to egg
-    let llvm_instrs = from_raw_parts(bb, size);
-    let past_llvm_instrs = from_raw_parts(past_instrs, past_size);
-    let mut llvm_arg_pairs = BTreeMap::new();
-    for instr_pair in past_llvm_instrs {
-      let original_value = instr_pair.original_value;
-      let new_value = instr_pair.new_value;
-      // assert!(isa_load(original_value) || isa_alloca(original_value));
-      // assert!(isa_load(new_value) || isa_alloca(new_value));
-      llvm_arg_pairs.insert(original_value, new_value);
+    let (egg_expr, llvm2egg_metadata) =
+      llvm_to_egg_main(chunk_llvm_instrs, restricted_llvm_instrs, true);
+
+    // Bail if no egg Nodes to optimize
+    if egg_expr.as_ref().is_empty() {
+      eprintln!("No Egg Nodes in Optimization Vector");
+      return;
     }
-    let (egg_expr, llvm2egg_metadata) = llvm_to_egg_main(llvm_instrs, &[], true);
 
     // optimization pass
     if print_opt {
@@ -194,29 +176,6 @@ pub fn optimize(
 
     // egg to llvm
     egg_to_llvm_main(best_egg_expr, &llvm2egg_metadata, module, context, builder);
-
-    let mut final_llvm_arg_pairs = Vec::new();
-    for (unchanged_val, new_val) in llvm_arg_pairs.iter() {
-      let pair = LLVMPair {
-        original_value: *unchanged_val,
-        new_value: *new_val,
-      };
-      // assert!(isa_load(*unchanged_val) || isa_alloca(*unchanged_val));
-      // assert!(isa_load(*new_val) || isa_alloca(*new_val));
-      final_llvm_arg_pairs.push(pair);
-    }
-
-    // https://stackoverflow.com/questions/39224904/how-to-expose-a-rust-vect-to-ffi
-    let mut llvm_arg_pairs_boxed_slice: Box<[LLVMPair]> = final_llvm_arg_pairs.into_boxed_slice();
-    let llvm_arg_pairs_array: *mut LLVMPair = llvm_arg_pairs_boxed_slice.as_mut_ptr();
-    let llvm_arg_pairs_array_len: usize = llvm_arg_pairs_boxed_slice.len();
-    mem::forget(llvm_arg_pairs_boxed_slice);
-
-    // TODO: FIX THIS
-    return VectorPointerSize {
-      llvm_pointer: llvm_arg_pairs_array,
-      llvm_pointer_size: llvm_arg_pairs_array_len,
-    };
   }
 }
 
@@ -637,6 +596,22 @@ unsafe fn llvm_to_egg_main(
   for llvm_instr in restricted_instrs.iter() {
     restricted_instrs_set.insert(*llvm_instr);
   }
+
+  // Invariant: every restricted instruction is in the chunk, using a pointer check
+  for restr_instr in restricted_instrs.iter() {
+    let mut found_match = false;
+    for instr in instructions_in_chunk.iter() {
+      if cmp_val_ref_address(&**restr_instr, &**instr) {
+        found_match = true;
+        break;
+      }
+    }
+    if found_match {
+      continue;
+    }
+  }
+  // Invariant: chunk instructions are not empty in size
+  assert!(!instructions_in_chunk.is_empty());
 
   // State Variable To Hold Maps During Translation
   let mut translation_metadata = LLVM2EggState {
