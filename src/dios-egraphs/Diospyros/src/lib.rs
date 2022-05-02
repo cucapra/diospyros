@@ -222,11 +222,15 @@ unsafe fn balanced_pad_vector<'a>(
   let width = config::vector_width();
   assert!(is_pow2(width as u32));
   let length = binop_vec.len();
+  assert!(
+    length > 0,
+    "There must be 1 or more operators to vectorize."
+  );
   // Check vector less than width, and then return
-  if length < width {
-    enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
-    return enode_vec;
-  }
+  // if length < width {
+  //   enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
+  //   return enode_vec;
+  // }
   let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
   let diff = closest_pow2 - (length as u32);
   for _ in 0..diff {
@@ -417,6 +421,7 @@ unsafe fn bop_to_egg(
     Id::from((left_next_idx - 1) as usize),
     Id::from((right_next_idx - 1) as usize),
   ];
+  println!("{:?}", right_egg_nodes);
   right_egg_nodes.push(choose_binop(&llvm_instr, ids));
   (right_egg_nodes, right_next_idx + 1)
 }
@@ -699,14 +704,24 @@ unsafe fn num_to_llvm(n: &i32, md: &Egg2LLVMState) -> LLVMValueRef {
 
 unsafe fn vec_to_llvm(boxed_ids: &Box<[Id]>, md: &Egg2LLVMState) -> LLVMValueRef {
   // Convert the Boxed Ids to a Vector, and generate a vector of zeros
+  // Invariant: idvec must not be empty
   let idvec = boxed_ids.to_vec();
   let idvec_len = idvec.len();
+  assert!(
+    !idvec.is_empty(),
+    "Id Vec Cannot be empty when converting Vector to an LLVM Vector"
+  );
   let mut zeros = Vec::new();
   for _ in 0..idvec_len {
     zeros.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 0 as f64));
   }
 
   // Convert the Vector of Zeros to a Mut PTr to construct an LLVM Zero Vector
+  // Invariant: zeros must not be empty
+  assert!(
+    !zeros.is_empty(),
+    "Zeros Vector Cannot be empty when converting Vector to an LLVM Vector"
+  );
   let zeros_ptr = zeros.as_mut_ptr();
   let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
   for (idx, &eggid) in idvec.iter().enumerate() {
@@ -1007,6 +1022,7 @@ unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
   }
 }
 
+// TODO: Add non-vectorized version as well!
 unsafe fn egg_to_llvm_main(
   expr: RecExpr<VecLang>,
   llvm2egg_metadata: &LLVM2EggState,
@@ -1030,7 +1046,7 @@ unsafe fn egg_to_llvm_main(
 
   // HERE, we stitch our work back into the current LLVM code
 
-  // NOTE: We Assume Vectorizer will maintain relative positions of elements in vector
+  // NOTE: We Assume Egg rewriter will maintain relative positions of elements in vector
   // Extract the elements of the vector, to be assigned back to where they are to be used.
   let num_extractions = llvm2egg_metadata.start_instructions.len();
   for i in 0..num_extractions {
@@ -1045,5 +1061,6 @@ unsafe fn egg_to_llvm_main(
     // Replace all the uses of the old instruction with the new extracted value
     // Old instruction cannot have been removed.
     LLVMReplaceAllUsesWith(*old_instr, extracted_value);
+    LLVMInstructionRemoveFromParent(*old_instr);
   }
 }

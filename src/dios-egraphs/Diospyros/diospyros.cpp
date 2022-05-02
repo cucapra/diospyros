@@ -15,6 +15,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
@@ -483,6 +484,30 @@ bool call_is_not_sqrt(CallInst *inst) {
 }
 
 /**
+ * True iff an instruction is "vectorizable"
+*/
+bool can_vectorize(Value* value){
+    // TODO: 
+    Instruction * instr = dyn_cast<Instruction>(value);
+    assert(instr != NULL);
+    if (isa<BinaryOperator>(instr)){
+        if (instr->getOpcode() == Instruction::FAdd) {
+            return true;
+        } else if (instr -> getOpcode() == Instruction::FSub) {
+            return true;
+        } else if (instr -> getOpcode() == Instruction::FDiv) {
+            return true;
+        } else if (instr -> getOpcode() == Instruction::FMul) {
+            return true;
+        } else if (instr -> getOpcode() == Instruction::FNeg) {
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
+/**
  * Below is the main DiospyrosPass that activates the Rust lib.rs code,
  * which calls the Egg vectorizer and rewrites the optimized code in place.
  */
@@ -501,8 +526,6 @@ struct DiospyrosPass : public FunctionPass {
         }
         bool has_changes = false;
         for (auto &B : F) {
-            // ------------ Construction Zone ---------------
-
             // TODO: Consider removing as the new procedure can overcome this
             // We skip over basic blocks without floating point types
             bool has_float = false;
@@ -514,8 +537,6 @@ struct DiospyrosPass : public FunctionPass {
             if (!has_float) {
                 continue;
             }
-
-            // ------------ Construction Zone ---------------
 
             // Assumes Alias Analysis Movement Pass has been done previously
             // Pulls out Instructions into sections of code called "Chunks"
@@ -531,22 +552,16 @@ struct DiospyrosPass : public FunctionPass {
                         chunk_accumulator.push_back(chunk_vector);
                     }
                     chunk_vector = {wrap(op)};
-                    chunk_accumulator.push_back(chunk_vector);
-                    chunk_vector = {};
                 } else if (auto *op = dyn_cast<MemCpyInst>(&I)) {
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
                     }
                     chunk_vector = {wrap(op)};
-                    chunk_accumulator.push_back(chunk_vector);
-                    chunk_vector = {};
                 } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
                     }
                     chunk_vector = {wrap(op)};
-                    chunk_accumulator.push_back(chunk_vector);
-                    chunk_vector = {};
                 } else if (CallInst *call_inst = dyn_cast<CallInst>(&I)) {
                     if (is_memset_variety(call_inst)) {
                         if (!chunk_vector.empty()) {
@@ -554,40 +569,55 @@ struct DiospyrosPass : public FunctionPass {
                         }
                         Instruction *memset = dyn_cast<CallInst>(call_inst);
                         chunk_vector = {wrap(memset)};
-                        chunk_accumulator.push_back(chunk_vector);
-                        chunk_vector = {};
                     } else if (is_memcopy_variety(call_inst)) {
                         if (!chunk_vector.empty()) {
                             chunk_accumulator.push_back(chunk_vector);
                         }
                         Instruction *memcopy = dyn_cast<CallInst>(call_inst);
                         chunk_vector = {wrap(memcopy)};
-                        chunk_accumulator.push_back(chunk_vector);
-                        chunk_vector = {};
                     } else if (is_memmove_variety(call_inst)) {
                         if (!chunk_vector.empty()) {
                             chunk_accumulator.push_back(chunk_vector);
                         }
                         Instruction *memmove = dyn_cast<CallInst>(call_inst);
                         chunk_vector = {wrap(memmove)};
-                        chunk_accumulator.push_back(chunk_vector);
-                        chunk_vector = {};
                     }
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
                     }
-                    chunk_vector = {};
+                    chunk_vector = {wrap(op)};
+                } else {
+                    Instruction *instr = dyn_cast<Instruction>(&I);
+                    chunk_vector.push_back(wrap(instr));
                 }
             }
             if (!chunk_vector.empty()) {
                 chunk_accumulator.push_back(chunk_vector);
             }
 
+            for (auto &chunk_vector : chunk_accumulator) {
+                for (auto &instr : chunk_vector) {
+                    errs() << *unwrap(instr) << "\n";
+                }
+                errs() << "---------------------\n";
+            }
+
             for (int i = 0; i < chunk_accumulator.size(); ++i) {
                 auto &chunk_vector = chunk_accumulator[i];
                 if (chunk_vector.empty()) {
+                    continue;
+                }
+
+                // check if the chunk vector actually has instructions to optimixe on
+                bool has_vectorizable_instrs = false;
+                for (auto &instr : chunk_vector) {
+                    if (can_vectorize(unwrap(instr))) {
+                        has_vectorizable_instrs = true;
+                    }
+                }
+                if (!has_vectorizable_instrs) {
                     continue;
                 }
 
@@ -616,6 +646,7 @@ struct DiospyrosPass : public FunctionPass {
                 }
 
                 has_changes = has_changes || true;
+                assert(chunk_vector.size() != 0);
                 Value *last_instr_val = unwrap(chunk_vector.back());
                 Instruction *last_instr = dyn_cast<Instruction>(last_instr_val);
                 assert(last_instr != NULL);
