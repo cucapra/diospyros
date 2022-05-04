@@ -14,8 +14,8 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
@@ -485,21 +485,21 @@ bool call_is_not_sqrt(CallInst *inst) {
 
 /**
  * True iff an instruction is "vectorizable"
-*/
-bool can_vectorize(Value* value){
-    // TODO: 
-    Instruction * instr = dyn_cast<Instruction>(value);
+ */
+bool can_vectorize(Value *value) {
+    // TODO:
+    Instruction *instr = dyn_cast<Instruction>(value);
     assert(instr != NULL);
-    if (isa<BinaryOperator>(instr)){
+    if (isa<BinaryOperator>(instr)) {
         if (instr->getOpcode() == Instruction::FAdd) {
             return true;
-        } else if (instr -> getOpcode() == Instruction::FSub) {
+        } else if (instr->getOpcode() == Instruction::FSub) {
             return true;
-        } else if (instr -> getOpcode() == Instruction::FDiv) {
+        } else if (instr->getOpcode() == Instruction::FDiv) {
             return true;
-        } else if (instr -> getOpcode() == Instruction::FMul) {
+        } else if (instr->getOpcode() == Instruction::FMul) {
             return true;
-        } else if (instr -> getOpcode() == Instruction::FNeg) {
+        } else if (instr->getOpcode() == Instruction::FNeg) {
             return true;
         }
         return false;
@@ -610,7 +610,8 @@ struct DiospyrosPass : public FunctionPass {
                     continue;
                 }
 
-                // check if the chunk vector actually has instructions to optimixe on
+                // check if the chunk vector actually has instructions to
+                // optimixe on
                 bool has_vectorizable_instrs = false;
                 for (auto &instr : chunk_vector) {
                     if (can_vectorize(unwrap(instr))) {
@@ -647,11 +648,24 @@ struct DiospyrosPass : public FunctionPass {
 
                 has_changes = has_changes || true;
                 assert(chunk_vector.size() != 0);
-                Value *last_instr_val = unwrap(chunk_vector.back());
-                Instruction *last_instr = dyn_cast<Instruction>(last_instr_val);
-                assert(last_instr != NULL);
+
+                Value *last_instr_val = NULL;
+                Instruction *last_instr = NULL;
+                for (int i = chunk_vector.size() - 1; i >= 0; i--) {
+                    last_instr_val = unwrap(chunk_vector[i]);
+                    assert(last_instr_val != NULL);
+                    last_instr = dyn_cast<Instruction>(last_instr_val);
+                    assert(last_instr != NULL);
+                    if (!last_instr->isTerminator()) {
+                        break;
+                    }
+                }
+
+                // Value *last_instr_val = unwrap(chunk_vector.back());
+                // Instruction *last_instr =
+                // dyn_cast<Instruction>(last_instr_val); assert(last_instr !=
+                // NULL);
                 IRBuilder<> builder(last_instr);
-                builder.SetInsertPoint(&B);
 
                 Module *mod = F.getParent();
                 LLVMContext &context = F.getContext();

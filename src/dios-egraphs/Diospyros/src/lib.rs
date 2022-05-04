@@ -421,7 +421,6 @@ unsafe fn bop_to_egg(
     Id::from((left_next_idx - 1) as usize),
     Id::from((right_next_idx - 1) as usize),
   ];
-  println!("{:?}", right_egg_nodes);
   right_egg_nodes.push(choose_binop(&llvm_instr, ids));
   (right_egg_nodes, right_next_idx + 1)
 }
@@ -552,10 +551,11 @@ unsafe fn start_translating_llvm_to_egg(
   translation_metadata: &mut LLVM2EggState,
 ) -> (Vec<VecLang>, u32) {
   translation_metadata.start_instructions.push(llvm_instr);
+  let pair_result = llvm_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
   translation_metadata
     .start_ids
-    .push(Id::from(next_node_idx as usize));
-  return llvm_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
+    .push(Id::from((pair_result.1 - 1) as usize));
+  pair_result
 }
 
 unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
@@ -689,7 +689,9 @@ unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
   for (llvm_instr, reg_node) in llvm2reg.iter() {
     // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
     if reg_node == egg_node {
-      return *llvm_instr;
+      let new_instr = LLVMInstructionClone(*llvm_instr);
+      LLVMInsertIntoBuilder(translation_metadata.builder, new_instr);
+      return new_instr;
     }
   }
   panic!(
@@ -981,6 +983,7 @@ unsafe fn vecsgn_to_llvm(vec: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
 /// Side Effect: Builds and Insert LLVM instructions
 unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) -> LLVMValueRef {
   match egg_node {
+    VecLang::NoOptVec(..) => panic!("No Opt Vec was found. Egg to LLVM Translation does not currently handle no opt vec nodes."),
     VecLang::Symbol(..) => {
       panic!("Symbol was found. Egg to LLVM Translation does not handle symbol nodes.")
     }
