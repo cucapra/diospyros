@@ -153,7 +153,7 @@ pub fn optimize(
 
     // llvm to egg
     let (egg_expr, llvm2egg_metadata) =
-      llvm_to_egg_main(chunk_llvm_instrs, restricted_llvm_instrs, true);
+      llvm_to_egg_main(chunk_llvm_instrs, restricted_llvm_instrs, run_egg);
 
     // Bail if no egg Nodes to optimize
     if egg_expr.as_ref().is_empty() {
@@ -175,7 +175,7 @@ pub fn optimize(
     }
 
     // egg to llvm
-    egg_to_llvm_main(best_egg_expr, &llvm2egg_metadata, module, context, builder);
+    egg_to_llvm_main(best_egg_expr, &llvm2egg_metadata, module, context, builder, run_egg);
   }
 }
 
@@ -227,10 +227,10 @@ unsafe fn balanced_pad_vector<'a>(
     "There must be 1 or more operators to vectorize."
   );
   // Check vector less than width, and then return
-  // if length < width {
-  //   enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
-  //   return enode_vec;
-  // }
+  if length < width {
+    enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
+    return enode_vec;
+  }
   let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
   let diff = closest_pow2 - (length as u32);
   for _ in 0..diff {
@@ -574,7 +574,7 @@ unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
 unsafe fn llvm_to_egg_main(
   llvm_instrs_in_chunk: &[LLVMValueRef],
   restricted_instrs: &[LLVMValueRef],
-  _vectorize: bool,
+  vectorize: bool,
   // TODO: feed this in as an argument llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang>,
 ) -> (RecExpr<VecLang>, LLVM2EggState) {
   let mut egg_nodes: Vec<VecLang> = Vec::new();
@@ -645,8 +645,17 @@ unsafe fn llvm_to_egg_main(
     }
   }
 
-  // If vectorize is true, then generate the vector, with padding
-  // TODO: Implement a switch to not vectorize
+  // For testing purposes: Handle no vectorization
+  if !vectorize {
+    let mut outer_vec_ids = Vec::new();
+    for id in translation_metadata.start_ids.iter() {
+      outer_vec_ids.push(*id);
+    }
+    egg_nodes.push(VecLang::NoOptVec(outer_vec_ids.clone().into_boxed_slice()));
+    let rec_expr = RecExpr::from(egg_nodes);
+    return (rec_expr, translation_metadata);
+  }
+
   // Generate a padded vector
   let mut outer_vec_ids = Vec::new();
   for id in translation_metadata.start_ids.iter() {
@@ -978,12 +987,32 @@ unsafe fn vecsgn_to_llvm(vec: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
   LLVMBuildCall(md.builder, func, args, 2, b"\0".as_ptr() as *const _)
 }
 
+/**
+ * Vector representing No Optimization: Egg will not have modified the vector at all.
+ */
+unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &Egg2LLVMState) -> () {
+  // Convert the Boxed Ids to a Vector, and generate a vector of zeros
+  // Invariant: idvec must not be empty
+  let idvec = boxed_ids.to_vec();
+  assert!(
+    !idvec.is_empty(),
+    "Id Vec Cannot be empty when converting Vector to an LLVM Vector"
+  );
+  for (i, &eggid) in idvec.iter().enumerate() {
+    let egg_node = &md.egg_nodes_vector[usize::from(eggid)];
+    let new_instr = egg_to_llvm(egg_node, md);
+    let old_instr = md.llvm2egg_metadata.start_instructions.get(i).expect("Index Must Exist In Start Instructions");
+    LLVMReplaceAllUsesWith(*old_instr, new_instr);
+    LLVMInstructionRemoveFromParent(*old_instr);
+  }
+}
+
 /// Egg To LLVM Dispatches translation of VecLanf Egg Nodes to LLVMValueRegs
 ///
 /// Side Effect: Builds and Insert LLVM instructions
 unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) -> LLVMValueRef {
   match egg_node {
-    VecLang::NoOptVec(..) => panic!("No Opt Vec was found. Egg to LLVM Translation does not currently handle no opt vec nodes."),
+    VecLang::NoOptVec(boxed_ids) => panic!("No Opt Vector was found. Egg to LLVM Translation does not handle No Opt Vector nodes at this location."),
     VecLang::Symbol(..) => {
       panic!("Symbol was found. Egg to LLVM Translation does not handle symbol nodes.")
     }
@@ -1025,6 +1054,20 @@ unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
   }
 }
 
+unsafe fn is_nooptvec(egg_expr: &VecLang) -> bool {
+  match egg_expr {
+    VecLang::NoOptVec(..) => true,
+    _ => false
+  }
+}
+
+unsafe fn get_noopt_eggnodes(egg_expr: &VecLang) -> &Box<[Id]> {
+  match egg_expr {
+    VecLang::NoOptVec(boxed_ids) => boxed_ids,
+    _ => panic!("Not a NoOptVec!")
+  }
+}
+
 // TODO: Add non-vectorized version as well!
 unsafe fn egg_to_llvm_main(
   expr: RecExpr<VecLang>,
@@ -1032,6 +1075,7 @@ unsafe fn egg_to_llvm_main(
   module: LLVMModuleRef,
   context: LLVMContextRef,
   builder: LLVMBuilderRef,
+  vectorize: bool,
 ) -> () {
   // Walk the RecExpr of Egg Nodes and translate it in place to LLVM
   let egg_nodes = expr.as_ref();
@@ -1045,9 +1089,18 @@ unsafe fn egg_to_llvm_main(
     context: context,
     module: module,
   };
+  // If vectorize was not true, we are finished, because nooptvectorize_to_llvm will generate the required code.
+  if !vectorize {
+    assert!(is_nooptvec(last_egg_node));
+    return nooptvec_to_llvm(get_noopt_eggnodes(last_egg_node), &translation_metadata);
+  }
+
+  // Regular translation from vectorization
+
+  assert!(!is_nooptvec(last_egg_node));
   let llvm_vector = egg_to_llvm(last_egg_node, &translation_metadata);
 
-  // HERE, we stitch our work back into the current LLVM code
+  // BELOW HERE, we allow for vectorization output, and we stitch our work back into the current LLVM code
 
   // NOTE: We Assume Egg rewriter will maintain relative positions of elements in vector
   // Extract the elements of the vector, to be assigned back to where they are to be used.
