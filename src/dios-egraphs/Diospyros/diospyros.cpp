@@ -501,6 +501,8 @@ bool can_vectorize(Value *value) {
             return true;
         } else if (instr->getOpcode() == Instruction::FNeg) {
             return true;
+        } else if (isa_sqrt32(wrap(instr))) {
+            return true;
         }
         return false;
     }
@@ -581,6 +583,9 @@ struct DiospyrosPass : public FunctionPass {
                         }
                         Instruction *memmove = dyn_cast<CallInst>(call_inst);
                         chunk_vector = {wrap(memmove)};
+                    } else {
+                        Instruction *instr = dyn_cast<Instruction>(&I);
+                        chunk_vector.push_back(wrap(instr));
                     }
                 } else if (auto *op = dyn_cast<LoadInst>(&I)) {
                     Value *load_loc = op->getOperand(0);
@@ -597,12 +602,12 @@ struct DiospyrosPass : public FunctionPass {
                 chunk_accumulator.push_back(chunk_vector);
             }
 
-            for (auto &chunk_vector : chunk_accumulator) {
-                for (auto &instr : chunk_vector) {
-                    errs() << *unwrap(instr) << "\n";
-                }
-                errs() << "---------------------\n";
-            }
+            // for (auto &chunk_vector : chunk_accumulator) {
+            //     for (auto &instr : chunk_vector) {
+            //         errs() << *unwrap(instr) << "\n";
+            //     }
+            //     errs() << "---------------------\n";
+            // }
 
             for (int i = 0; i < chunk_accumulator.size(); ++i) {
                 auto &chunk_vector = chunk_accumulator[i];
@@ -652,34 +657,31 @@ struct DiospyrosPass : public FunctionPass {
                 // Place builder at first instruction that is not a "handled
                 // instruction"
                 int insert_pos = 0;
+                bool has_seen_vectorizable = false;
                 for (int i = 0; i < chunk_vector.size(); i++) {
                     if (can_vectorize(unwrap(chunk_vector[i]))) {
+                        has_seen_vectorizable = true;
+                        insert_pos++;
+                    } else if (!has_seen_vectorizable) {
                         insert_pos++;
                     } else {
                         break;
                     }
                 }
-                Value *last_instr_val = unwrap(chunk_vector[insert_pos]);
+                Value *last_instr_val = NULL;
+                if (insert_pos >= chunk_vector.size()) {
+                    last_instr_val = unwrap(chunk_vector[insert_pos - 1]);
+                } else {
+                    last_instr_val = unwrap(chunk_vector[insert_pos]);
+                }
                 assert(last_instr_val != NULL);
                 Instruction *last_instr = dyn_cast<Instruction>(last_instr_val);
                 assert(last_instr != NULL);
                 if (insert_pos >= chunk_vector.size()) {
                     last_instr = last_instr->getNextNode();
                     assert(last_instr != NULL);
-                } 
+                }
                 IRBuilder<> builder(last_instr);
-                // Value *last_instr_val = NULL;
-                // Instruction *last_instr = NULL;
-                // for (int i = chunk_vector.size() - 1; i >= 0; i--) {
-                //     last_instr_val = unwrap(chunk_vector[i]);
-                //     assert(last_instr_val != NULL);
-                //     last_instr = dyn_cast<Instruction>(last_instr_val);
-                //     assert(last_instr != NULL);
-                //     if (!last_instr->isTerminator()) {
-                //         break;
-                //     }
-                // }
-                // IRBuilder<> builder(last_instr);
 
                 Module *mod = F.getParent();
                 LLVMContext &context = F.getContext();
