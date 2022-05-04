@@ -649,23 +649,37 @@ struct DiospyrosPass : public FunctionPass {
                 has_changes = has_changes || true;
                 assert(chunk_vector.size() != 0);
 
-                Value *last_instr_val = NULL;
-                Instruction *last_instr = NULL;
-                for (int i = chunk_vector.size() - 1; i >= 0; i--) {
-                    last_instr_val = unwrap(chunk_vector[i]);
-                    assert(last_instr_val != NULL);
-                    last_instr = dyn_cast<Instruction>(last_instr_val);
-                    assert(last_instr != NULL);
-                    if (!last_instr->isTerminator()) {
+                // Place builder at first instruction that is not a "handled
+                // instruction"
+                int insert_pos = 0;
+                for (int i = 0; i < chunk_vector.size(); i++) {
+                    if (can_vectorize(unwrap(chunk_vector[i]))) {
+                        insert_pos++;
+                    } else {
                         break;
                     }
                 }
-
-                // Value *last_instr_val = unwrap(chunk_vector.back());
-                // Instruction *last_instr =
-                // dyn_cast<Instruction>(last_instr_val); assert(last_instr !=
-                // NULL);
+                Value *last_instr_val = unwrap(chunk_vector[insert_pos]);
+                assert(last_instr_val != NULL);
+                Instruction *last_instr = dyn_cast<Instruction>(last_instr_val);
+                assert(last_instr != NULL);
+                if (insert_pos >= chunk_vector.size()) {
+                    last_instr = last_instr->getNextNode();
+                    assert(last_instr != NULL);
+                } 
                 IRBuilder<> builder(last_instr);
+                // Value *last_instr_val = NULL;
+                // Instruction *last_instr = NULL;
+                // for (int i = chunk_vector.size() - 1; i >= 0; i--) {
+                //     last_instr_val = unwrap(chunk_vector[i]);
+                //     assert(last_instr_val != NULL);
+                //     last_instr = dyn_cast<Instruction>(last_instr_val);
+                //     assert(last_instr != NULL);
+                //     if (!last_instr->isTerminator()) {
+                //         break;
+                //     }
+                // }
+                // IRBuilder<> builder(last_instr);
 
                 Module *mod = F.getParent();
                 LLVMContext &context = F.getContext();

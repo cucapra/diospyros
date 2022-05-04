@@ -386,6 +386,7 @@ struct LLVM2EggState {
   llvm2arg: BTreeMap<LLVMValueRef, VecLang>,
   instructions_in_chunk: BTreeSet<LLVMValueRef>,
   restricted_instructions: BTreeSet<LLVMValueRef>,
+  prior_translated_instructions: BTreeSet<LLVMValueRef>,
   start_instructions: Vec<LLVMValueRef>,
   start_ids: Vec<Id>,
 }
@@ -509,6 +510,10 @@ unsafe fn llvm_to_egg(
   next_node_idx: u32,
   translation_metadata: &mut LLVM2EggState,
 ) -> (Vec<VecLang>, u32) {
+  // Mark instruction as translated, as it will be after it goes through the code below
+  if !translation_metadata.prior_translated_instructions.contains(&llvm_instr) {
+    translation_metadata.prior_translated_instructions.insert(llvm_instr);
+  } 
   // If, on a different pass, the instruction was translated already, then
   // just used the egg node representing the translation
   if translation_metadata.llvm2reg.contains_key(&llvm_instr) {
@@ -627,12 +632,15 @@ unsafe fn llvm_to_egg_main(
   // Invariant: chunk instructions are not empty in size
   assert!(!instructions_in_chunk.is_empty());
 
+  let mut prior_translated_instructions: BTreeSet<LLVMValueRef> = BTreeSet::new();
+
   // State Variable To Hold Maps During Translation
   let mut translation_metadata = LLVM2EggState {
     llvm2reg: llvm_instr2reg_node,
     llvm2arg: llvm_instr2arg_node,
     instructions_in_chunk: instructions_in_chunk,
     restricted_instructions: restricted_instrs_set,
+    prior_translated_instructions: prior_translated_instructions,
     start_instructions: start_instructions,
     start_ids: start_ids,
   };
@@ -640,9 +648,10 @@ unsafe fn llvm_to_egg_main(
   // Index of next node to translate
   let mut next_node_idx: u32 = 0;
 
-  // for each store, iterate backwards from that store and translate to egg
-  for llvm_instr in llvm_instrs_in_chunk.iter() {
-    if can_start_translation_instr(*llvm_instr) {
+  // for each final instruction, iterate backwards from that final instruction and translate to egg
+  for llvm_instr in llvm_instrs_in_chunk.iter().rev() {
+    // only start translation back if it is a "translatable instruction" and it was not translated already
+    if can_start_translation_instr(*llvm_instr) && !translation_metadata.prior_translated_instructions.contains(&llvm_instr) {
       let (new_egg_nodes, new_next_node_idx) = start_translating_llvm_to_egg(
         *llvm_instr,
         egg_nodes,
@@ -710,11 +719,11 @@ unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMSta
     // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
     if reg_node == egg_node {
       assert!(!isa_argument(*llvm_instr));
-      // do not clone an instruction translated in a prior chunk
+      // do not clone an instruction translated earlier in the same chunk
       if translation_metadata.prior_translated_nodes.contains(&*llvm_instr) {
         return *llvm_instr;
       }
-      // do not clone an instruction translated in a prior basic block
+      // do not clone an instruction translated in a prior basic block / prior chunk
       if !translation_metadata.llvm2egg_metadata.instructions_in_chunk.contains(&*llvm_instr) {
         return *llvm_instr;
       }
@@ -1135,7 +1144,7 @@ unsafe fn egg_to_llvm_main(
   // NOTE: We Assume Egg rewriter will maintain relative positions of elements in vector
   // Extract the elements of the vector, to be assigned back to where they are to be used.
   let num_extractions = llvm2egg_metadata.start_instructions.len();
-  for i in 0..num_extractions {
+  for i in (0..num_extractions).rev() {
     let old_instr = llvm2egg_metadata
       .start_instructions
       .get(i)
