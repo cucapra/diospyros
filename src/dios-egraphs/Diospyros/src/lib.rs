@@ -710,7 +710,12 @@ unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMSta
     // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
     if reg_node == egg_node {
       assert!(!isa_argument(*llvm_instr));
+      // do not clone an instruction translated in a prior chunk
       if translation_metadata.prior_translated_nodes.contains(&*llvm_instr) {
+        return *llvm_instr;
+      }
+      // do not clone an instruction translated in a prior basic block
+      if !translation_metadata.llvm2egg_metadata.instructions_in_chunk.contains(&*llvm_instr) {
         return *llvm_instr;
       }
       let new_instr = LLVMInstructionClone(*llvm_instr);
