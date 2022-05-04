@@ -597,12 +597,12 @@ struct DiospyrosPass : public FunctionPass {
                 chunk_accumulator.push_back(chunk_vector);
             }
 
-            // for (auto &chunk_vector : chunk_accumulator) {
-            //     for (auto &instr : chunk_vector) {
-            //         errs() << *unwrap(instr) << "\n";
-            //     }
-            //     errs() << "---------------------\n";
-            // }
+            for (auto &chunk_vector : chunk_accumulator) {
+                for (auto &instr : chunk_vector) {
+                    errs() << *unwrap(instr) << "\n";
+                }
+                errs() << "---------------------\n";
+            }
 
             for (int i = 0; i < chunk_accumulator.size(); ++i) {
                 auto &chunk_vector = chunk_accumulator[i];
@@ -631,7 +631,7 @@ struct DiospyrosPass : public FunctionPass {
                         // guaranteed to be a different chunk vector ahead of
                         // the origianl one.
                         bool must_restrict = false;
-                        auto &other_chunk_vector = chunk_accumulator[i];
+                        auto &other_chunk_vector = chunk_accumulator[j];
                         for (auto other_chunk_instr : other_chunk_vector) {
                             if (unwrap(chunk_instr) ==
                                 unwrap(other_chunk_instr)) {

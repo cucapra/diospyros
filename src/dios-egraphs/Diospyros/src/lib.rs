@@ -175,7 +175,14 @@ pub fn optimize(
     }
 
     // egg to llvm
-    egg_to_llvm_main(best_egg_expr, &llvm2egg_metadata, module, context, builder, run_egg);
+    egg_to_llvm_main(
+      best_egg_expr,
+      &llvm2egg_metadata,
+      module,
+      context,
+      builder,
+      run_egg,
+    );
   }
 }
 
@@ -358,7 +365,7 @@ unsafe fn match_llvm_op(llvm_instr: &LLVMValueRef) -> LLVMOpType {
     return LLVMOpType::FNeg;
   } else if isa_constant(*llvm_instr) {
     return LLVMOpType::Constant;
-  }  else if isa_sqrt32(*llvm_instr) {
+  } else if isa_sqrt32(*llvm_instr) {
     return LLVMOpType::Sqrt32;
   } else {
     return LLVMOpType::UnhandledLLVMOpCode;
@@ -674,18 +681,19 @@ unsafe fn llvm_to_egg_main(
 struct Egg2LLVMState<'a> {
   llvm2egg_metadata: LLVM2EggState,
   egg_nodes_vector: &'a [VecLang],
+  prior_translated_nodes: BTreeSet<LLVMValueRef>,
   builder: LLVMBuilderRef,
   context: LLVMContextRef,
   module: LLVMModuleRef,
 }
 
-unsafe fn arg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn arg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMState) -> LLVMValueRef {
   // TODO: Make More Efficient with BTREEMAP?
   let llvm2arg = &translation_metadata.llvm2egg_metadata.llvm2arg;
   for (llvm_instr, arg_node) in llvm2arg.iter() {
     // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
     if arg_node == egg_node {
-      assert!(isa_argument(*llvm_instr)); 
+      assert!(isa_argument(*llvm_instr));
       return *llvm_instr;
     }
   }
@@ -695,15 +703,19 @@ unsafe fn arg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
   );
 }
 
-unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMState) -> LLVMValueRef {
   // TODO: Make More Efficient with BTREEMAP?
   let llvm2reg = &translation_metadata.llvm2egg_metadata.llvm2reg;
   for (llvm_instr, reg_node) in llvm2reg.iter() {
     // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
     if reg_node == egg_node {
+      assert!(!isa_argument(*llvm_instr));
+      if translation_metadata.prior_translated_nodes.contains(&*llvm_instr) {
+        return *llvm_instr;
+      }
       let new_instr = LLVMInstructionClone(*llvm_instr);
-      assert!(!isa_argument(*llvm_instr));      
       LLVMInsertIntoBuilder(translation_metadata.builder, new_instr);
+      translation_metadata.prior_translated_nodes.insert(new_instr);
       return new_instr;
     }
   }
@@ -713,11 +725,11 @@ unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
   );
 }
 
-unsafe fn num_to_llvm(n: &i32, md: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn num_to_llvm(n: &i32, md: &mut Egg2LLVMState) -> LLVMValueRef {
   LLVMConstReal(LLVMFloatTypeInContext(md.context), *n as f64)
 }
 
-unsafe fn vec_to_llvm(boxed_ids: &Box<[Id]>, md: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn vec_to_llvm(boxed_ids: &Box<[Id]>, md: &mut Egg2LLVMState) -> LLVMValueRef {
   // Convert the Boxed Ids to a Vector, and generate a vector of zeros
   // Invariant: idvec must not be empty
   let idvec = boxed_ids.to_vec();
@@ -771,7 +783,7 @@ unsafe fn binop_to_llvm(
   binop_node: &VecLang,
   left_id: &Id,
   right_id: &Id,
-  md: &Egg2LLVMState,
+  md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
   let left = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_id)], md);
   let right = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_id)], md);
@@ -851,7 +863,7 @@ unsafe fn binop_to_llvm(
   }
 }
 
-unsafe fn concat_to_llvm(left_vector: &Id, right_vector: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn concat_to_llvm(left_vector: &Id, right_vector: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
   {
     let trans_v1 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_vector)], md);
     let mut trans_v2 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_vector)], md);
@@ -922,7 +934,7 @@ unsafe fn mac_to_llvm(
   accumulator_vector: &Id,
   left_prod_vector: &Id,
   right_prod_vector: &Id,
-  md: &Egg2LLVMState,
+  md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
   let trans_acc = egg_to_llvm(&md.egg_nodes_vector[usize::from(*accumulator_vector)], md);
   let trans_v1 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_prod_vector)], md);
@@ -935,7 +947,7 @@ unsafe fn mac_to_llvm(
   LLVMBuildCall(md.builder, func, args, 3, b"\0".as_ptr() as *const _)
 }
 
-unsafe fn scalar_unop_to_llvm(n: &Id, unop_node: &VecLang, md: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn scalar_unop_to_llvm(n: &Id, unop_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
   let mut number = egg_to_llvm(&md.egg_nodes_vector[usize::from(*n)], md);
   if isa_integertype(number) {
     number = LLVMBuildBitCast(
@@ -955,12 +967,12 @@ unsafe fn scalar_unop_to_llvm(n: &Id, unop_node: &VecLang, md: &Egg2LLVMState) -
   )
 }
 
-unsafe fn vecneg_to_llvm(vec: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn vecneg_to_llvm(vec: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
   let neg_vector = egg_to_llvm(&md.egg_nodes_vector[usize::from(*vec)], md);
   LLVMBuildFNeg(md.builder, neg_vector, b"\0".as_ptr() as *const _)
 }
 
-unsafe fn vecsqrt_to_llvm(vec: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn vecsqrt_to_llvm(vec: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
   let sqrt_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*vec)], md);
   let vec_type = LLVMTypeOf(sqrt_vec);
   let param_types = [vec_type].as_mut_ptr();
@@ -970,7 +982,7 @@ unsafe fn vecsqrt_to_llvm(vec: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
   LLVMBuildCall(md.builder, func, args, 1, b"\0".as_ptr() as *const _)
 }
 
-unsafe fn vecsgn_to_llvm(vec: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn vecsgn_to_llvm(vec: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
   let sgn_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*vec)], md);
   let vec_type = LLVMTypeOf(sgn_vec);
   let vec_size = LLVMGetVectorSize(vec_type);
@@ -994,7 +1006,7 @@ unsafe fn vecsgn_to_llvm(vec: &Id, md: &Egg2LLVMState) -> LLVMValueRef {
 /**
  * Vector representing No Optimization: Egg will not have modified the vector at all.
  */
-unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &Egg2LLVMState) -> () {
+unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &mut Egg2LLVMState) -> () {
   // Convert the Boxed Ids to a Vector, and generate a vector of zeros
   // Invariant: idvec must not be empty
   let idvec = boxed_ids.to_vec();
@@ -1005,7 +1017,11 @@ unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &Egg2LLVMState) -> () {
   for (i, &eggid) in idvec.iter().enumerate() {
     let egg_node = &md.egg_nodes_vector[usize::from(eggid)];
     let new_instr = egg_to_llvm(egg_node, md);
-    let old_instr = md.llvm2egg_metadata.start_instructions.get(i).expect("Index Must Exist In Start Instructions");
+    let old_instr = md
+      .llvm2egg_metadata
+      .start_instructions
+      .get(i)
+      .expect("Index Must Exist In Start Instructions");
     LLVMReplaceAllUsesWith(*old_instr, new_instr);
     LLVMInstructionRemoveFromParent(*old_instr);
   }
@@ -1014,7 +1030,7 @@ unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &Egg2LLVMState) -> () {
 /// Egg To LLVM Dispatches translation of VecLanf Egg Nodes to LLVMValueRegs
 ///
 /// Side Effect: Builds and Insert LLVM instructions
-unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) -> LLVMValueRef {
+unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMState) -> LLVMValueRef {
   match egg_node {
     VecLang::NoOptVec(boxed_ids) => panic!("No Opt Vector was found. Egg to LLVM Translation does not handle No Opt Vector nodes at this location."),
     VecLang::Symbol(..) => {
@@ -1061,14 +1077,14 @@ unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
 unsafe fn is_nooptvec(egg_expr: &VecLang) -> bool {
   match egg_expr {
     VecLang::NoOptVec(..) => true,
-    _ => false
+    _ => false,
   }
 }
 
 unsafe fn get_noopt_eggnodes(egg_expr: &VecLang) -> &Box<[Id]> {
   match egg_expr {
     VecLang::NoOptVec(boxed_ids) => boxed_ids,
-    _ => panic!("Not a NoOptVec!")
+    _ => panic!("Not a NoOptVec!"),
   }
 }
 
@@ -1086,9 +1102,14 @@ unsafe fn egg_to_llvm_main(
   let last_egg_node = egg_nodes
     .last()
     .expect("No match for last element of vector of Egg Terms.");
-  let translation_metadata = Egg2LLVMState {
+
+  // Nodes converted to llvm already, not to be retranslated
+  let prior_translated_nodes: BTreeSet<LLVMValueRef> = BTreeSet::new();
+
+  let mut translation_metadata = Egg2LLVMState {
     egg_nodes_vector: egg_nodes,
     llvm2egg_metadata: llvm2egg_metadata.clone(),
+    prior_translated_nodes: prior_translated_nodes,
     builder: builder,
     context: context,
     module: module,
@@ -1096,13 +1117,13 @@ unsafe fn egg_to_llvm_main(
   // If vectorize was not true, we are finished, because nooptvectorize_to_llvm will generate the required code.
   if !vectorize {
     assert!(is_nooptvec(last_egg_node));
-    return nooptvec_to_llvm(get_noopt_eggnodes(last_egg_node), &translation_metadata);
+    return nooptvec_to_llvm(get_noopt_eggnodes(last_egg_node), &mut translation_metadata);
   }
 
   // Regular translation from vectorization
 
   assert!(!is_nooptvec(last_egg_node));
-  let llvm_vector = egg_to_llvm(last_egg_node, &translation_metadata);
+  let llvm_vector = egg_to_llvm(last_egg_node, &mut translation_metadata);
 
   // BELOW HERE, we allow for vectorization output, and we stitch our work back into the current LLVM code
 
