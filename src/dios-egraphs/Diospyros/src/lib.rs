@@ -344,7 +344,9 @@ unsafe fn isa_supported_unop(llvm_instr: LLVMValueRef) -> bool {
 }
 
 unsafe fn match_llvm_op(llvm_instr: &LLVMValueRef) -> LLVMOpType {
-  if isa_fadd(*llvm_instr) {
+  if isa_argument(*llvm_instr) {
+    return LLVMOpType::Argument;
+  } else if isa_fadd(*llvm_instr) {
     return LLVMOpType::FAdd;
   } else if isa_fsub(*llvm_instr) {
     return LLVMOpType::FSub;
@@ -356,9 +358,7 @@ unsafe fn match_llvm_op(llvm_instr: &LLVMValueRef) -> LLVMOpType {
     return LLVMOpType::FNeg;
   } else if isa_constant(*llvm_instr) {
     return LLVMOpType::Constant;
-  } else if isa_argument(*llvm_instr) {
-    return LLVMOpType::Argument;
-  } else if isa_sqrt32(*llvm_instr) {
+  }  else if isa_sqrt32(*llvm_instr) {
     return LLVMOpType::Sqrt32;
   } else {
     return LLVMOpType::UnhandledLLVMOpCode;
@@ -520,9 +520,11 @@ unsafe fn llvm_to_egg(
     return unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
   }
   // If the current llvm instruction is not in the current chunk, we must return a register
+  // The current llvm instruction must not be a arguments, because arguments will be outside every chunk
   if !translation_metadata
     .instructions_in_chunk
     .contains(&llvm_instr)
+    && !isa_argument(llvm_instr)
   {
     return unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
   }
@@ -683,6 +685,7 @@ unsafe fn arg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
   for (llvm_instr, arg_node) in llvm2arg.iter() {
     // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
     if arg_node == egg_node {
+      assert!(isa_argument(*llvm_instr)); 
       return *llvm_instr;
     }
   }
@@ -699,6 +702,7 @@ unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &Egg2LLVMState) 
     // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
     if reg_node == egg_node {
       let new_instr = LLVMInstructionClone(*llvm_instr);
+      assert!(!isa_argument(*llvm_instr));      
       LLVMInsertIntoBuilder(translation_metadata.builder, new_instr);
       return new_instr;
     }

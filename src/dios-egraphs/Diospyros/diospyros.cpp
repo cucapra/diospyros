@@ -597,12 +597,12 @@ struct DiospyrosPass : public FunctionPass {
                 chunk_accumulator.push_back(chunk_vector);
             }
 
-            for (auto &chunk_vector : chunk_accumulator) {
-                for (auto &instr : chunk_vector) {
-                    errs() << *unwrap(instr) << "\n";
-                }
-                errs() << "---------------------\n";
-            }
+            // for (auto &chunk_vector : chunk_accumulator) {
+            //     for (auto &instr : chunk_vector) {
+            //         errs() << *unwrap(instr) << "\n";
+            //     }
+            //     errs() << "---------------------\n";
+            // }
 
             for (int i = 0; i < chunk_accumulator.size(); ++i) {
                 auto &chunk_vector = chunk_accumulator[i];
