@@ -1046,7 +1046,7 @@ unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &mut Egg2LLVMState) -> () 
 /// Side Effect: Builds and Insert LLVM instructions
 unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMState) -> LLVMValueRef {
   match egg_node {
-    VecLang::NoOptVec(boxed_ids) => panic!("No Opt Vector was found. Egg to LLVM Translation does not handle No Opt Vector nodes at this location."),
+    VecLang::NoOptVec(..) => panic!("No Opt Vector was found. Egg to LLVM Translation does not handle No Opt Vector nodes at this location."),
     VecLang::Symbol(..) => {
       panic!("Symbol was found. Egg to LLVM Translation does not handle symbol nodes.")
     }

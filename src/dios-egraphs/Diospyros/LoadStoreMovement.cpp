@@ -260,8 +260,8 @@ struct LoadStoreMovementPass : public FunctionPass {
             (F.getName().size() > 7 && F.getName().substr(0, 7) == "no_opt_")) {
             return false;
         }
-        rewrite_stores(F);
-        rewrite_loads(F);
+        // rewrite_stores(F);
+        // rewrite_loads(F);
 
         return true;
     }

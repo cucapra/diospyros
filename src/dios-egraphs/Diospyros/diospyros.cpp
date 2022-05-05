@@ -490,21 +490,18 @@ bool can_vectorize(Value *value) {
     // TODO:
     Instruction *instr = dyn_cast<Instruction>(value);
     assert(instr != NULL);
-    if (isa<BinaryOperator>(instr)) {
-        if (instr->getOpcode() == Instruction::FAdd) {
-            return true;
-        } else if (instr->getOpcode() == Instruction::FSub) {
-            return true;
-        } else if (instr->getOpcode() == Instruction::FDiv) {
-            return true;
-        } else if (instr->getOpcode() == Instruction::FMul) {
-            return true;
-        } else if (instr->getOpcode() == Instruction::FNeg) {
-            return true;
-        } else if (isa_sqrt32(wrap(instr))) {
-            return true;
-        }
-        return false;
+    if (instr->getOpcode() == Instruction::FAdd) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FSub) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FDiv) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FMul) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FNeg) {
+        return true;
+    } else if (isa_sqrt32(wrap(instr))) {
+        return true;
     }
     return false;
 }
@@ -545,69 +542,41 @@ struct DiospyrosPass : public FunctionPass {
             //
             std::vector<std::vector<LLVMValueRef>> chunk_accumulator;
             std::vector<LLVMValueRef> chunk_vector = {};
+            bool vectorizable_flag = false;
             for (auto &I : B) {
-                if (auto *op = dyn_cast<StoreInst>(&I)) {
-                    Value *store_loc = op->getOperand(1);
-                    chunk_vector.push_back(wrap(op));
-                } else if (auto *op = dyn_cast<MemSetInst>(&I)) {
+                Value *val = dyn_cast<Value>(&I);
+                assert(val != NULL);
+                if (can_vectorize(val) && !vectorizable_flag) {
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
-                    }
-                    chunk_vector = {wrap(op)};
-                } else if (auto *op = dyn_cast<MemCpyInst>(&I)) {
+                    } 
+                    vectorizable_flag = true;
+                    chunk_vector = {wrap(val)};
+                } else if (can_vectorize(val) && vectorizable_flag) {
+                    chunk_vector.push_back(wrap(val));
+                } else if (!can_vectorize(val) && !vectorizable_flag) {
+                    chunk_vector.push_back(wrap(val));
+                } else if (!can_vectorize(val) && vectorizable_flag) {
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
-                    }
-                    chunk_vector = {wrap(op)};
-                } else if (auto *op = dyn_cast<MemMoveInst>(&I)) {
-                    if (!chunk_vector.empty()) {
-                        chunk_accumulator.push_back(chunk_vector);
-                    }
-                    chunk_vector = {wrap(op)};
-                } else if (CallInst *call_inst = dyn_cast<CallInst>(&I)) {
-                    if (is_memset_variety(call_inst)) {
-                        if (!chunk_vector.empty()) {
-                            chunk_accumulator.push_back(chunk_vector);
-                        }
-                        Instruction *memset = dyn_cast<CallInst>(call_inst);
-                        chunk_vector = {wrap(memset)};
-                    } else if (is_memcopy_variety(call_inst)) {
-                        if (!chunk_vector.empty()) {
-                            chunk_accumulator.push_back(chunk_vector);
-                        }
-                        Instruction *memcopy = dyn_cast<CallInst>(call_inst);
-                        chunk_vector = {wrap(memcopy)};
-                    } else if (is_memmove_variety(call_inst)) {
-                        if (!chunk_vector.empty()) {
-                            chunk_accumulator.push_back(chunk_vector);
-                        }
-                        Instruction *memmove = dyn_cast<CallInst>(call_inst);
-                        chunk_vector = {wrap(memmove)};
-                    } else {
-                        Instruction *instr = dyn_cast<Instruction>(&I);
-                        chunk_vector.push_back(wrap(instr));
-                    }
-                } else if (auto *op = dyn_cast<LoadInst>(&I)) {
-                    Value *load_loc = op->getOperand(0);
-                    if (!chunk_vector.empty()) {
-                        chunk_accumulator.push_back(chunk_vector);
-                    }
-                    chunk_vector = {wrap(op)};
+                    } 
+                    vectorizable_flag = false;
+                    chunk_vector = {wrap(val)};
                 } else {
-                    Instruction *instr = dyn_cast<Instruction>(&I);
-                    chunk_vector.push_back(wrap(instr));
+                    throw "No other cases possible!";
                 }
             }
             if (!chunk_vector.empty()) {
                 chunk_accumulator.push_back(chunk_vector);
             }
-
-            // for (auto &chunk_vector : chunk_accumulator) {
-            //     for (auto &instr : chunk_vector) {
-            //         errs() << *unwrap(instr) << "\n";
-            //     }
-            //     errs() << "---------------------\n";
-            // }
+            
+            errs() << "New Basic Block\n";
+            for (auto &chunk_vector : chunk_accumulator) {
+                for (auto &instr : chunk_vector) {
+                    errs() << *unwrap(instr) << "\n";
+                }
+                errs() << "---------------------\n";
+            }
 
             for (int i = 0; i < chunk_accumulator.size(); ++i) {
                 auto &chunk_vector = chunk_accumulator[i];
