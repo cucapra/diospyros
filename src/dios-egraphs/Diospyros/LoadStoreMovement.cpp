@@ -32,6 +32,64 @@ struct LoadStoreMovementPass : public FunctionPass {
     void rewrite_stores(Function &F) {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
         for (auto &B : F) {
+
+            // Perform Pushing Back of Store Instructions
+            std::vector<Instruction *> final_instrs_list = {};
+            for (auto &I : B) {
+                Instruction *instr = dyn_cast<Instruction>(&I);
+                assert(instr != NULL);
+                
+                // Place any non-Store Instructions at the end of the list of instructions
+                if (!isa<StoreInst>(instr)) {
+                    final_instrs_list.push_back(instr);
+                    continue;
+                }
+
+                // Handle Store Instructions
+                int insertion_offset = final_instrs_list.size();
+                while (true) {
+                    Instruction *store_instr = instr;
+                    // If there is no prior instruction, push back at current offset, and stop.
+                    if (insertion_offset - 1 < 0) {
+                        final_instrs_list.insert(final_instrs_list.begin() + insertion_offset, store_instr);
+                        break;
+                    }
+                    Instruction *prior_instr = final_instrs_list[insertion_offset - 1];
+                    // If the prior instruction is used in the store's
+                    // arguments, do not push it back
+                    int num_operands = store_instr->getNumOperands();
+                    bool break_while = false;
+                    for (int i = 0; i < num_operands; i++) {
+                        Value *store_operand = store_instr->getOperand(i);
+                        Instruction *store_operand_instr =
+                            dyn_cast<Instruction>(store_operand);
+                        assert(store_operand_instr != NULL);
+                        if (store_operand_instr == prior_instr) {
+                            final_instrs_list.insert(final_instrs_list.begin() + insertion_offset, store_instr);
+                            break_while = true;
+                            break;
+                        }
+                    } 
+                    if (break_while) {
+                        break;
+                    }
+                    // If the prior instruction alias with the store
+                    // instruction, do not push it back
+                    if (!AA->isNoAlias(store_instr, prior_instr)) {
+                        final_instrs_list.insert(final_instrs_list.begin() + insertion_offset, store_instr);
+                        break;
+                    }
+                    // Otherwise, keep pushing back the store instruction
+                    --insertion_offset;
+                }
+                
+                // TODO
+                // First, insert clone all instructions, and insert them into the basic block at the very beginning
+                // Next,  
+                // Then, 
+                // Finally, delete all the original instructions in the basic block
+                
+            }
         }
     }
 
