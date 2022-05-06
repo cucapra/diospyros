@@ -33,6 +33,14 @@ struct LoadStoreMovementPass : public FunctionPass {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
         for (auto &B : F) {
 
+            // Grab all instructions
+            std::vector<Instruction *> all_instrs = {};
+            for (auto &I : B) {
+                Instruction *instr = dyn_cast<Instruction>(&I);
+                assert(instr != NULL);
+                all_instrs.push_back(instr);
+            }
+
             // Perform Pushing Back of Store Instructions
             std::vector<Instruction *> final_instrs_vec = {};
             for (auto &I : B) {
@@ -135,16 +143,14 @@ struct LoadStoreMovementPass : public FunctionPass {
                     // Finish by inserting cloned instruction
                     builder.Insert(cloned_instr);
                 }
-
-                // Finally, delete all the original instructions in the basic block
-                // Do this in reverse order.
-                std::reverse(final_instrs_vec.begin(), final_instrs_vec.end());
-                for (auto &I : final_instrs_vec) {
-                    if (I != NULL) {
-                        try {
-                            I->eraseFromParent();
-                        } catch (...) {}
-                    }
+            }
+            
+            // Finally, delete all the original instructions in the basic block
+            // Do this in reverse order.
+            std::reverse(all_instrs.begin(), all_instrs.end());
+            for (Instruction *instr : all_instrs) {
+                if (!instr->isTerminator()) {
+                    instr->eraseFromParent();
                 }
             }
         }
