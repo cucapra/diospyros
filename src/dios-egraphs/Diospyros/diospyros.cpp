@@ -27,7 +27,6 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
-using namespace std;
 
 int main(int argc, char **argv) {
     llvm::cl::ParseCommandLineOptions(argc, argv);
@@ -49,16 +48,16 @@ extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
                          std::size_t restricted_size, bool run_egg,
                          bool print_opt);
 
-const string ARRAY_NAME = "no-array-name";
-const string TEMP_NAME = "no-temp-name";
-const string SQRT64_FUNCTION_NAME = "llvm.sqrt.f64";
-const string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
-const string MEMSET_PREFIX = "memset";
-const string LLVM_MEMSET_PREFIX = "llvm.memset";
-const string MEMMOVE_PREFIX = "memmove";
-const string MEMCOPY_PREFIX = "memcopy";
-const string MAIN_FUNCTION_NAME = "main";
-const string NO_OPT_PREFIX = "no_opt_";
+const std::string ARRAY_NAME = "no-array-name";
+const std::string TEMP_NAME = "no-temp-name";
+const std::string SQRT64_FUNCTION_NAME = "llvm.sqrt.f64";
+const std::string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
+const std::string MEMSET_PREFIX = "memset";
+const std::string LLVM_MEMSET_PREFIX = "llvm.memset";
+const std::string MEMMOVE_PREFIX = "memmove";
+const std::string MEMCOPY_PREFIX = "memcopy";
+const std::string MAIN_FUNCTION_NAME = "main";
+const std::string NO_OPT_PREFIX = "no_opt_";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
 
@@ -82,7 +81,7 @@ int gen_fresh_index() {
  */
 const char *gen_fresh_array() {
     ++FRESH_ARRAY_COUNTER;
-    string array_str = ARRAY_NAME + to_string(FRESH_ARRAY_COUNTER);
+    std::string array_str = ARRAY_NAME + std::to_string(FRESH_ARRAY_COUNTER);
     char *cstr = new char[array_str.length() + 1];
     std::strcpy(cstr, array_str.c_str());
     return cstr;
@@ -93,7 +92,7 @@ const char *gen_fresh_array() {
  */
 const char *gen_fresh_temp() {
     ++FRESH_TEMP_COUNTER;
-    string temp_str = TEMP_NAME + to_string(FRESH_TEMP_COUNTER);
+    std::string temp_str = TEMP_NAME + std::to_string(FRESH_TEMP_COUNTER);
     char *cstr = new char[temp_str.length() + 1];
     std::strcpy(cstr, temp_str.c_str());
     return cstr;
