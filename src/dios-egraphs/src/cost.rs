@@ -13,15 +13,21 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
     fn cost<C>(&mut self, enode: &VecLang, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
-    {
+    {   
+        const NO_OPTIMIZATION: f64 = 0.0;
         const LITERAL: f64 = 0.001;
         const STRUCTURE: f64 = 0.1;
         const VEC_OP: f64 = 1.;
         const OP: f64 = 1.;
         const BIG: f64 = 100.0;
         let op_cost = match enode {
+            // No Optimization case for testing purposes
+            VecLang::NoOptVec(..) => NO_OPTIMIZATION, 
+
             // You get literals for extremely cheap
             VecLang::Num(..) => LITERAL,
+            VecLang::Reg(..) => LITERAL,
+            VecLang::Arg(..) => LITERAL,
             VecLang::Symbol(..) => LITERAL,
             VecLang::Get(..) => LITERAL,
 
