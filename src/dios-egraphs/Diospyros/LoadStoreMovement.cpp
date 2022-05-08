@@ -29,7 +29,10 @@ struct LoadStoreMovementPass : public FunctionPass {
         AU.addRequired<AAResultsWrapperPass>();
     }
 
-    void rewrite_stores(Function &F) {
+    /**
+     * 
+    */
+    void rewrite_loads(Function &F) {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
         for (auto &B : F) {
 
@@ -41,53 +44,54 @@ struct LoadStoreMovementPass : public FunctionPass {
                 all_instrs.push_back(instr);
             }
 
-            // Perform Pushing Back of Store Instructions
+            // Perform Pushing Back of Load Instructions
             std::vector<Instruction *> final_instrs_vec = {};
             for (auto &I : B) {
                 Instruction *instr = dyn_cast<Instruction>(&I);
                 assert(instr != NULL);
                 
-                // Place any non-Store Instructions at the end of the list of instructions
-                if (!isa<StoreInst>(instr)) {
+                // Place any non-Load Instructions at the end of the list of instructions
+                if (!isa<LoadInst>(instr)) {
                     final_instrs_vec.push_back(instr);
                     continue;
                 }
 
-                // Handle Store Instructions
+                // Handle Load Instructions
                 int insertion_offset = final_instrs_vec.size();
                 while (true) {
-                    Instruction *store_instr = instr;
+                    Instruction *load_instr = instr;
                     // If there is no prior instruction, push back at current offset, and stop.
                     if (insertion_offset - 1 < 0) {
-                        final_instrs_vec.insert(final_instrs_vec.begin() + insertion_offset, store_instr);
+                        final_instrs_vec.insert(final_instrs_vec.begin() + insertion_offset, load_instr);
                         break;
                     }
                     Instruction *prior_instr = final_instrs_vec[insertion_offset - 1];
-                    // If the prior instruction is used in the store's
+                    // If the prior instruction is used in the load's
                     // arguments, do not push it back
-                    int num_operands = store_instr->getNumOperands();
+                    int num_operands = load_instr->getNumOperands();
                     bool break_while = false;
                     for (int i = 0; i < num_operands; i++) {
-                        Value *store_operand = store_instr->getOperand(i);
-                        Instruction *store_operand_instr =
-                            dyn_cast<Instruction>(store_operand);
-                        assert(store_operand_instr != NULL);
-                        if (store_operand_instr == prior_instr) {
-                            final_instrs_vec.insert(final_instrs_vec.begin() + insertion_offset, store_instr);
-                            break_while = true;
-                            break;
+                        Value *load_operand = load_instr->getOperand(i);
+                        Instruction *load_operand_instr =
+                            dyn_cast<Instruction>(load_operand);
+                        if (load_operand_instr != NULL) {
+                            if (load_operand_instr == prior_instr) {
+                                final_instrs_vec.insert(final_instrs_vec.begin() + insertion_offset, load_instr);
+                                break_while = true;
+                                break;
+                            }
                         }
                     } 
                     if (break_while) {
                         break;
                     }
-                    // If the prior instruction alias with the store
+                    // If the prior instruction alias with the load
                     // instruction, do not push it back
-                    if (!AA->isNoAlias(store_instr, prior_instr)) {
-                        final_instrs_vec.insert(final_instrs_vec.begin() + insertion_offset, store_instr);
+                    if (!AA->isNoAlias(load_instr, prior_instr)) {
+                        final_instrs_vec.insert(final_instrs_vec.begin() + insertion_offset, load_instr);
                         break;
                     }
-                    // Otherwise, keep pushing back the store instruction
+                    // Otherwise, keep pushing back the load instruction
                     --insertion_offset;
                 }
                 
@@ -156,7 +160,7 @@ struct LoadStoreMovementPass : public FunctionPass {
         }
     }
 
-    void rewrite_loads(Function &F) {
+    void rewrite_stores(Function &F) {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
         for (auto &B : F) {
         }
@@ -173,8 +177,8 @@ struct LoadStoreMovementPass : public FunctionPass {
              F.getName().substr(0, NO_OPT_PREFIX.size()) == NO_OPT_PREFIX)) {
             return false;
         }
-        rewrite_stores(F);
-        rewrite_loads(F);
+        // rewrite_loads(F);
+        // rewrite_loads(F);
 
         return true;
     }

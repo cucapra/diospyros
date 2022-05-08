@@ -281,8 +281,8 @@ void no_opt_naive_fixed_qr_decomp(float A[SIZE * SIZE], float Q[SIZE * SIZE],
 }
 
 int main(void) {
-    time_t t = time(NULL);
-    srand((unsigned)time(&t));
+    // time_t t = time(NULL);
+    // srand((unsigned)time(&t));
 
     float A[SIZE * SIZE] = {0.0f};
     for (int i = 0; i < SIZE * SIZE; i++) {
@@ -301,14 +301,14 @@ int main(void) {
         for (int j = 0; j < SIZE; j++) {
             printf("Q Output: %f\n", Q[i * SIZE + j]);
             printf("Expected Q Output: %f\n", expectedQ[i * SIZE + j]);
-            // assert(fabs(expectedQ[i] - Q[i]) < DELTA);
+            assert(fabs(expectedQ[i] - Q[i]) < DELTA);
         }
     }
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             printf("R Output: %f\n", R[i * SIZE + j]);
             printf("Expected R Output: %f\n", expectedR[i * SIZE + j]);
-            // assert(fabs(expectedR[i] - R[i]) < DELTA);
+            assert(fabs(expectedR[i] - R[i]) < DELTA);
         }
     }
 }
