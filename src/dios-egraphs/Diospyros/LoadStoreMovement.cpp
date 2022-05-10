@@ -30,7 +30,7 @@ struct LoadStoreMovementPass : public FunctionPass {
     }
 
     /**
-     * 
+     * Move Loads as far forward as possible in LLVM IR
     */
     void rewrite_loads(Function &F) {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
@@ -94,75 +94,102 @@ struct LoadStoreMovementPass : public FunctionPass {
                     // Otherwise, keep pushing back the load instruction
                     --insertion_offset;
                 }
-                
-                // TODO
-                // First, insert clone all instructions, and insert them into the basic block at the very beginning
-
-                // build ordered vector of cloned instructions
-                // build map from original vector to cloned vector
-                std::vector<Instruction *> cloned_instrs = {};
-                std::map<Instruction *, Instruction *> original_to_clone_map = {};
-                std::map<Instruction *, Instruction *> clone_to_original_map = {};
-                for (Instruction *instr : final_instrs_vec) {
-                    Instruction *cloned_instr = instr->clone();
-                    cloned_instrs.push_back(cloned_instr);
-                    original_to_clone_map[instr] = cloned_instr;
-                    clone_to_original_map[cloned_instr] = instr;
-                }
-
-                // Grab first instruction to build before at.
-                Instruction *first_instr = NULL;
-                for (auto &I : B) {
-                    first_instr = dyn_cast<Instruction>(&I);
-                    assert(first_instr != NULL);
-                    break;
-                }
-                IRBuilder<> builder(first_instr);
-
-                for (Instruction *cloned_instr : cloned_instrs) {
-                    // The cloned instruction has arguments pointing backwards to prior original instructions
-                    // Some of these prior instructions themselves will themselves be cloned.
-                    // We need to replace the prior original instructions with clones instructions
-                    int num_operands = cloned_instr->getNumOperands();
-                    for (int i = 0; i < num_operands; i++) {
-                        Value *clone_operand = cloned_instr->getOperand(i);
-                        Instruction *clone_operand_instr = dyn_cast<Instruction>(clone_operand);
-                        if (clone_operand_instr != NULL) {
-                            if (original_to_clone_map.count(clone_operand_instr) > 0) {
-                                Instruction *replacement_operand = original_to_clone_map[clone_operand_instr];
-                                Value *replacement_value = dyn_cast<Value>(replacement_operand);
-                                assert(replacement_value != NULL);
-                                cloned_instr->setOperand(i, replacement_value);
-                            }
-                        }
-                    }
-                    
-                    // Furthermore, we need to change all uses of the original instruction to be the new cloned instruction
-                    Instruction *original_instr = clone_to_original_map[cloned_instr];
-                    for (auto &U : original_instr->uses()) {
-                        User *user = U.getUser();
-                        user->setOperand(U.getOperandNo(), cloned_instr);
-                    }
-
-                    // Finish by inserting cloned instruction
-                    builder.Insert(cloned_instr);
-                }
             }
+                
+            // TODO
+            // First, insert clone all instructions, and insert them into the basic block at the very beginning
+
+            // build ordered vector of cloned instructions
+            // build map from original vector to cloned vector
+            std::vector<Instruction *> cloned_instrs = {};
+            std::map<Instruction *, Instruction *> original_to_clone_map = {};
+            std::map<Instruction *, Instruction *> clone_to_original_map = {};
+            for (Instruction *instr : final_instrs_vec) {
+                Instruction *cloned_instr = instr->clone();
+                cloned_instrs.push_back(cloned_instr);
+                original_to_clone_map[instr] = cloned_instr;
+                clone_to_original_map[cloned_instr] = instr;
+            }
+
+            // Grab first instruction to build before at.
+            Instruction *first_instr = NULL;
+            for (auto &I : B) {
+                first_instr = dyn_cast<Instruction>(&I);
+                assert(first_instr != NULL);
+                break;
+            }
+            IRBuilder<> builder(first_instr);
+            builder.SetInsertPoint(&B);
+
+            for (Instruction *cloned_instr : cloned_instrs) {
+                // The cloned instruction has arguments pointing backwards to prior original instructions
+                // Some of these prior instructions themselves will themselves be cloned.
+                // We need to replace the prior original instructions with clones instructions
+                int num_operands = cloned_instr->getNumOperands();
+                for (int i = 0; i < num_operands; i++) {
+                    Value *clone_operand = cloned_instr->getOperand(i);
+                    Instruction *clone_operand_instr = dyn_cast<Instruction>(clone_operand);
+                    if (clone_operand_instr != NULL) {
+                        if (original_to_clone_map.count(clone_operand_instr) > 0) {
+                            Instruction *replacement_operand = original_to_clone_map[clone_operand_instr];
+                            Value *replacement_value = dyn_cast<Value>(replacement_operand);
+                            assert(replacement_value != NULL);
+                            cloned_instr->setOperand(i, replacement_value);
+                        }
+                    } else {
+                        Instruction *original_instr = clone_to_original_map[cloned_instr];
+                        cloned_instr->setOperand(i, original_instr->getOperand(i));
+                    }
+                }
+
+                builder.Insert(cloned_instr);
+                
+                // Furthermore, we need to change all uses of the original instruction to be the new cloned instruction
+                Instruction *original_instr = clone_to_original_map[cloned_instr];
+                for (auto &U : original_instr->uses()) {
+                    User *user = U.getUser();
+                    user->setOperand(U.getOperandNo(), cloned_instr);
+                }
+
+                // Finish by inserting cloned instruction
+                // builder.Insert(cloned_instr);
+            }
+
+            // To be safe, we also check if any of the new cloned instructions uses an original instruction, and if so, raise an error
+            // for (Instruction *cloned_instr : cloned_instrs) {
+            //     int num_operands = cloned_instr->getNumOperands();
+            //     for (int i = 0; i < num_operands; i++) {
+            //         Value *operand =  cloned_instr->getOperand(i);
+            //     }
+            // }
+
+            // for (Instruction *original_instr : all_instrs) {
+            //     Instruction *cloned_instr = original_to_clone_map[original_instr];
+            //     for (auto &U : original_instr->uses()) {
+            //         User *user = U.getUser();
+            //         user->setOperand(U.getOperandNo(), cloned_instr);
+            //     }
+            // }
             
             // Finally, delete all the original instructions in the basic block
             // Do this in reverse order.
-            std::reverse(all_instrs.begin(), all_instrs.end());
-            for (Instruction *instr : all_instrs) {
-                if (!instr->isTerminator()) {
-                    instr->eraseFromParent();
-                }
-            }
+            // std::reverse(all_instrs.begin(), all_instrs.end());
+            // for (Instruction *instr : all_instrs) {
+            //     instr->eraseFromParent();
+            // }
         }
     }
 
+    /**
+     * Move Stores Back As Far As Possible in the LLVM IR
+    */
     void rewrite_stores(Function &F) {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
         for (auto &B : F) {
+            // Collect all instructions
+
+            // Collect all stores
+            // If a store 
         }
     }
 
@@ -177,8 +204,8 @@ struct LoadStoreMovementPass : public FunctionPass {
              F.getName().substr(0, NO_OPT_PREFIX.size()) == NO_OPT_PREFIX)) {
             return false;
         }
-        // rewrite_loads(F);
-        // rewrite_loads(F);
+        rewrite_loads(F);
+        // rewrite_stores(F);
 
         return true;
     }
