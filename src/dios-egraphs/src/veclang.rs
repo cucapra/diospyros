@@ -4,6 +4,12 @@ define_language! {
     pub enum VecLang {
         Num(i32),
 
+        // Register points to other computation, denoted by a number
+        Reg(u32),
+
+        // Argument points to a argument, denoted by a number
+        Arg(u32),
+
         // Id is a key to identify EClasses within an EGraph, represents
         // children nodes
         "+" = Add([Id; 2]),
@@ -25,6 +31,9 @@ define_language! {
 
         // Vectors have width elements
         "Vec" = Vec(Box<[Id]>),
+
+        // Vectors have width elements, not to be optimized (for testing purposes)
+        "NoOptVec" = NoOptVec(Box<[Id]>),
 
         // Vector with all literals
         "LitVec" = LitVec(Box<[Id]>),
@@ -48,6 +57,9 @@ define_language! {
 
         // MAC takes 3 lists: acc, v1, v2
         "VecMAC" = VecMAC([Id; 3]),
+
+        // Info specific to register
+        // RegInfo(egg::Symbol),
 
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last.

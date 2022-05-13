@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <llvm-c/Core.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <set>
 #include <stdexcept>
@@ -13,52 +14,59 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar/LoopUnrollPass.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
-using namespace std;
 
-typedef struct IntLLVMPair {
-    uint32_t node_int;
-    LLVMValueRef arg;
-} IntLLVMPair;
+int main(int argc, char **argv) {
+    llvm::cl::ParseCommandLineOptions(argc, argv);
+}
 
-typedef struct LLVMPair {
-    LLVMValueRef original_value;
-    LLVMValueRef new_value;
-} LLVMPair;
+llvm::cl::opt<bool> RunOpt("r", llvm::cl::desc("Enable Egg Optimization."));
+llvm::cl::alias RunOptAlias("opt", llvm::cl::desc("Alias for -r"),
+                            llvm::cl::aliasopt(RunOpt));
 
-typedef struct VectorPointerSize {
-    LLVMPair const *llvm_pointer;
-    std::size_t llvm_pointer_size;
-} VectorPointerSize;
+llvm::cl::opt<bool> PrintOpt("p", llvm::cl::desc("Print Egg Optimization."));
+llvm::cl::alias PrintOptAlias("print", llvm::cl::desc("Alias for -p"),
+                              llvm::cl::aliasopt(PrintOpt));
 
-extern "C" VectorPointerSize optimize(LLVMModuleRef mod, LLVMContextRef context,
-                                      LLVMBuilderRef builder,
-                                      LLVMValueRef const *bb, std::size_t size,
-                                      LLVMPair const *past_instrs,
-                                      std::size_t past_size);
+extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
+                         LLVMBuilderRef builder,
+                         LLVMValueRef const *chunk_instrs,
+                         std::size_t chunk_size,
+                         LLVMValueRef const *restricted_instrs,
+                         std::size_t restricted_size, bool run_egg,
+                         bool print_opt);
 
-const string ARRAY_NAME = "no-array-name";
-const string TEMP_NAME = "no-temp-name";
-const string SQRT64_FUNCTION_NAME = "llvm.sqrt.f64";
-const string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
+const std::string ARRAY_NAME = "no-array-name";
+const std::string TEMP_NAME = "no-temp-name";
+const std::string SQRT64_FUNCTION_NAME = "llvm.sqrt.f64";
+const std::string SQRT32_FUNCTION_NAME = "llvm.sqrt.f32";
+const std::string MEMSET_PREFIX = "memset";
+const std::string LLVM_MEMSET_PREFIX = "llvm.memset";
+const std::string MEMMOVE_PREFIX = "memmove";
+const std::string MEMCOPY_PREFIX = "memcopy";
+const std::string MAIN_FUNCTION_NAME = "main";
+const std::string NO_OPT_PREFIX = "no_opt_";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
 
 /**
  * Fresh counters for temps and array generation
  */
-int FRESH_INT_COUNTER = 0;
-int FRESH_ARRAY_COUNTER = 0;
-int FRESH_TEMP_COUNTER = 0;
+static int FRESH_INT_COUNTER = 0;
+static int FRESH_ARRAY_COUNTER = 0;
+static int FRESH_TEMP_COUNTER = 0;
 
 /**
  * Generates a Fresh Index
@@ -73,7 +81,7 @@ int gen_fresh_index() {
  */
 const char *gen_fresh_array() {
     ++FRESH_ARRAY_COUNTER;
-    string array_str = ARRAY_NAME + to_string(FRESH_ARRAY_COUNTER);
+    std::string array_str = ARRAY_NAME + std::to_string(FRESH_ARRAY_COUNTER);
     char *cstr = new char[array_str.length() + 1];
     std::strcpy(cstr, array_str.c_str());
     return cstr;
@@ -84,7 +92,7 @@ const char *gen_fresh_array() {
  */
 const char *gen_fresh_temp() {
     ++FRESH_TEMP_COUNTER;
-    string temp_str = TEMP_NAME + to_string(FRESH_TEMP_COUNTER);
+    std::string temp_str = TEMP_NAME + std::to_string(FRESH_TEMP_COUNTER);
     char *cstr = new char[temp_str.length() + 1];
     std::strcpy(cstr, temp_str.c_str());
     return cstr;
@@ -297,7 +305,7 @@ extern "C" bool isa_integertype(LLVMValueRef val) {
 }
 
 /**
- * True iff a value is an LLVM IntPTr/LLVMValueRef ItPtr
+ * True iff a value is an LLVM IntPTr/LLVMValueRef IntPtr
  */
 extern "C" bool isa_intptr(LLVMValueRef val) {
     auto unwrapped = unwrap(val);
@@ -306,6 +314,18 @@ extern "C" bool isa_intptr(LLVMValueRef val) {
     }
     Type *t = unwrapped->getType();
     return t->isPointerTy() && t->getContainedType(0)->isIntegerTy();
+}
+
+/**
+ * True iff a value is an LLVM FloatPtr/LLVMValueRef FloatPtr
+ */
+extern "C" bool isa_floatptr(LLVMValueRef val) {
+    auto unwrapped = unwrap(val);
+    if (unwrapped == NULL) {
+        return false;
+    }
+    Type *t = unwrapped->getType();
+    return t->isPointerTy() && t->getContainedType(0)->isFloatTy();
 }
 
 /**
@@ -406,8 +426,11 @@ extern "C" float get_constant_float(LLVMValueRef val) {
     Value *v = unwrap(val);
     if (auto *num = dyn_cast<ConstantFP>(v)) {
         return num->getValue().convertToFloat();
+    } else if (auto *num = dyn_cast<ConstantInt>(v)) {
+        return num->getValue().bitsToFloat();
     }
-    return -1;
+    errs() << "Not a Constant Float or Constant Int " << *unwrap(val) << "\n";
+    throw "LLVM Value Must be a Constant Float or Constant Int";
 }
 
 extern "C" LLVMValueRef build_constant_float(double n, LLVMContextRef context) {
@@ -416,74 +439,70 @@ extern "C" LLVMValueRef build_constant_float(double n, LLVMContextRef context) {
     return wrap(ConstantFP::get(float_type, n));
 }
 
-/**
- * DFS backwards from current instruction to see if any past insdtruction
- * matches match_instr.
- *
- * Terminates when no more previous expressions, or reaches a
- * cosntant/argument/alloca instruction in LLVM.
- *
- * Searches for consecutive load/store instructions to same addresses,
- * which LLVM generates at -01 optimization.
- */
-bool dfs_llvm_instrs(User *current_instr, User *match_instr) {
-    if (current_instr == NULL) {
-        return false;
+bool is_memset_variety(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        StringRef name = function->getName();
+        return (name.size() > MEMSET_PREFIX.size() &&
+                name.substr(0, MEMSET_PREFIX.size()) == MEMSET_PREFIX) ||
+               (name.size() > LLVM_MEMSET_PREFIX.size() &&
+                name.substr(0, LLVM_MEMSET_PREFIX.size()) ==
+                    LLVM_MEMSET_PREFIX);
     }
-    if (current_instr == match_instr) {
-        return true;
-    }
-    if (isa<AllocaInst>(current_instr) || isa<Argument>(current_instr) ||
-        isa<Constant>(current_instr)) {
-        return false;
-    }
-    bool result = false;
-    // special case for loads: check if prev is store and continue
-    // in fact this test will VERY LIKELY lead to errors on some well-crafted
-    // test cases if LLVM decides to load and store values to the same locations
-    // multiple times, this could mess up the final result badly, if the some of
-    // the previous values need to be stored back before revectorizing after.
-    if (auto load_instr = dyn_cast<LoadInst>(current_instr)) {
-        if (auto prev_node = load_instr->getPrevNode()) {
-            if (auto store_instr = dyn_cast<StoreInst>(prev_node)) {
-                Value *load_pointer_operand = load_instr->getPointerOperand();
-                Value *store_pointer_operand = store_instr->getPointerOperand();
-                if (load_pointer_operand == store_pointer_operand) {
-                    Value *value_operand = store_instr->getValueOperand();
+    return false;
+}
 
-                    auto user_cast = dyn_cast<User>(value_operand);
-                    result |= dfs_llvm_instrs(user_cast, match_instr);
-                    user_cast = dyn_cast<User>(store_pointer_operand);
-                    result |= dfs_llvm_instrs(user_cast, match_instr);
-                    return result;
-                }
-            }
-        }
-        return false;
+bool is_memcopy_variety(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        StringRef name = function->getName();
+        return name.size() > MEMCOPY_PREFIX.size() &&
+               name.substr(0, MEMCOPY_PREFIX.size()) == MEMCOPY_PREFIX;
     }
-    // remainder of instructions, besides stores
-    for (auto i = 0; i < current_instr->getNumOperands(); i++) {
-        Value *operand = current_instr->getOperand(i);
-        auto user_cast = dyn_cast<User>(operand);
-        if (user_cast == NULL) {
-            throw std::invalid_argument("Could not convert Value * to User *");
-        }
-        result |= dfs_llvm_instrs(user_cast, match_instr);
+    return false;
+}
+
+bool is_memmove_variety(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        StringRef name = function->getName();
+        return name.size() > MEMMOVE_PREFIX.size() &&
+               name.substr(0, MEMMOVE_PREFIX.size()) == MEMMOVE_PREFIX;
     }
-    return result;
+    return false;
+}
+
+bool call_is_not_sqrt(CallInst *inst) {
+    Function *function = inst->getCalledFunction();
+    if (function != NULL) {
+        return !(function->getName() == SQRT32_FUNCTION_NAME ||
+                 function->getName() == SQRT64_FUNCTION_NAME);
+    }
+    return true;  // just assume it is not a sqrt. This means no optimization
+                  // will be done
 }
 
 /**
- * Main method to call dfs llvm_value
+ * True iff an instruction is "vectorizable"
  */
-extern "C" bool dfs_llvm_value_ref(LLVMValueRef current_instr,
-                                   LLVMValueRef match_instr) {
-    auto current_user = dyn_cast<User>(unwrap(current_instr));
-    auto match_user = dyn_cast<User>(unwrap(match_instr));
-    if (current_user == NULL || match_user == NULL) {
-        throw std::invalid_argument("Could not convert Value * to User *");
+bool can_vectorize(Value *value) {
+    // TODO:
+    Instruction *instr = dyn_cast<Instruction>(value);
+    assert(instr != NULL);
+    if (instr->getOpcode() == Instruction::FAdd) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FSub) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FDiv) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FMul) {
+        return true;
+    } else if (instr->getOpcode() == Instruction::FNeg) {
+        return true;
+    } else if (isa_sqrt32(wrap(instr))) {
+        return true;
     }
-    return dfs_llvm_instrs(current_user, match_user);
+    return false;
 }
 
 /**
@@ -497,12 +516,15 @@ struct DiospyrosPass : public FunctionPass {
     DiospyrosPass() : FunctionPass(ID) {}
 
     virtual bool runOnFunction(Function &F) override {
-        // do not optimize on main function.
-        if (F.getName() == "main") {
+        // do not optimize on main function or no_opt functions.
+        if (F.getName() == MAIN_FUNCTION_NAME ||
+            (F.getName().size() > NO_OPT_PREFIX.size() &&
+             F.getName().substr(0, NO_OPT_PREFIX.size()) == NO_OPT_PREFIX)) {
             return false;
         }
         bool has_changes = false;
         for (auto &B : F) {
+            // TODO: Consider removing as the new procedure can overcome this
             // We skip over basic blocks without floating point types
             bool has_float = false;
             for (auto &I : B) {
@@ -513,86 +535,126 @@ struct DiospyrosPass : public FunctionPass {
             if (!has_float) {
                 continue;
             }
-            // We also skip over all basic blocks without stores
-            bool has_store = false;
+
+            // Assumes Alias Analysis Movement Pass has been done previously
+            // Pulls out Instructions into sections of code called "Chunks"
+            //
+            std::vector<std::vector<LLVMValueRef>> chunk_accumulator;
+            std::vector<LLVMValueRef> chunk_vector = {};
+            bool vectorizable_flag = false;
             for (auto &I : B) {
-                if (auto *op = dyn_cast<StoreInst>(&I)) {
-                    has_store = true;
+                Value *val = dyn_cast<Value>(&I);
+                assert(val != NULL);
+                if (can_vectorize(val) && !vectorizable_flag) {
+                    if (!chunk_vector.empty()) {
+                        chunk_accumulator.push_back(chunk_vector);
+                    } 
+                    vectorizable_flag = true;
+                    chunk_vector = {wrap(val)};
+                } else if (can_vectorize(val) && vectorizable_flag) {
+                    chunk_vector.push_back(wrap(val));
+                } else if (!can_vectorize(val) && !vectorizable_flag) {
+                    chunk_vector.push_back(wrap(val));
+                } else if (!can_vectorize(val) && vectorizable_flag) {
+                    if (!chunk_vector.empty()) {
+                        chunk_accumulator.push_back(chunk_vector);
+                    } 
+                    vectorizable_flag = false;
+                    chunk_vector = {wrap(val)};
+                } else {
+                    throw "No other cases possible!";
                 }
             }
-            if (!has_store) {
-                continue;
+            if (!chunk_vector.empty()) {
+                chunk_accumulator.push_back(chunk_vector);
             }
 
-            // Grab the terminator from the LLVM Basic Block
-            Instruction *terminator = B.getTerminator();
-            Instruction *cloned_terminator = terminator->clone();
-
-            std::vector<std::vector<LLVMValueRef>> vectorization_accumulator;
-            std::vector<LLVMValueRef> inner_vector = {};
-            std::set<Value *> store_locations;
-            std::vector<Instruction *> bb_instrs = {};
-            for (auto &I : B) {
-                if (auto *op = dyn_cast<StoreInst>(&I)) {
-                    Value *store_loc = op->getOperand(1);
-                    store_locations.insert(store_loc);
-                    inner_vector.push_back(wrap(op));
-                } else if (auto *op = dyn_cast<LoadInst>(&I)) {
-                    Value *load_loc = op->getOperand(0);
-                    if (!inner_vector.empty()) {
-                        vectorization_accumulator.push_back(inner_vector);
-                    }
-                    inner_vector = {};
-                    store_locations.clear();
+            for (int i = 0; i < chunk_accumulator.size(); ++i) {
+                auto &chunk_vector = chunk_accumulator[i];
+                if (chunk_vector.empty()) {
+                    continue;
                 }
-                bb_instrs.push_back(dyn_cast<Instruction>(&I));
-            }
-            vectorization_accumulator.push_back(inner_vector);
 
-            // Acquire each of the instructions in the "run" that terminates at
-            // a store We will send these instructions to optimize.
-
-            int vec_length = vectorization_accumulator.size();
-            int counter = 0;
-            std::vector<LLVMPair> translated_exprs = {};
-            for (auto &vec : vectorization_accumulator) {
-                ++counter;
-                if (not vec.empty()) {
-                    has_changes = has_changes || true;
-                    Value *last_store = unwrap(vec.back());
-                    IRBuilder<> builder(dyn_cast<Instruction>(last_store));
-                    Instruction *store_instr =
-                        dyn_cast<Instruction>(last_store);
-                    assert(isa<StoreInst>(store_instr));
-                    builder.SetInsertPoint(store_instr);
-                    builder.SetInsertPoint(&B);
-                    Module *mod = F.getParent();
-                    LLVMContext &context = F.getContext();
-                    VectorPointerSize pair = optimize(
-                        wrap(mod), wrap(&context), wrap(&builder), vec.data(),
-                        vec.size(), translated_exprs.data(),
-                        translated_exprs.size());
-                    int size = pair.llvm_pointer_size;
-
-                    LLVMPair const *expr_array = pair.llvm_pointer;
-                    translated_exprs = {};
-                    for (int i = 0; i < size; i++) {
-                        translated_exprs.push_back(expr_array[i]);
+                // check if the chunk vector actually has instructions to
+                // optimixe on
+                bool has_vectorizable_instrs = false;
+                for (auto &instr : chunk_vector) {
+                    if (can_vectorize(unwrap(instr))) {
+                        has_vectorizable_instrs = true;
                     }
                 }
-            }
-            std::reverse(bb_instrs.begin(), bb_instrs.end());
-            for (auto &I : bb_instrs) {
-                if (I->isTerminator()) {
-                    I->eraseFromParent();
-                } else if (isa<StoreInst>(I)) {
-                    I->eraseFromParent();
+                if (!has_vectorizable_instrs) {
+                    continue;
                 }
+
+                // If an instruction is used multiple times outside the chunk,
+                // add it to a restricted list.
+                // TODO: only consider future chunks!
+                std::vector<LLVMValueRef> restricted_instrs = {};
+                for (auto chunk_instr : chunk_vector) {
+                    for (auto j = i + 1; j < chunk_accumulator.size(); ++j) {
+                        // guaranteed to be a different chunk vector ahead of
+                        // the origianl one.
+                        bool must_restrict = false;
+                        auto &other_chunk_vector = chunk_accumulator[j];
+                        for (auto other_chunk_instr : other_chunk_vector) {
+                            if (unwrap(chunk_instr) ==
+                                unwrap(other_chunk_instr)) {
+                                restricted_instrs.push_back(chunk_instr);
+                                must_restrict = true;
+                                break;
+                            }
+                        }
+                        if (must_restrict) {
+                            break;
+                        }
+                    }
+                }
+
+                has_changes = has_changes || true;
+                assert(chunk_vector.size() != 0);
+
+                // Place builder at first instruction that is not a "handled
+                // instruction"
+                int insert_pos = 0;
+                bool has_seen_vectorizable = false;
+                for (int i = 0; i < chunk_vector.size(); i++) {
+                    if (can_vectorize(unwrap(chunk_vector[i]))) {
+                        has_seen_vectorizable = true;
+                        insert_pos++;
+                    } else if (!has_seen_vectorizable) {
+                        insert_pos++;
+                    } else {
+                        break;
+                    }
+                }
+                Value *last_instr_val = NULL;
+                if (insert_pos >= chunk_vector.size()) {
+                    last_instr_val = unwrap(chunk_vector[insert_pos - 1]);
+                } else {
+                    last_instr_val = unwrap(chunk_vector[insert_pos]);
+                }
+                assert(last_instr_val != NULL);
+                Instruction *last_instr = dyn_cast<Instruction>(last_instr_val);
+                assert(last_instr != NULL);
+                if (insert_pos >= chunk_vector.size()) {
+                    last_instr = last_instr->getNextNode();
+                    assert(last_instr != NULL);
+                }
+                IRBuilder<> builder(last_instr);
+
+                Module *mod = F.getParent();
+                LLVMContext &context = F.getContext();
+                optimize(wrap(mod), wrap(&context), wrap(&builder),
+                         chunk_vector.data(), chunk_vector.size(),
+                         restricted_instrs.data(), restricted_instrs.size(),
+                         RunOpt, PrintOpt);
             }
-            BasicBlock::InstListType &final_instrs = B.getInstList();
-            final_instrs.push_back(cloned_terminator);
+
+            // TODO: delete old instructions that are memory related; adce
+            // will handle the remainder
         }
-        return true;
+        return has_changes;
     };
 };
 }  // namespace
