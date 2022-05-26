@@ -252,13 +252,41 @@ struct LoadStoreMovementPass : public FunctionPass {
                         break;
                     }
 
-                    // If the prior instruction alias with the store
-                    // instruction, do not push the store back
-                    if (!AA->isNoAlias(store_instr, prior_instr)) {
+                    // If the prior Instruction is a call inst, do not push the
+                    // current instruction back
+                    // A call instruciton could have side effects to memory
+                    // In addition, a call could be to @llvm.memset.p0i8.i64(i8*
+                    // nonnull align 16 dereferenceable(40) %2, i8 0, i64 40, i1
+                    // false) or @memset_pattern16(i8* nonnull %2, i8* bitcast
+                    // ([4 x float]* @.memset_pattern to i8*), i64 40) #6 which
+                    // require alias analysis as well
+
+                    // TODO: discriminate calls to llvm memset
+                    if (isa<CallInst>(prior_instr)) {
                         final_instrs_vec.insert(
                             final_instrs_vec.begin() + insertion_offset,
                             store_instr);
                         break;
+                    }
+
+                    // If the prior instruction alias with the store
+                    // instruction, do not push the store back
+                    if (prior_instr->mayReadOrWriteMemory()) {
+                        Value *prior_addr = NULL;
+                        if (isa<LoadInst>(prior_instr)) {
+                            prior_addr = prior_instr->getOperand(0);
+                        } else if (isa<StoreInst>(prior_instr)) {
+                            prior_addr = prior_instr->getOperand(1);
+                        } else {
+                            throw "Unmatched Instruction Type";
+                        }
+                        Value *store_addr = store_instr->getOperand(1);
+                        if (!AA->isNoAlias(store_addr, prior_addr)) {
+                            final_instrs_vec.insert(
+                                final_instrs_vec.begin() + insertion_offset,
+                                store_instr);
+                            break;
+                        }
                     }
                     // Otherwise, keep pushing back the str instruction
                     --insertion_offset;
@@ -289,6 +317,16 @@ struct LoadStoreMovementPass : public FunctionPass {
             builder.SetInsertPoint(&B);
 
             for (Instruction *cloned_instr : cloned_instrs) {
+                // set insert point to be before beginning if inserting phi
+                // instruction
+                if (isa<PHINode>(cloned_instr)) {
+                    builder.SetInsertPoint(first_instr);
+                }
+                builder.Insert(cloned_instr);
+                if (isa<PHINode>(cloned_instr)) {
+                    builder.SetInsertPoint(&B);
+                }
+
                 // The cloned instruction has arguments pointing backwards to
                 // prior original instructions Some of these prior instructions
                 // themselves will themselves be cloned. We need to replace the
@@ -320,13 +358,20 @@ struct LoadStoreMovementPass : public FunctionPass {
                 // instruction to be the new cloned instruction
                 Instruction *original_instr =
                     clone_to_original_map[cloned_instr];
-                for (auto &U : original_instr->uses()) {
-                    User *user = U.getUser();
-                    user->setOperand(U.getOperandNo(), cloned_instr);
+                if (Value *original_val = dyn_cast<Value>(original_instr)) {
+                    Value *cloned_val = dyn_cast<Value>(cloned_instr);
+                    assert(cloned_val != NULL);
+                    original_val->replaceAllUsesWith(cloned_val);
                 }
+                // for (auto &U : original_instr->uses()) {
+                //     User *user = U.getUser();
+                //     errs() << "Cloned Instr\n";
+                //     errs() << *cloned_instr << "\n";
+                //     user->setOperand(U.getOperandNo(), cloned_instr);
+                // }
 
                 // Finish by inserting cloned instruction
-                builder.Insert(cloned_instr);
+                // builder.Insert(cloned_instr);
             }
 
             // Finally, delete all the original instructions in the basic block
@@ -350,7 +395,7 @@ struct LoadStoreMovementPass : public FunctionPass {
             return false;
         }
         // rewrite_loads(F);
-        // rewrite_stores(F);
+        rewrite_stores(F);
 
         return true;
     }
