@@ -511,9 +511,14 @@ unsafe fn llvm_to_egg(
   translation_metadata: &mut LLVM2EggState,
 ) -> (Vec<VecLang>, u32) {
   // Mark instruction as translated, as it will be after it goes through the code below
-  if !translation_metadata.prior_translated_instructions.contains(&llvm_instr) {
-    translation_metadata.prior_translated_instructions.insert(llvm_instr);
-  } 
+  if !translation_metadata
+    .prior_translated_instructions
+    .contains(&llvm_instr)
+  {
+    translation_metadata
+      .prior_translated_instructions
+      .insert(llvm_instr);
+  }
   // If, on a different pass, the instruction was translated already, then
   // just used the egg node representing the translation
   if translation_metadata.llvm2reg.contains_key(&llvm_instr) {
@@ -632,7 +637,7 @@ unsafe fn llvm_to_egg_main(
   // Invariant: chunk instructions are not empty in size
   assert!(!instructions_in_chunk.is_empty());
 
-  let mut prior_translated_instructions: BTreeSet<LLVMValueRef> = BTreeSet::new();
+  let prior_translated_instructions: BTreeSet<LLVMValueRef> = BTreeSet::new();
 
   // State Variable To Hold Maps During Translation
   let mut translation_metadata = LLVM2EggState {
@@ -651,7 +656,11 @@ unsafe fn llvm_to_egg_main(
   // for each final instruction, iterate backwards from that final instruction and translate to egg
   for llvm_instr in llvm_instrs_in_chunk.iter().rev() {
     // only start translation back if it is a "translatable instruction" and it was not translated already
-    if can_start_translation_instr(*llvm_instr) && !translation_metadata.prior_translated_instructions.contains(&llvm_instr) {
+    if can_start_translation_instr(*llvm_instr)
+      && !translation_metadata
+        .prior_translated_instructions
+        .contains(&llvm_instr)
+    {
       let (new_egg_nodes, new_next_node_idx) = start_translating_llvm_to_egg(
         *llvm_instr,
         egg_nodes,
@@ -696,7 +705,10 @@ struct Egg2LLVMState<'a> {
   module: LLVMModuleRef,
 }
 
-unsafe fn arg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMState) -> LLVMValueRef {
+unsafe fn arg_to_llvm(
+  egg_node: &VecLang,
+  translation_metadata: &mut Egg2LLVMState,
+) -> LLVMValueRef {
   // TODO: Make More Efficient with BTREEMAP?
   let llvm2arg = &translation_metadata.llvm2egg_metadata.llvm2arg;
   for (llvm_instr, arg_node) in llvm2arg.iter() {
@@ -712,7 +724,10 @@ unsafe fn arg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMSta
   );
 }
 
-unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMState) -> LLVMValueRef {
+unsafe fn reg_to_llvm(
+  egg_node: &VecLang,
+  translation_metadata: &mut Egg2LLVMState,
+) -> LLVMValueRef {
   // TODO: Make More Efficient with BTREEMAP?
   let llvm2reg = &translation_metadata.llvm2egg_metadata.llvm2reg;
   for (llvm_instr, reg_node) in llvm2reg.iter() {
@@ -720,16 +735,25 @@ unsafe fn reg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMSta
     if reg_node == egg_node {
       assert!(!isa_argument(*llvm_instr));
       // do not clone an instruction translated earlier in the same chunk
-      if translation_metadata.prior_translated_nodes.contains(&*llvm_instr) {
+      if translation_metadata
+        .prior_translated_nodes
+        .contains(&*llvm_instr)
+      {
         return *llvm_instr;
       }
       // do not clone an instruction translated in a prior basic block / prior chunk
-      if !translation_metadata.llvm2egg_metadata.instructions_in_chunk.contains(&*llvm_instr) {
+      if !translation_metadata
+        .llvm2egg_metadata
+        .instructions_in_chunk
+        .contains(&*llvm_instr)
+      {
         return *llvm_instr;
       }
       let new_instr = LLVMInstructionClone(*llvm_instr);
       LLVMInsertIntoBuilder(translation_metadata.builder, new_instr);
-      translation_metadata.prior_translated_nodes.insert(new_instr);
+      translation_metadata
+        .prior_translated_nodes
+        .insert(new_instr);
       return new_instr;
     }
   }
@@ -877,7 +901,11 @@ unsafe fn binop_to_llvm(
   }
 }
 
-unsafe fn concat_to_llvm(left_vector: &Id, right_vector: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
+unsafe fn concat_to_llvm(
+  left_vector: &Id,
+  right_vector: &Id,
+  md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
   {
     let trans_v1 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_vector)], md);
     let mut trans_v2 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_vector)], md);
@@ -1044,7 +1072,10 @@ unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &mut Egg2LLVMState) -> () 
 /// Egg To LLVM Dispatches translation of VecLanf Egg Nodes to LLVMValueRegs
 ///
 /// Side Effect: Builds and Insert LLVM instructions
-unsafe fn egg_to_llvm(egg_node: &VecLang, translation_metadata: &mut Egg2LLVMState) -> LLVMValueRef {
+unsafe fn egg_to_llvm(
+  egg_node: &VecLang,
+  translation_metadata: &mut Egg2LLVMState,
+) -> LLVMValueRef {
   match egg_node {
     VecLang::NoOptVec(..) => panic!("No Opt Vector was found. Egg to LLVM Translation does not handle No Opt Vector nodes at this location."),
     VecLang::Symbol(..) => {

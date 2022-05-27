@@ -35,3 +35,43 @@ A load can be moved towards the end of a basic block, if the prior instruction p
 Note the extra condition that regarding the Load argument. This is critical, because the load may use a prior defined value, and we cannot move the load before when the value was defined.
 
 ## lib.rs
+
+The Diospyros rewriting engine is applied in lib.rs. In particular, this file contains a translation from LLVM to `Egg` VecLang instructions, a translation from `Egg` VecLanf Instructions back to LLVM instructions. One can specify whether to print the `Egg` rewriting output, and whether to run the `Egg` rewriter at all, via a series of flags, passed in from Diospyros.cpp.
+
+### New VecLang
+
+The new VecLang now has a register construct, representing a black box register computation. A register represents a computed LLVM Value. It may be used if an LLVM Register is used across multiple runs or basic blocks.  The new argument construct is similar to a register construct, and represents an LLVM argument to a function.
+
+### LLVM To Egg
+
+Runs are translated from a sequence of LLVM instructions to a graph of Egg nodes. LLVM instructions are recursively translated backwards to Egg nodes. Starting in reverse in ths sequence of LLVM instructions, any translatable instruction (Add, Sub, Mul, Div, Neg, Sqrt), is chosen, and translated backwards from. If an instruction has been translated already, it is not retranslated to an Egg Node.
+
+Each LLVM instruction is translated to an appropriate Egg Node:
+
+- Restricted Instructions (instructions that are used in multiple runs/basic blocks): Translated to a Register Node
+- Instruction not in the current run: Translated to a register node, because it must have existed already in the basic block
+- Binary Operations: Translated to a binary operator node of the correct binary operator, and then each LLVM operand is recursively translated.
+- Unary Operations: Similar to Binary Operations
+- Sqrt: Translated to a sqrt node, and the operand is recursively translated
+- Constants: Translated to a number node
+- Arguments: Translated to argument nodes, which are conceptually similar to a register node because they act as black boxes.
+
+Finally, Egg Nodes are padded to be a multiple of the vector Lane Width, which is usually 4, and the binary operation nodes are added on.
+
+Useful metadata: 
+
+- llvm2reg: This TreeMap maps an llvm instruction to a register. 
+- llvm2arg: This treemap maps an llvm argument to a register.
+- start_instructions: This is a vector of instructions where llvm2egg translation began
+- start_ids: This is the vector of ids corresponding to the start instructions.
+- prior_translated_instructions: These are all instructions that had been translated already in the current pass.
+- instructions_in_chunk: All instructions in chunk/run (they are synonyms)
+- restricted_instructions: All instructions which are not be translated and are to be represented as a register node.
+
+All metadata from this pass lies in a struct that is passed to all recursive calls in `llvm2egg`.
+
+### Egg to LLVM
+
+The graph of Egg nodes is translated back to LLVM instructions, and the LLVM instructions are built and inserted in place.
+
+
