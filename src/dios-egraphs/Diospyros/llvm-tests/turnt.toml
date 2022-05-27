@@ -1,1 +1,0 @@
-command = "bash ../test-runner.sh llvm-tests/{filename}"

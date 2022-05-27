@@ -1,4 +1,5 @@
 #include <assert.h>
+#include  <stdlib.h> 
 #include <stdio.h>
 #define SIZE 4
 
