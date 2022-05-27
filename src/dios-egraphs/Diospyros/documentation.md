@@ -74,4 +74,27 @@ All metadata from this pass lies in a struct that is passed to all recursive cal
 
 The graph of Egg nodes is translated back to LLVM instructions, and the LLVM instructions are built and inserted in place.
 
+Beginning at the last egg node, translation from Egg to LLVM occurs. After this, extracted values are pulled out to replace each of the original start instructions. We replace all used with the extracted value, then delete the start instruction.
 
+**NOTE: We Assume Egg rewriter will maintain relative positions of elements in vector**. This means we assume the Egg rewriter does not change where instructions are supposed to be, because we need the extraction to have the instruction in the correct place.
+
+Egg2LLVM occurs recursively, considering the current Egg Node.
+
+- Number: LLVM Float Constant Created
+- Arg: Argument is pulled from LLVM2Arg metadata
+- Register: Register value is pulled from LLVM2Reg metadata
+- LitVec: members of the litvec are translated recursively, then a vector is built
+- VecAdd/VecSub... : Translate each argument recursively, then build the vec operation on both vectors
+- VecConcat: Concatenate two vectors by translating arguments to vectors, then building a shuffle operation in LLVM
+- VecNeg/VecSqrt... : Translate arguments appropriately, then build correct LLVM Intrinsic
+- VecMac: Translate arguments appropriately, and then build correct LLVM intrinsic
+- VecSgn/Sgn/Ite/Get/Or/And/Lt/Symbol/NoOptVec : No translateion provided at the current time
+
+Metadata for this pass includes:
+
+- llvm2egg metadata: metadata from llvm2egg pass
+- egg_nodes_vector: the vector of egg nodes
+- prior_translated_nodes: TreeSet of any egg nodes that had already been translated
+- builder
+- context
+- module
