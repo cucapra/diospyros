@@ -4,6 +4,10 @@ This is the documentation for work on Diospyros for LLVM, up until the end of th
 
 ## Diospyros.cpp
 
+Diospyros.cpp is the starting point for the vectorization process. This pass is run on functions in the basic block, and only on functions that are not named `main` nor have the prefix `no_opt_` attached to their name. In addition, there are a multitude of `isa`-style functions at in this file, which are used on the Rust side to check instruction type. These `isa` functions are used because the Rust LLVM-Core library `isa` functions do not return booleans, instead returning `LLVMValueRefs`, which one cannot branch on.
+
+The heart of the Diospyros.cpp finds __runs__ of vectorizable instructions, which are then sent to the Diospyros rewriter. Vectorible instructions are instructions that are containing `FAdd`, `FSub`, `FMul`, `FDiv` or `FNeg` instruction types. Runs of vectorizable instructions are consecutive vectorizable instructions that occur before a `StoreInst` is detected in the basic block, or before a `LoadInst` is detected in the basic block. The first condition, to be before a `StoreInst`, is because the store may use the result of the vectorized computation. The second condition, to be before a `LoadInst`, is because the `load` may alias with a `store`, causing a read-write conflict. After a run is found, it is sent via the `optimize` function to be optimized by the Rust-side of the pass.
+
 ## LoadStoreMovement.cpp
 
 Load Store Movement moves loads forward towards the beginning of a basic block, and stores backwards, towards the end of a basic block. Load store movement depends heavily on alias analysis. As a result, alias analysis is required to be run **before** the load store movement pass, as the load store movement pass repeatedly queries the alias analysis. Load store movement only occurs to functions that are not named `main` nor have the prefix `no_opt_` attached to their name.
