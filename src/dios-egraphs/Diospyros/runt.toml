@@ -1,6 +1,0 @@
-ver = "0.3.1"
-
-[[tests]]
-name = "llvm-diospyros tests"
-paths = [ "llvm-tests/*.c" ]
-cmd = "bash runt.sh {}"

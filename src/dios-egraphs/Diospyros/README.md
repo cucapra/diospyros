@@ -7,6 +7,8 @@ This directory contains an experimental [LLVM][] pass that optimizes programs us
 To get started, you will need **LLVM 11.x.x**.
 Using [Homebrew][] on macOS, for example, try `brew install llvm@11` to get the right version.
 
+You will also need Rust, for the main Diospyros library, and a version of Python3, for testing using [turnt][].
+
 Because our Rust library relies on [the `llvm-sys` crate][llvm-sys], you will need an existing installation of `llvm-config` on your `$PATH`.
 To use a Homebrew-installed LLVM, for example, you may need something like this:
 
@@ -21,47 +23,43 @@ Add a file `.cargo/config` here, in this directory, with these [contents](https:
       "-C", "link-arg=dynamic_lookup",
     ]
 
-Then, build the pass library with:
+Further, add a build directory in your current directory with the command:
+
+    $ mkdir build
+
+If you would like, you can build the pass library with:
 
     $ cargo build
 
+Otherwise, running with any of the commands in the next section should also work.
+
+Finally, note that the code for the Diospyros pass, in directory,  `dios-egraphs`,  must be in the directory immediately above the current one you are in, for the LLVM pass to build properly.
+
 ## Run the Pass
 
-To build and run the [Clang][] pass on a test file, use this Makefile command:
-
-    $ make run test=llvm-tests/a.c
-
-where `llvm-tests/a.c` is the path to any test file.
-
-To build and run the Clang pass, with optimization, use the Makefile command:
+To build and run the [Clang][] pass, with Diospyros, use the Makefile command:
 
     $ make run-opt test=llvm-tests/a.c
 
-where `llvm-tests/a.c` is the path to any test file.
+where `llvm-tests/a.c` is the path to any test file, for insstance `c-tests/add.c`.
 
-To build and see emitted LLVM IR code, , with optimization, use the Makefile command:
+To build and run the [Clang][] pass, with Diospyros printing out the vectorization choices, use the Makefile command:
 
-$ make run-opt test=llvm-tests/a.c
+    $ make print-opt test=llvm-tests/a.c
 
-where, again, `llvm-tests/a.c` is the path to any test file.
+To build and run the [Clang][] pass, with no usage of Diospyros, use the Makefile command:
 
-To emit the generated LLVM IR code, either unoptimized or optimized:
+    $ make no-opt test=llvm-tests/a.c
 
-    $ make emit test=llvm-tests/a.c
-    $ make emit-o2 test=llvm-tests/a.c
-
-
-To build, run the [Clang][] pass, and the run the associated program `./a.out`, run:
-
-    $ make run-out test=llvm-tests/a.c
+To build and see emitted LLVM IR code, run any of the above build commands for the file you are interested in, then look in the `build` directory and open the `dce.ll` file, which is the final pre-executable IR code file.
 
 To run all the tests, run:
 
+    $ turnt c-tests/*.c
+
+Or alternately:
+
     $ make test
-
-To run all tests and get output, run:
-
-    $ make run-all
 
 To set up macOS settings, run:
 
@@ -73,19 +71,19 @@ To clean the repository of build files, run:
 
 ## Testing
 
-Test files provided in the llvm-tests/ folder can be run with [Runt][]. To install or update Runt: 
+Test files provided in the `c-tests/` folder can be run with [turnt][]. To install or update Turnt, run the command:
 
-    $ cargo install runt
+    $ pip3 install --user turnt
 
 Then, ensure that the test files produce the right output with:
 
-    $ runt
+    $ turnt c-tests/*.c
 
-You can also pass the `--diff` flag to compare your output with the `.expect` files.
+You can also pass the `--diff` flag to compare your output with the `.expect` files, and use the `--save` flag to save new `.expect` files.
 
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
 [llvm-sys]: https://crates.io/crates/llvm-sys
 [homebrew]: https://brew.sh
-[runt]: https://github.com/rachitnigam/runt
+[turnt]: https://github.com/cucapra/turnt
