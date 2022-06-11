@@ -81,6 +81,15 @@ Then, ensure that the test files produce the right output with:
 
 You can also pass the `--diff` flag to compare your output with the `.expect` files, and use the `--save` flag to save new `.expect` files.
 
+## Measuring Runtime
+
+The efficiency of the compiled test programs can be measured and compared using `runtime.py`. Pass in a test suite like so:
+
+    $ python3 runtime.py c-tests
+
+    $ python3 runtime.py polybench-tests
+
+The produced plots of runtimes can be found in the `runtimes/` directory. The file compiled using our custom Diospyros LLVM pass is labeled "llvm-pass". The file compiled using an unoptimized Clang call is labeled "no-opt", whereas "O2-opt" uses O2 optimization.
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org
