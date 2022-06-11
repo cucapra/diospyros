@@ -83,13 +83,19 @@ You can also pass the `--diff` flag to compare your output with the `.expect` fi
 
 ## Measuring Runtime
 
-The efficiency of the compiled test programs can be measured and compared using `runtime.py`. Pass in a test suite like so:
+The efficiency of the compiled test programs can be measured and compared using `runtime.py`. You can modify how many runs of the file you'd like in the `main()` function. 
+
+Pass in a test suite like so:
 
     $ python3 runtime.py c-tests
 
     $ python3 runtime.py polybench-tests
 
 The produced plots of runtimes can be found in the `runtimes/` directory. The file compiled using our custom Diospyros LLVM pass is labeled "llvm-pass". The file compiled using an unoptimized Clang call is labeled "no-opt", whereas "O2-opt" uses O2 optimization.
+
+When running the script on Gorgonzola, you'll need a developer toolset:
+
+    $ scl enable devtoolset-8 -- python3 runtime.py c-tests
 
 [llvm]: https://llvm.org
 [clang]: https://clang.llvm.org

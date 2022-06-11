@@ -125,8 +125,7 @@ def iter_poly(direc, command, N):
 
 def main():
   subprocess.run(["cargo", "build"])
-  print(sys.argv[1])
-  if sys.argv == []:
+  if len(sys.argv) == 1:
     print("Please indicate test suite.")
     sys.exit()
     
