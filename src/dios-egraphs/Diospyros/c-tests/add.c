@@ -2,7 +2,8 @@
 #include <stdio.h>
 #define SIZE 4
 
-void sum(float a_in[SIZE], float b_in[SIZE], float c_out[SIZE]) {
+void sum(float a_in[restrict SIZE], float b_in[restrict SIZE],
+         float c_out[restrict SIZE]) {
     c_out[0] = a_in[0] + b_in[0];
     c_out[1] = a_in[1] + b_in[1];
     c_out[2] = a_in[2] + b_in[2];

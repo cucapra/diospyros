@@ -5,11 +5,14 @@
 #include <vector>
 
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
@@ -27,6 +30,7 @@ struct LoadStoreMovementPass : public FunctionPass {
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
         AU.addRequired<AAResultsWrapperPass>();
+        AU.addRequired<BasicAAWrapperPass>();
     }
 
     /**
@@ -34,6 +38,7 @@ struct LoadStoreMovementPass : public FunctionPass {
      */
     void rewrite_loads(Function &F) {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+
         for (auto &B : F) {
             // Grab all instructions
             std::vector<Instruction *> all_instrs = {};
@@ -51,7 +56,7 @@ struct LoadStoreMovementPass : public FunctionPass {
 
                 // Place any non-Load Instructions at the end of the list of
                 // instructions
-                if (!isa<LoadInst>(instr)) {
+                if (!(isa<LoadInst>(instr) || isa<GEPOperator>(instr))) {
                     final_instrs_vec.push_back(instr);
                     continue;
                 }
@@ -125,14 +130,38 @@ struct LoadStoreMovementPass : public FunctionPass {
                     if (prior_instr->mayReadOrWriteMemory()) {
                         Value *prior_addr = NULL;
                         if (isa<LoadInst>(prior_instr)) {
-                            prior_addr = prior_instr->getOperand(0);
+                            prior_addr = dyn_cast<LoadInst>(prior_instr)
+                                             ->getPointerOperand();
+                            // prior_addr = prior_instr->getOperand(0);
                         } else if (isa<StoreInst>(prior_instr)) {
-                            prior_addr = prior_instr->getOperand(1);
+                            prior_addr = dyn_cast<StoreInst>(prior_instr)
+                                             ->getPointerOperand();
+                            // prior_addr = prior_instr->getOperand(1);
                         } else {
                             throw "Unmatched Instruction Type";
                         }
-                        Value *load_addr = load_instr->getOperand(0);
-                        if (!AA->isNoAlias(load_addr, prior_addr)) {
+                        Value *load_addr = dyn_cast<Value>(load_instr);
+                        if (isa<LoadInst>(load_instr)) {
+                            load_addr = dyn_cast<LoadInst>(load_instr)
+                                            ->getPointerOperand();
+                            // load_addr = load_instr->getOperand(0);
+                        }
+                        assert(load_addr != NULL);
+                        if (!AA->isNoAlias(
+                                load_addr,
+                                LocationSize::precise(
+                                    load_addr->getType()
+                                        ->getPrimitiveSizeInBits()),
+                                prior_addr,
+                                LocationSize::precise(
+                                    prior_addr->getType()
+                                        ->getPrimitiveSizeInBits())) ||
+                            AA->isMustAlias(
+                                load_addr,
+                                prior_addr)) {  // IDK WTF is happening, but
+                                                // apparently, the same pointers
+                                                // that mod / ref causes no
+                                                // alias?!
                             final_instrs_vec.insert(
                                 final_instrs_vec.begin() + insertion_offset,
                                 load_instr);
@@ -141,6 +170,7 @@ struct LoadStoreMovementPass : public FunctionPass {
                     }
                     // Otherwise, keep pushing back the load instruction
                     --insertion_offset;
+                    assert(insertion_offset >= 0);
                 }
             }
 
@@ -249,7 +279,7 @@ struct LoadStoreMovementPass : public FunctionPass {
 
                 // Place any non-Load Instructions at the end of the list of
                 // instructions
-                if (!isa<StoreInst>(instr)) {
+                if (!(isa<StoreInst>(instr) || isa<GEPOperator>(instr))) {
                     final_instrs_vec.push_back(instr);
                     continue;
                 }
@@ -296,6 +326,30 @@ struct LoadStoreMovementPass : public FunctionPass {
                         break;
                     }
 
+                    // If the prior instruction is used in the store's
+                    // arguments, do not push it back
+                    // int num_operands = store_instr->uses();
+                    bool break_while = false;
+                    // https://stackoverflow.com/questions/35370195/llvm-difference-between-uses-and-user-in-instruction-or-value-classes
+                    for (auto U : store_instr->users()) {
+                        if (auto use_instr = dyn_cast<Instruction>(U)) {
+                            for (Instruction *older_instr : final_instrs_vec) {
+                                if (use_instr == older_instr) {
+                                    final_instrs_vec.insert(
+                                        final_instrs_vec.begin() +
+                                            insertion_offset,
+                                        store_instr);
+                                    break_while = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (break_while) {
+                        break;
+                    }
+
                     // If the prior instruction alias with the store
                     // instruction, do not push the store back
                     if (prior_instr->mayReadOrWriteMemory()) {
@@ -308,7 +362,16 @@ struct LoadStoreMovementPass : public FunctionPass {
                             throw "Unmatched Instruction Type";
                         }
                         Value *store_addr = store_instr->getOperand(1);
-                        if (!AA->isNoAlias(store_addr, prior_addr)) {
+                        if (!AA->isNoAlias(
+                                store_addr,
+                                LocationSize::precise(
+                                    store_addr->getType()
+                                        ->getPrimitiveSizeInBits()),
+                                prior_addr,
+                                LocationSize::precise(
+                                    prior_addr->getType()
+                                        ->getPrimitiveSizeInBits())) ||
+                            AA->isMustAlias(store_addr, prior_addr)) {
                             final_instrs_vec.insert(
                                 final_instrs_vec.begin() + insertion_offset,
                                 store_instr);
@@ -317,6 +380,7 @@ struct LoadStoreMovementPass : public FunctionPass {
                     }
                     // Otherwise, keep pushing back the str instruction
                     --insertion_offset;
+                    assert(insertion_offset >= 0);
                 }
             }
 
@@ -428,5 +492,11 @@ static void registerLoadStoreMovementPass(const PassManagerBuilder &,
                                           legacy::PassManagerBase &PM) {
     PM.add(new LoadStoreMovementPass());
 }
+
+static RegisterPass<LoadStoreMovementPass> X("lsmovement",
+                                             "Load Store Movement Pass",
+                                             false /* Only looks at CFG */,
+                                             true /* Analysis Pass */);
+
 static RegisterStandardPasses RegisterMyPass(
     PassManagerBuilder::EP_EarlyAsPossible, registerLoadStoreMovementPass);

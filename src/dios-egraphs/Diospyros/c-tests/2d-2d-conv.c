@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 
 #define I_ROWS 2
 #define I_COLS 2
@@ -8,8 +8,9 @@
 #define O_ROWS ((I_ROWS + F_ROWS) - 1)
 #define O_COLS ((I_COLS + F_COLS) - 1)
 
-void convolution(float mat_in[I_ROWS][I_COLS], float f_in[F_ROWS][F_COLS],
-                 float mat_out[O_ROWS][O_COLS]) {
+void convolution(float mat_in[restrict I_ROWS][I_COLS],
+                 float f_in[restrict F_ROWS][F_COLS],
+                 float mat_out[restrict O_ROWS][O_COLS]) {
     for (int outRow = 0; outRow < O_ROWS; outRow++) {
         for (int outCol = 0; outCol < O_COLS; outCol++) {
             for (int fRow = 0; fRow < F_ROWS; fRow++) {

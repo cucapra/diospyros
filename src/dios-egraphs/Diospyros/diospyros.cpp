@@ -36,8 +36,8 @@ llvm::cl::opt<bool> RunOpt("r", llvm::cl::desc("Enable Egg Optimization."));
 llvm::cl::alias RunOptAlias("opt", llvm::cl::desc("Alias for -r"),
                             llvm::cl::aliasopt(RunOpt));
 
-llvm::cl::opt<bool> PrintOpt("p", llvm::cl::desc("Print Egg Optimization."));
-llvm::cl::alias PrintOptAlias("print", llvm::cl::desc("Alias for -p"),
+llvm::cl::opt<bool> PrintOpt("z", llvm::cl::desc("Print Egg Optimization."));
+llvm::cl::alias PrintOptAlias("print", llvm::cl::desc("Alias for -z"),
                               llvm::cl::aliasopt(PrintOpt));
 
 extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
@@ -499,9 +499,15 @@ bool can_vectorize(Value *value) {
         return true;
     } else if (instr->getOpcode() == Instruction::FNeg) {
         return true;
-    } else if (isa_sqrt32(wrap(instr))) {
-        return true;
     }
+    //  else if (isa<LoadInst>(instr)) {
+    //     return true;
+    // } else if (isa<StoreInst>(instr)) {
+    //     return true;
+    // }
+    // else if (isa_sqrt32(wrap(instr))) {
+    //     return true;
+    // }
     return false;
 }
 
@@ -548,7 +554,7 @@ struct DiospyrosPass : public FunctionPass {
                 if (can_vectorize(val) && !vectorizable_flag) {
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
-                    } 
+                    }
                     vectorizable_flag = true;
                     chunk_vector = {wrap(val)};
                 } else if (can_vectorize(val) && vectorizable_flag) {
@@ -558,7 +564,7 @@ struct DiospyrosPass : public FunctionPass {
                 } else if (!can_vectorize(val) && vectorizable_flag) {
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
-                    } 
+                    }
                     vectorizable_flag = false;
                     chunk_vector = {wrap(val)};
                 } else {
@@ -667,5 +673,10 @@ static void registerDiospyrosPass(const PassManagerBuilder &,
                                   legacy::PassManagerBase &PM) {
     PM.add(new DiospyrosPass());
 }
+
+static RegisterPass<DiospyrosPass> X("diospyros", "Diospyros Pass",
+                                     false /* Only looks at CFG */,
+                                     true /* Analysis Pass */);
+
 static RegisterStandardPasses RegisterMyPass(
     PassManagerBuilder::EP_EarlyAsPossible, registerDiospyrosPass);
