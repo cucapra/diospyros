@@ -38,7 +38,11 @@ define_language! {
         // Vector with all literals
         "LitVec" = LitVec(Box<[Id]>),
 
+        // Get is a read of memory
         "Get" = Get([Id; 2]),
+
+        // Set is a modification of memory
+        "Set" = Set([Id; 3]),
 
         // Used for partitioning and recombining lists
         "Concat" = Concat([Id; 2]),
@@ -57,6 +61,12 @@ define_language! {
 
         // MAC takes 3 lists: acc, v1, v2
         "VecMAC" = VecMAC([Id; 3]),
+
+        // VecLoad takes 2 lists: base address vector and offset vector
+        "VecLoad" = VecLoad([Id; 2]),
+
+        // VecStore takes 2 lists: base address vector and offset vector
+        "VecStore" = VecStore([Id; 3]),
 
         // Info specific to register
         // RegInfo(egg::Symbol),

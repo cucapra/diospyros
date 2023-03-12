@@ -13,8 +13,9 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
     fn cost<C>(&mut self, enode: &VecLang, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
-    {   
+    {
         const NO_OPTIMIZATION: f64 = 0.0;
+        const VECTORIZED_MEMORY_ACCESS: f64 = 0.0001;
         const LITERAL: f64 = 0.001;
         const STRUCTURE: f64 = 0.1;
         const VEC_OP: f64 = 1.;
@@ -22,7 +23,13 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
         const BIG: f64 = 100.0;
         let op_cost = match enode {
             // No Optimization case for testing purposes
-            VecLang::NoOptVec(..) => NO_OPTIMIZATION, 
+            VecLang::NoOptVec(..) => NO_OPTIMIZATION,
+
+            // Vectorized Memory Accesses are cheaper than individual memory loads and stores
+            // Note: This assumes that masked-gathers or masked-scattters to vectors or memory
+            // are implemented on the target, and are cheap, according to the LLVM cost model
+            VecLang::VecLoad(..) => VECTORIZED_MEMORY_ACCESS,
+            VecLang::VecStore(..) => VECTORIZED_MEMORY_ACCESS,
 
             // You get literals for extremely cheap
             VecLang::Num(..) => LITERAL,
@@ -30,6 +37,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::Arg(..) => LITERAL,
             VecLang::Symbol(..) => LITERAL,
             VecLang::Get(..) => LITERAL,
+            VecLang::Set(..) => LITERAL,
 
             // And list structures for quite cheap
             VecLang::List(..) => STRUCTURE,
