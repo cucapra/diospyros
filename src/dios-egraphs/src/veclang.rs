@@ -10,6 +10,12 @@ define_language! {
         // Argument points to a argument, denoted by a number
         Arg(u32),
 
+        Gep(u32),
+
+        // Load is a read of memory
+        "Load" = Load([Id; 1]),
+
+
         // Id is a key to identify EClasses within an EGraph, represents
         // children nodes
         "+" = Add([Id; 2]),
@@ -38,7 +44,6 @@ define_language! {
         // Vector with all literals
         "LitVec" = LitVec(Box<[Id]>),
 
-        // Get is a read of memory
         "Get" = Get([Id; 2]),
 
         // Set is a modification of memory
@@ -62,8 +67,7 @@ define_language! {
         // MAC takes 3 lists: acc, v1, v2
         "VecMAC" = VecMAC([Id; 3]),
 
-        // VecLoad takes 2 lists: base address vector and offset vector
-        "VecLoad" = VecLoad([Id; 2]),
+        "VecLoad" = VecLoad([Id; 4]),
 
         // VecStore takes 2 lists: base address vector and offset vector
         "VecStore" = VecStore([Id; 3]),

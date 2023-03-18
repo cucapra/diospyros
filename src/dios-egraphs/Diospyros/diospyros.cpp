@@ -499,10 +499,12 @@ bool can_vectorize(Value *value) {
         return true;
     } else if (instr->getOpcode() == Instruction::FNeg) {
         return true;
+    } else if (isa<LoadInst>(instr)) {
+        return true;
+    } else if (isa<GEPOperator>(instr)) {
+        return true;
     }
-    //  else if (isa<LoadInst>(instr)) {
-    //     return true;
-    // } else if (isa<StoreInst>(instr)) {
+    // else if (isa<StoreInst>(instr)) {
     //     return true;
     // }
     // else if (isa_sqrt32(wrap(instr))) {
@@ -585,7 +587,10 @@ struct DiospyrosPass : public FunctionPass {
                 // optimixe on
                 bool has_vectorizable_instrs = false;
                 for (auto &instr : chunk_vector) {
-                    if (can_vectorize(unwrap(instr))) {
+                    if (can_vectorize(unwrap(instr)) &&
+                        !isa<GEPOperator>(unwrap(instr)) &&
+                        !isa<LoadInst>(unwrap(instr)) &&
+                        !isa<StoreInst>(unwrap(instr))) {
                         has_vectorizable_instrs = true;
                     }
                 }
@@ -624,6 +629,9 @@ struct DiospyrosPass : public FunctionPass {
                 // instruction"
                 int insert_pos = 0;
                 bool has_seen_vectorizable = false;
+                for (auto chunk_instr : chunk_vector) {
+                    errs() << *unwrap(chunk_instr) << "\n";
+                }
                 for (int i = 0; i < chunk_vector.size(); i++) {
                     if (can_vectorize(unwrap(chunk_vector[i]))) {
                         has_seen_vectorizable = true;

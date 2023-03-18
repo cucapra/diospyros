@@ -84,7 +84,7 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
     memcpy(R, A, sizeof(float) * SIZE * SIZE);
 
     // Build identity matrix of size SIZE * SIZE
-    float *I = (float *)calloc(sizeof(float), SIZE * SIZE);
+    float *I = (float *)calloc(SIZE * SIZE, sizeof(float));
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             I[i * SIZE + j] = (i == j);
@@ -95,8 +95,8 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float *x = (float *)calloc(sizeof(float), m);
-        float *e = (float *)calloc(sizeof(float), m);
+        float *x = (float *)calloc(m, sizeof(float));
+        float *e = (float *)calloc(m, sizeof(float));
         for (int i = 0; i < m; i++) {
             int row = k + i;
             x[i] = R[row * SIZE + k];
@@ -105,8 +105,8 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
 
         float alpha = -sgn(x[0]) * naive_norm(x, m);
 
-        float *u = (float *)calloc(sizeof(float), m);
-        float *v = (float *)calloc(sizeof(float), m);
+        float *u = (float *)calloc(m, sizeof(float));
+        float *v = (float *)calloc(m, sizeof(float));
         for (int i = 0; i < m; i++) {
             u[i] = x[i] + alpha * e[i];
         }
@@ -115,7 +115,7 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
             v[i] = u[i] / (norm_u + 0.00001f);
         }
 
-        float *q_min = (float *)calloc(sizeof(float), m * m);
+        float *q_min = (float *)calloc(m * m, sizeof(float));
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < m; j++) {
                 float q_min_i = ((i == j) ? 1.0f : 0.0f) - 2 * v[i] * v[j];
@@ -123,7 +123,7 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
             }
         }
 
-        float *q_t = (float *)calloc(sizeof(float), SIZE * SIZE);
+        float *q_t = (float *)calloc(SIZE * SIZE, sizeof(float));
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 float q_t_i;
@@ -140,7 +140,7 @@ void naive_fixed_qr_decomp(float *A, float *Q, float *R) {
             memcpy(Q, q_t, sizeof(float) * SIZE * SIZE);  // Q = q_t
             naive_fixed_matrix_multiply(q_t, A, R);       // R = q_t * A
         } else {
-            float *res = (float *)calloc(sizeof(float), SIZE * SIZE);
+            float *res = (float *)calloc(SIZE * SIZE, sizeof(float));
             naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
             memcpy(Q, res, sizeof(float) * SIZE * SIZE);
             naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
@@ -160,7 +160,7 @@ void no_opt_naive_fixed_qr_decomp(float *A, float *Q, float *R) {
     memcpy(R, A, sizeof(float) * SIZE * SIZE);
 
     // Build identity matrix of size SIZE * SIZE
-    float *I = (float *)calloc(sizeof(float), SIZE * SIZE);
+    float *I = (float *)calloc(SIZE * SIZE, sizeof(float));
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             I[i * SIZE + j] = (i == j);
@@ -171,8 +171,8 @@ void no_opt_naive_fixed_qr_decomp(float *A, float *Q, float *R) {
     for (int k = 0; k < SIZE - 1; k++) {
         int m = SIZE - k;
 
-        float *x = (float *)calloc(sizeof(float), m);
-        float *e = (float *)calloc(sizeof(float), m);
+        float *x = (float *)calloc(m, sizeof(float));
+        float *e = (float *)calloc(m, sizeof(float));
         for (int i = 0; i < m; i++) {
             int row = k + i;
             x[i] = R[row * SIZE + k];
@@ -181,8 +181,8 @@ void no_opt_naive_fixed_qr_decomp(float *A, float *Q, float *R) {
 
         float alpha = -no_opt_sgn(x[0]) * no_opt_naive_norm(x, m);
 
-        float *u = (float *)calloc(sizeof(float), m);
-        float *v = (float *)calloc(sizeof(float), m);
+        float *u = (float *)calloc(m, sizeof(float));
+        float *v = (float *)calloc(m, sizeof(float));
         for (int i = 0; i < m; i++) {
             u[i] = x[i] + alpha * e[i];
         }
@@ -191,7 +191,7 @@ void no_opt_naive_fixed_qr_decomp(float *A, float *Q, float *R) {
             v[i] = u[i] / (norm_u + 0.00001f);
         }
 
-        float *q_min = (float *)calloc(sizeof(float), m * m);
+        float *q_min = (float *)calloc(m * m, sizeof(float));
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < m; j++) {
                 float q_min_i = ((i == j) ? 1.0f : 0.0f) - 2 * v[i] * v[j];
@@ -199,7 +199,7 @@ void no_opt_naive_fixed_qr_decomp(float *A, float *Q, float *R) {
             }
         }
 
-        float *q_t = (float *)calloc(sizeof(float), SIZE * SIZE);
+        float *q_t = (float *)calloc(SIZE * SIZE, sizeof(float));
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 float q_t_i;
@@ -213,10 +213,10 @@ void no_opt_naive_fixed_qr_decomp(float *A, float *Q, float *R) {
         }
 
         if (k == 0) {
-            memcpy(Q, q_t, sizeof(float) * SIZE * SIZE);  // Q = q_t
-            no_opt_naive_fixed_matrix_multiply(q_t, A, R);       // R = q_t * A
+            memcpy(Q, q_t, sizeof(float) * SIZE * SIZE);    // Q = q_t
+            no_opt_naive_fixed_matrix_multiply(q_t, A, R);  // R = q_t * A
         } else {
-            float *res = (float *)calloc(sizeof(float), SIZE * SIZE);
+            float *res = (float *)calloc(SIZE * SIZE, sizeof(float));
             no_opt_naive_fixed_matrix_multiply(q_t, Q, res);  // R = q_t * A
             memcpy(Q, res, sizeof(float) * SIZE * SIZE);
             no_opt_naive_fixed_matrix_multiply(q_t, R, res);  // R = q_t * A
@@ -256,7 +256,7 @@ int main(void) {
             assert(fabs(expectedQ[i] - Q[i]) < DELTA);
         }
     }
-    
+
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             printf("R Output: %f\n", R[i * SIZE + j]);

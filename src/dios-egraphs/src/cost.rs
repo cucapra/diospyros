@@ -38,6 +38,8 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::Symbol(..) => LITERAL,
             VecLang::Get(..) => LITERAL,
             VecLang::Set(..) => LITERAL,
+            VecLang::Load(..) => LITERAL,
+            VecLang::Gep(..) => LITERAL,
 
             // And list structures for quite cheap
             VecLang::List(..) => STRUCTURE,

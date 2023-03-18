@@ -465,6 +465,16 @@ struct LoadStoreMovementPass : public FunctionPass {
         }
     }
 
+    // Move All Bitcasts as early as possible, avoiding moving instructions
+    // by removing dependencies. The idea behind this is to move bitcasts
+    // out of the way so that vectorization can occur properlu.
+    void rewrite_bitcasts(Function &F) {
+        for (auto &B : F) {
+            for (auto &I : B) {
+            }
+        }
+    }
+
     virtual bool runOnFunction(Function &F) override {
         /**
          * In this pass, we walk backwards finding the first load from the
@@ -476,6 +486,8 @@ struct LoadStoreMovementPass : public FunctionPass {
              F.getName().substr(0, NO_OPT_PREFIX.size()) == NO_OPT_PREFIX)) {
             return false;
         }
+        // Might want to iterate to convergence
+        // first move bitcasts
         rewrite_loads(F);
         rewrite_stores(F);
 

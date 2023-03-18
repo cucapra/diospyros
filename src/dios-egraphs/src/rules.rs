@@ -158,8 +158,8 @@ pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
     // Vector rules
     if !no_vec {
         rules.extend(vec![
-            // Get load fusion rule
-            rw!("vec-load-gets"; "(Vec (Get ?a0 ?b0) (Get ?a1 ?b1) (Get ?a2 ?b2) (Get ?a3 ?b3))" => "(VecLoad (Vec ?a0 ?a1 ?a2 ?a3) (Vec ?b0 ?b1 ?b2 ?b3))"),
+            // Load load fusion rule
+            rw!("vec-load-Loads"; "(Vec (Load ?a0) (Load ?a1) (Load ?a2) (Load ?a3))" => "(VecLoad ?a0 ?a1 ?a2 ?a3)"),
             // Set store fusion rule
             rw!("vec-store-sets"; "(Vec (Set ?a0 ?b0 ?c0) (Set ?a1 ?b1 ?c1) (Set ?a2 ?b2 ?c2) (Set ?a3 ?b3 ?c3))" => "(VecStore (Vec ?a0 ?a1 ?a2 ?a3) (Vec ?b0 ?b1 ?b2 ?b3) (Vec ?c0 ?c1 ?c2 ?c3))"),
             // Special MAC fusion rule

@@ -16,3 +16,4 @@ Cargo.lock
 .cargo
 .vscode
 polybench-tests/
+notes/
