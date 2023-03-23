@@ -67,7 +67,7 @@ pub fn run(
         .with_iter_limit(10_000)
         .run(&rules);
 
-    // print reason to STDERR.
+    // print reason to STDERR
     eprintln!(
         "Stopped after {} iterations, reason: {:?}",
         runner.iterations.len(),
@@ -161,7 +161,7 @@ pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
             // Load load fusion rule
             rw!("vec-load-Loads"; "(Vec (Load ?a0) (Load ?a1) (Load ?a2) (Load ?a3))" => "(VecLoad ?a0 ?a1 ?a2 ?a3)"),
             // Set store fusion rule
-            rw!("vec-store-sets"; "(Vec (Set ?a0 ?b0 ?c0) (Set ?a1 ?b1 ?c1) (Set ?a2 ?b2 ?c2) (Set ?a3 ?b3 ?c3))" => "(VecStore (Vec ?a0 ?a1 ?a2 ?a3) (Vec ?b0 ?b1 ?b2 ?b3) (Vec ?c0 ?c1 ?c2 ?c3))"),
+            rw!("vec-store-sets"; "(Vec (Store ?a0 ?b0) (Store ?a1 ?b1) (Store ?a2 ?b2) (Store ?a3 ?b3))" => "(VecStore (Vec ?a0 ?a1 ?a2 ?a3) ?b0 ?b1 ?b2 ?b3)"),
             // Special MAC fusion rule
             rw!("vec-mac-add-mul";
                 "(VecAdd ?v0 (VecMul ?v1 ?v2))"

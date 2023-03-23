@@ -55,9 +55,9 @@ void fft(float real_in[SIZE], float img_in[SIZE], float real_twid_in[SIZE / 2],
     }
 }
 
-void no_opt_fft(float real_in[SIZE], float img_in[SIZE], float real_twid_in[SIZE / 2],
-         float img_twid_in[SIZE / 2], float real_out[SIZE],
-         float img_out[SIZE]) {
+void no_opt_fft(float real_in[SIZE], float img_in[SIZE],
+                float real_twid_in[SIZE / 2], float img_twid_in[SIZE / 2],
+                float real_out[SIZE], float img_out[SIZE]) {
     int even = 0;
     int odd = 0;
     int log = 0;
@@ -98,7 +98,6 @@ void no_opt_fft(float real_in[SIZE], float img_in[SIZE], float real_twid_in[SIZE
         log += 1;
     }
 }
-
 
 int main(void) {
     // time_t t = time(NULL);
@@ -150,7 +149,8 @@ int main(void) {
     }
 
     fft(real_in, img_in, real_twid_in, img_twid_in, real_out, img_out);
-    no_opt_fft(expected_real_in, expected_img_in, expected_real_twid_in, expected_img_twid_in, expected_real_out, expected_img_out);
+    no_opt_fft(expected_real_in, expected_img_in, expected_real_twid_in,
+               expected_img_twid_in, expected_real_out, expected_img_out);
 
     for (int i = 0; i < SIZE; i++) {
         printf("Real Out Output: %f\n", real_out[i]);

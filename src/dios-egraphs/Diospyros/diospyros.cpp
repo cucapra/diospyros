@@ -9,9 +9,13 @@
 #include <tuple>
 #include <vector>
 
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instruction.h"
@@ -137,6 +141,13 @@ extern "C" int llvm_index(LLVMValueRef val, int index) {
         }
     }
     return gen_fresh_index();
+}
+
+/**
+ * Generates an LLVM Opaque Pointer Type wrapped as an LLVMType Ref
+ */
+extern "C" LLVMTypeRef generate_opaque_pointer(LLVMTypeRef element_type) {
+    return wrap(PointerType::getUnqual(unwrap(element_type)));
 }
 
 /**
@@ -503,14 +514,409 @@ bool can_vectorize(Value *value) {
         return true;
     } else if (isa<GEPOperator>(instr)) {
         return true;
+    } else if (isa<StoreInst>(instr)) {
+        return true;
     }
-    // else if (isa<StoreInst>(instr)) {
-    //     return true;
-    // }
     // else if (isa_sqrt32(wrap(instr))) {
     //     return true;
     // }
     return false;
+}
+
+/**
+ * True iff an instruction is a mem intrinsic.
+ */
+bool isa_mem_intrinsic(Instruction *instr) {
+    if (isa<MemSetInst>(instr)) {
+        return true;
+    } else if (isa<MemCpyInst>(instr)) {
+        return true;
+    } else if (isa<MemMoveInst>(instr)) {
+        return true;
+    } else if (isa<MemIntrinsic>(instr)) {
+        // hopefully this covers all memory intrinsics
+        return true;
+    }
+    return false;
+}
+
+/**
+ * True iff 2 addresses MIGHT alias.
+ *
+ * LLVM has a edge case when comparing the same pointer, which is why there is a
+ * MustAlias check
+ */
+bool may_alias(Value *addr1, Value *addr2, AliasAnalysis *AA) {
+    // IDK why I have to check both, but
+    // something about comparing a address
+    // to itself causes this?!~, problem
+    // first found in LSMovement
+    return (!AA->isNoAlias(addr1,
+                           LocationSize::precise(
+                               addr1->getType()->getPrimitiveSizeInBits()),
+                           addr2,
+                           LocationSize::precise(
+                               addr2->getType()->getPrimitiveSizeInBits())) ||
+            AA->isMustAlias(addr1, addr2));
+}
+
+using chunk_t = std::vector<Instruction *>;
+using chunks_t = std::vector<std::vector<Instruction *>>;
+
+/**
+ * True iff is a special type of instruction for chunking
+ *
+ */
+bool isa_special_chunk_instr(Instruction *instr) {
+    return isa_mem_intrinsic(instr) || isa<AllocaInst>(instr) ||
+           isa<PHINode>(instr) || isa<CallInst>(instr);
+}
+
+/*
+Build chunks of instructions
+
+A chunk is the longest contiguous section of instructions that ends in a
+sequence of stores.
+
+A chunk does not need to contain a store instruction.
+
+Assumes: LoadStoreMovement pass is run before the Diospyros pass
+**/
+std::vector<std::vector<Instruction *>> build_chunks(BasicBlock *B,
+                                                     AliasAnalysis *AA) {
+    std::vector<std::vector<Instruction *>> chunks = {};
+
+    bool has_seen_store = false;
+    bool stores_alias_in_chunk = false;
+    std::vector<Instruction *> curr_chunk = {};
+
+    // Track Last Stores seen
+    std::vector<Instruction *> last_stores = {};
+    for (auto &I : *B) {
+        // the first two cases are meant to create chunks with non-handled
+        // instructions
+        if (has_seen_store && isa_special_chunk_instr(&I)) {
+            if (curr_chunk.size() > 0 && !stores_alias_in_chunk) {
+                chunks.push_back(curr_chunk);
+            }
+            has_seen_store = false;
+            stores_alias_in_chunk = false;
+            curr_chunk = {};
+            last_stores = {};
+            curr_chunk.push_back(&I);
+            chunks.push_back(curr_chunk);
+            curr_chunk = {};
+        } else if (!has_seen_store && isa_special_chunk_instr(&I)) {
+            if (curr_chunk.size() > 0 && !stores_alias_in_chunk) {
+                chunks.push_back(curr_chunk);
+            }
+            has_seen_store = false;
+            stores_alias_in_chunk = false;
+            curr_chunk = {};
+            last_stores = {};
+            curr_chunk.push_back(&I);
+            chunks.push_back(curr_chunk);
+            curr_chunk = {};
+        } else if (!has_seen_store && isa<StoreInst>(I) &&
+                   !isa_special_chunk_instr(&I)) {
+            has_seen_store = true;
+            curr_chunk.push_back(&I);
+            last_stores.push_back(&I);
+        } else if (!has_seen_store && !isa<StoreInst>(I) &&
+                   !isa_special_chunk_instr(&I)) {
+            curr_chunk.push_back(&I);
+        } else if (has_seen_store && !isa<StoreInst>(I) &&
+                   !isa_special_chunk_instr(&I)) {
+            if (curr_chunk.size() > 0 && !stores_alias_in_chunk) {
+                chunks.push_back(curr_chunk);
+            }
+            has_seen_store = false;
+            stores_alias_in_chunk = false;
+            curr_chunk = {};
+            last_stores = {};
+            curr_chunk.push_back(&I);
+        } else {  // has seen store and is a store instruction
+            Value *curr_store_addr = I.getOperand(1);
+            for (auto other_store : last_stores) {
+                if (other_store != &I) {
+                    Value *other_store_addr = other_store->getOperand(1);
+                    if (may_alias(curr_store_addr, other_store_addr, AA)) {
+                        stores_alias_in_chunk = true;
+                    }
+                }
+            }
+            curr_chunk.push_back(&I);
+            last_stores.push_back(&I);
+        }
+    }
+    if (curr_chunk.size() > 0 && !stores_alias_in_chunk) {
+        chunks.push_back(curr_chunk);
+    }
+
+    // Filter to make sure no chunks are empty
+    chunks_t final_chunks = {};
+    for (auto chunk : chunks) {
+        if (!chunk.empty()) {
+            final_chunks.push_back(chunk);
+        }
+    }
+
+    for (std::size_t i = 0; i < final_chunks.size(); ++i) {
+        errs() << "This is chunk " << i << "\n";
+        for (auto instr : final_chunks[i]) {
+            errs() << *instr << "\n";
+        }
+    }
+
+    return final_chunks;
+}
+
+using ad_tree_t = std::vector<Instruction *>;
+using ad_trees_t = std::vector<ad_tree_t>;
+
+/**
+ * Recurse LLVM starts at an LLVM instruction and finds
+ * all of its arguments, and recursively so on, until
+ * either a load / number / arg is reached
+ *
+ * Non handled instructions are bailed out of by returning a failure
+ * Instructions with a load or arg that leaks into another chunk
+ * also leads to a failure bailout.
+ *
+ * Returns a Tuple (Success/Failure , Instructions accumulated)
+ */
+std::pair<bool, ad_tree_t> recurse_llvm(Value *value,
+                                        std::set<Instruction *> chunk_instrs) {
+    // Constants
+    if (isa<Constant>(value)) {
+        // DO not add constant, if i recall, constants are not llvm
+        // instructions
+        return std::make_pair(true, std::vector<Instruction *>{});
+    }
+    if (Instruction *instr = dyn_cast<Instruction>(value)) {
+        // No Longer in Chunk
+        if (chunk_instrs.count(instr) == 0) {
+            errs() << "Instruction has left the chunk\n" << *instr << "\n";
+            return std::make_pair<bool, ad_tree_t>(false, {});
+        }
+
+        // Base case instructions
+        if (isa<Argument>(instr) || isa<LoadInst>(instr)) {
+            return std::make_pair(true, std::vector<Instruction *>{instr});
+        }
+
+        // Recurse on Store Instructions
+        if (isa<StoreInst>(instr) &&
+            instr->getOperand(0)->getType()->isFloatTy()) {
+            auto [child_b, child_tree] =
+                recurse_llvm(instr->getOperand(0), chunk_instrs);
+            if (child_b) {
+                child_tree.push_back(instr);
+                return std::make_pair(true, child_tree);
+            }
+        }
+
+        // Recurse on supported unary operators OR Store Instructions
+        if (instr->getOpcode() == Instruction::FNeg) {
+            auto [child_b, child_tree] =
+                recurse_llvm(instr->getOperand(0), chunk_instrs);
+            if (child_b) {
+                child_tree.push_back(instr);
+                return std::make_pair(true, child_tree);
+            }
+        }
+
+        // Recurse on supported binary operators
+        if (instr->getOpcode() == Instruction::FAdd ||
+            instr->getOpcode() == Instruction::FSub ||
+            instr->getOpcode() == Instruction::FDiv ||
+            instr->getOpcode() == Instruction::FMul) {
+            auto [left_b, left_tree] =
+                recurse_llvm(instr->getOperand(0), chunk_instrs);
+            auto [right_b, right_tree] =
+                recurse_llvm(instr->getOperand(1), chunk_instrs);
+            if (left_b && right_b) {
+                left_tree.insert(left_tree.end(), right_tree.begin(),
+                                 right_tree.end());
+                left_tree.push_back(instr);
+                return std::make_pair(true, left_tree);
+            }
+        }
+    }
+
+    // Unhandled Instruction
+    errs() << "Unhandled Instruction\n" << *value << "\n";
+    return std::make_pair(false, std::vector<Instruction *>{});
+}
+
+/**
+ * An AD Tree is just a vector of instructions reachable from a unique store
+ * instruction
+ *
+ */
+ad_trees_t build_ad_trees(chunk_t chunk) {
+    ad_trees_t ad_trees = {};
+    std::set<Instruction *> chunk_instrs = {};
+    for (auto instr : chunk) {
+        chunk_instrs.insert(instr);
+    }
+    for (auto instr : chunk) {
+        if (isa<StoreInst>(instr)) {
+            // ad_tree_t new_tree = {};
+            auto [success_b, ad_tree] = recurse_llvm(instr, chunk_instrs);
+            if (success_b) {
+                assert(ad_tree.size() != 0);
+            }
+            if (success_b) {
+                ad_trees.push_back(ad_tree);
+            }
+        }
+    }
+    for (auto ad_tree : ad_trees) {
+        errs() << "New AD Tree\n";
+        for (auto instr : ad_tree) {
+            errs() << *instr << "\n";
+        }
+    }
+    return ad_trees;
+}
+
+/**
+ * Joins adtrees together into vecotrs of instructions
+ *
+ */
+std::vector<Instruction *> join_trees(
+    std::vector<std::vector<Instruction *>> trees_to_join) {
+    std::vector<Instruction *> final_vector = {};
+    for (auto tree : trees_to_join) {
+        final_vector.insert(final_vector.end(), tree.begin(), tree.end());
+    }
+    return final_vector;
+}
+
+/**
+ * True iff there is some load in a joined section of adtrees that MIGHT alias a
+ * store in the same tree.
+ *
+ * Load-store aliasing causes problems in some situation where you have stores
+ * as functions of the same loads, but no vectoriszation occurs, so the code is
+ * rewritten linearly, and a memory dependency is introduced
+ *
+ * From a bug in FFT.c
+ */
+chunks_t remove_load_store_alias(chunks_t chunks, AliasAnalysis *AA) {
+    chunks_t final_chunks = {};
+
+    std::vector<Value *> load_addresses = {};
+    std::vector<Value *> store_addresses = {};
+    for (auto chunk : chunks) {
+        for (auto instr : chunk) {
+            if (isa<LoadInst>(instr)) {
+                Value *load_address =
+                    dyn_cast<LoadInst>(instr)->getPointerOperand();
+                load_addresses.push_back(load_address);
+            } else if (isa<StoreInst>(instr)) {
+                Value *store_address =
+                    dyn_cast<StoreInst>(instr)->getPointerOperand();
+                store_addresses.push_back(store_address);
+            }
+        }
+        bool can_add_to_final_chunks = true;
+        for (auto load_address : load_addresses) {
+            for (auto store_address : store_addresses) {
+                if (may_alias(load_address, store_address, AA)) {
+                    can_add_to_final_chunks = false;
+                }
+            }
+        }
+        if (can_add_to_final_chunks) {
+            final_chunks.push_back(chunk);
+        }
+    }
+    return final_chunks;
+}
+
+/**
+ * Converts chunks into vectors, representing joined AD Trees
+ *
+ */
+std::vector<std::vector<Instruction *>> chunks_into_joined_trees(
+    chunks_t chunks, AliasAnalysis *AA) {
+    std::vector<std::vector<Instruction *>> trees = {};
+    for (auto chunk : chunks) {
+        ad_trees_t ad_trees = build_ad_trees(chunk);
+
+        // Join trees if the store instructions in the trees
+        // do not alias each other
+        std::vector<std::vector<Instruction *>> joinable_trees = {};
+        for (auto tree : ad_trees) {
+            // check if stores alias in the trees
+            assert(tree.size() > 0);
+            Instruction *curr_store = tree.back();
+            Value *curr_store_addr = curr_store->getOperand(1);
+            bool can_add_tree = true;
+            for (auto other_tree : joinable_trees) {
+                assert(other_tree.size() > 0);
+                Instruction *other_store = other_tree.back();
+                Value *other_store_addr = other_store->getOperand(1);
+                if (may_alias(curr_store_addr, other_store_addr, AA)) {
+                    can_add_tree = false;
+                    break;
+                }
+            }
+            if (can_add_tree) {
+                joinable_trees.push_back(tree);
+            } else {
+                assert(joinable_trees.size() > 0);
+                auto joined_trees = join_trees(joinable_trees);
+                trees.push_back(joined_trees);
+                joinable_trees = {tree};
+            }
+        }
+        if (joinable_trees.size() > 0) {
+            auto joined_trees = join_trees(joinable_trees);
+            trees.push_back(joined_trees);
+        }
+    }
+    // Do final removal of any sequences with store-load aliasing
+    return remove_load_store_alias(trees, AA);
+}
+
+/*
+Build AD Trees for each Chunk
+**/
+
+/// Map instr2ref over a vector
+std::vector<std::vector<LLVMValueRef>> instr2ref(chunks_t chunks) {
+    std::vector<std::vector<LLVMValueRef>> mapped_instrs = {};
+    for (auto chunk : chunks) {
+        std::vector<LLVMValueRef> mapped_chunk = {};
+        for (auto instr : chunk) {
+            mapped_chunk.push_back(wrap(instr));
+        }
+        mapped_instrs.push_back(mapped_chunk);
+    }
+    return mapped_instrs;
+}
+
+/**
+ * Run Optimization Procedure on Vector representing concatenated ad trees
+ *
+ */
+void optimize(std::vector<LLVMValueRef> chunk, Function &F) {
+    assert(chunk.size() != 0);
+    // Place the builder at the last instruction in the entire chunk.
+    Value *last_value = unwrap(chunk.back());
+    Instruction *last_instr = dyn_cast<Instruction>(last_value);
+    assert(last_instr != NULL);
+    IRBuilder<> builder(last_instr);
+
+    Module *mod = F.getParent();
+    LLVMContext &context = F.getContext();
+    std::vector<LLVMValueRef> restricted_instrs = {};
+    optimize(wrap(mod), wrap(&context), wrap(&builder), chunk.data(),
+             chunk.size(), restricted_instrs.data(), restricted_instrs.size(),
+             RunOpt, PrintOpt);
 }
 
 /**
@@ -523,7 +929,16 @@ struct DiospyrosPass : public FunctionPass {
     static char ID;
     DiospyrosPass() : FunctionPass(ID) {}
 
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+        AU.addRequired<AAResultsWrapperPass>();
+        AU.addRequired<BasicAAWrapperPass>();
+    }
+
     virtual bool runOnFunction(Function &F) override {
+        // We need Alias Analysis still, because it is possible groups of
+        // stores can addresses that alias.
+        AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+
         // do not optimize on main function or no_opt functions.
         if (F.getName() == MAIN_FUNCTION_NAME ||
             (F.getName().size() > NO_OPT_PREFIX.size() &&
@@ -532,8 +947,20 @@ struct DiospyrosPass : public FunctionPass {
         }
         bool has_changes = false;
         for (auto &B : F) {
-            // TODO: Consider removing as the new procedure can overcome this
-            // We skip over basic blocks without floating point types
+            auto chunks = build_chunks(&B, AA);
+            auto trees = chunks_into_joined_trees(chunks, AA);
+            auto treerefs = instr2ref(trees);
+
+            for (auto tree_chunk : treerefs) {
+                if (tree_chunk.size() != 0) {
+                    optimize(tree_chunk, F);
+                }
+            }
+        }
+        return false;
+        for (auto &B : F) {
+            // TODO: Consider removing as the new procedure can overcome
+            // this We skip over basic blocks without floating point types
             bool has_float = false;
             for (auto &I : B) {
                 if (I.getType()->isFloatTy()) {
@@ -550,9 +977,19 @@ struct DiospyrosPass : public FunctionPass {
             std::vector<std::vector<LLVMValueRef>> chunk_accumulator;
             std::vector<LLVMValueRef> chunk_vector = {};
             bool vectorizable_flag = false;
+            bool has_seen_store = false;
             for (auto &I : B) {
                 Value *val = dyn_cast<Value>(&I);
                 assert(val != NULL);
+                // When you finish seeing stores, and see some other
+                // instruction afterwards, stop the current chunk to
+                // vectorize
+                if (isa<StoreInst>(val)) {
+                    has_seen_store = true;
+                }
+                if (has_seen_store && !isa<StoreInst>(val)) {
+                    vectorizable_flag = false;
+                }
                 if (can_vectorize(val) && !vectorizable_flag) {
                     if (!chunk_vector.empty()) {
                         chunk_accumulator.push_back(chunk_vector);
@@ -583,6 +1020,11 @@ struct DiospyrosPass : public FunctionPass {
                     continue;
                 }
 
+                errs() << "Here is a chunk: \n";
+                for (auto chunk_instr : chunk_vector) {
+                    errs() << *unwrap(chunk_instr) << "\n";
+                }
+
                 // check if the chunk vector actually has instructions to
                 // optimixe on
                 bool has_vectorizable_instrs = false;
@@ -598,14 +1040,25 @@ struct DiospyrosPass : public FunctionPass {
                     continue;
                 }
 
-                // If an instruction is used multiple times outside the chunk,
-                // add it to a restricted list.
+                // check if the chunk vector has at least one store
+                bool has_store = false;
+                for (auto &instr : chunk_vector) {
+                    if (isa<StoreInst>(unwrap(instr))) {
+                        has_store = true;
+                    }
+                }
+                if (!has_store) {
+                    continue;
+                }
+
+                // If an instruction is used multiple times outside the
+                // chunk, add it to a restricted list.
                 // TODO: only consider future chunks!
                 std::vector<LLVMValueRef> restricted_instrs = {};
                 for (auto chunk_instr : chunk_vector) {
                     for (auto j = i + 1; j < chunk_accumulator.size(); ++j) {
-                        // guaranteed to be a different chunk vector ahead of
-                        // the origianl one.
+                        // guaranteed to be a different chunk vector ahead
+                        // of the origianl one.
                         bool must_restrict = false;
                         auto &other_chunk_vector = chunk_accumulator[j];
                         for (auto other_chunk_instr : other_chunk_vector) {
@@ -629,9 +1082,6 @@ struct DiospyrosPass : public FunctionPass {
                 // instruction"
                 int insert_pos = 0;
                 bool has_seen_vectorizable = false;
-                for (auto chunk_instr : chunk_vector) {
-                    errs() << *unwrap(chunk_instr) << "\n";
-                }
                 for (int i = 0; i < chunk_vector.size(); i++) {
                     if (can_vectorize(unwrap(chunk_vector[i]))) {
                         has_seen_vectorizable = true;

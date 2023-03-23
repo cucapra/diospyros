@@ -15,6 +15,8 @@ define_language! {
         // Load is a read of memory
         "Load" = Load([Id; 1]),
 
+        // Store is a write to memory
+        "Store" = Store([Id; 2]),
 
         // Id is a key to identify EClasses within an EGraph, represents
         // children nodes
@@ -69,8 +71,7 @@ define_language! {
 
         "VecLoad" = VecLoad([Id; 4]),
 
-        // VecStore takes 2 lists: base address vector and offset vector
-        "VecStore" = VecStore([Id; 3]),
+        "VecStore" = VecStore([Id; 5]),
 
         // Info specific to register
         // RegInfo(egg::Symbol),
