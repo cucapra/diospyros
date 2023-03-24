@@ -11,8 +11,9 @@
 #define MAX_FLOAT 100.00f
 #define DELTA 0.1f
 
-void matrix_multiply(float a_in[A_ROWS * A_COLS], float b_in[A_COLS * B_COLS],
-                     float c_out[A_ROWS * B_COLS]) {
+void matrix_multiply(float a_in[restrict A_ROWS * A_COLS],
+                     float b_in[restrict A_COLS * B_COLS],
+                     float c_out[restrict A_ROWS * B_COLS]) {
     for (int y = 0; y < A_ROWS; y++) {
         for (int x = 0; x < B_COLS; x++) {
             c_out[B_COLS * y + x] = 0;
@@ -60,7 +61,7 @@ int main(void) {
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
     // calculate up c_out
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10000; i++) {
         matrix_multiply(a_in, b_in, c_out);
     }
 
@@ -70,7 +71,7 @@ int main(void) {
 
     // report difference in runtime
     double diff = difftime(end, start);
-    printf("%ld milliseconds elapsed over 1000 iterations total\n",
+    printf("%ld milliseconds elapsed over 10000 iterations total\n",
            (end - start));
 
     return 0;

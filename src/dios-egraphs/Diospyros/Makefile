@@ -24,7 +24,7 @@ run-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp
 run-baseline: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
 	@$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
 	@opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
-	@$(CLANG) -emit-llvm -S -fslp-vectorize -ftree-slp-vectorize  build/opt.ll -o build/slp.ll
+	@opt -S --slp-vectorizer  build/opt.ll -o build/slp.ll
 	@opt -S --adce --dse build/slp.ll -o build/dce.ll
 	@$(CLANG) -o0 build/dce.ll -o build/final
 	@build/final
