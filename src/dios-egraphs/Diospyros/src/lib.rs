@@ -61,6 +61,24 @@ unsafe fn gen_get_idx() -> u32 {
     return GET_IDX;
 }
 
+// Map from Func Name to LLVM FUnc
+// Have to use Vec because BTReeMap is unstable at constant in Rust 1.58. New versions
+// of Rust break LLVM 11.0 so I cannot upgrade.
+static mut FUNC_NAME2LLVM_FUNC: Vec<(&str, LLVMValueRef)> = Vec::new();
+
+static FMA_NAME: &str = "llvm.fma.v4f32";
+static SCATTER: &str = "llvm.masked.scatter.v4f32.v4p0f32";
+static GATHER: &str = "llvm.masked.gather.v4f32.v4p0f32";
+
+unsafe fn get_func_llvm_value(name: &str) -> Option<LLVMValueRef> {
+    for (func_name, value) in FUNC_NAME2LLVM_FUNC.clone() {
+        if func_name == name {
+            return Some(value);
+        }
+    }
+    return None;
+}
+
 // Reference Comparison: https://www.reddit.com/r/rust/comments/2r3wjk/is_there_way_to_compare_objects_by_address_in_rust/
 // Compares whether addresses of LLVMValueRefs are the same.
 // Not the contents of the Value Refs
@@ -884,11 +902,21 @@ unsafe fn loadvec_to_llvm(
     // Output type is a 4 length vector
     let fn_type = LLVMFunctionType(vec4f_type, param_types, 4, 0 as i32);
     // Build the Vector Load Intrinsic
-    let func = LLVMAddFunction(
-        md.module,
-        b"llvm.masked.gather.v4f32.v4p0f32\0".as_ptr() as *const _,
-        fn_type,
-    );
+    let func_name = &GATHER;
+    let llvm_masked_gather_func = get_func_llvm_value(&func_name);
+
+    let func = match llvm_masked_gather_func {
+        Some(value) => value,
+        None => {
+            let new_func = LLVMAddFunction(
+                md.module,
+                b"llvm.masked.gather.v4f32.v4p0f32\0".as_ptr() as *const _,
+                fn_type,
+            );
+            FUNC_NAME2LLVM_FUNC.push((&func_name, new_func));
+            new_func
+        }
+    };
 
     // Build Arguments
 
@@ -1001,11 +1029,21 @@ unsafe fn storevec_to_llvm(
     // Output type is a void_type
     let fn_type = LLVMFunctionType(void_type, param_types, 4, 0 as i32);
     // Build the Vector Load Intrinsic
-    let func = LLVMAddFunction(
-        md.module,
-        b"llvm.masked.scatter.v4f32.v4p0f32\0".as_ptr() as *const _,
-        fn_type,
-    );
+    let func_name = &SCATTER;
+    let llvm_masked_scatter_func = get_func_llvm_value(&func_name);
+
+    let func = match llvm_masked_scatter_func {
+        Some(value) => value,
+        None => {
+            let new_func = LLVMAddFunction(
+                md.module,
+                b"llvm.masked.scatter.v4f32.v4p0f32\0".as_ptr() as *const _,
+                fn_type,
+            );
+            FUNC_NAME2LLVM_FUNC.push((&func_name, new_func));
+            new_func
+        }
+    };
 
     // Build Arguments
 
@@ -1352,7 +1390,19 @@ unsafe fn mac_to_llvm(
     let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
     // let vector_width = config::vector_width();
     // let fma_intrinsic_name = format!("llvm.fma.v{}f32\0", vector_width).as_bytes();
-    let func = LLVMAddFunction(md.module, b"llvm.fma.v4f32\0".as_ptr() as *const _, fn_type);
+
+    let func_name = &FMA_NAME;
+    let llvm_fma_func = get_func_llvm_value(&func_name);
+
+    let func = match llvm_fma_func {
+        Some(value) => value,
+        None => {
+            let new_func =
+                LLVMAddFunction(md.module, b"llvm.fma.v4f32\0".as_ptr() as *const _, fn_type);
+            FUNC_NAME2LLVM_FUNC.push((&func_name, new_func));
+            new_func
+        }
+    };
     let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
     LLVMBuildCall(md.builder, func, args, 3, b"\0".as_ptr() as *const _)
 }
