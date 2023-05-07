@@ -159,6 +159,13 @@ unsafe fn translate_unop(
     }
 }
 
+/// Calculate cost for any Egg expression.
+/// Uses a custom model that I developed, to see if an optimization should go through
+/// or not.
+pub fn calculate_cost() -> u32 {
+    return 0;
+}
+
 /// Main function to optimize: Takes in a basic block of instructions,
 /// optimizes it, and then translates it to LLVM IR code, in place.
 
@@ -682,6 +689,7 @@ unsafe fn start_translating_llvm_to_egg(
 
 unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
     return match match_llvm_op(&llvm_instr) {
+        LLVMOpType::Store => true,
         LLVMOpType::FAdd
         | LLVMOpType::FMul
         | LLVMOpType::FDiv
@@ -690,8 +698,8 @@ unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
         | LLVMOpType::Constant
         | LLVMOpType::Sqrt32
         | LLVMOpType::Load
-        | LLVMOpType::Store => true,
-        LLVMOpType::Argument | LLVMOpType::UnhandledLLVMOpCode => false,
+        | LLVMOpType::Argument
+        | LLVMOpType::UnhandledLLVMOpCode => false,
     };
 }
 
@@ -763,7 +771,7 @@ unsafe fn llvm_to_egg_main(
     let mut next_node_idx: u32 = 0;
 
     // for each final instruction, iterate backwards from that final instruction and translate to egg
-    for llvm_instr in llvm_instrs_in_chunk.iter().rev() {
+    for llvm_instr in llvm_instrs_in_chunk.iter() {
         // only start translation back if it is a "translatable instruction" and it was not translated already
         if can_start_translation_instr(*llvm_instr) // TODO: Need to DFS back from this instruction and make sure invariants for translation hold, e.g. no bitcasts somewhere down the translation tree.
             && !translation_metadata
@@ -888,6 +896,24 @@ unsafe fn loadvec_to_llvm(
         .get2gep
         .get(&gep4_id_val)
         .expect("Value of gep4 id should exist in get2gep");
+
+    // New code to handle a vector load
+    // let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(*gep1_llvm_instr));
+    // let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
+    //     md.builder,
+    //     *gep1_llvm_instr,
+    //     LLVMPointerType(
+    //         LLVMVectorType(LLVMFloatTypeInContext(md.context), 4),
+    //         address_space,
+    //     ),
+    //     b"scalar-to-vector-type-bit-cast\0".as_ptr() as *const _,
+    // );
+    // let load = LLVMBuildLoad(
+    //     md.builder,
+    //     bitcase_scalar_to_vector_type,
+    //     b"vector-load\0".as_ptr() as *const _,
+    // );
+    // return load;
 
     let vector_width = 4;
     let floatptr_type = LLVMTypeOf(*gep1_llvm_instr);
@@ -1015,6 +1041,21 @@ unsafe fn storevec_to_llvm(
         .get2gep
         .get(&gep4_id_val)
         .expect("Value of gep4 id should exist in get2gep");
+
+    // New code to handle a vector store
+    // Currently, this is the only type of store that can be generated because stores are not split.
+    let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(*gep1_llvm_instr));
+    let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
+        md.builder,
+        *gep1_llvm_instr,
+        LLVMPointerType(
+            LLVMVectorType(LLVMFloatTypeInContext(md.context), 4),
+            address_space,
+        ),
+        b"scalar-to-vector-type-bit-cast\0".as_ptr() as *const _,
+    );
+    let store = LLVMBuildStore(md.builder, llvm_val_vec, bitcase_scalar_to_vector_type);
+    return store;
 
     let vector_width = 4;
     let floatptr_type = LLVMTypeOf(*gep1_llvm_instr);

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -11,7 +12,9 @@
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -24,11 +27,13 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar/LoopUnrollPass.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 
 using namespace llvm;
 
@@ -64,6 +69,9 @@ const std::string MAIN_FUNCTION_NAME = "main";
 const std::string NO_OPT_PREFIX = "no_opt_";
 const int SQRT_OPERATOR = 3;
 const int BINARY_OPERATOR = 2;
+
+const uint32_t VECTOR_WIDTH = 4;
+const uint32_t FLOAT_SIZE_IN_BYTES = 4;
 
 /**
  * Fresh counters for temps and array generation
@@ -837,11 +845,320 @@ chunks_t remove_load_store_alias(chunks_t chunks, AliasAnalysis *AA) {
 }
 
 /**
+ * return the index to in baseOfArrayVec that store is an offset from, or
+ * NULLOPT if not matching
+ */
+int get_base_reference(StoreInst *store, std::vector<Value *> base_of_array_vec,
+                       ScalarEvolution *SE) {
+    for (int i = 0; i < base_of_array_vec.size(); i++) {
+        Value *base_array_ptr = base_of_array_vec[i];
+        assert(base_array_ptr->getType()->isPointerTy());
+        Value *store_ptr = store->getPointerOperand();
+        const SCEV *store_ptr_se = SE->getSCEV(store_ptr);
+        const SCEV *base_ptr_se = SE->getSCEV(base_array_ptr);
+        const SCEV *diff = SE->getMinusSCEV(store_ptr_se, base_ptr_se);
+        APInt min_val = SE->getSignedRangeMin(diff);
+        APInt max_val = SE->getSignedRangeMax(diff);
+        if (min_val == max_val) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Check Alignment
+inline bool is_aligned(int diff_from_base) { return diff_from_base % 16 == 0; }
+
+/**
+ * Given a group of stores trees, greedily assign the store trees into
+ * new sets of store trees such that each set is all consecutive and aligned
+ * Returns a the sets of groups of stores trees with this property.
+ */
+std::vector<ad_trees_t> group_trees(
+    ad_trees_t group_of_trees, std::map<StoreInst *, int> store_to_offset) {
+    std::vector<bool> trees_used = {};
+    for (auto _ : group_of_trees) {
+        trees_used.push_back(false);
+    }
+
+    std::vector<ad_trees_t> result = {};
+    uint32_t start_offset = 0;
+    while (std::any_of(trees_used.begin(), trees_used.end(),
+                       [](bool b) { return !b; })) {
+        // get the smallest starting offset
+        uint32_t min_offset = UINT32_MAX;
+        for (int i = 0; i < group_of_trees.size(); i++) {
+            if (trees_used[i]) {
+                continue;
+            }
+            auto tree = group_of_trees[i];
+            StoreInst *store = dyn_cast<StoreInst>(tree.back());
+            int offset = store_to_offset[store] / FLOAT_SIZE_IN_BYTES;
+            if (offset < min_offset) {
+                min_offset = offset;
+            }
+        }
+        min_offset = min_offset - (min_offset % VECTOR_WIDTH);
+        std::set<int> required_offsets = {};
+        for (int i = min_offset; i < min_offset + VECTOR_WIDTH; i++) {
+            required_offsets.emplace(i);
+        }
+        ad_trees_t current_group = {};
+        for (int i = 0; i < VECTOR_WIDTH; i++) {
+            current_group.push_back({});
+        }
+        std::set<int> current_offsets = {};
+        for (int i = 0; i < group_of_trees.size(); i++) {
+            if (trees_used[i]) {
+                continue;
+            }
+            auto tree = group_of_trees[i];
+            StoreInst *store = dyn_cast<StoreInst>(tree.back());
+            int offset = store_to_offset[store] / FLOAT_SIZE_IN_BYTES;
+            int rounded_offset = offset % 4;
+            if (required_offsets.count(offset) != 0 &&
+                current_offsets.count(offset) == 0) {
+                current_offsets.emplace(offset);
+                trees_used[i] = true;
+                current_group[rounded_offset] = tree;
+            }
+        }
+        bool can_add_result = true;
+        for (auto curr_tree : current_group) {
+            if (curr_tree.empty()) {
+                can_add_result = false;
+            }
+        }
+        if (can_add_result) {
+            result.push_back(current_group);
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Sort the stores in the ad_trees so that an aligned store
+ * is first, followed by consecutive stores
+ */
+ad_trees_t sort_ad_trees(ad_trees_t ad_trees,
+                         std::vector<Value *> base_of_array_vec,
+                         ScalarEvolution *SE) {
+    // First, group ad_trees according to the base array they belong to.
+    // If a tree does not reference a base array, exclude that tree entirely
+    std::vector<std::vector<ad_tree_t>> groups_of_trees = {};
+    for (int i = 0; i < base_of_array_vec.size(); i++) {
+        groups_of_trees.push_back({});
+    }
+
+    std::map<StoreInst *, int> store_to_base_map = {};
+    for (ad_tree_t ad_tree : ad_trees) {
+        if (ad_tree.size() != 0) {
+            if (StoreInst *store = dyn_cast<StoreInst>(ad_tree.back())) {
+                int base_ref = get_base_reference(store, base_of_array_vec, SE);
+                if (base_ref >= 0) {
+                    groups_of_trees[base_ref].push_back(ad_tree);
+                    store_to_base_map[store] = base_ref;
+                }
+            }
+        }
+    }
+
+    auto store_sorter = [=](const ad_tree_t &a, const ad_tree_t &b) {
+        StoreInst *store_a = dyn_cast<StoreInst>(a.back());
+        StoreInst *store_b = dyn_cast<StoreInst>(b.back());
+
+        // get the base references
+        Value *ref_a = base_of_array_vec[store_to_base_map.at(store_a)];
+        Value *ref_b = base_of_array_vec[store_to_base_map.at(store_b)];
+
+        // get the difference from the store to its reference
+        Value *store_a_ptr = store_a->getPointerOperand();
+        const SCEV *store_a_ptr_se = SE->getSCEV(store_a_ptr);
+        const SCEV *ref_a_ptr_se = SE->getSCEV(ref_a);
+        const SCEV *diff_a = SE->getMinusSCEV(store_a_ptr_se, ref_a_ptr_se);
+        APInt min_val_a = SE->getSignedRangeMin(diff_a);
+        APInt max_val_a = SE->getSignedRangeMax(diff_a);
+        assert(min_val_a == max_val_a);
+        int val_a = (int)max_val_a.roundToDouble();
+
+        Value *store_b_ptr = store_b->getPointerOperand();
+        const SCEV *store_b_ptr_se = SE->getSCEV(store_b_ptr);
+        const SCEV *ref_b_ptr_se = SE->getSCEV(ref_b);
+        const SCEV *diff_b = SE->getMinusSCEV(store_b_ptr_se, ref_b_ptr_se);
+        APInt min_val_b = SE->getSignedRangeMin(diff_b);
+        APInt max_val_b = SE->getSignedRangeMax(diff_b);
+        assert(min_val_b == max_val_b);
+        int val_b = (int)max_val_b.roundToDouble();
+
+        return val_a < val_b;
+    };
+
+    // Sort each group of ad_trees by the stores in each group
+    for (int i = 0; i < groups_of_trees.size(); i++) {
+        // NO IDEA WHY THIS WORKS, BUT ITERATING OVER ELEMENTS I SORTS PROPERLY
+        // BUT ITERATING OVER USING COLON DOES NOT!
+        std::sort(groups_of_trees[i].begin(), groups_of_trees[i].end(),
+                  store_sorter);
+    }
+
+    // Build a map mapping stores to their respective offsets
+    std::map<StoreInst *, int> store_to_offset = {};
+    for (auto group : groups_of_trees) {
+        // skip empty groups
+        if (group.empty()) {
+            continue;
+        }
+        for (auto tree : group) {
+            // Grab basic information about the tree
+            StoreInst *store = dyn_cast<StoreInst>(tree.back());
+            // Get base ref for the first store
+            Value *base_ref = base_of_array_vec[store_to_base_map.at(store)];
+            // get the difference from the store to its reference
+            Value *store_ptr = store->getPointerOperand();
+            const SCEV *store_ptr_se = SE->getSCEV(store_ptr);
+            const SCEV *ref_ptr_se = SE->getSCEV(base_ref);
+            const SCEV *diff = SE->getMinusSCEV(store_ptr_se, ref_ptr_se);
+            APInt min_val = SE->getSignedRangeMin(diff);
+            APInt max_val = SE->getSignedRangeMax(diff);
+            assert(min_val == max_val);
+            int offset = (int)max_val.roundToDouble();
+            store_to_offset[store] = offset;
+        }
+    }
+
+    // Grab only ad_trees that contain a 16 byte aligned reference at the
+    // beginning
+    // Also the trees must be consecutive stores, e.g. the stores must differ by
+    // 4 bytes each time
+    // Finally, split the trees into smaller subtrees of size 4
+
+    // We do this by accumulating a running sequence of ad_trees that satisfy
+    // the prerequisite conditions above
+
+    std::vector<std::vector<ad_tree_t>> pruned_groups_of_trees = {};
+    // std::vector<ad_tree_t> running_collection = {};
+    // int current_offset = -4;
+    for (auto group : groups_of_trees) {
+        // skip empty groups
+        if (group.empty()) {
+            continue;
+        }
+
+        std::vector<ad_trees_t> new_groups_of_trees =
+            group_trees(group, store_to_offset);
+        for (auto new_group : new_groups_of_trees) {
+            pruned_groups_of_trees.push_back(new_group);
+        }
+
+        // for (auto tree : group) {
+        //     // Grab basic information about the tree
+        //     StoreInst *store = dyn_cast<StoreInst>(tree.back());
+        //     // Get base ref for the first store
+        //     Value *ref_a = base_of_array_vec[store_to_base_map.at(store)];
+        //     // get the difference from the store to its reference
+        //     Value *store_a_ptr = store->getPointerOperand();
+        //     const SCEV *store_a_ptr_se = SE->getSCEV(store_a_ptr);
+        //     const SCEV *ref_a_ptr_se = SE->getSCEV(ref_a);
+        //     const SCEV *diff_a = SE->getMinusSCEV(store_a_ptr_se,
+        //     ref_a_ptr_se); APInt min_val_a = SE->getSignedRangeMin(diff_a);
+        //     APInt max_val_a = SE->getSignedRangeMax(diff_a);
+        //     assert(min_val_a == max_val_a);
+        //     int val_a = (int)max_val_a.roundToDouble();
+
+        //     // If the running collection is empty
+        //     //      If the current tree is rooted at an aligned address, add
+        //     to
+        //     //          the collection, and set the current offset
+        //     //      If the current tree is not rooted at an
+        //     //          aligned address, skip this tree. Set offset as -4
+        //     // Else if the running collection is not empty, and the length is
+        //     //      not the VECTOR WIDTH
+        //     //      Check the current offset of the tree, and if it s 4 off
+        //     the
+        //     //          past offset, add on the tree and set its offset
+        //     //      Otherwise skip this tree and clear the running
+        //     collection.
+        //     //          Set offset as -4.
+        //     // Otherwise the running collection is not empty and the length
+        //     is
+        //     //      the Vector Width
+        //     //      Remove the running collection and add it to a pruned
+        //     group
+        //     //      If the current tree is at an aligned address, add to
+        //     //          collection. Set current offset
+        //     //      Otherwise, the tree is not rooted at an aligned
+        //     //          address and skip. Set offset as -4
+        //     if (running_collection.empty()) {
+        //         if (is_aligned(val_a)) {
+        //             running_collection.push_back(tree);
+        //             current_offset = val_a;
+        //         } else {
+        //             current_offset = -4;
+        //         }
+        //     } else if (!running_collection.empty() &&
+        //                running_collection.size() < VECTOR_WIDTH) {
+        //         if (current_offset + FLOAT_SIZE_IN_BYTES == val_a) {
+        //             running_collection.push_back(tree);
+        //             current_offset = val_a;
+        //         } else {
+        //             running_collection = {};
+        //             current_offset = -4;
+        //         }
+        //     } else if (!running_collection.empty() &&
+        //                running_collection.size() == VECTOR_WIDTH) {
+        //         pruned_groups_of_trees.push_back(running_collection);
+        //         running_collection = {};
+        //         if (is_aligned(val_a)) {
+        //             running_collection.push_back(tree);
+        //             current_offset = val_a;
+        //         } else {
+        //             current_offset = -4;
+        //         }
+        //     } else {
+        //         throw "sort_ad_trees: Impossible case: Cannot have the size
+        //         greater than VECTOR_WIDTH";
+        //     }
+        // }
+
+        // if (!running_collection.empty() &&
+        //     running_collection.size() == VECTOR_WIDTH) {
+        //     pruned_groups_of_trees.push_back(running_collection);
+        // }
+    }
+    errs() << "Pruned Group of Trees\n";
+    for (auto group_of_trees : pruned_groups_of_trees) {
+        for (auto tree : group_of_trees) {
+            for (auto instr : tree) {
+                errs() << *instr << "\n";
+            }
+        }
+    }
+
+    // Compress group of trees back into 1 ad_tree
+    ad_trees_t result = {};
+    for (auto group_of_trees : pruned_groups_of_trees) {
+        chunk_t combined_chunk = join_trees(group_of_trees);
+        int num_stores = 0;
+        for (auto instr : combined_chunk) {
+            if (isa<StoreInst>(instr)) {
+                num_stores++;
+            }
+        }
+        assert(num_stores == VECTOR_WIDTH);
+        result.push_back(combined_chunk);
+    }
+
+    return result;
+}
+
+/**
  * Converts chunks into vectors, representing joined AD Trees
  *
  */
 std::vector<std::vector<Instruction *>> chunks_into_joined_trees(
-    chunks_t chunks, AliasAnalysis *AA) {
+    chunks_t chunks, AliasAnalysis *AA, std::vector<Value *> base_of_array_vec,
+    ScalarEvolution *SE) {
     std::vector<std::vector<Instruction *>> trees = {};
     for (auto chunk : chunks) {
         ad_trees_t ad_trees = build_ad_trees(chunk);
@@ -849,6 +1166,7 @@ std::vector<std::vector<Instruction *>> chunks_into_joined_trees(
         // Join trees if the store instructions in the trees
         // do not alias each other
         std::vector<std::vector<Instruction *>> joinable_trees = {};
+        std::vector<std::vector<std::vector<Instruction *>>> tree_groups = {};
         for (auto tree : ad_trees) {
             // check if stores alias in the trees
             assert(tree.size() > 0);
@@ -868,14 +1186,22 @@ std::vector<std::vector<Instruction *>> chunks_into_joined_trees(
                 joinable_trees.push_back(tree);
             } else {
                 assert(joinable_trees.size() > 0);
-                auto joined_trees = join_trees(joinable_trees);
-                trees.push_back(joined_trees);
+                tree_groups.push_back(joinable_trees);
                 joinable_trees = {tree};
             }
         }
         if (joinable_trees.size() > 0) {
-            auto joined_trees = join_trees(joinable_trees);
-            trees.push_back(joined_trees);
+            tree_groups.push_back(joinable_trees);
+        }
+
+        // Rearrange the joinable trees by changing their store ordering
+        // Then Merge Joinable trees into trees
+        for (auto tree_group : tree_groups) {
+            ad_trees_t new_ad_trees =
+                sort_ad_trees(tree_group, base_of_array_vec, SE);
+            for (auto chunk : new_ad_trees) {
+                trees.push_back(chunk);
+            }
         }
     }
     // Do final removal of any sequences with store-load aliasing
@@ -903,7 +1229,7 @@ std::vector<std::vector<LLVMValueRef>> instr2ref(chunks_t chunks) {
  * Run Optimization Procedure on Vector representing concatenated ad trees
  *
  */
-void optimize(std::vector<LLVMValueRef> chunk, Function &F) {
+void run_optimization(std::vector<LLVMValueRef> chunk, Function &F) {
     assert(chunk.size() != 0);
     // Place the builder at the last instruction in the entire chunk.
     Value *last_value = unwrap(chunk.back());
@@ -932,12 +1258,15 @@ struct DiospyrosPass : public FunctionPass {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
         AU.addRequired<AAResultsWrapperPass>();
         AU.addRequired<BasicAAWrapperPass>();
+        AU.addRequired<ScalarEvolutionWrapperPass>();
     }
 
     virtual bool runOnFunction(Function &F) override {
         // We need Alias Analysis still, because it is possible groups of
         // stores can addresses that alias.
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+        ScalarEvolution *SE =
+            &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
 
         // do not optimize on main function or no_opt functions.
         if (F.getName() == MAIN_FUNCTION_NAME ||
@@ -945,178 +1274,30 @@ struct DiospyrosPass : public FunctionPass {
              F.getName().substr(0, NO_OPT_PREFIX.size()) == NO_OPT_PREFIX)) {
             return false;
         }
-        bool has_changes = false;
+
+        // get all "Base" Arrays on which vectorization can occur. These are
+        // defined as argument inputs with a pointer type
+        std::vector<Value *> base_of_array_vec = {};
+        for (auto &a : F.args()) {
+            if (a.getType()->isPointerTy()) {
+                if (Value *arg_val = dyn_cast<Value>(&a)) {
+                    base_of_array_vec.push_back(arg_val);
+                }
+            }
+        }
+
+        bool has_changes = true;
         for (auto &B : F) {
             auto chunks = build_chunks(&B, AA);
-            auto trees = chunks_into_joined_trees(chunks, AA);
+            auto trees =
+                chunks_into_joined_trees(chunks, AA, base_of_array_vec, SE);
             auto treerefs = instr2ref(trees);
 
             for (auto tree_chunk : treerefs) {
                 if (tree_chunk.size() != 0) {
-                    optimize(tree_chunk, F);
+                    run_optimization(tree_chunk, F);
                 }
             }
-        }
-        return false;
-        for (auto &B : F) {
-            // TODO: Consider removing as the new procedure can overcome
-            // this We skip over basic blocks without floating point types
-            bool has_float = false;
-            for (auto &I : B) {
-                if (I.getType()->isFloatTy()) {
-                    has_float = true;
-                }
-            }
-            if (!has_float) {
-                continue;
-            }
-
-            // Assumes Alias Analysis Movement Pass has been done previously
-            // Pulls out Instructions into sections of code called "Chunks"
-            //
-            std::vector<std::vector<LLVMValueRef>> chunk_accumulator;
-            std::vector<LLVMValueRef> chunk_vector = {};
-            bool vectorizable_flag = false;
-            bool has_seen_store = false;
-            for (auto &I : B) {
-                Value *val = dyn_cast<Value>(&I);
-                assert(val != NULL);
-                // When you finish seeing stores, and see some other
-                // instruction afterwards, stop the current chunk to
-                // vectorize
-                if (isa<StoreInst>(val)) {
-                    has_seen_store = true;
-                }
-                if (has_seen_store && !isa<StoreInst>(val)) {
-                    vectorizable_flag = false;
-                }
-                if (can_vectorize(val) && !vectorizable_flag) {
-                    if (!chunk_vector.empty()) {
-                        chunk_accumulator.push_back(chunk_vector);
-                    }
-                    vectorizable_flag = true;
-                    chunk_vector = {wrap(val)};
-                } else if (can_vectorize(val) && vectorizable_flag) {
-                    chunk_vector.push_back(wrap(val));
-                } else if (!can_vectorize(val) && !vectorizable_flag) {
-                    chunk_vector.push_back(wrap(val));
-                } else if (!can_vectorize(val) && vectorizable_flag) {
-                    if (!chunk_vector.empty()) {
-                        chunk_accumulator.push_back(chunk_vector);
-                    }
-                    vectorizable_flag = false;
-                    chunk_vector = {wrap(val)};
-                } else {
-                    throw "No other cases possible!";
-                }
-            }
-            if (!chunk_vector.empty()) {
-                chunk_accumulator.push_back(chunk_vector);
-            }
-
-            for (int i = 0; i < chunk_accumulator.size(); ++i) {
-                auto &chunk_vector = chunk_accumulator[i];
-                if (chunk_vector.empty()) {
-                    continue;
-                }
-
-                errs() << "Here is a chunk: \n";
-                for (auto chunk_instr : chunk_vector) {
-                    errs() << *unwrap(chunk_instr) << "\n";
-                }
-
-                // check if the chunk vector actually has instructions to
-                // optimixe on
-                bool has_vectorizable_instrs = false;
-                for (auto &instr : chunk_vector) {
-                    if (can_vectorize(unwrap(instr)) &&
-                        !isa<GEPOperator>(unwrap(instr)) &&
-                        !isa<LoadInst>(unwrap(instr)) &&
-                        !isa<StoreInst>(unwrap(instr))) {
-                        has_vectorizable_instrs = true;
-                    }
-                }
-                if (!has_vectorizable_instrs) {
-                    continue;
-                }
-
-                // check if the chunk vector has at least one store
-                bool has_store = false;
-                for (auto &instr : chunk_vector) {
-                    if (isa<StoreInst>(unwrap(instr))) {
-                        has_store = true;
-                    }
-                }
-                if (!has_store) {
-                    continue;
-                }
-
-                // If an instruction is used multiple times outside the
-                // chunk, add it to a restricted list.
-                // TODO: only consider future chunks!
-                std::vector<LLVMValueRef> restricted_instrs = {};
-                for (auto chunk_instr : chunk_vector) {
-                    for (auto j = i + 1; j < chunk_accumulator.size(); ++j) {
-                        // guaranteed to be a different chunk vector ahead
-                        // of the origianl one.
-                        bool must_restrict = false;
-                        auto &other_chunk_vector = chunk_accumulator[j];
-                        for (auto other_chunk_instr : other_chunk_vector) {
-                            if (unwrap(chunk_instr) ==
-                                unwrap(other_chunk_instr)) {
-                                restricted_instrs.push_back(chunk_instr);
-                                must_restrict = true;
-                                break;
-                            }
-                        }
-                        if (must_restrict) {
-                            break;
-                        }
-                    }
-                }
-
-                has_changes = has_changes || true;
-                assert(chunk_vector.size() != 0);
-
-                // Place builder at first instruction that is not a "handled
-                // instruction"
-                int insert_pos = 0;
-                bool has_seen_vectorizable = false;
-                for (int i = 0; i < chunk_vector.size(); i++) {
-                    if (can_vectorize(unwrap(chunk_vector[i]))) {
-                        has_seen_vectorizable = true;
-                        insert_pos++;
-                    } else if (!has_seen_vectorizable) {
-                        insert_pos++;
-                    } else {
-                        break;
-                    }
-                }
-                Value *last_instr_val = NULL;
-                if (insert_pos >= chunk_vector.size()) {
-                    last_instr_val = unwrap(chunk_vector[insert_pos - 1]);
-                } else {
-                    last_instr_val = unwrap(chunk_vector[insert_pos]);
-                }
-                assert(last_instr_val != NULL);
-                Instruction *last_instr = dyn_cast<Instruction>(last_instr_val);
-                assert(last_instr != NULL);
-                if (insert_pos >= chunk_vector.size()) {
-                    last_instr = last_instr->getNextNode();
-                    assert(last_instr != NULL);
-                }
-                IRBuilder<> builder(last_instr);
-
-                Module *mod = F.getParent();
-                LLVMContext &context = F.getContext();
-                optimize(wrap(mod), wrap(&context), wrap(&builder),
-                         chunk_vector.data(), chunk_vector.size(),
-                         restricted_instrs.data(), restricted_instrs.size(),
-                         RunOpt, PrintOpt);
-            }
-
-            // TODO: delete old instructions that are memory related; adce
-            // will handle the remainder
         }
         return has_changes;
     };
