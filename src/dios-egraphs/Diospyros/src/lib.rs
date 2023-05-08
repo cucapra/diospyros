@@ -166,6 +166,14 @@ pub fn calculate_cost() -> u32 {
     return 0;
 }
 
+/// Struct representing load info, same as on C++ side
+#[repr(C)]
+pub struct load_info_t {
+    pub load: LLVMValueRef,
+    pub base_id: i32,
+    pub offset: i32,
+}
+
 /// Main function to optimize: Takes in a basic block of instructions,
 /// optimizes it, and then translates it to LLVM IR code, in place.
 
@@ -178,13 +186,16 @@ pub fn optimize(
     chunk_size: size_t,
     restricted_instrs: *const LLVMValueRef,
     restricted_size: size_t,
+    load_info: *const load_info_t,
+    load_info_size: size_t,
     run_egg: bool,
     print_opt: bool,
-) -> () {
+) -> bool {
     unsafe {
         // preprocessing of instructions
         let chunk_llvm_instrs = from_raw_parts(chunk_instrs, chunk_size);
         let restricted_llvm_instrs = from_raw_parts(restricted_instrs, restricted_size);
+        let load_info = from_raw_parts(load_info, load_info_size);
 
         // llvm to egg
         let (egg_expr, llvm2egg_metadata) =
@@ -193,7 +204,7 @@ pub fn optimize(
         // Bail if no egg Nodes to optimize
         if egg_expr.as_ref().is_empty() {
             eprintln!("No Egg Nodes in Optimization Vector");
-            return;
+            return false;
         }
 
         // optimization pass
@@ -218,6 +229,8 @@ pub fn optimize(
             builder,
             run_egg,
         );
+
+        return true;
     }
 }
 

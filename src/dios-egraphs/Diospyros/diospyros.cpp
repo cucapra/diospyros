@@ -13,8 +13,10 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -49,13 +51,20 @@ llvm::cl::opt<bool> PrintOpt("z", llvm::cl::desc("Print Egg Optimization."));
 llvm::cl::alias PrintOptAlias("print", llvm::cl::desc("Alias for -z"),
                               llvm::cl::aliasopt(PrintOpt));
 
-extern "C" void optimize(LLVMModuleRef mod, LLVMContextRef context,
-                         LLVMBuilderRef builder,
-                         LLVMValueRef const *chunk_instrs,
-                         std::size_t chunk_size,
-                         LLVMValueRef const *restricted_instrs,
-                         std::size_t restricted_size, bool run_egg,
-                         bool print_opt);
+/// Struct representing load info, same as on Rust side
+typedef struct load_info {
+    LLVMValueRef load;
+    int32_t base_id;
+    int32_t offset;
+} load_info_t;
+
+/// Forward Declaration of Optimize function
+extern "C" bool optimize(
+    LLVMModuleRef mod, LLVMContextRef context, LLVMBuilderRef builder,
+    LLVMValueRef const *chunk_instrs, std::size_t chunk_size,
+    LLVMValueRef const *restricted_instrs, std::size_t restricted_size,
+    load_info_t const *load_info, std::size_t load_info_size, bool run_egg,
+    bool print_opt);
 
 const std::string ARRAY_NAME = "no-array-name";
 const std::string TEMP_NAME = "no-temp-name";
@@ -848,22 +857,29 @@ chunks_t remove_load_store_alias(chunks_t chunks, AliasAnalysis *AA) {
  * return the index to in baseOfArrayVec that store is an offset from, or
  * NULLOPT if not matching
  */
-int get_base_reference(StoreInst *store, std::vector<Value *> base_of_array_vec,
-                       ScalarEvolution *SE) {
+std::pair<int, int> get_base_reference(Instruction *mem_instr,
+                                       std::vector<Value *> base_of_array_vec,
+                                       ScalarEvolution *SE) {
     for (int i = 0; i < base_of_array_vec.size(); i++) {
         Value *base_array_ptr = base_of_array_vec[i];
         assert(base_array_ptr->getType()->isPointerTy());
-        Value *store_ptr = store->getPointerOperand();
-        const SCEV *store_ptr_se = SE->getSCEV(store_ptr);
+        Value *mem_instr_ptr = NULL;
+        if (StoreInst *store_instr = dyn_cast<StoreInst>(mem_instr)) {
+            mem_instr_ptr = store_instr->getPointerOperand();
+        } else if (LoadInst *load_instr = dyn_cast<LoadInst>(mem_instr)) {
+            mem_instr_ptr = load_instr->getPointerOperand();
+        }
+        const SCEV *mem_instr_ptr_se = SE->getSCEV(mem_instr_ptr);
         const SCEV *base_ptr_se = SE->getSCEV(base_array_ptr);
-        const SCEV *diff = SE->getMinusSCEV(store_ptr_se, base_ptr_se);
+        const SCEV *diff = SE->getMinusSCEV(mem_instr_ptr_se, base_ptr_se);
         APInt min_val = SE->getSignedRangeMin(diff);
         APInt max_val = SE->getSignedRangeMax(diff);
         if (min_val == max_val) {
-            return i;
+            int val = (int)max_val.roundToDouble();
+            return {i, val};
         }
     }
-    return -1;
+    return {-1, -1};
 }
 
 // Check Alignment
@@ -955,7 +971,8 @@ ad_trees_t sort_ad_trees(ad_trees_t ad_trees,
     for (ad_tree_t ad_tree : ad_trees) {
         if (ad_tree.size() != 0) {
             if (StoreInst *store = dyn_cast<StoreInst>(ad_tree.back())) {
-                int base_ref = get_base_reference(store, base_of_array_vec, SE);
+                auto [base_ref, _] =
+                    get_base_reference(store, base_of_array_vec, SE);
                 if (base_ref >= 0) {
                     groups_of_trees[base_ref].push_back(ad_tree);
                     store_to_base_map[store] = base_ref;
@@ -1229,7 +1246,8 @@ std::vector<std::vector<LLVMValueRef>> instr2ref(chunks_t chunks) {
  * Run Optimization Procedure on Vector representing concatenated ad trees
  *
  */
-void run_optimization(std::vector<LLVMValueRef> chunk, Function &F) {
+bool run_optimization(std::vector<LLVMValueRef> chunk, Function &F,
+                      std::vector<load_info_t> load_info) {
     assert(chunk.size() != 0);
     // Place the builder at the last instruction in the entire chunk.
     Value *last_value = unwrap(chunk.back());
@@ -1240,9 +1258,43 @@ void run_optimization(std::vector<LLVMValueRef> chunk, Function &F) {
     Module *mod = F.getParent();
     LLVMContext &context = F.getContext();
     std::vector<LLVMValueRef> restricted_instrs = {};
-    optimize(wrap(mod), wrap(&context), wrap(&builder), chunk.data(),
-             chunk.size(), restricted_instrs.data(), restricted_instrs.size(),
-             RunOpt, PrintOpt);
+
+    return optimize(wrap(mod), wrap(&context), wrap(&builder), chunk.data(),
+                    chunk.size(), restricted_instrs.data(),
+                    restricted_instrs.size(), load_info.data(),
+                    load_info.size(), RunOpt, PrintOpt);
+}
+
+/**
+ * Match each load with a pair of base id and offset
+ *
+ * NOTE: A load might be associated with more than 1 base, we choose the first.
+ * THIS COULD BE A BUG in the future!
+ */
+std::vector<load_info_t> match_loads(std::vector<LoadInst *> loads,
+                                     std::vector<Value *> base_load_locations,
+                                     ScalarEvolution *SE) {
+    std::vector<load_info_t> results = {};
+    for (LoadInst *load : loads) {
+        bool continue_iteration = false;
+        for (Value *base_loc : base_load_locations) {
+            auto [load_base, load_offset] =
+                get_base_reference(load, base_load_locations, SE);
+            if (load_base >= 0) {
+                load_info_t new_load = {.load = wrap(load),
+                                        .base_id = load_base,
+                                        .offset = static_cast<int32_t>(
+                                            load_offset / FLOAT_SIZE_IN_BYTES)};
+                results.push_back(new_load);
+                continue_iteration = true;
+                break;
+            }
+        }
+        if (continue_iteration) {
+            continue;
+        }
+    }
+    return results;
 }
 
 /**
@@ -1259,6 +1311,7 @@ struct DiospyrosPass : public FunctionPass {
         AU.addRequired<AAResultsWrapperPass>();
         AU.addRequired<BasicAAWrapperPass>();
         AU.addRequired<ScalarEvolutionWrapperPass>();
+        AU.addRequired<TargetLibraryInfoWrapperPass>();
     }
 
     virtual bool runOnFunction(Function &F) override {
@@ -1267,6 +1320,8 @@ struct DiospyrosPass : public FunctionPass {
         AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
         ScalarEvolution *SE =
             &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+        TargetLibraryInfo *TLI =
+            &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
 
         // do not optimize on main function or no_opt functions.
         if (F.getName() == MAIN_FUNCTION_NAME ||
@@ -1286,6 +1341,45 @@ struct DiospyrosPass : public FunctionPass {
             }
         }
 
+        // Grab information on load base locations
+        std::vector<Value *> base_load_locations = {};
+        for (auto &a : F.args()) {
+            if (a.getType()->isPointerTy()) {
+                if (Value *arg_val = dyn_cast<Value>(&a)) {
+                    base_load_locations.push_back(arg_val);
+                }
+            }
+        }
+        for (auto &B : F) {
+            for (auto &I : B) {
+                if (Value *V = dyn_cast<Value>(&I)) {
+                    if (isMallocOrCallocLikeFn(V, TLI)) {
+                        base_load_locations.push_back(V);
+                    }
+                }
+            }
+        }
+        std::map<Value *, int> base_load_to_id = {};
+        int count = 0;
+        for (auto instr : base_load_locations) {
+            base_load_to_id[instr] = count++;
+        }
+
+        // Grab information on loads
+        std::vector<LoadInst *> loads = {};
+        for (auto &B : F) {
+            for (auto &I : B) {
+                if (LoadInst *load_instr = dyn_cast<LoadInst>(&I)) {
+                    if (std::find(loads.begin(), loads.end(), load_instr) ==
+                        loads.end()) {
+                        loads.push_back(load_instr);
+                    }
+                }
+            }
+        }
+        std::vector<load_info_t> load_info =
+            match_loads(loads, base_load_locations, SE);
+
         bool has_changes = true;
         for (auto &B : F) {
             auto chunks = build_chunks(&B, AA);
@@ -1295,7 +1389,7 @@ struct DiospyrosPass : public FunctionPass {
 
             for (auto tree_chunk : treerefs) {
                 if (tree_chunk.size() != 0) {
-                    run_optimization(tree_chunk, F);
+                    has_changes = run_optimization(tree_chunk, F, load_info);
                 }
             }
         }
