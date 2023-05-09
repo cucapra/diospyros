@@ -3,6 +3,7 @@ use egg::{rewrite as rw, *};
 use itertools::Itertools;
 
 use crate::{
+    alignconsecsearcher::*,
     binopsearcher::build_binop_or_zero_rule,
     config::*,
     cost::VecCostFn,
@@ -127,7 +128,7 @@ pub fn build_litvec_rule() -> Rewrite<VecLang, ()> {
 }
 
 // This returns a function that implements Condition
-fn is_true(
+fn memory_is_aligned_and_consec(
     var1: &'static str,
     var2: &'static str,
     var3: &'static str,
@@ -255,7 +256,7 @@ pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
     if !no_vec {
         rules.extend(vec![
             // Aligned Consec Load rule
-            rw!("vec-load-aligned-consec"; "(Vec (Load ?a0 ?b0 ?o0) (Load ?a1 ?b1 ?o1) (Load ?a2 ?b2 ?o2) (Load ?a3 ?b3 ?o3))" => "(AlignedConsecVecLoad ?a0)" if is_true("?b0", "?b1", "?b2", "?b3", "?o0", "?o1", "?o2", "?o3")),
+            rw!("vec-load-aligned-consec"; "(Vec (Load ?a0 ?b0 ?o0) (Load ?a1 ?b1 ?o1) (Load ?a2 ?b2 ?o2) (Load ?a3 ?b3 ?o3))" => "(AlignedConsecVecLoad ?a0)" if memory_is_aligned_and_consec("?b0", "?b1", "?b2", "?b3", "?o0", "?o1", "?o2", "?o3")),
             // Load load fusion rule
             rw!("vec-load-Loads"; "(Vec (Load ?a0 ?b0 ?o0) (Load ?a1 ?b1 ?o1) (Load ?a2 ?b2 ?o2) (Load ?a3 ?b3 ?o3))" => "(VecLoad ?a0 ?a1 ?a2 ?a3)"),
             // Set store fusion rule
@@ -287,5 +288,29 @@ pub fn rules(no_ac: bool, no_vec: bool) -> Vec<Rewrite<VecLang, ()>> {
             rw!("assoc-mul"; "(* (* ?a ?b) ?c)" => "(* ?a (* ?b ?c))"),
         ]);
     }
+
+    // Data Movement Rules
+    // shuffle rules
+    rules.extend(vec![
+        //  Basic associativity/commutativity/identities
+        // rw!("shuffle-op"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+        rw!("shuffle-load-vec"; "(Vec (Load ?a0 ?b0 ?o0) (Load ?a1 ?b1 ?o1) (Load ?a2 ?b2 ?o2) (Load ?a3 ?b3 ?o3))" => { PermuteLoad {
+            a0: "?a0".parse().unwrap(),
+            a1: "?a1".parse().unwrap(),
+            a2: "?a2".parse().unwrap(),
+            a3: "?a3".parse().unwrap(),
+            b0: "?b0".parse().unwrap(),
+            b1: "?b1".parse().unwrap(),
+            b2: "?b2".parse().unwrap(),
+            b3: "?b3".parse().unwrap(),
+            o0: "?o0".parse().unwrap(),
+            o1: "?o1".parse().unwrap(),
+            o2: "?o2".parse().unwrap(),
+            o3: "?o3".parse().unwrap(),
+        }}),
+    ]);
+
+    // split vec rules
+
     rules
 }

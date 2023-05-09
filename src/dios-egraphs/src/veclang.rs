@@ -78,6 +78,8 @@ define_language! {
 
         "VecStore" = VecStore([Id; 5]),
 
+        "Shuffle" = Shuffle([Id; 2]),
+
         // Info specific to register
         // RegInfo(egg::Symbol),
 

@@ -1643,6 +1643,7 @@ unsafe fn egg_to_llvm(
     VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id]) => loadvec_to_llvm(gep1_id, gep2_id, gep3_id, gep4_id, translation_metadata),
     VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => storevec_to_llvm(val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, translation_metadata),
     VecLang::AlignedConsecVecLoad([gep_id]) => aligned_consec_loadvec_to_llvm(gep_id, translation_metadata),
+    VecLang::Shuffle(..) => panic!("Shuffle to LLVM Unimplemented"),
   }
 }
 
@@ -1889,6 +1890,7 @@ unsafe fn canonicalize_egg(
     VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id]) => canonicalize_quadruple(can_change_vector,|quad| -> VecLang {VecLang::VecLoad(quad)}, gep1_id, gep2_id, gep3_id, gep4_id, old_egg_nodes ),
     VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => canonicalize_quintuple(can_change_vector,|quint| -> VecLang {VecLang::VecStore(quint)}, val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, old_egg_nodes ),
     VecLang::AlignedConsecVecLoad([get_id]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::AlignedConsecVecLoad(single)}, get_id, old_egg_nodes ),
+    VecLang::Shuffle(..) => panic!("Shuffle Normalization Unimplemented"),
   }
 }
 

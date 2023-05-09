@@ -1,3 +1,4 @@
+pub mod alignconsecsearcher;
 pub mod binopsearcher;
 pub mod config;
 pub mod cost;

@@ -15,6 +15,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
         C: FnMut(Id) -> Self::Cost,
     {
         const NO_OPTIMIZATION: f64 = 0.0;
+        const ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS: f64 = -2.0;
         const VECTORIZED_MEMORY_ACCESS: f64 = 0.0001;
         const LITERAL: f64 = 0.001;
         const STRUCTURE: f64 = 0.1;
@@ -28,9 +29,9 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             // Vectorized Memory Accesses are cheaper than individual memory loads and stores
             // Note: This assumes that masked-gathers or masked-scattters to vectors or memory
             // are implemented on the target, and are cheap, according to the LLVM cost model
-            VecLang::AlignedConsecVecLoad(..) => VECTORIZED_MEMORY_ACCESS,
+            VecLang::AlignedConsecVecLoad(..) => ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS,
             VecLang::VecLoad(..) => VECTORIZED_MEMORY_ACCESS,
-            VecLang::VecStore(..) => VECTORIZED_MEMORY_ACCESS,
+            VecLang::VecStore(..) => ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS,
 
             // You get literals for extremely cheap
             VecLang::Num(..) => LITERAL,
@@ -78,6 +79,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::VecNeg(..) => VEC_OP,
             VecLang::VecSqrt(..) => VEC_OP,
             VecLang::VecSgn(..) => VEC_OP,
+            VecLang::Shuffle(..) => VEC_OP,
             _ => VEC_OP,
         };
         enode.fold(op_cost, |sum, id| sum + costs(id))
