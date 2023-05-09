@@ -168,6 +168,7 @@ pub fn calculate_cost() -> u32 {
 
 /// Struct representing load info, same as on C++ side
 #[repr(C)]
+#[derive(Debug, Clone)]
 pub struct load_info_t {
     pub load: LLVMValueRef,
     pub base_id: i32,
@@ -198,8 +199,12 @@ pub fn optimize(
         let load_info = from_raw_parts(load_info, load_info_size);
 
         // llvm to egg
-        let (egg_expr, llvm2egg_metadata) =
-            llvm_to_egg_main(chunk_llvm_instrs, restricted_llvm_instrs, run_egg);
+        let (egg_expr, llvm2egg_metadata) = llvm_to_egg_main(
+            chunk_llvm_instrs,
+            restricted_llvm_instrs,
+            run_egg,
+            load_info,
+        );
 
         // Bail if no egg Nodes to optimize
         if egg_expr.as_ref().is_empty() {
@@ -444,6 +449,7 @@ struct LLVM2EggState {
     prior_translated_instructions: BTreeSet<LLVMValueRef>,
     start_instructions: Vec<LLVMValueRef>,
     start_ids: Vec<Id>,
+    load_info: BTreeMap<LLVMValueRef, (i32, i32)>,
 }
 
 /// Translates LLVM Arg to an Egg Argument Node
@@ -535,6 +541,11 @@ unsafe fn sqrt32_to_egg(
     (new_enode_vec, new_next_node_idx + 1)
 }
 
+/// Grab the associated index of load in the load_info vector, otherwise u32::max
+unsafe fn get_load_idx(load: LLVMValueRef, load_info: &[load_info_t]) -> u32 {
+    return u32::MAX;
+}
+
 /// Translates a Load to an Egg Get Node
 ///
 /// The translation of a load is a Get Node, which can then possibly be vectorized
@@ -556,11 +567,24 @@ unsafe fn load_to_egg(
     // assert!(isa_gep(llvm_gep_instr) || isa_argument(llvm_gep_instr));
     translation_metadata.get2gep.insert(gep_id, llvm_gep_instr);
 
-    let load_node = VecLang::Load([Id::from(next_node_idx as usize)]);
+    let result = translation_metadata.load_info.get(&llvm_instr);
+    let (base_id, offset) = match result {
+        None => (-1, -1),
+        Some(n) => *n,
+    };
+    let base_node = VecLang::Num(base_id);
+    egg_nodes.push(base_node.clone());
+    let offset_node = VecLang::Num(offset);
+    egg_nodes.push(offset_node.clone());
+    let load_node = VecLang::Load([
+        Id::from(next_node_idx as usize),
+        Id::from((next_node_idx + 1) as usize),
+        Id::from((next_node_idx + 2) as usize),
+    ]);
     egg_nodes.push(load_node.clone());
     assert!(!translation_metadata.llvm2reg.contains_key(&llvm_instr));
     translation_metadata.llvm2reg.insert(llvm_instr, load_node);
-    (egg_nodes, next_node_idx + 2)
+    (egg_nodes, next_node_idx + 4)
 }
 
 unsafe fn store_to_egg(
@@ -720,6 +744,7 @@ unsafe fn llvm_to_egg_main(
     llvm_instrs_in_chunk: &[LLVMValueRef],
     restricted_instrs: &[LLVMValueRef],
     vectorize: bool,
+    load_info: &[load_info_t],
     // TODO: feed this in as an argument llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang>,
 ) -> (RecExpr<VecLang>, LLVM2EggState) {
     let mut egg_nodes: Vec<VecLang> = Vec::new();
@@ -750,6 +775,12 @@ unsafe fn llvm_to_egg_main(
         restricted_instrs_set.insert(*llvm_instr);
     }
 
+    // Load Info map
+    let mut load_info_map: BTreeMap<LLVMValueRef, (i32, i32)> = BTreeMap::new();
+    for triple in load_info.iter() {
+        load_info_map.insert(triple.load, (triple.base_id, triple.offset));
+    }
+
     // Invariant: every restricted instruction is in the chunk, using a pointer check
     for restr_instr in restricted_instrs.iter() {
         let mut found_match = false;
@@ -778,6 +809,7 @@ unsafe fn llvm_to_egg_main(
         prior_translated_instructions: prior_translated_instructions,
         start_instructions: start_instructions,
         start_ids: start_ids,
+        load_info: load_info_map,
     };
 
     // Index of next node to translate
@@ -876,6 +908,32 @@ unsafe fn store_to_llvm(val_id: &Id, gep_id: &Id, md: &mut Egg2LLVMState) -> LLV
     panic!("Store2LLVM: Expected a successful lookup in get2gep, but cannot find Gep ID.");
 }
 
+unsafe fn aligned_consec_loadvec_to_llvm(gep1_id: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    // New code to handle an aligned and consecutive vector load
+    let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    let gep1_llvm_instr = md
+        .llvm2egg_metadata
+        .get2gep
+        .get(&gep1_id_val)
+        .expect("Value of gep1 id should exist in get2gep");
+    let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(*gep1_llvm_instr));
+    let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
+        md.builder,
+        *gep1_llvm_instr,
+        LLVMPointerType(
+            LLVMVectorType(LLVMFloatTypeInContext(md.context), 4),
+            address_space,
+        ),
+        b"scalar-to-vector-type-bit-cast\0".as_ptr() as *const _,
+    );
+    let load = LLVMBuildLoad(
+        md.builder,
+        bitcase_scalar_to_vector_type,
+        b"vector-load\0".as_ptr() as *const _,
+    );
+    return load;
+}
+
 unsafe fn loadvec_to_llvm(
     gep1_id: &Id,
     gep2_id: &Id,
@@ -909,24 +967,6 @@ unsafe fn loadvec_to_llvm(
         .get2gep
         .get(&gep4_id_val)
         .expect("Value of gep4 id should exist in get2gep");
-
-    // New code to handle a vector load
-    // let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(*gep1_llvm_instr));
-    // let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
-    //     md.builder,
-    //     *gep1_llvm_instr,
-    //     LLVMPointerType(
-    //         LLVMVectorType(LLVMFloatTypeInContext(md.context), 4),
-    //         address_space,
-    //     ),
-    //     b"scalar-to-vector-type-bit-cast\0".as_ptr() as *const _,
-    // );
-    // let load = LLVMBuildLoad(
-    //     md.builder,
-    //     bitcase_scalar_to_vector_type,
-    //     b"vector-load\0".as_ptr() as *const _,
-    // );
-    // return load;
 
     let vector_width = 4;
     let floatptr_type = LLVMTypeOf(*gep1_llvm_instr);
@@ -1558,7 +1598,7 @@ unsafe fn egg_to_llvm(
     VecLang::Gep(..) => {
         panic!("Gep was found. Egg to LLVM Translation does not handle gep nodes.")
     }
-    VecLang::Load([gep_id]) => {
+    VecLang::Load([gep_id, _, _]) => {
         load_to_llvm(gep_id, translation_metadata)
     }
     VecLang::Store([val_id, gep_id]) => {
@@ -1602,6 +1642,7 @@ unsafe fn egg_to_llvm(
     VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) =>  scalar_unop_to_llvm(n, egg_node, translation_metadata),
     VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id]) => loadvec_to_llvm(gep1_id, gep2_id, gep3_id, gep4_id, translation_metadata),
     VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => storevec_to_llvm(val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, translation_metadata),
+    VecLang::AlignedConsecVecLoad([gep_id]) => aligned_consec_loadvec_to_llvm(gep_id, translation_metadata),
   }
 }
 
@@ -1806,7 +1847,7 @@ unsafe fn canonicalize_egg(
       panic!("Get was found. Egg canonicalization does not handle get nodes.")
     }
     VecLang::Gep(g) => vec![VecLang::Gep(*g)],
-    VecLang::Load([gep_id]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::Load(single)}, gep_id, old_egg_nodes ),
+    VecLang::Load([gep_id, base_id, offset]) => canonicalize_triple(can_change_vector,|triple| -> VecLang {VecLang::Load(triple)}, gep_id, base_id, offset, old_egg_nodes ),
     VecLang::Store([val_id, gep_id]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Store(pair)}, val_id, gep_id, old_egg_nodes),
     VecLang::Set(..) => {
         panic!("Set was found. Egg canonicalization does not handle set nodes.")
@@ -1847,6 +1888,7 @@ unsafe fn canonicalize_egg(
     VecLang::Neg([n]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::Neg(single)}, n, old_egg_nodes ),
     VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id]) => canonicalize_quadruple(can_change_vector,|quad| -> VecLang {VecLang::VecLoad(quad)}, gep1_id, gep2_id, gep3_id, gep4_id, old_egg_nodes ),
     VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => canonicalize_quintuple(can_change_vector,|quint| -> VecLang {VecLang::VecStore(quint)}, val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, old_egg_nodes ),
+    VecLang::AlignedConsecVecLoad([get_id]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::AlignedConsecVecLoad(single)}, get_id, old_egg_nodes ),
   }
 }
 

@@ -28,6 +28,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             // Vectorized Memory Accesses are cheaper than individual memory loads and stores
             // Note: This assumes that masked-gathers or masked-scattters to vectors or memory
             // are implemented on the target, and are cheap, according to the LLVM cost model
+            VecLang::AlignedConsecVecLoad(..) => VECTORIZED_MEMORY_ACCESS,
             VecLang::VecLoad(..) => VECTORIZED_MEMORY_ACCESS,
             VecLang::VecStore(..) => VECTORIZED_MEMORY_ACCESS,
 

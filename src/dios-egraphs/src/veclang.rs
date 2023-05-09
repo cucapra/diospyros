@@ -13,7 +13,10 @@ define_language! {
         Gep(u32),
 
         // Load is a read of memory
-        "Load" = Load([Id; 1]),
+        // The FIRST subelement is the ID of the parent of this load
+        // The SECOND subelement is a ID of the base of the array where the load occurs
+        // The THIRD subelement is the offset from the base of the array. Offsets are in number of floats away from base.
+        "Load" = Load([Id; 3]),
 
         // Store is a write to memory
         "Store" = Store([Id; 2]),
@@ -70,6 +73,8 @@ define_language! {
         "VecMAC" = VecMAC([Id; 3]),
 
         "VecLoad" = VecLoad([Id; 4]),
+
+        "AlignedConsecVecLoad" = AlignedConsecVecLoad([Id; 1]),
 
         "VecStore" = VecStore([Id; 5]),
 
