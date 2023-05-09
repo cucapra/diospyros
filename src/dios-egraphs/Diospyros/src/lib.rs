@@ -1,5 +1,9 @@
 extern crate llvm_sys as llvm;
-use dioslib::{config, rules, veclang::VecLang};
+use dioslib::{
+    config::{self, vector_width},
+    rules,
+    veclang::VecLang,
+};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
@@ -1557,6 +1561,55 @@ unsafe fn vecsgn_to_llvm(vec: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
     LLVMBuildCall(md.builder, func, args, 2, b"\0".as_ptr() as *const _)
 }
 
+unsafe fn get_shuf_vec_data(shuf_vec_id: &Id, md: &mut Egg2LLVMState) -> Vec<i32> {
+    let mut results_vec = Vec::new();
+    match &md.egg_nodes_vector[usize::from(*shuf_vec_id)] {
+        VecLang::Vec(boxed_ids) => {
+            let idvec = boxed_ids.to_vec();
+            let idvec_len = idvec.len();
+            for (idx, &eggid) in idvec.iter().enumerate() {
+                match &md.egg_nodes_vector[usize::from(eggid)] {
+                    VecLang::Num(n) => results_vec.push(*n),
+                    _ => panic!("Each element of a shuf vec needs to be a num"),
+                }
+            }
+        }
+        _ => panic!("Shuf Vec Id should point to a vector of numbers"),
+    }
+    return results_vec;
+}
+
+/**
+ * Shuffle Node to an LLVM Shuffle Op
+ */
+unsafe fn shuffle_to_llvm(
+    data_vec_id: &Id,
+    shuf_vec_id: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    let data_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*data_vec_id)], md);
+    let shuf_data = get_shuf_vec_data(shuf_vec_id, md);
+
+    // Build up shuf mask
+    let mut mask = Vec::new();
+    for val in shuf_data {
+        mask.push(LLVMConstInt(
+            LLVMInt32TypeInContext(md.context),
+            val as u64,
+            0 as i32,
+        ));
+    }
+
+    let shuf_mask = LLVMConstVector(mask.as_mut_ptr(), vector_width() as u32);
+    LLVMBuildShuffleVector(
+        md.builder,
+        data_vec,
+        data_vec,
+        shuf_mask,
+        b"\0".as_ptr() as *const _,
+    )
+}
+
 /**
  * Vector representing No Optimization: Egg will not have modified the vector at all.
  */
@@ -1643,7 +1696,7 @@ unsafe fn egg_to_llvm(
     VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id]) => loadvec_to_llvm(gep1_id, gep2_id, gep3_id, gep4_id, translation_metadata),
     VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => storevec_to_llvm(val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, translation_metadata),
     VecLang::AlignedConsecVecLoad([gep_id]) => aligned_consec_loadvec_to_llvm(gep_id, translation_metadata),
-    VecLang::Shuffle(..) => panic!("Shuffle to LLVM Unimplemented"),
+    VecLang::Shuffle([data_vec_id, shuf_vec_id]) => shuffle_to_llvm(data_vec_id, shuf_vec_id, translation_metadata),
   }
 }
 
@@ -1890,7 +1943,7 @@ unsafe fn canonicalize_egg(
     VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id]) => canonicalize_quadruple(can_change_vector,|quad| -> VecLang {VecLang::VecLoad(quad)}, gep1_id, gep2_id, gep3_id, gep4_id, old_egg_nodes ),
     VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => canonicalize_quintuple(can_change_vector,|quint| -> VecLang {VecLang::VecStore(quint)}, val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, old_egg_nodes ),
     VecLang::AlignedConsecVecLoad([get_id]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::AlignedConsecVecLoad(single)}, get_id, old_egg_nodes ),
-    VecLang::Shuffle(..) => panic!("Shuffle Normalization Unimplemented"),
+    VecLang::Shuffle([data_vec_id, shuf_vec_id]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Shuffle(pair)}, data_vec_id, shuf_vec_id, old_egg_nodes),
   }
 }
 
