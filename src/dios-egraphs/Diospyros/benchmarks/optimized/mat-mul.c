@@ -5,11 +5,12 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define A_ROWS 12
-#define A_COLS 12
-#define B_COLS 12
+#define A_ROWS 5
+#define A_COLS 5
+#define B_COLS 5
 #define MAX_FLOAT 100.00f
 #define DELTA 0.1f
+#define NITER 1000000000
 
 void matrix_multiply(float a_in[restrict A_ROWS * A_COLS],
                      float b_in[restrict A_COLS * B_COLS],
@@ -61,7 +62,7 @@ int main(void) {
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
     // calculate up c_out
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < NITER; i++) {
         matrix_multiply(a_in, b_in, c_out);
     }
 
@@ -71,8 +72,8 @@ int main(void) {
 
     // report difference in runtime
     double diff = difftime(end, start);
-    printf("%ld milliseconds elapsed over 10000 iterations total\n",
-           (end - start));
+    printf("%ld milliseconds elapsed over %d iterations total\n", (end - start),
+           NITER);
 
     return 0;
 }
