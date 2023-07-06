@@ -9,9 +9,9 @@ use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{
     cmp,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     os::raw::c_char,
-    slice::from_raw_parts,
+    slice::from_raw_parts, convert::TryInto,
 };
 
 extern "C" {
@@ -36,7 +36,7 @@ extern "C" {
     fn _isa_constaggregate(val: LLVMValueRef) -> bool;
     fn isa_integertype(val: LLVMValueRef) -> bool;
     fn _isa_intptr(val: LLVMValueRef) -> bool;
-    fn _isa_floatptr(val: LLVMValueRef) -> bool;
+    fn isa_floatptr(val: LLVMValueRef) -> bool;
     fn _isa_floattype(val: LLVMValueRef) -> bool;
     fn _isa_bitcast(val: LLVMValueRef) -> bool;
     fn isa_sqrt32(val: LLVMValueRef) -> bool;
@@ -78,6 +78,17 @@ unsafe fn get_func_llvm_value(name: &str) -> Option<LLVMValueRef> {
     for (func_name, value) in FUNC_NAME2LLVM_FUNC.clone() {
         if func_name == name {
             return Some(value);
+        }
+    }
+    return None;
+}
+
+static mut VECTORIZATION_MAP : Vec<(Vec<String>, RecExpr<VecLang>, HashMap<VecLang, u32>)> = Vec::new();
+
+unsafe fn get_vectorization(vec: Vec<String>) -> Option<(RecExpr<VecLang>, HashMap<VecLang, u32>)> {
+    for (stringvec, vectorization, map) in VECTORIZATION_MAP.clone() {
+        if stringvec == vec {
+            return Some((vectorization, map));
         }
     }
     return None;
@@ -179,6 +190,152 @@ pub struct load_info_t {
     pub offset: i32,
 }
 
+/// Value Numbering Metadata
+#[derive(Debug, Clone)]
+struct ValueNumberingState<'a> {
+    egg_nodes_vector: &'a [VecLang],
+}
+
+/// Value Numbering Mutable Metadata
+#[derive(Debug, Clone)]
+struct ValueNumberingMutableState {
+    node2value: HashMap<VecLang, u32>,
+    currvalue: u32,
+}
+
+
+unsafe fn value_number_args(op_name: String, args: &[Id], immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    let mut vec0 = vec![];
+    for arg in args.into_iter() {
+        let node = &immd.egg_nodes_vector[usize::from(*arg)].clone();
+        let vec = value_number_store_tree(node, immd, md);
+        vec0.extend(vec);
+    }
+    let mut final_vec1 = vec![op_name, "(".to_string()];
+    let final_vec2 = vec![")".to_string()];
+    final_vec1.extend(vec0);
+    final_vec1.extend(final_vec2);
+    return final_vec1;
+}
+
+unsafe fn value_number_boxed_args(op_name: String, args: &Box<[Id]>, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    let mut vec0 = vec![];
+    for arg in args.into_iter() {
+        let vec = value_number_store_tree(&immd.egg_nodes_vector[usize::from(*arg)], immd, md);
+        vec0.extend(vec);
+    }
+    let mut final_vec1 = vec![op_name, "(".to_string()];
+    let final_vec2 = vec![")".to_string()];
+    final_vec1.extend(vec0);
+    final_vec1.extend(final_vec2);
+    return final_vec1;
+}
+
+unsafe fn op_to_vec_string(op_name:String, val:i32) -> Vec<String> {
+    let str0 = op_name;
+    let str1 = "(";
+    let str2 = val.to_string();
+    let str3 = ")";
+    return vec![format!("{}{}{}{}", str0, str1, str2, str3).to_string()];
+}
+
+unsafe fn value_number_check_node(op_name: String, key: VecLang, _immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    if md.node2value.contains_key(&key) {
+        let val = *md.node2value.get(&key).expect("Key should exist");
+        return op_to_vec_string(op_name, val.try_into().unwrap());
+    } else {
+        let val = md.currvalue;
+        md.node2value.insert(key, md.currvalue);
+        md.currvalue += 1;
+        return op_to_vec_string(op_name, val.try_into().unwrap());
+    }
+}
+
+unsafe fn get_array_offset_or_base(egg_node: &VecLang) -> i32 {
+    match egg_node {
+        VecLang::Num(n) => *n,
+        _ => panic!("Array Offset or Base must be in a Num construct"),
+    }
+}
+
+unsafe fn load_to_tree(arg1: &Id, arg2: &Id, arg3: &Id, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    let mut load_vec = vec![];
+    let node1 = &immd.egg_nodes_vector[usize::from(*arg1)].clone();
+    let vec1 = value_number_store_tree(node1, immd, md);
+    let node2 = &immd.egg_nodes_vector[usize::from(*arg2)].clone();
+    let array_base = get_array_offset_or_base(node2); // ignore array base
+    let node3 = &immd.egg_nodes_vector[usize::from(*arg3)].clone();
+    let array_offset = get_array_offset_or_base(node3);
+    let mut final_vec1 = vec![String::from("Load"), "(".to_string()];
+    load_vec.extend(vec1.clone());
+    load_vec.extend(vec1); // ignore base, repeat vec1
+    let final_vec2 = vec![(array_offset % vector_width() as i32).to_string()];
+    let final_vec3 = vec![")".to_string()]; 
+    load_vec.extend(final_vec2);
+    load_vec.extend(final_vec3);
+    return load_vec;
+}
+
+unsafe fn value_number_store_tree(egg_node: &VecLang, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    match egg_node {
+        VecLang::Symbol(..) => {
+          panic!("Symbol was found. Value Numbering does not handle symbol nodes.")
+        }
+        VecLang::Get(..) => {
+          panic!("Get was found. Value Numbering does not handle get nodes.")
+        }
+        VecLang::Gep(i) => return value_number_check_node(String::from("Gep"), VecLang::Gep(*i), immd, md),
+        VecLang::Load([a1, a2, a3]) => return load_to_tree(a1, a2, a3, immd, md),   // value_number_args(String::from("Load"), &[*a1, *a1, *a1], immd, md),
+        VecLang::Store(args) => return value_number_args(String::from("Store"), args, immd, md),
+        VecLang::Set(..) => {
+            panic!("Set was found. Value Numbering does not handle set nodes.")
+        }
+        VecLang::Ite(..) => panic!("Ite was found. Value Numbering does not handle ite nodes."),
+        VecLang::Or(..) => panic!("Or was found. Value Numbering does not handle or nodes."),
+        VecLang::And(..) => panic!("And was found. Value Numbering does not handle and nodes."),
+        VecLang::Lt(..) => panic!("Lt was found. Value Numbering does not handle lt nodes."),
+        VecLang::Sgn(..) => panic!("Sgn was found. Value Numbering does not handle sgn nodes. TODO: In the future, tis node will be handled alongside sqrt and neg scalar nodes."),
+        VecLang::VecSgn(..) => panic!("VecSgn was found. Value Numbering does not handle vecsgn nodes. TODO: In the future, this node will be handled alongside VecSqrt and VecNeg vector nodes."),
+        VecLang::Arg(a) => return value_number_check_node(String::from("Arg"), VecLang::Arg(*a), immd, md),
+        VecLang::Reg(r) => return value_number_check_node(String::from("Reg"), VecLang::Reg(*r), immd, md),
+        VecLang::Num(n) => return op_to_vec_string(String::from("Num"), *n),
+        VecLang::LitVec(boxed_ids) => return value_number_boxed_args(String::from("LitVec"), boxed_ids, immd, md),
+        VecLang::Vec(boxed_ids) => return value_number_boxed_args(String::from("Vec"), boxed_ids, immd, md),
+        VecLang::List(boxed_ids) => return value_number_boxed_args(String::from("List"), boxed_ids, immd, md),
+        VecLang::DataVec(boxed_ids) => return value_number_boxed_args(String::from("DataVec"), boxed_ids, immd, md),
+        VecLang::NoOptVec(boxed_ids) => return value_number_boxed_args(String::from("NoOptVec"), boxed_ids, immd, md),
+        VecLang::VecAdd(args) => return value_number_args(String::from("VecAdd"), args, immd, md),
+        VecLang::VecMinus(args) => return value_number_args(String::from("VecMinus"), args, immd, md),
+        VecLang::VecMul(args) => return value_number_args(String::from("VecMul"), args, immd, md),
+        VecLang::VecDiv(args) => return value_number_args(String::from("VecDiv"), args, immd, md),
+        VecLang::Add(args) => return value_number_args(String::from("Add"), args, immd, md),
+        VecLang::Minus(args) => return value_number_args(String::from("Minus"), args, immd, md),
+        VecLang::Mul(args) => return value_number_args(String::from("Mul"), args, immd, md),
+        VecLang::Div(args) => return value_number_args(String::from("Div"), args,immd, md),
+        VecLang::Concat(args) => return value_number_args(String::from("Concat"), args,immd, md),
+        VecLang::VecMAC(args) => return value_number_args(String::from("VecMac"), args, immd, md),
+    
+    
+        // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
+        // TODO: LLVM actually supports many more vector intrinsics, including
+        // vector sine/cosine instructions for floats.
+        VecLang::VecNeg(args) => return value_number_args(String::from("VecNeg"), args, immd, md),
+        VecLang::VecSqrt(args) => return value_number_args(String::from("VecSqrt"), args, immd, md),
+        // VecSgn compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
+        VecLang::VecSgn(args) => return value_number_args(String::from("VecSgn"), args, immd, md),
+        VecLang::Sgn(args) => return value_number_args(String::from("Sgn"), args, immd, md),
+        VecLang::Sqrt(args) => return value_number_args(String::from("Sqrt"), args, immd, md),
+        VecLang::Neg(args) => return value_number_args(String::from("Neg"), args, immd, md),
+        VecLang::VecLoad(args) => return value_number_args(String::from("VecLoad"), args, immd, md),
+        VecLang::VecStore(args) => return value_number_args(String::from("VecStore"), args,immd, md),
+        VecLang::AlignedConsecVecLoad(args) => return value_number_args(String::from("AlignedConsecVecLoad"), args, immd, md),
+        VecLang::Shuffle(args) => return value_number_args(String::from("Shuffle"), args, immd, md),
+        VecLang::Join(args) => return value_number_args(String::from("Join"), args, immd, md),
+        VecLang::VecTwo(boxed_ids) => return value_number_boxed_args(String::from("VecTwo"), boxed_ids, immd, md),
+        VecLang::AlignedConsecVecLoad2(args) => return value_number_args(String::from("AlignedConsecVecLoad2"), args, immd, md),
+      }
+}
+
 /// Main function to optimize: Takes in a basic block of instructions,
 /// optimizes it, and then translates it to LLVM IR code, in place.
 
@@ -203,7 +360,7 @@ pub fn optimize(
         let load_info = from_raw_parts(load_info, load_info_size);
 
         // llvm to egg
-        let (egg_expr, llvm2egg_metadata) = llvm_to_egg_main(
+        let (egg_expr, mut llvm2egg_metadata) = llvm_to_egg_main(
             chunk_llvm_instrs,
             restricted_llvm_instrs,
             run_egg,
@@ -214,6 +371,48 @@ pub fn optimize(
         if egg_expr.as_ref().is_empty() {
             eprintln!("No Egg Nodes in Optimization Vector");
             return false;
+        }
+
+        let root_of_tree = egg_expr.as_ref().last().expect("There should be a root egg node");
+        let immd = &ValueNumberingState { egg_nodes_vector: egg_expr.as_ref() };
+        let md = &mut ValueNumberingMutableState { node2value: HashMap::new(), currvalue: 0 };
+        let value_numbered_tree = value_number_store_tree(root_of_tree, immd, md);
+        let veclang2val = &md.node2value;
+        let mut val2veclang = HashMap::new();
+        for (key, val) in veclang2val.iter() {
+            val2veclang.insert(val, key);
+        }
+        if print_opt {
+            eprintln!("This is the value tree");
+            eprintln!("{:?}", value_numbered_tree);
+        }
+        if let Some((vectorization, old_veclang2val)) = get_vectorization(value_numbered_tree.clone()) {
+            let mut old_val2veclang = HashMap::new();
+            for (old_k, old_v) in old_veclang2val.iter() {
+                old_val2veclang.insert(old_v, old_k);
+            }
+            let mut oldveclang2newveclang = HashMap::new();
+            for (old_val, old_veclang) in old_val2veclang.iter() {
+                if val2veclang.contains_key(old_val) {
+                    oldveclang2newveclang.insert((**old_veclang).clone(), (**val2veclang.get(old_val).expect("Key must exist")).clone());
+                }
+            }
+            llvm2egg_metadata.template_enode2actual_enode = oldveclang2newveclang;
+
+            if print_opt {
+                eprintln!("Current tree matches old tree: Using old vectorization. ");
+            }
+            // egg to llvm
+            egg_to_llvm_main(
+                vectorization,
+                &llvm2egg_metadata,
+                module,
+                context,
+                builder,
+                run_egg,
+            );
+
+            return true;
         }
 
         // optimization pass
@@ -228,6 +427,14 @@ pub fn optimize(
         if print_opt {
             eprintln!("{}", best_egg_expr.pretty(10));
         }
+
+        VECTORIZATION_MAP.push((value_numbered_tree, best_egg_expr.clone(), veclang2val.clone()));
+        // build identity map
+        let mut oldveclang2newveclang = HashMap::new();
+        for (key, _) in veclang2val.iter() {
+            oldveclang2newveclang.insert((*key).clone(), (*key).clone());
+        }
+        llvm2egg_metadata.template_enode2actual_enode = oldveclang2newveclang;
 
         // egg to llvm
         egg_to_llvm_main(
@@ -454,6 +661,7 @@ struct LLVM2EggState {
     start_instructions: Vec<LLVMValueRef>,
     start_ids: Vec<Id>,
     load_info: BTreeMap<LLVMValueRef, (i32, i32)>,
+    template_enode2actual_enode: HashMap<VecLang, VecLang>,
 }
 
 /// Translates LLVM Arg to an Egg Argument Node
@@ -803,6 +1011,8 @@ unsafe fn llvm_to_egg_main(
 
     let prior_translated_instructions: BTreeSet<LLVMValueRef> = BTreeSet::new();
 
+    let template_enode2actual_enode = HashMap::new();
+
     // State Variable To Hold Maps During Translation
     let mut translation_metadata = LLVM2EggState {
         llvm2reg: llvm_instr2reg_node,
@@ -814,6 +1024,7 @@ unsafe fn llvm_to_egg_main(
         start_instructions: start_instructions,
         start_ids: start_ids,
         load_info: load_info_map,
+        template_enode2actual_enode: template_enode2actual_enode,
     };
 
     // Index of next node to translate
@@ -871,45 +1082,75 @@ struct Egg2LLVMState<'a> {
     module: LLVMModuleRef,
 }
 
+// unsafe fn gep_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> u32 {
+//     let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Reg to LLVM expects egg node in template2actual map.");
+//     match *egg_node {
+//         VecLang::Gep(gep_id) => gep_id,
+//         _ => {
+//             println!("{:?}", *egg_node);
+//             panic!("Non Gep nodes cannot be translated in gep_to_llvm.")
+//         }
+//     }
+// }
+
 /// Translates a Gep node to an ID that the node holds. This ID is matche dto
 /// a gep instruction in the get2gep map
 ///
 /// Used in conjunction with Load to LLVM and VecLoad to LLVM
-unsafe fn gep_to_llvm(egg_node: &VecLang, _md: &mut Egg2LLVMState) -> u32 {
-    match *egg_node {
+unsafe fn gep_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Reg to LLVM expects egg node in template2actual map.");
+    let new_gep_id = match *egg_node {
         VecLang::Gep(gep_id) => gep_id,
-        _ => panic!("Non Gep nodes cannot be translated in gep_to_llvm."),
-    }
+        _ => {
+            println!("{:?}", *egg_node);
+            panic!("Non Gep nodes cannot be translated in gep_to_llvm.")
+        }
+    };
+    let gep_instr = *md
+        .llvm2egg_metadata
+        .get2gep
+        .get(&new_gep_id)
+        .expect("Value of gep1 id should exist in get2gep");
+    assert!(isa_floatptr(gep_instr));
+    gep_instr
 }
 
 /// Translates a Load Egg Node back to an LLVM Load INstruction
 ///
 /// Assumes that every load is implicitly from a Float * / Single Level Float Pointer
 unsafe fn load_to_llvm(gep_id: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
-    let original_gep_id = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
-    let get2gep = &md.llvm2egg_metadata.get2gep;
-    for (gep_id, gep_instr) in get2gep.iter() {
-        if original_gep_id == *gep_id {
-            // assert!(isa_gep(*gep_instr) || isa_argument(*gep_instr));
-            let new_load_instr = LLVMBuildLoad(md.builder, *gep_instr, b"\0".as_ptr() as *const _);
-            return new_load_instr;
-        }
-    }
-    panic!("Load2LLVM: Expected a successful lookup in get2gep, but cannot find Gep ID.");
+    // let original_gep_id = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
+    // let get2gep = &md.llvm2egg_metadata.get2gep;
+    // for (gep_id, gep_instr) in get2gep.iter() {
+    //     if original_gep_id == *gep_id {
+    //         // assert!(isa_gep(*gep_instr) || isa_argument(*gep_instr));
+    //         let new_load_instr = LLVMBuildLoad(md.builder, *gep_instr, b"\0".as_ptr() as *const _);
+    //         return new_load_instr;
+    //     }
+    // }
+    // panic!("Load2LLVM: Expected a successful lookup in get2gep, but cannot find Gep ID.");
+
+    let gep_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
+    let new_load_instr = LLVMBuildLoad(md.builder, gep_instr, b"\0".as_ptr() as *const _);
+    return new_load_instr;
 }
 
 unsafe fn store_to_llvm(val_id: &Id, gep_id: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
-    let original_gep_id = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
+    // let original_gep_id = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
     let llvm_val_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*val_id)], md);
-    let get2gep = &md.llvm2egg_metadata.get2gep;
-    for (gep_id, gep_instr) in get2gep.iter() {
-        if original_gep_id == *gep_id {
-            // assert!(isa_gep(*gep_instr) || isa_argument(*gep_instr));
-            let new_store_instr = LLVMBuildStore(md.builder, llvm_val_instr, *gep_instr);
-            return new_store_instr;
-        }
-    }
-    panic!("Store2LLVM: Expected a successful lookup in get2gep, but cannot find Gep ID.");
+    // let get2gep = &md.llvm2egg_metadata.get2gep;
+    // for (gep_id, gep_instr) in get2gep.iter() {
+    //     if original_gep_id == *gep_id {
+    //         // assert!(isa_gep(*gep_instr) || isa_argument(*gep_instr))
+    //         let new_store_instr = LLVMBuildStore(md.builder, llvm_val_instr, *gep_instr);
+    //         return new_store_instr;
+    //     }
+    // }
+    // panic!("Store2LLVM: Expected a successful lookup in get2gep, but cannot find Gep ID.");
+
+    let gep_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
+    let new_store_instr = LLVMBuildStore(md.builder, llvm_val_instr, gep_instr);
+    return new_store_instr;
 }
 
 unsafe fn aligned_consec_loadvec_to_llvm(
@@ -918,16 +1159,17 @@ unsafe fn aligned_consec_loadvec_to_llvm(
     md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
     // New code to handle an aligned and consecutive vector load
-    let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
-    let gep1_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep1_id_val)
-        .expect("Value of gep1 id should exist in get2gep");
-    let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(*gep1_llvm_instr));
+    // let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    // let gep1_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep1_id_val)
+    //     .expect("Value of gep1 id should exist in get2gep");
+    let gep1_llvm_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(gep1_llvm_instr));
     let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
         md.builder,
-        *gep1_llvm_instr,
+        gep1_llvm_instr,
         LLVMPointerType(
             LLVMVectorType(LLVMFloatTypeInContext(md.context), load_vector_width),
             address_space,
@@ -952,10 +1194,10 @@ unsafe fn loadvec_to_llvm(
     md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
     // Set Opaque Pointer ness
-    let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
-    let gep2_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
-    let gep3_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
-    let gep4_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
+    // let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    // let gep2_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
+    // let gep3_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
+    // let gep4_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
 
     let mut base_data = get_shuf_vec_data(base_ids_vec, md);
     let mut offsets_data = get_shuf_vec_data(offsets_id_vec, md);
@@ -963,26 +1205,31 @@ unsafe fn loadvec_to_llvm(
     base_data.dedup();
     offsets_data.dedup();
 
-    let gep1_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep1_id_val)
-        .expect("Value of gep1 id should exist in get2gep");
-    let gep2_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep2_id_val)
-        .expect("Value of gep2 id should exist in get2gep");
-    let gep3_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep3_id_val)
-        .expect("Value of gep3 id should exist in get2gep");
-    let gep4_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep4_id_val)
-        .expect("Value of gep4 id should exist in get2gep");
+    // let gep1_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep1_id_val)
+    //     .expect("Value of gep1 id should exist in get2gep");
+    // let gep2_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep2_id_val)
+    //     .expect("Value of gep2 id should exist in get2gep");
+    // let gep3_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep3_id_val)
+    //     .expect("Value of gep3 id should exist in get2gep");
+    // let gep4_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep4_id_val)
+    //     .expect("Value of gep4 id should exist in get2gep");
+
+    let gep1_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    let gep2_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
+    let gep3_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
+    let gep4_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
 
     // special case: when all the bases and offsets are the same, do a shuffle, whcih can represent a splat. Splats are fast operations
     // Build up shuf mask
@@ -1131,31 +1378,36 @@ unsafe fn storevec_to_llvm(
     let llvm_val_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*val_vec_id)], md);
 
     // Set Opaque Pointer ness
-    let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
-    let gep2_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
-    let gep3_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
-    let gep4_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
+    // let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    // let gep2_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
+    // let gep3_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
+    // let gep4_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
 
-    let gep1_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep1_id_val)
-        .expect("Value of gep1 id should exist in get2gep");
-    let gep2_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep2_id_val)
-        .expect("Value of gep2 id should exist in get2gep");
-    let gep3_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep3_id_val)
-        .expect("Value of gep3 id should exist in get2gep");
-    let gep4_llvm_instr = md
-        .llvm2egg_metadata
-        .get2gep
-        .get(&gep4_id_val)
-        .expect("Value of gep4 id should exist in get2gep");
+    // let gep1_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep1_id_val)
+    //     .expect("Value of gep1 id should exist in get2gep");
+    // let gep2_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep2_id_val)
+    //     .expect("Value of gep2 id should exist in get2gep");
+    // let gep3_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep3_id_val)
+    //     .expect("Value of gep3 id should exist in get2gep");
+    // let gep4_llvm_instr = md
+    //     .llvm2egg_metadata
+    //     .get2gep
+    //     .get(&gep4_id_val)
+    //     .expect("Value of gep4 id should exist in get2gep");
+
+    let gep1_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    let gep2_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
+    let gep3_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
+    let gep4_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
 
     // New code to handle a vector store
     // Currently, this is the only type of store that can be generated because stores are not split.
@@ -1254,9 +1506,10 @@ unsafe fn storevec_to_llvm(
     LLVMBuildCall(md.builder, func, args, 4, b"\0".as_ptr() as *const _)
 }
 
-unsafe fn arg_to_llvm(egg_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
+unsafe fn arg_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
     // TODO: Make More Efficient with BTREEMAP?
     let llvm2arg = &md.llvm2egg_metadata.llvm2arg;
+    let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Arg to LLVM expects egg node in template2actual map.");
     for (llvm_instr, arg_node) in llvm2arg.iter() {
         // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
         if arg_node == egg_node {
@@ -1271,24 +1524,25 @@ unsafe fn arg_to_llvm(egg_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRe
 }
 
 unsafe fn reg_to_llvm(
-    egg_node: &VecLang,
-    translation_metadata: &mut Egg2LLVMState,
+    original_egg_node: &VecLang,
+    md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
     // TODO: Make More Efficient with BTREEMAP?
-    let llvm2reg = &translation_metadata.llvm2egg_metadata.llvm2reg;
+    let llvm2reg = &md.llvm2egg_metadata.llvm2reg;
+    let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Reg to LLVM expects egg node in template2actual map.");
     for (llvm_instr, reg_node) in llvm2reg.iter() {
         // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
         if reg_node == egg_node {
             assert!(!isa_argument(*llvm_instr));
             // do not clone an instruction translated earlier in the same chunk
-            if translation_metadata
+            if md
                 .prior_translated_nodes
                 .contains(&*llvm_instr)
             {
                 return *llvm_instr;
             }
             // do not clone an instruction translated in a prior basic block / prior chunk
-            if !translation_metadata
+            if !md
                 .llvm2egg_metadata
                 .instructions_in_chunk
                 .contains(&*llvm_instr)
@@ -1296,8 +1550,8 @@ unsafe fn reg_to_llvm(
                 return *llvm_instr;
             }
             let new_instr = LLVMInstructionClone(*llvm_instr);
-            LLVMInsertIntoBuilder(translation_metadata.builder, new_instr);
-            translation_metadata
+            LLVMInsertIntoBuilder(md.builder, new_instr);
+            md
                 .prior_translated_nodes
                 .insert(new_instr);
             return new_instr;
@@ -1738,7 +1992,7 @@ unsafe fn egg_to_llvm(
       panic!("Get was found. Egg to LLVM Translation does not handle get nodes.")
     }
     VecLang::Gep(..) => {
-        panic!("Gep was found. Egg to LLVM Translation does not handle gep nodes.")
+        gep_to_llvm(egg_node, translation_metadata)
     }
     VecLang::Load([gep_id, _, _]) => {
         load_to_llvm(gep_id, translation_metadata)

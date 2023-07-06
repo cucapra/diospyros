@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <time.h>
 
 #define I_ROWS 5
@@ -12,6 +13,7 @@
 #define O_COLS ((I_COLS + F_COLS) - 1)
 #define MAX_FLOAT 100.00f
 #define DELTA 0.1f
+#define NITER 1000000000
 
 void convolution(float mat_in[I_ROWS * I_COLS], float f_in[F_ROWS * F_COLS],
                  float mat_out[O_ROWS * O_COLS]) {
@@ -55,35 +57,62 @@ int main(void) {
     for (int i = 0; i < O_ROWS * O_COLS; i++) {
         expected[i] = 0;
     }
-    convolution(mat_in, f_in, mat_out);
-    // calculate expected
-    for (int outRow = 0; outRow < O_ROWS; outRow++) {
-        for (int outCol = 0; outCol < O_COLS; outCol++) {
-            for (int fRow = 0; fRow < F_ROWS; fRow++) {
-                for (int fCol = 0; fCol < F_COLS; fCol++) {
-                    int fRowTrans = F_ROWS - 1 - fRow;
-                    int fColTrans = F_COLS - 1 - fCol;
-                    int iRow = outRow - fRowTrans;
-                    int iCol = outCol - fColTrans;
 
-                    if (iRow >= 0 && iRow < I_ROWS && iCol >= 0 &&
-                        iCol < I_COLS) {
-                        float v = mat_in[iRow * I_COLS + iCol] *
-                                  f_in[fRowTrans * F_COLS + fColTrans];
-                        expected[outRow * O_COLS + outCol] += v;
-                    }
-                }
-            }
-        }
+    // This stackoverflow post explains how to calculate walk clock time.
+    // https://stackoverflow.com/questions/42046712/how-to-record-elaspsed-wall-time-in-c
+    // https://stackoverflow.com/questions/13156031/measuring-time-in-c
+    // https://stackoverflow.com/questions/10192903/time-in-milliseconds-in-c
+    // start timer
+    long start, end;
+    struct timeval timecheck;
+
+    gettimeofday(&timecheck, NULL);
+    start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    // calculate up c_out
+    for (int i = 0; i < NITER; i++) {
+        convolution(mat_in, f_in, mat_out);
     }
-    for (int i = 0; i < O_ROWS * O_COLS; i++) {
-        printf("--------------------------\n");
-        printf("calculated: %f\n", mat_out[i]);
-        printf("expected: %f\n", expected[i]);
-        printf("difference: %f\n", expected[i] - mat_out[i]);
-    }
-    for (int i = 0; i < O_ROWS * O_COLS; i++) {
-        assert(fabs(expected[i] - mat_out[i]) < DELTA);
-    }
+
+    // end timer
+    gettimeofday(&timecheck, NULL);
+    end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    // report difference in runtime
+    double diff = difftime(end, start);
+    printf("%ld milliseconds elapsed over %d iterations total\n", (end - start),
+           NITER);
+
     return 0;
+
+    // // calculate expected
+    // for (int outRow = 0; outRow < O_ROWS; outRow++) {
+    //     for (int outCol = 0; outCol < O_COLS; outCol++) {
+    //         for (int fRow = 0; fRow < F_ROWS; fRow++) {
+    //             for (int fCol = 0; fCol < F_COLS; fCol++) {
+    //                 int fRowTrans = F_ROWS - 1 - fRow;
+    //                 int fColTrans = F_COLS - 1 - fCol;
+    //                 int iRow = outRow - fRowTrans;
+    //                 int iCol = outCol - fColTrans;
+
+    //                 if (iRow >= 0 && iRow < I_ROWS && iCol >= 0 &&
+    //                     iCol < I_COLS) {
+    //                     float v = mat_in[iRow * I_COLS + iCol] *
+    //                               f_in[fRowTrans * F_COLS + fColTrans];
+    //                     expected[outRow * O_COLS + outCol] += v;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    // for (int i = 0; i < O_ROWS * O_COLS; i++) {
+    //     printf("--------------------------\n");
+    //     printf("calculated: %f\n", mat_out[i]);
+    //     printf("expected: %f\n", expected[i]);
+    //     printf("difference: %f\n", expected[i] - mat_out[i]);
+    // }
+    // for (int i = 0; i < O_ROWS * O_COLS; i++) {
+    //     assert(fabs(expected[i] - mat_out[i]) < DELTA);
+    // }
+    // return 0;
 }

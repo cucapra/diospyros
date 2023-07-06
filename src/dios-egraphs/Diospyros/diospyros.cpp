@@ -678,13 +678,6 @@ std::vector<std::vector<Instruction *>> build_chunks(BasicBlock *B,
         }
     }
 
-    for (std::size_t i = 0; i < final_chunks.size(); ++i) {
-        errs() << "This is chunk " << i << "\n";
-        for (auto instr : final_chunks[i]) {
-            errs() << *instr << "\n";
-        }
-    }
-
     return final_chunks;
 }
 
@@ -702,8 +695,10 @@ using ad_trees_t = std::vector<ad_tree_t>;
  *
  * Returns a Tuple (Success/Failure , Instructions accumulated)
  */
-std::pair<bool, ad_tree_t> recurse_llvm(Value *value,
-                                        std::set<Instruction *> chunk_instrs) {
+std::pair<bool, ad_tree_t> recurse_llvm(
+    Value *value, std::set<Instruction *> chunk_instrs,
+    std::set<Instruction *> basic_block_instrs, bool not_for_mem_constraint) {
+    errs() << *value << "\n";
     // Constants
     if (isa<Constant>(value)) {
         // DO not add constant, if i recall, constants are not llvm
@@ -711,22 +706,44 @@ std::pair<bool, ad_tree_t> recurse_llvm(Value *value,
         return std::make_pair(true, std::vector<Instruction *>{});
     }
     if (Instruction *instr = dyn_cast<Instruction>(value)) {
-        // No Longer in Chunk
-        if (chunk_instrs.count(instr) == 0) {
-            errs() << "Instruction has left the chunk\n" << *instr << "\n";
-            return std::make_pair<bool, ad_tree_t>(false, {});
+        if (not_for_mem_constraint) {
+            // No Longer in Chunk
+            if (chunk_instrs.count(instr) == 0) {
+                return std::make_pair<bool, ad_tree_t>(false, {});
+            }
+        } else {
+            // No Longer in Basic Block
+            if (basic_block_instrs.count(instr) == 0) {
+                return std::make_pair<bool, ad_tree_t>(false, {});
+            }
         }
 
         // Base case instructions
         if (isa<Argument>(instr) || isa<LoadInst>(instr)) {
+            // there should not be a load isntr when checking memory instrs
+            if (!not_for_mem_constraint && isa<LoadInst>(instr)) {
+                return std::make_pair(false, std::vector<Instruction *>{instr});
+            }
             return std::make_pair(true, std::vector<Instruction *>{instr});
+        }
+
+        // allow for alloca in mem constraint checking
+        if (!not_for_mem_constraint && isa<AllocaInst>(instr)) {
+            return std::make_pair(true, std::vector<Instruction *>{instr});
+        }
+
+        // Phi is trouble, stop at Phis - previously caused recursion to fill
+        // stack, and also change results.
+        if (isa<PHINode>(instr)) {
+            return std::make_pair(false, std::vector<Instruction *>{instr});
         }
 
         // Recurse on Store Instructions
         if (isa<StoreInst>(instr) &&
             instr->getOperand(0)->getType()->isFloatTy()) {
             auto [child_b, child_tree] =
-                recurse_llvm(instr->getOperand(0), chunk_instrs);
+                recurse_llvm(instr->getOperand(0), chunk_instrs,
+                             basic_block_instrs, not_for_mem_constraint);
             if (child_b) {
                 child_tree.push_back(instr);
                 return std::make_pair(true, child_tree);
@@ -736,7 +753,8 @@ std::pair<bool, ad_tree_t> recurse_llvm(Value *value,
         // Recurse on supported unary operators OR Store Instructions
         if (instr->getOpcode() == Instruction::FNeg) {
             auto [child_b, child_tree] =
-                recurse_llvm(instr->getOperand(0), chunk_instrs);
+                recurse_llvm(instr->getOperand(0), chunk_instrs,
+                             basic_block_instrs, not_for_mem_constraint);
             if (child_b) {
                 child_tree.push_back(instr);
                 return std::make_pair(true, child_tree);
@@ -749,9 +767,11 @@ std::pair<bool, ad_tree_t> recurse_llvm(Value *value,
             instr->getOpcode() == Instruction::FDiv ||
             instr->getOpcode() == Instruction::FMul) {
             auto [left_b, left_tree] =
-                recurse_llvm(instr->getOperand(0), chunk_instrs);
+                recurse_llvm(instr->getOperand(0), chunk_instrs,
+                             basic_block_instrs, not_for_mem_constraint);
             auto [right_b, right_tree] =
-                recurse_llvm(instr->getOperand(1), chunk_instrs);
+                recurse_llvm(instr->getOperand(1), chunk_instrs,
+                             basic_block_instrs, not_for_mem_constraint);
             if (left_b && right_b) {
                 left_tree.insert(left_tree.end(), right_tree.begin(),
                                  right_tree.end());
@@ -761,9 +781,83 @@ std::pair<bool, ad_tree_t> recurse_llvm(Value *value,
         }
     }
 
-    // Unhandled Instruction
-    errs() << "Unhandled Instruction\n" << *value << "\n";
-    return std::make_pair(false, std::vector<Instruction *>{});
+    if (not_for_mem_constraint) {
+        // Unhandled Instruction
+        return std::make_pair(false, std::vector<Instruction *>{});
+    }
+
+    if (Instruction *value_as_instr = dyn_cast<Instruction>(value)) {
+        std::vector<Instruction *> combined_instrs = {};
+        bool combined_result = true;
+        for (auto &operand : value_as_instr->operands()) {
+            auto [child_result, child_tree] =
+                recurse_llvm(operand, chunk_instrs, basic_block_instrs,
+                             not_for_mem_constraint);
+            combined_result = combined_result && child_result;
+            combined_instrs.insert(combined_instrs.end(), child_tree.begin(),
+                                   child_tree.end());
+        }
+        return std::make_pair(combined_result, combined_instrs);
+    }
+    return std::make_pair(true, std::vector<Instruction *>{});
+}
+
+bool check_single_memory_address_constraint(
+    Value *memory_address_value, ad_trees_t prior_ad_trees,
+    std::set<Instruction *> basic_block_instrs) {
+    auto [success, accumulated_instrs] =
+        recurse_llvm(memory_address_value, {}, basic_block_instrs, false);
+    // success only if all instructions are inside the same basic block
+    // success also only if instructions tree has no memory operaitons
+    // except for alloc/argument
+    if (!success) {
+        return false;
+    }
+    bool contained_in_prior_ad_tree = false;
+    for (auto instr : accumulated_instrs) {
+        for (auto prior_ad_tree : prior_ad_trees) {
+            for (auto prior_instr : prior_ad_tree) {
+                if (instr == prior_instr) {
+                    contained_in_prior_ad_tree = true;
+                }
+            }
+        }
+    }
+    return !contained_in_prior_ad_tree;
+}
+
+/**
+    Check each memory address for each memory operation in each ad tree
+    satisfies the following constraints:
+    1. address computation tree contains no memory operations except for
+    alloc / argument
+    2. each address computation instruction is not contained in a prior ad
+    tree
+    3. each address computation only exists within 1 single basic block
+*/
+bool check_memory_constraints(ad_tree_t curr_ad_tree, ad_trees_t prior_ad_trees,
+                              std::set<Instruction *> basic_block_instrs) {
+    bool constraint_success = true;
+    for (auto instr : curr_ad_tree) {
+        if (StoreInst *store = dyn_cast<StoreInst>(instr)) {
+            Value *store_pointer = store->getPointerOperand();
+            if (!check_single_memory_address_constraint(
+                    store_pointer, prior_ad_trees, basic_block_instrs)) {
+                constraint_success = false;
+                if (!constraint_success) {
+                }
+                break;
+            }
+        } else if (LoadInst *load = dyn_cast<LoadInst>(instr)) {
+            Value *load_pointer = load->getPointerOperand();
+            if (!check_single_memory_address_constraint(
+                    load_pointer, prior_ad_trees, basic_block_instrs)) {
+                constraint_success = false;
+                break;
+            }
+        }
+    }
+    return constraint_success;
 }
 
 /**
@@ -771,7 +865,8 @@ std::pair<bool, ad_tree_t> recurse_llvm(Value *value,
  * instruction
  *
  */
-ad_trees_t build_ad_trees(chunk_t chunk) {
+ad_trees_t build_ad_trees(chunk_t chunk,
+                          std::set<Instruction *> basic_block_instrs) {
     ad_trees_t ad_trees = {};
     std::set<Instruction *> chunk_instrs = {};
     for (auto instr : chunk) {
@@ -780,19 +875,22 @@ ad_trees_t build_ad_trees(chunk_t chunk) {
     for (auto instr : chunk) {
         if (isa<StoreInst>(instr)) {
             // ad_tree_t new_tree = {};
-            auto [success_b, ad_tree] = recurse_llvm(instr, chunk_instrs);
+            auto [success_b, ad_tree] =
+                recurse_llvm(instr, chunk_instrs, {}, true);
             if (success_b) {
                 assert(ad_tree.size() != 0);
+            } else {
+                continue;
             }
-            if (success_b) {
+
+            // Check each memory address for each memory operation in each
+            // ad tree
+            bool mem_constraint_result =
+                check_memory_constraints(ad_tree, ad_trees, basic_block_instrs);
+
+            if (mem_constraint_result) {
                 ad_trees.push_back(ad_tree);
             }
-        }
-    }
-    for (auto ad_tree : ad_trees) {
-        errs() << "New AD Tree\n";
-        for (auto instr : ad_tree) {
-            errs() << *instr << "\n";
         }
     }
     return ad_trees;
@@ -812,36 +910,45 @@ std::vector<Instruction *> join_trees(
 }
 
 /**
- * True iff there is some load in a joined section of adtrees that MIGHT alias a
- * store in the same tree.
+ * True iff there is some load in a joined section of adtrees that MIGHT
+ * alias a store in the same tree.
  *
- * Load-store aliasing causes problems in some situation where you have stores
- * as functions of the same loads, but no vectoriszation occurs, so the code is
- * rewritten linearly, and a memory dependency is introduced
+ * Load-store aliasing causes problems in some situation where you have
+ * stores as functions of the same loads, but no vectoriszation occurs, so
+ * the code is rewritten linearly, and a memory dependency is introduced
  *
  * From a bug in FFT.c
  */
 chunks_t remove_load_store_alias(chunks_t chunks, AliasAnalysis *AA) {
     chunks_t final_chunks = {};
 
-    std::vector<Value *> load_addresses = {};
-    std::vector<Value *> store_addresses = {};
+    std::vector<std::tuple<Value *, int>> load_addresses = {};
+    std::vector<std::tuple<Value *, int>> store_addresses = {};
+    int chunk_idx = 0;
     for (auto chunk : chunks) {
+        chunk_idx++;
+
         for (auto instr : chunk) {
             if (isa<LoadInst>(instr)) {
                 Value *load_address =
                     dyn_cast<LoadInst>(instr)->getPointerOperand();
-                load_addresses.push_back(load_address);
+                load_addresses.push_back({load_address, chunk_idx});
             } else if (isa<StoreInst>(instr)) {
                 Value *store_address =
                     dyn_cast<StoreInst>(instr)->getPointerOperand();
-                store_addresses.push_back(store_address);
+                store_addresses.push_back({store_address, chunk_idx});
             }
         }
         bool can_add_to_final_chunks = true;
-        for (auto load_address : load_addresses) {
-            for (auto store_address : store_addresses) {
-                if (may_alias(load_address, store_address, AA)) {
+        for (auto [load_address, chunk_idx_load] : load_addresses) {
+            for (auto [store_address, chunk_idx_store] : store_addresses) {
+                if ((chunk_idx_load !=
+                     chunk_idx_store) &&  // if thhe load and store come
+                                          // from the same chunk, they
+                                          // cannot alias in a problem from
+                                          // the vectorizaiton as the loads
+                                          // will still come before stores
+                    may_alias(load_address, store_address, AA)) {
                     can_add_to_final_chunks = false;
                 }
             }
@@ -1013,8 +1120,8 @@ ad_trees_t sort_ad_trees(ad_trees_t ad_trees,
 
     // Sort each group of ad_trees by the stores in each group
     for (int i = 0; i < groups_of_trees.size(); i++) {
-        // NO IDEA WHY THIS WORKS, BUT ITERATING OVER ELEMENTS I SORTS PROPERLY
-        // BUT ITERATING OVER USING COLON DOES NOT!
+        // NO IDEA WHY THIS WORKS, BUT ITERATING OVER ELEMENTS I SORTS
+        // PROPERLY BUT ITERATING OVER USING COLON DOES NOT!
         std::sort(groups_of_trees[i].begin(), groups_of_trees[i].end(),
                   store_sorter);
     }
@@ -1046,16 +1153,14 @@ ad_trees_t sort_ad_trees(ad_trees_t ad_trees,
 
     // Grab only ad_trees that contain a 16 byte aligned reference at the
     // beginning
-    // Also the trees must be consecutive stores, e.g. the stores must differ by
-    // 4 bytes each time
-    // Finally, split the trees into smaller subtrees of size 4
+    // Also the trees must be consecutive stores, e.g. the stores must
+    // differ by 4 bytes each time Finally, split the trees into smaller
+    // subtrees of size 4
 
-    // We do this by accumulating a running sequence of ad_trees that satisfy
-    // the prerequisite conditions above
+    // We do this by accumulating a running sequence of ad_trees that
+    // satisfy the prerequisite conditions above
 
     std::vector<std::vector<ad_tree_t>> pruned_groups_of_trees = {};
-    // std::vector<ad_tree_t> running_collection = {};
-    // int current_offset = -4;
     for (auto group : groups_of_trees) {
         // skip empty groups
         if (group.empty()) {
@@ -1066,89 +1171,6 @@ ad_trees_t sort_ad_trees(ad_trees_t ad_trees,
             group_trees(group, store_to_offset);
         for (auto new_group : new_groups_of_trees) {
             pruned_groups_of_trees.push_back(new_group);
-        }
-
-        // for (auto tree : group) {
-        //     // Grab basic information about the tree
-        //     StoreInst *store = dyn_cast<StoreInst>(tree.back());
-        //     // Get base ref for the first store
-        //     Value *ref_a = base_of_array_vec[store_to_base_map.at(store)];
-        //     // get the difference from the store to its reference
-        //     Value *store_a_ptr = store->getPointerOperand();
-        //     const SCEV *store_a_ptr_se = SE->getSCEV(store_a_ptr);
-        //     const SCEV *ref_a_ptr_se = SE->getSCEV(ref_a);
-        //     const SCEV *diff_a = SE->getMinusSCEV(store_a_ptr_se,
-        //     ref_a_ptr_se); APInt min_val_a = SE->getSignedRangeMin(diff_a);
-        //     APInt max_val_a = SE->getSignedRangeMax(diff_a);
-        //     assert(min_val_a == max_val_a);
-        //     int val_a = (int)max_val_a.roundToDouble();
-
-        //     // If the running collection is empty
-        //     //      If the current tree is rooted at an aligned address, add
-        //     to
-        //     //          the collection, and set the current offset
-        //     //      If the current tree is not rooted at an
-        //     //          aligned address, skip this tree. Set offset as -4
-        //     // Else if the running collection is not empty, and the length is
-        //     //      not the VECTOR WIDTH
-        //     //      Check the current offset of the tree, and if it s 4 off
-        //     the
-        //     //          past offset, add on the tree and set its offset
-        //     //      Otherwise skip this tree and clear the running
-        //     collection.
-        //     //          Set offset as -4.
-        //     // Otherwise the running collection is not empty and the length
-        //     is
-        //     //      the Vector Width
-        //     //      Remove the running collection and add it to a pruned
-        //     group
-        //     //      If the current tree is at an aligned address, add to
-        //     //          collection. Set current offset
-        //     //      Otherwise, the tree is not rooted at an aligned
-        //     //          address and skip. Set offset as -4
-        //     if (running_collection.empty()) {
-        //         if (is_aligned(val_a)) {
-        //             running_collection.push_back(tree);
-        //             current_offset = val_a;
-        //         } else {
-        //             current_offset = -4;
-        //         }
-        //     } else if (!running_collection.empty() &&
-        //                running_collection.size() < VECTOR_WIDTH) {
-        //         if (current_offset + FLOAT_SIZE_IN_BYTES == val_a) {
-        //             running_collection.push_back(tree);
-        //             current_offset = val_a;
-        //         } else {
-        //             running_collection = {};
-        //             current_offset = -4;
-        //         }
-        //     } else if (!running_collection.empty() &&
-        //                running_collection.size() == VECTOR_WIDTH) {
-        //         pruned_groups_of_trees.push_back(running_collection);
-        //         running_collection = {};
-        //         if (is_aligned(val_a)) {
-        //             running_collection.push_back(tree);
-        //             current_offset = val_a;
-        //         } else {
-        //             current_offset = -4;
-        //         }
-        //     } else {
-        //         throw "sort_ad_trees: Impossible case: Cannot have the size
-        //         greater than VECTOR_WIDTH";
-        //     }
-        // }
-
-        // if (!running_collection.empty() &&
-        //     running_collection.size() == VECTOR_WIDTH) {
-        //     pruned_groups_of_trees.push_back(running_collection);
-        // }
-    }
-    errs() << "Pruned Group of Trees\n";
-    for (auto group_of_trees : pruned_groups_of_trees) {
-        for (auto tree : group_of_trees) {
-            for (auto instr : tree) {
-                errs() << *instr << "\n";
-            }
         }
     }
 
@@ -1175,10 +1197,10 @@ ad_trees_t sort_ad_trees(ad_trees_t ad_trees,
  */
 std::vector<std::vector<Instruction *>> chunks_into_joined_trees(
     chunks_t chunks, AliasAnalysis *AA, std::vector<Value *> base_of_array_vec,
-    ScalarEvolution *SE) {
+    ScalarEvolution *SE, std::set<Instruction *> basic_block_instrs) {
     std::vector<std::vector<Instruction *>> trees = {};
     for (auto chunk : chunks) {
-        ad_trees_t ad_trees = build_ad_trees(chunk);
+        ad_trees_t ad_trees = build_ad_trees(chunk, basic_block_instrs);
 
         // Join trees if the store instructions in the trees
         // do not alias each other
@@ -1268,8 +1290,8 @@ bool run_optimization(std::vector<LLVMValueRef> chunk, Function &F,
 /**
  * Match each load with a pair of base id and offset
  *
- * NOTE: A load might be associated with more than 1 base, we choose the first.
- * THIS COULD BE A BUG in the future!
+ * NOTE: A load might be associated with more than 1 base, we choose the
+ * first. THIS COULD BE A BUG in the future!
  */
 std::vector<load_info_t> match_loads(std::vector<LoadInst *> loads,
                                      std::vector<Value *> base_load_locations,
@@ -1382,9 +1404,15 @@ struct DiospyrosPass : public FunctionPass {
 
         bool has_changes = true;
         for (auto &B : F) {
+            // Grab instructions in basic block
+            std::set<Instruction *> basic_block_instrs = {};
+            for (auto &I : B) {
+                basic_block_instrs.insert(&I);
+            }
+
             auto chunks = build_chunks(&B, AA);
-            auto trees =
-                chunks_into_joined_trees(chunks, AA, base_of_array_vec, SE);
+            auto trees = chunks_into_joined_trees(chunks, AA, base_of_array_vec,
+                                                  SE, basic_block_instrs);
             auto treerefs = instr2ref(trees);
 
             for (auto tree_chunk : treerefs) {
@@ -1413,3 +1441,6 @@ static RegisterPass<DiospyrosPass> X("diospyros", "Diospyros Pass",
 
 static RegisterStandardPasses RegisterMyPass(
     PassManagerBuilder::EP_EarlyAsPossible, registerDiospyrosPass);
+
+// TODO check that no gep have a load in the calculation chain or some
+// memory address

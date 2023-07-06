@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <time.h>
 
 #define ROW_SIZE 15
@@ -10,6 +11,7 @@
 
 #define MAX_FLOAT 100.00f
 #define DELTA 0.1f
+#define NITER 1000000000
 
 void stencil(float orig_in[ROW_SIZE * COL_SIZE],
              float sol_out[ROW_SIZE * COL_SIZE], float filter_in[F_SIZE]) {
@@ -46,6 +48,34 @@ int main(void) {
     for (int i = 0; i < ROW_SIZE * COL_SIZE; i++) {
         expected[i] = 1;
     }
+
+    // This stackoverflow post explains how to calculate walk clock time.
+    // https://stackoverflow.com/questions/42046712/how-to-record-elaspsed-wall-time-in-c
+    // https://stackoverflow.com/questions/13156031/measuring-time-in-c
+    // https://stackoverflow.com/questions/10192903/time-in-milliseconds-in-c
+    // start timer
+    long start, end;
+    struct timeval timecheck;
+
+    gettimeofday(&timecheck, NULL);
+    start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    // calculate up c_out
+    for (int i = 0; i < NITER; i++) {
+        stencil(orig_in, sol_out, filter_in);
+    }
+
+    // end timer
+    gettimeofday(&timecheck, NULL);
+    end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    // report difference in runtime
+    double diff = difftime(end, start);
+    printf("%ld milliseconds elapsed over %d iterations total\n", (end - start),
+           NITER);
+
+    return 0;
+
     stencil(orig_in, sol_out, filter_in);
     for (int r = 0; r < ROW_SIZE - 2; r++) {
         for (int c = 0; c < COL_SIZE - 2; c++) {
