@@ -146,7 +146,7 @@ impl<A: Analysis<VecLang>> Applier<VecLang, A> for PermuteLoad {
         }
         let (_, _, first_base_id) = offsets[0];
         let aligned_consec_load_vec = egraph.add(VecLang::AlignedConsecVecLoad([first_base_id]));
-        let shuffle_shuf_arg = egraph.add(VecLang::Vec(shuffle_ids_vec.into_boxed_slice()));
+        let shuffle_shuf_arg = egraph.add(VecLang::DataVec(shuffle_ids_vec.into_boxed_slice()));
         let shuffle_vec_op = egraph.add(VecLang::Shuffle([
             aligned_consec_load_vec,
             shuffle_shuf_arg,

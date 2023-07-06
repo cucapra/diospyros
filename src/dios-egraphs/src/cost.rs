@@ -14,8 +14,20 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
     where
         C: FnMut(Id) -> Self::Cost,
     {
+        // const NO_OPTIMIZATION: f64 = 0.0;
+        // const NO_COST: f64 = 0.0;
+        // const ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS: f64 = -1.0;
+        // const VECTORIZED_MEMORY_ACCESS: f64 = 0.0001;
+        // const LITERAL: f64 = 0.001;
+        // const STRUCTURE: f64 = 0.1;
+        // const VEC_OP: f64 = 1.;
+        // const OP: f64 = 1.;
+        // const BIG: f64 = 100.0;
+
+        // New cost model
         const NO_OPTIMIZATION: f64 = 0.0;
-        const ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS: f64 = -2.0;
+        const NO_COST: f64 = 0.0;
+        const ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS: f64 = -1.0;
         const VECTORIZED_MEMORY_ACCESS: f64 = 0.0001;
         const LITERAL: f64 = 0.001;
         const STRUCTURE: f64 = 0.1;
@@ -29,6 +41,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             // Vectorized Memory Accesses are cheaper than individual memory loads and stores
             // Note: This assumes that masked-gathers or masked-scattters to vectors or memory
             // are implemented on the target, and are cheap, according to the LLVM cost model
+            VecLang::AlignedConsecVecLoad2(..) => ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS * 0.5,
             VecLang::AlignedConsecVecLoad(..) => ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS,
             VecLang::VecLoad(..) => VECTORIZED_MEMORY_ACCESS,
             VecLang::VecStore(..) => ALIGNED_CONSEC_VECTORIZED_MEMORY_ACCESS,
@@ -49,7 +62,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::Concat(..) => STRUCTURE,
 
             // Vectors are cheap if they have literal values
-            VecLang::Vec(vals) => {
+            VecLang::Vec(vals) | VecLang::VecTwo(vals) => {
                 // For now, workaround to determine if children are num, symbol,
                 // or get
                 let non_literals = vals.iter().any(|&x| costs(x) > 3. * LITERAL);
@@ -59,6 +72,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
                     STRUCTURE
                 }
             }
+            VecLang::DataVec(..) => NO_COST,
             VecLang::LitVec(..) => LITERAL,
 
             // But scalar and vector ops cost something
@@ -80,6 +94,7 @@ impl CostFunction<VecLang> for VecCostFn<'_> {
             VecLang::VecSqrt(..) => VEC_OP,
             VecLang::VecSgn(..) => VEC_OP,
             VecLang::Shuffle(..) => VEC_OP,
+            VecLang::Join(..) => VEC_OP,
             _ => VEC_OP,
         };
         enode.fold(op_cost, |sum, id| sum + costs(id))

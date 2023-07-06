@@ -41,7 +41,9 @@ define_language! {
         "List" = List(Box<[Id]>),
 
         // Vectors have width elements
+        "VecTwo" = VecTwo(Box<[Id]>),
         "Vec" = Vec(Box<[Id]>),
+        "DataVec" = DataVec(Box<[Id]>),
 
         // Vectors have width elements, not to be optimized (for testing purposes)
         "NoOptVec" = NoOptVec(Box<[Id]>),
@@ -72,13 +74,16 @@ define_language! {
         // MAC takes 3 lists: acc, v1, v2
         "VecMAC" = VecMAC([Id; 3]),
 
-        "VecLoad" = VecLoad([Id; 4]),
+        "VecLoad" = VecLoad([Id; 6]),
 
+        "AlignedConsecVecLoad2" = AlignedConsecVecLoad2([Id; 1]),
         "AlignedConsecVecLoad" = AlignedConsecVecLoad([Id; 1]),
 
         "VecStore" = VecStore([Id; 5]),
 
         "Shuffle" = Shuffle([Id; 2]),
+
+        "Join" = Join([Id; 2]),
 
         // Info specific to register
         // RegInfo(egg::Symbol),
