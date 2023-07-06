@@ -1082,17 +1082,6 @@ struct Egg2LLVMState<'a> {
     module: LLVMModuleRef,
 }
 
-// unsafe fn gep_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> u32 {
-//     let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Reg to LLVM expects egg node in template2actual map.");
-//     match *egg_node {
-//         VecLang::Gep(gep_id) => gep_id,
-//         _ => {
-//             println!("{:?}", *egg_node);
-//             panic!("Non Gep nodes cannot be translated in gep_to_llvm.")
-//         }
-//     }
-// }
-
 /// Translates a Gep node to an ID that the node holds. This ID is matche dto
 /// a gep instruction in the get2gep map
 ///
