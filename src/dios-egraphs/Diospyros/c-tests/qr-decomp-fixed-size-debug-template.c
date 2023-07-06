@@ -243,12 +243,14 @@ int main(void) {
         for (int j = 0; j < SIZE; j++) {
             printf("Q Output: %f\n", Q[i * SIZE + j]);
             printf("Expected Q Output: %f\n", expectedQ[i * SIZE + j]);
+            assert(Q[i * SIZE + j] == expectedQ[i * SIZE + j]);
         }
     }
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             printf("R Output: %f\n", R[i * SIZE + j]);
             printf("Expected R Output: %f\n", expectedR[i * SIZE + j]);
+            assert(R[i * SIZE + j] == expectedR[i * SIZE + j]);
         }
     }
 }

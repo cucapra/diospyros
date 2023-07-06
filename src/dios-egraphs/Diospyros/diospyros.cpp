@@ -698,7 +698,6 @@ using ad_trees_t = std::vector<ad_tree_t>;
 std::pair<bool, ad_tree_t> recurse_llvm(
     Value *value, std::set<Instruction *> chunk_instrs,
     std::set<Instruction *> basic_block_instrs, bool not_for_mem_constraint) {
-    errs() << *value << "\n";
     // Constants
     if (isa<Constant>(value)) {
         // DO not add constant, if i recall, constants are not llvm
