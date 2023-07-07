@@ -71,7 +71,7 @@ unsafe fn gen_get_idx() -> u32 {
 static mut FUNC_NAME2LLVM_FUNC: Vec<(&str, LLVMValueRef)> = Vec::new();
 
 static FMA_NAME: &str = "llvm.fma.v4f32";
-static SCATTER: &str = "llvm.masked.scatter.v4f32.v4p0f32";
+static _SCATTER: &str = "llvm.masked.scatter.v4f32.v4p0f32";
 static GATHER: &str = "llvm.masked.gather.v4f32.v4p0f32";
 
 unsafe fn get_func_llvm_value(name: &str) -> Option<LLVMValueRef> {
@@ -258,15 +258,12 @@ unsafe fn get_array_offset_or_base(egg_node: &VecLang) -> i32 {
     }
 }
 
-unsafe fn load_to_tree(arg1: &Id, arg2: &Id, arg3: &Id, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+unsafe fn load_to_tree(arg1: &Id, _arg2: &Id, arg3: &Id, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
     let mut load_vec = vec![];
     let node1 = &immd.egg_nodes_vector[usize::from(*arg1)].clone();
     let vec1 = value_number_store_tree(node1, immd, md);
-    let node2 = &immd.egg_nodes_vector[usize::from(*arg2)].clone();
-    let array_base = get_array_offset_or_base(node2); // ignore array base
     let node3 = &immd.egg_nodes_vector[usize::from(*arg3)].clone();
     let array_offset = get_array_offset_or_base(node3);
-    let mut final_vec1 = vec![String::from("Load"), "(".to_string()];
     load_vec.extend(vec1.clone());
     load_vec.extend(vec1); // ignore base, repeat vec1
     let final_vec2 = vec![(array_offset % vector_width() as i32).to_string()];
@@ -753,11 +750,6 @@ unsafe fn sqrt32_to_egg(
     (new_enode_vec, new_next_node_idx + 1)
 }
 
-/// Grab the associated index of load in the load_info vector, otherwise u32::max
-unsafe fn get_load_idx(load: LLVMValueRef, load_info: &[load_info_t]) -> u32 {
-    return u32::MAX;
-}
-
 /// Translates a Load to an Egg Get Node
 ///
 /// The translation of a load is a Get Node, which can then possibly be vectorized
@@ -1108,35 +1100,13 @@ unsafe fn gep_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> LL
 ///
 /// Assumes that every load is implicitly from a Float * / Single Level Float Pointer
 unsafe fn load_to_llvm(gep_id: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
-    // let original_gep_id = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
-    // let get2gep = &md.llvm2egg_metadata.get2gep;
-    // for (gep_id, gep_instr) in get2gep.iter() {
-    //     if original_gep_id == *gep_id {
-    //         // assert!(isa_gep(*gep_instr) || isa_argument(*gep_instr));
-    //         let new_load_instr = LLVMBuildLoad(md.builder, *gep_instr, b"\0".as_ptr() as *const _);
-    //         return new_load_instr;
-    //     }
-    // }
-    // panic!("Load2LLVM: Expected a successful lookup in get2gep, but cannot find Gep ID.");
-
     let gep_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
     let new_load_instr = LLVMBuildLoad(md.builder, gep_instr, b"\0".as_ptr() as *const _);
     return new_load_instr;
 }
 
 unsafe fn store_to_llvm(val_id: &Id, gep_id: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
-    // let original_gep_id = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
     let llvm_val_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*val_id)], md);
-    // let get2gep = &md.llvm2egg_metadata.get2gep;
-    // for (gep_id, gep_instr) in get2gep.iter() {
-    //     if original_gep_id == *gep_id {
-    //         // assert!(isa_gep(*gep_instr) || isa_argument(*gep_instr))
-    //         let new_store_instr = LLVMBuildStore(md.builder, llvm_val_instr, *gep_instr);
-    //         return new_store_instr;
-    //     }
-    // }
-    // panic!("Store2LLVM: Expected a successful lookup in get2gep, but cannot find Gep ID.");
-
     let gep_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
     let new_store_instr = LLVMBuildStore(md.builder, llvm_val_instr, gep_instr);
     return new_store_instr;
@@ -1148,12 +1118,6 @@ unsafe fn aligned_consec_loadvec_to_llvm(
     md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
     // New code to handle an aligned and consecutive vector load
-    // let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
-    // let gep1_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep1_id_val)
-    //     .expect("Value of gep1 id should exist in get2gep");
     let gep1_llvm_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
     let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(gep1_llvm_instr));
     let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
@@ -1183,37 +1147,11 @@ unsafe fn loadvec_to_llvm(
     md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
     // Set Opaque Pointer ness
-    // let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
-    // let gep2_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
-    // let gep3_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
-    // let gep4_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
-
     let mut base_data = get_shuf_vec_data(base_ids_vec, md);
     let mut offsets_data = get_shuf_vec_data(offsets_id_vec, md);
 
     base_data.dedup();
     offsets_data.dedup();
-
-    // let gep1_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep1_id_val)
-    //     .expect("Value of gep1 id should exist in get2gep");
-    // let gep2_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep2_id_val)
-    //     .expect("Value of gep2 id should exist in get2gep");
-    // let gep3_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep3_id_val)
-    //     .expect("Value of gep3 id should exist in get2gep");
-    // let gep4_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep4_id_val)
-    //     .expect("Value of gep4 id should exist in get2gep");
 
     let gep1_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
     let gep2_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
@@ -1358,45 +1296,15 @@ unsafe fn loadvec_to_llvm(
 unsafe fn storevec_to_llvm(
     val_vec_id: &Id,
     gep1_id: &Id,
-    gep2_id: &Id,
-    gep3_id: &Id,
-    gep4_id: &Id,
+    _gep2_id: &Id,
+    _gep3_id: &Id,
+    _gep4_id: &Id,
     md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
     // Recursively translate val_vec_id to an LLVM Vector Instr
     let llvm_val_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*val_vec_id)], md);
 
-    // Set Opaque Pointer ness
-    // let gep1_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
-    // let gep2_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
-    // let gep3_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
-    // let gep4_id_val = gep_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
-
-    // let gep1_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep1_id_val)
-    //     .expect("Value of gep1 id should exist in get2gep");
-    // let gep2_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep2_id_val)
-    //     .expect("Value of gep2 id should exist in get2gep");
-    // let gep3_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep3_id_val)
-    //     .expect("Value of gep3 id should exist in get2gep");
-    // let gep4_llvm_instr = md
-    //     .llvm2egg_metadata
-    //     .get2gep
-    //     .get(&gep4_id_val)
-    //     .expect("Value of gep4 id should exist in get2gep");
-
     let gep1_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
-    let gep2_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
-    let gep3_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
-    let gep4_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
 
     // New code to handle a vector store
     // Currently, this is the only type of store that can be generated because stores are not split.
@@ -1412,87 +1320,6 @@ unsafe fn storevec_to_llvm(
     );
     let store = LLVMBuildStore(md.builder, llvm_val_vec, bitcase_scalar_to_vector_type);
     return store;
-
-    let vector_width = 4;
-    let floatptr_type = LLVMTypeOf(*gep1_llvm_instr);
-    let vec4ptr_type = LLVMVectorType(floatptr_type, vector_width);
-    let vec4f_type = LLVMVectorType(LLVMFloatTypeInContext(md.context), vector_width);
-    let vec4b_type = LLVMVectorType(LLVMInt1TypeInContext(md.context), vector_width);
-    let int_type = LLVMIntTypeInContext(md.context, 32);
-    let void_type = LLVMVoidTypeInContext(md.context);
-
-    // Parameter Types are: vector of values, vector of pointers, offset int, mask vector booleans
-    let param_types = [vec4f_type, vec4ptr_type, int_type, vec4b_type].as_mut_ptr();
-    // Output type is a void_type
-    let fn_type = LLVMFunctionType(void_type, param_types, 4, 0 as i32);
-    // Build the Vector Load Intrinsic
-    let func_name = &SCATTER;
-    let llvm_masked_scatter_func = get_func_llvm_value(&func_name);
-
-    let func = match llvm_masked_scatter_func {
-        Some(value) => value,
-        None => {
-            let new_func = LLVMAddFunction(
-                md.module,
-                b"llvm.masked.scatter.v4f32.v4p0f32\0".as_ptr() as *const _,
-                fn_type,
-            );
-            FUNC_NAME2LLVM_FUNC.push((&func_name, new_func));
-            new_func
-        }
-    };
-
-    // Build Arguments
-
-    let pointer_to_int_value = LLVMBuildPtrToInt(
-        md.builder,
-        LLVMConstInt(LLVMIntTypeInContext(md.context, 32), 0 as u64, 0),
-        LLVMIntTypeInContext(md.context, 32),
-        b"pointer-to-int\0".as_ptr() as *const _,
-    );
-    let pointer_to_float_value = LLVMBuildBitCast(
-        md.builder,
-        pointer_to_int_value,
-        floatptr_type,
-        b"pointer-to-float-bit-cast\0".as_ptr() as *const _,
-    );
-    let mut pointer_to_floats = Vec::new();
-    for _ in 0..4 {
-        pointer_to_floats.push(pointer_to_float_value);
-    }
-    let pointer_to_floats_ptr = pointer_to_floats.as_mut_ptr();
-    let mut pointer_vector = LLVMConstVector(pointer_to_floats_ptr, 4);
-
-    let llvm_ptrs = vec![
-        *gep1_llvm_instr,
-        *gep2_llvm_instr,
-        *gep3_llvm_instr,
-        *gep4_llvm_instr,
-    ];
-    for idx in 0..4 {
-        // Grow the Vector
-        pointer_vector = LLVMBuildInsertElement(
-            md.builder,
-            pointer_vector,
-            *llvm_ptrs.get(idx).expect("Index must be in vector"),
-            LLVMConstInt(LLVMIntTypeInContext(md.context, 32), idx as u64, 0),
-            b"\0".as_ptr() as *const _,
-        );
-    }
-
-    let offset = LLVMConstInt(LLVMIntTypeInContext(md.context, 32), 0 as u64, 0);
-
-    let mut mask_values = vec![
-        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
-        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
-        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
-        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
-    ];
-    let ptr_to_mask_values = mask_values.as_mut_ptr();
-    let mask_vector = LLVMConstVector(ptr_to_mask_values, 4);
-
-    let args = [llvm_val_vec, pointer_vector, offset, mask_vector].as_mut_ptr();
-    LLVMBuildCall(md.builder, func, args, 4, b"\0".as_ptr() as *const _)
 }
 
 unsafe fn arg_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
@@ -1702,77 +1529,14 @@ unsafe fn binop_to_llvm(
     }
 }
 
-// TODO: fix up concat errors due to having vecstores.
 unsafe fn concat_to_llvm(
     left_vector: &Id,
     right_vector: &Id,
     md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
-    {
-        let trans_v1 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_vector)], md);
-        let mut trans_v2 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_vector)], md);
-        return trans_v2;
-
-        // In LLVM, it turns out all vectors need to be length power of 2
-        // if the 2 vectors are not the same size, double the length of the smaller vector by padding with 0's in it
-        // manually concatenate 2 vectors by using a LLVM shuffle operation.
-        let v1_type = LLVMTypeOf(trans_v1);
-        let v1_size = LLVMGetVectorSize(v1_type);
-        let v2_type = LLVMTypeOf(trans_v2);
-        let v2_size = LLVMGetVectorSize(v2_type);
-
-        // TODO: HACKY FIX FOR NOW
-        // assume both v1 and v2 are pow of 2 size
-        // assume v2 size smaller or equal to v1 size
-        // assume v2 is 1/2 size of v1
-        if v1_size != v2_size {
-            // replicate v2 size
-            let mut zeros = Vec::new();
-            for _ in 0..v2_size {
-                zeros.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 0 as f64));
-            }
-            let zeros_ptr = zeros.as_mut_ptr();
-            let zeros_vector = LLVMConstVector(zeros_ptr, v2_size);
-            let size = 2 * v2_size;
-            let mut indices = Vec::new();
-            for i in 0..size {
-                indices.push(LLVMConstInt(
-                    LLVMIntTypeInContext(md.context, 32),
-                    i as u64,
-                    0,
-                ));
-            }
-            let mask = indices.as_mut_ptr();
-            let mask_vector = LLVMConstVector(mask, size);
-            trans_v2 = LLVMBuildShuffleVector(
-                md.builder,
-                trans_v2,
-                zeros_vector,
-                mask_vector,
-                b"\0".as_ptr() as *const _,
-            );
-        }
-
-        let size = v1_size + v2_size;
-        let mut indices = Vec::new();
-        for i in 0..size {
-            indices.push(LLVMConstInt(
-                LLVMIntTypeInContext(md.context, 32),
-                i as u64,
-                0,
-            ));
-        }
-
-        let mask = indices.as_mut_ptr();
-        let mask_vector = LLVMConstVector(mask, size);
-        LLVMBuildShuffleVector(
-            md.builder,
-            trans_v1,
-            trans_v2,
-            mask_vector,
-            b"\0".as_ptr() as *const _,
-        )
-    }
+    let _ = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_vector)], md);
+    let trans_v2 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_vector)], md);
+    return trans_v2;
 }
 
 unsafe fn mac_to_llvm(
@@ -1787,8 +1551,6 @@ unsafe fn mac_to_llvm(
     let vec_type = LLVMTypeOf(trans_acc);
     let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
     let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
-    // let vector_width = config::vector_width();
-    // let fma_intrinsic_name = format!("llvm.fma.v{}f32\0", vector_width).as_bytes();
 
     let func_name = &FMA_NAME;
     let llvm_fma_func = get_func_llvm_value(&func_name);
@@ -2004,7 +1766,7 @@ unsafe fn egg_to_llvm(
     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
        vec_to_llvm(&*boxed_ids, translation_metadata)
     }
-    VecLang::DataVec(boxed_ids) => panic!("Cannot translate a datavec"),
+    VecLang::DataVec(_) => panic!("Cannot translate a datavec"),
     VecLang::NoOptVec(boxed_ids) => nooptvector_to_llvm(boxed_ids, translation_metadata),
     VecLang::VecAdd([l, r])
     | VecLang::VecMinus([l, r])
@@ -2037,203 +1799,49 @@ unsafe fn egg_to_llvm(
 }
 
 // Function types for constructor anonymous functions
-type VecLangSingleConstructor = fn([Id; 1]) -> VecLang;
-type VecLangPairConstructor = fn([Id; 2]) -> VecLang;
-type VecLangTripleConstructor = fn([Id; 3]) -> VecLang;
-type VecLangQuadConstructor = fn([Id; 4]) -> VecLang;
-type VecLangQuintConstructor = fn([Id; 5]) -> VecLang;
 type VecLangBoxedConstructor = fn(bool, Box<[Id]>) -> VecLang;
 
-/// Canonicalizes a Enode with a single inpit constructor
-unsafe fn canonicalize_single(
+// Canonicalize the Concat Constructor
+unsafe fn canonicalize_concat(
     can_change_vector: bool,
-    constructor: VecLangSingleConstructor,
-    single_vector: &Id,
+    vector_elements: Box<[Id]>,
     old_egg_nodes: &[VecLang],
 ) -> Vec<VecLang> {
-    let mut trans_v1 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*single_vector)],
-        old_egg_nodes,
-    );
-    trans_v1.push(constructor([*single_vector]));
-    trans_v1
-}
-
-/// Canonicalizes a Enode with a pair constructor
-unsafe fn canonicalize_pair(
-    is_concat: bool,
-    can_change_vector: bool,
-    constructor: VecLangPairConstructor,
-    left_vector: &Id,
-    right_vector: &Id,
-    old_egg_nodes: &[VecLang],
-) -> Vec<VecLang> {
-    let trans_v1 = canonicalize_egg(
-        if !is_concat { false } else { can_change_vector },
-        &old_egg_nodes[usize::from(*left_vector)],
-        old_egg_nodes,
-    );
-    let trans_v2 = canonicalize_egg(
-        if !is_concat { false } else { can_change_vector },
-        &old_egg_nodes[usize::from(*right_vector)],
-        old_egg_nodes,
-    );
-    let mut whole_vector = [trans_v1, trans_v2].concat();
-    whole_vector.push(constructor([*left_vector, *right_vector]));
-    whole_vector
-}
-
-/// Canonicalizes a Enode with a triple input constructor
-unsafe fn canonicalize_triple(
-    can_change_vector: bool,
-    constructor: VecLangTripleConstructor,
-    first_vector: &Id,
-    second_vector: &Id,
-    third_vector: &Id,
-    old_egg_nodes: &[VecLang],
-) -> Vec<VecLang> {
-    let trans_v1 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*first_vector)],
-        old_egg_nodes,
-    );
-    let trans_v2 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*second_vector)],
-        old_egg_nodes,
-    );
-    let trans_v3 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*third_vector)],
-        old_egg_nodes,
-    );
-    let mut whole_vector = [trans_v1, trans_v2, trans_v3].concat();
-    whole_vector.push(constructor([*first_vector, *second_vector, *third_vector]));
-    whole_vector
-}
-
-/// Canonicalizes a Enode with a quadruple input constructor
-unsafe fn canonicalize_quadruple(
-    can_change_vector: bool,
-    constructor: VecLangQuadConstructor,
-    first_vector: &Id,
-    second_vector: &Id,
-    third_vector: &Id,
-    fourth_vector: &Id,
-    old_egg_nodes: &[VecLang],
-) -> Vec<VecLang> {
-    let trans_v1 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*first_vector)],
-        old_egg_nodes,
-    );
-    let trans_v2 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*second_vector)],
-        old_egg_nodes,
-    );
-    let trans_v3 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*third_vector)],
-        old_egg_nodes,
-    );
-    let trans_v4 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*fourth_vector)],
-        old_egg_nodes,
-    );
-    let mut whole_vector = [trans_v1, trans_v2, trans_v3, trans_v4].concat();
-    whole_vector.push(constructor([
-        *first_vector,
-        *second_vector,
-        *third_vector,
-        *fourth_vector,
-    ]));
-    whole_vector
-}
-
-/// Canonicalizes a Enode with a quintuple input constructor
-unsafe fn canonicalize_quintuple(
-    can_change_vector: bool,
-    constructor: VecLangQuintConstructor,
-    first_vector: &Id,
-    second_vector: &Id,
-    third_vector: &Id,
-    fourth_vector: &Id,
-    fifth_vector: &Id,
-    old_egg_nodes: &[VecLang],
-) -> Vec<VecLang> {
-    let trans_v1 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*first_vector)],
-        old_egg_nodes,
-    );
-    let trans_v2 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*second_vector)],
-        old_egg_nodes,
-    );
-    let trans_v3 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*third_vector)],
-        old_egg_nodes,
-    );
-    let trans_v4 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*fourth_vector)],
-        old_egg_nodes,
-    );
-    let trans_v5 = canonicalize_egg(
-        false,
-        &old_egg_nodes[usize::from(*fifth_vector)],
-        old_egg_nodes,
-    );
-    let mut whole_vector = [trans_v1, trans_v2, trans_v3, trans_v4, trans_v5].concat();
-    whole_vector.push(constructor([
-        *first_vector,
-        *second_vector,
-        *third_vector,
-        *fourth_vector,
-        *fifth_vector,
-    ]));
+    let mut whole_vector = Vec::new();
+    for vec_elt in vector_elements.iter() {
+        // note the first argument is to can_change_vector, which is unlike any other constructor
+        let mut trans_val =
+            canonicalize_egg(can_change_vector, &old_egg_nodes[usize::from(*vec_elt)], old_egg_nodes);
+        whole_vector.append(&mut trans_val);
+    }
+    // note specialization to concat constructor
+    whole_vector.push(VecLang::Concat(box2arr(vector_elements)));
     whole_vector
 }
 
 unsafe fn canoncalize_ntuple(
     can_change_vector: bool,
-    vector_elements: &[Id],
-    final_element: VecLang,
+    constructor: VecLangBoxedConstructor,
+    vector_elements: Box<[Id]>,
     old_egg_nodes: &[VecLang],
 ) -> Vec<VecLang> {
     let mut whole_vector = Vec::new();
-    for vec_elt in vector_elements {
+    for vec_elt in vector_elements.iter() {
         let mut trans_val =
             canonicalize_egg(false, &old_egg_nodes[usize::from(*vec_elt)], old_egg_nodes);
         whole_vector.append(&mut trans_val);
     }
-    whole_vector.push(final_element);
+    whole_vector.push(constructor(can_change_vector, vector_elements));
     whole_vector
 }
 
-unsafe fn canonicalize_vec_type(
-    can_change_vector: bool,
-    constructor: VecLangBoxedConstructor,
-    boxed_ids: &Box<[Id]>,
-    old_egg_nodes: &[VecLang],
-) -> Vec<VecLang> {
-    let mut whole_vector: Vec<VecLang> = Vec::new();
-    let mut new_boxed_ids: Vec<Id> = Vec::new();
-    for id in boxed_ids.iter() {
-        new_boxed_ids.push(*id);
-        let trans_vec = canonicalize_egg(false, &old_egg_nodes[usize::from(*id)], old_egg_nodes);
-        for elt in trans_vec {
-            whole_vector.push(elt);
-        }
-    }
-    let boxed = new_boxed_ids.into_boxed_slice();
-    whole_vector.push(constructor(can_change_vector, boxed));
-    whole_vector
+// Solution to convert by:
+// https://stackoverflow.com/questions/29570607/is-there-a-good-way-to-convert-a-vect-to-an-array
+// https://stackoverflow.com/questions/35751927/how-to-convert-a-boxed-array-into-a-vec-in-rust
+unsafe fn box2arr<T, const N: usize>(b: Box<[T]>) -> [T; N] {
+    let v = b.into_vec();
+    v.try_into()
+        .unwrap_or_else(|v: Vec<T>| panic!("Expected a Vec of length {} but it was {}", N, v.len()))
 }
 
 /// Modify the Egg expression so that the first instance of a Vector operation is replaced by a NoOpVector expression node
@@ -2253,8 +1861,8 @@ unsafe fn canonicalize_egg(
       panic!("Get was found. Egg canonicalization does not handle get nodes.")
     }
     VecLang::Gep(g) => vec![VecLang::Gep(*g)],
-    VecLang::Load([gep_id, base_id, offset]) => canonicalize_triple(can_change_vector,|triple| -> VecLang {VecLang::Load(triple)}, gep_id, base_id, offset, old_egg_nodes ),
-    VecLang::Store([val_id, gep_id]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Store(pair)}, val_id, gep_id, old_egg_nodes),
+    VecLang::Load(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Load(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Store(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Store(box2arr(b))}, Box::new(*args), old_egg_nodes),
     VecLang::Set(..) => {
         panic!("Set was found. Egg canonicalization does not handle set nodes.")
     }
@@ -2268,38 +1876,38 @@ unsafe fn canonicalize_egg(
     VecLang::Reg(r) =>  vec![VecLang::Reg(*r)],
     VecLang::Num(n) =>  vec![VecLang::Num(*n)],
     VecLang::List(_) => panic!("List was found. Egg canonicalization does not handle list nodes."),
-    VecLang::LitVec(boxed_ids) => canonicalize_vec_type(can_change_vector, |change_vec_type, boxed| -> VecLang {if change_vec_type {VecLang::NoOptVec(boxed)} else {VecLang::LitVec(boxed)}}, boxed_ids, old_egg_nodes),
-    VecLang::Vec(boxed_ids) => canonicalize_vec_type(can_change_vector, |change_vec_type, boxed| -> VecLang {if change_vec_type {VecLang::NoOptVec(boxed)} else {VecLang::Vec(boxed)}}, boxed_ids, old_egg_nodes),
-    VecLang::DataVec(boxed_ids) => canonicalize_vec_type(can_change_vector, |change_vec_type, boxed| -> VecLang {VecLang::DataVec(boxed)}, boxed_ids, old_egg_nodes),
-    VecLang::VecAdd([l, r])=> canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::VecAdd(pair)}, l, r, old_egg_nodes),
-    VecLang::VecMinus([l, r])=> canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::VecMinus(pair)},l, r, old_egg_nodes),
-    VecLang::VecMul([l, r])=> canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::VecMul(pair)}, l, r, old_egg_nodes),
-    VecLang::VecDiv([l, r])=> canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::VecDiv(pair)}, l, r, old_egg_nodes),
-    VecLang::Add([l, r]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Add(pair)}, l, r, old_egg_nodes),
-    VecLang::Minus([l, r]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Minus(pair)}, l, r, old_egg_nodes),
-    VecLang::Mul([l, r]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Mul(pair)}, l, r, old_egg_nodes),
-    VecLang::Div([l, r]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Div(pair)}, l, r, old_egg_nodes),
-    VecLang::Concat([l, r]) => canonicalize_pair(true, can_change_vector, |pair| -> VecLang {VecLang::Concat(pair)},l, r, old_egg_nodes),
-    VecLang::VecMAC([acc, v1, v2]) => canonicalize_triple(can_change_vector, |triple| -> VecLang {VecLang::VecMAC(triple)},acc, v1, v2, old_egg_nodes),
+    VecLang::LitVec(args) => canoncalize_ntuple(can_change_vector, |can_change_vector, b| -> VecLang {if can_change_vector {VecLang::NoOptVec(b)} else {VecLang::LitVec(b)}}, args.clone(), old_egg_nodes),
+    VecLang::Vec(args) => canoncalize_ntuple(can_change_vector, |can_change_vector, b| -> VecLang {if can_change_vector {VecLang::NoOptVec(b)} else {VecLang::Vec(b)}}, args.clone(), old_egg_nodes),
+    VecLang::DataVec(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::DataVec(b)}, args.clone(), old_egg_nodes),
+    VecLang::VecAdd(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecAdd(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecMinus(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecMinus(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecMul(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecMul(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecDiv(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecDiv(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Add(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Add(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Minus(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Minus(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Mul(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Mul(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Div(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Div(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Concat(args) => canonicalize_concat(can_change_vector, Box::new(*args), old_egg_nodes),
+    VecLang::VecMAC(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecMAC(box2arr(b))}, Box::new(*args), old_egg_nodes),
 
 
     // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
     // TODO: LLVM actually supports many more vector intrinsics, including
     // vector sine/cosine instructions for floats.
-    VecLang::VecNeg([v]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::VecNeg(single)}, v, old_egg_nodes ),
-    VecLang::VecSqrt([v]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::VecSqrt(single)}, v, old_egg_nodes ),
+    VecLang::VecNeg(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecNeg(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecSqrt(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecSqrt(box2arr(b))}, Box::new(*args), old_egg_nodes),
     // VecSgn compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
-    VecLang::VecSgn([v]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::VecSgn(single)}, v, old_egg_nodes ),
-    VecLang::Sgn([n]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::Sgn(single)}, n, old_egg_nodes ),
-    VecLang::Sqrt([n]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::Sqrt(single)}, n, old_egg_nodes ),
-    VecLang::Neg([n]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::Neg(single)}, n, old_egg_nodes ),
-    VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id, base_ids_vec, offsets_id_vec]) => canoncalize_ntuple(can_change_vector,  &[*gep1_id, *gep2_id, *gep3_id, *gep4_id, *base_ids_vec, *offsets_id_vec], VecLang::VecLoad([*gep1_id, *gep2_id, *gep3_id, *gep4_id, *base_ids_vec, *offsets_id_vec]), old_egg_nodes),
-    VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => canonicalize_quintuple(can_change_vector,|quint| -> VecLang {VecLang::VecStore(quint)}, val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, old_egg_nodes ),
-    VecLang::AlignedConsecVecLoad([gep_id]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::AlignedConsecVecLoad(single)}, gep_id, old_egg_nodes ),
-    VecLang::Shuffle([data_vec_id, shuf_vec_id]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Shuffle(pair)}, data_vec_id, shuf_vec_id, old_egg_nodes),
-    VecLang::Join([left, right]) => canonicalize_pair(false, can_change_vector, |pair| -> VecLang {VecLang::Join(pair)}, left, right, old_egg_nodes),
-    VecLang::VecTwo(boxed_ids) => canonicalize_vec_type(can_change_vector, |change_vec_type, boxed| -> VecLang {VecLang::VecTwo(boxed)}, boxed_ids, old_egg_nodes),
-    VecLang::AlignedConsecVecLoad2([gep_id]) => canonicalize_single(can_change_vector,|single| -> VecLang {VecLang::AlignedConsecVecLoad2(single)}, gep_id, old_egg_nodes ),
+    VecLang::VecSgn(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecSgn(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Sgn(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Sgn(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Sqrt(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Sqrt(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Neg(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Neg(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecLoad(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecLoad(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecStore(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecStore(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::AlignedConsecVecLoad(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::AlignedConsecVecLoad(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Shuffle(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Shuffle(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Join(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Join(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecTwo(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecTwo(b)}, args.clone(), old_egg_nodes),
+    VecLang::AlignedConsecVecLoad2(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::AlignedConsecVecLoad2(box2arr(b))}, Box::new(*args), old_egg_nodes),
   }
 }
 
@@ -2371,25 +1979,4 @@ unsafe fn egg_to_llvm_main(
             .expect("Index should be in vector.");
         LLVMInstructionEraseFromParent(*old_instr);
     }
-
-    // BELOW HERE, we allow for vectorization output, and we stitch our work back into the current LLVM code
-
-    // NOTE: We Assume Egg rewriter will maintain relative positions of elements in vector
-    // REVIEW ASSUMPTION!
-    // Extract the elements of the vector, to be assigned back to where they are to be used.
-    // let num_extractions = llvm2egg_metadata.start_instructions.len();
-    // for i in (0..num_extractions).rev() {
-    //     let old_instr = llvm2egg_metadata
-    //         .start_instructions
-    //         .get(i)
-    //         .expect("Index should be in vector.");
-    //     // Build the extracted value
-    //     let index = LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0);
-    //     let extracted_value =
-    //         LLVMBuildExtractElement(builder, llvm_vector, index, b"\0".as_ptr() as *const _);
-    //     // Replace all the uses of the old instruction with the new extracted value
-    //     // Old instruction cannot have been removed.
-    //     LLVMReplaceAllUsesWith(*old_instr, extracted_value);
-    //     LLVMInstructionEraseFromParent(*old_instr);
-    // }
 }
