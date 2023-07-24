@@ -1,0 +1,5 @@
+Benchmark,Baseline,SLP,Diospyros
+3-qr-decomp,6218,6710,6932
+4-qr-decomp,10648,11612,11410
+5-qr-decomp,15842,18499,18311
+6-qr-decomp,22060,25880,26048

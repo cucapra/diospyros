@@ -1,8 +1,0 @@
-stencil2d opt: 288115 milliseconds elapsed over 1000000000 iterations total
-stencil2d baseline: 355675 milliseconds elapsed over 1000000000 iterations total
-
-conv2d opt: 43573 milliseconds elapsed over 1000000000 iterations total
-conv2d baseline: 66823 milliseconds elapsed over 1000000000 iterations total
-
-qprod opt: 5684 milliseconds elapsed over 1000000000 iterations total
-qprod baselibe: 5974 milliseconds elapsed over 1000000000 iterations total
