@@ -1,1 +1,0 @@
-Version of c-tests, except that the EGG rewriting engine is not used in any of these tests. Translation from llvm to egg and egg back to llvm occurs. 

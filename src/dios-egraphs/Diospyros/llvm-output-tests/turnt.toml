@@ -1,1 +1,0 @@
-command = "bash ../test-runner.sh run-opt-stdout c-tests/{filename}"
