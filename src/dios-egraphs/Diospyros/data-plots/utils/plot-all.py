@@ -1,13 +1,11 @@
 import matplotlib.pyplot as plt
-from matplotlib import colors as mcolors
 import numpy as np
 import csv
 import sys
+import glob
 
 
-def plot():
-    csv_file_path = sys.argv[1]
-    out_name = sys.argv[2]
+def plot(csv_file_path, out_path):
 
     names = []
     baseline = []
@@ -63,7 +61,15 @@ def plot():
 
     plt.tight_layout()
 
-    plt.savefig(f"{out_name}.png")
+    plt.savefig(out_path)
 
 
-plot()
+def main():
+    csv_file_dir = sys.argv[1]
+    csv_files = glob.glob(f"{csv_file_dir}/*.csv")
+    for csv in csv_files:
+        short_file_name = csv[csv.rindex("/") + 1: csv.rindex("-data.csv")]
+        plot(csv, f"../plots/{short_file_name}.png")
+
+
+main()
