@@ -16,7 +16,7 @@ def plot(csv_file_path, out_path):
         csvreader = csv.reader(csvfile)
 
         for i, row in enumerate(csvreader):
-            if len(row) >= 4:
+            if len(row) > 4:
                 row = row[1:]
             if i == 0:
                 continue
@@ -67,10 +67,11 @@ def plot(csv_file_path, out_path):
 
 def main():
     csv_file_dir = sys.argv[1]
+    plots_dir = sys.argv[2]
     csv_files = glob.glob(f"{csv_file_dir}/*.csv")
     for csv in csv_files:
         short_file_name = csv[csv.rindex("/") + 1: csv.rindex("-data.csv")]
-        plot(csv, f"../plots/{short_file_name}.png")
+        plot(csv, f"{plots_dir}/{short_file_name}.png")
 
 
 main()

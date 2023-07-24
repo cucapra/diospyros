@@ -1,8 +1,9 @@
 Group,Benchmark,Baseline,SLP,Diospyros
-qr-decomp-data,3-qr-decomp,6218,6710,6932
-qr-decomp-data,4-qr-decomp,10648,11612,11410
-qr-decomp-data,5-qr-decomp,15842,18499,18311
-qr-decomp-data,6-qr-decomp,22060,25880,26048
+qr-decomp-data,2-by-2-qr-decomp,519,1877,2025
+qr-decomp-data,3-by-3-qr-decomp,6218,6710,6932
+qr-decomp-data,4-by-4-qr-decomp,10648,11612,11410
+qr-decomp-data,5-by-5-qr-decomp,15842,18499,18311
+qr-decomp-data,6-by-6-qr-decomp,22060,25880,26048
 mat-mul-data,2-by-2-mat-mul,15,17,23
 mat-mul-data,3-by-3-mat-mul,46,73,68
 mat-mul-data,4-by-4-mat-mul,111,125,78
