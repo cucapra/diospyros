@@ -16,7 +16,8 @@ def plot(csv_file_path, out_path):
         csvreader = csv.reader(csvfile)
 
         for i, row in enumerate(csvreader):
-            assert len(row) == 4
+            if len(row) >= 4:
+                row = row[1:]
             if i == 0:
                 continue
 
