@@ -1,0 +1,13 @@
+Benchmark,Baseline,SLP,Diospyros
+4-by-4-and-2-by-2-stencil,30,39,33
+5-by-5-and-2-by-2-stencil,64,79,75
+6-by-6-and-2-by-2-stencil,111,143,129
+8-by-8-and-2-by-2-stencil,257,310,227
+12-by-12-and-2-by-2-stencil,695,849,608
+16-by-16-and-2-by-2-stencil,1733,1655,1193
+4-by-4-and-3-by-3-stencil,65,80,77
+5-by-5-and-3-by-3-stencil,165,174,166
+6-by-6-and-3-by-3-stencil,263,313,251
+8-by-8-and-3-by-3-stencil,578,687,498
+12-by-12-and-3-by-3-stencil,1685,1908,1569
+16-by-16-and-3-by-3-stencil,3276,3711,3072

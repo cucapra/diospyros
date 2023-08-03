@@ -15,3 +15,5 @@ Cargo.lock
 .clang-format*
 .cargo
 .vscode
+polybench-tests/
+notes/

@@ -1,7 +1,9 @@
+pub mod alignconsecsearcher;
 pub mod binopsearcher;
 pub mod config;
 pub mod cost;
 pub mod macsearcher;
+pub mod permutestore;
 pub mod rewriteconcats;
 pub mod rules;
 pub mod searchutils;

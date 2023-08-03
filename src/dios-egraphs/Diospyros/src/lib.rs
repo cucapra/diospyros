@@ -1,1819 +1,1773 @@
 extern crate llvm_sys as llvm;
-use dioslib::{config, rules, veclang::VecLang};
+use dioslib::{
+    config::{self, vector_width},
+    rules,
+    veclang::VecLang,
+};
 use egg::*;
 use libc::size_t;
 use llvm::{core::*, prelude::*, LLVMOpcode::*, LLVMRealPredicate};
 use std::{
-  cmp,
-  collections::{BTreeMap, BTreeSet},
-  ffi::CStr,
-  mem,
-  os::raw::c_char,
-  slice::from_raw_parts,
+    cmp,
+    collections::{BTreeMap, BTreeSet, HashMap},
+    os::raw::c_char,
+    slice::from_raw_parts, convert::TryInto,
 };
 
 extern "C" {
-  fn llvm_index(val: LLVMValueRef, index: i32) -> i32;
-  fn llvm_name(val: LLVMValueRef) -> *const c_char;
-  fn isa_unop(val: LLVMValueRef) -> bool;
-  fn isa_bop(val: LLVMValueRef) -> bool;
-  fn isa_constant(val: LLVMValueRef) -> bool;
-  fn isa_constfp(val: LLVMValueRef) -> bool;
-  fn isa_gep(val: LLVMValueRef) -> bool;
-  fn isa_load(val: LLVMValueRef) -> bool;
-  fn isa_store(val: LLVMValueRef) -> bool;
-  fn isa_argument(val: LLVMValueRef) -> bool;
-  fn isa_call(val: LLVMValueRef) -> bool;
-  fn isa_fptrunc(val: LLVMValueRef) -> bool;
-  fn isa_fpext(val: LLVMValueRef) -> bool;
-  fn isa_alloca(val: LLVMValueRef) -> bool;
-  fn isa_phi(val: LLVMValueRef) -> bool;
-  fn _isa_sextint(val: LLVMValueRef) -> bool;
-  fn isa_sitofp(val: LLVMValueRef) -> bool;
-  fn isa_constaggregatezero(val: LLVMValueRef) -> bool;
-  fn _isa_constaggregate(val: LLVMValueRef) -> bool;
-  fn isa_integertype(val: LLVMValueRef) -> bool;
-  fn isa_intptr(val: LLVMValueRef) -> bool;
-  fn isa_floattype(val: LLVMValueRef) -> bool;
-  fn isa_bitcast(val: LLVMValueRef) -> bool;
-  fn isa_sqrt32(val: LLVMValueRef) -> bool;
-  fn isa_sqrt64(val: LLVMValueRef) -> bool;
-  fn get_constant_float(val: LLVMValueRef) -> f32;
-  fn _dfs_llvm_value_ref(val: LLVMValueRef, match_val: LLVMValueRef) -> bool;
-  fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
+    fn _llvm_index(val: LLVMValueRef, index: i32) -> i32;
+    fn _llvm_name(val: LLVMValueRef) -> *const c_char;
+    fn _isa_unop(val: LLVMValueRef) -> bool;
+    fn _isa_bop(val: LLVMValueRef) -> bool;
+    fn isa_constant(val: LLVMValueRef) -> bool;
+    fn isa_constfp(val: LLVMValueRef) -> bool;
+    fn _isa_gep(val: LLVMValueRef) -> bool;
+    fn isa_load(val: LLVMValueRef) -> bool;
+    fn isa_store(val: LLVMValueRef) -> bool;
+    fn isa_argument(val: LLVMValueRef) -> bool;
+    fn _isa_call(val: LLVMValueRef) -> bool;
+    fn _isa_fptrunc(val: LLVMValueRef) -> bool;
+    fn _isa_fpext(val: LLVMValueRef) -> bool;
+    fn _isa_alloca(val: LLVMValueRef) -> bool;
+    fn _isa_phi(val: LLVMValueRef) -> bool;
+    fn _isa_sextint(val: LLVMValueRef) -> bool;
+    fn _isa_sitofp(val: LLVMValueRef) -> bool;
+    fn isa_constaggregatezero(val: LLVMValueRef) -> bool;
+    fn _isa_constaggregate(val: LLVMValueRef) -> bool;
+    fn isa_integertype(val: LLVMValueRef) -> bool;
+    fn _isa_intptr(val: LLVMValueRef) -> bool;
+    fn isa_floatptr(val: LLVMValueRef) -> bool;
+    fn _isa_floattype(val: LLVMValueRef) -> bool;
+    fn _isa_bitcast(val: LLVMValueRef) -> bool;
+    fn isa_sqrt32(val: LLVMValueRef) -> bool;
+    fn _isa_sqrt64(val: LLVMValueRef) -> bool;
+    fn get_constant_float(val: LLVMValueRef) -> f32;
+    fn build_constant_float(n: f64, context: LLVMContextRef) -> LLVMValueRef;
+    fn generate_opaque_pointer(element_type: LLVMTypeRef) -> LLVMTypeRef;
 }
 
-// Note: We use BTreeMaps to enforce ordering in the map
-// Without ordering, tests become flaky and start failing a lot more often
-// We do not use HashMaps for this reason as ordering is not enforced.
-// GEPMap : Maps the array name and array offset as symbols to the GEP
-// LLVM Value Ref that LLVM Generated
-type GEPMap = BTreeMap<(Symbol, Symbol), LLVMValueRef>;
-// VarMap : Maps a symbol to a llvm value ref representing a variable
-// type VarMap = BTreeMap<Symbol, LLVMValueRef>;
-// // BopMap : Maps a binary oeprator llvm value ref to an ID, indicating a
-// // binary operator has been seen. Binary Operators be ordered in the order
-// // they were generated in LLVM, which is earliest to latest in code.
-// type BopMap = BTreeMap<LLVMValueRef, Id>;
-// // ValueVec : A vector of LLVM Value Refs for which we must do extract element
-// // for after vectorization.
-// type ValueVec = Vec<LLVMValueRef>;
+static mut ARG_IDX: u32 = 0;
+static mut REG_IDX: u32 = 0;
+static mut GET_IDX: u32 = 0;
 
-// const SQRT_OPERATOR: i32 = 3;
-// const BINARY_OPERATOR: i32 = 2;
-// static mut SYMBOL_IDX: i32 = 0;
-static mut ARG_IDX: i32 = 0;
-static mut CALL_IDX: i32 = 0;
-static mut NODE_IDX: u32 = 0;
-
-// unsafe fn gen_symbol_name() -> String {
-//   SYMBOL_IDX += 1;
-//   let string = "SYMBOL".to_string();
-//   let result = format!("{}{}", string, SYMBOL_IDX.to_string());
-//   result
-// }
-
-unsafe fn gen_node_idx() -> u32 {
-  NODE_IDX += 1;
-  return NODE_IDX;
+unsafe fn gen_arg_idx() -> u32 {
+    ARG_IDX += 1;
+    return ARG_IDX;
 }
 
-unsafe fn gen_arg_name() -> String {
-  ARG_IDX += 1;
-  let string = "ARGUMENT".to_string();
-  let result = format!("{}{}", string, ARG_IDX.to_string());
-  result
+unsafe fn gen_reg_idx() -> u32 {
+    REG_IDX += 1;
+    return REG_IDX;
 }
 
-unsafe fn gen_call_name() -> String {
-  CALL_IDX += 1;
-  let string = "CALL".to_string();
-  let result = format!("{}{}", string, CALL_IDX.to_string());
-  result
+unsafe fn gen_get_idx() -> u32 {
+    GET_IDX += 1;
+    return GET_IDX;
+}
+
+// Map from Func Name to LLVM FUnc
+// Have to use Vec because BTReeMap is unstable at constant in Rust 1.58. New versions
+// of Rust break LLVM 11.0 so I cannot upgrade.
+static mut FUNC_NAME2LLVM_FUNC: Vec<(&str, LLVMValueRef)> = Vec::new();
+
+static FMA_NAME: &str = "llvm.fma.v4f32";
+static _SCATTER: &str = "llvm.masked.scatter.v4f32.v4p0f32";
+static GATHER: &str = "llvm.masked.gather.v4f32.v4p0f32";
+
+unsafe fn get_func_llvm_value(name: &str) -> Option<LLVMValueRef> {
+    for (func_name, value) in FUNC_NAME2LLVM_FUNC.clone() {
+        if func_name == name {
+            return Some(value);
+        }
+    }
+    return None;
+}
+
+static mut VECTORIZATION_MAP : Vec<(Vec<String>, RecExpr<VecLang>, HashMap<VecLang, u32>)> = Vec::new();
+
+unsafe fn get_vectorization(vec: Vec<String>) -> Option<(RecExpr<VecLang>, HashMap<VecLang, u32>)> {
+    for (stringvec, vectorization, map) in VECTORIZATION_MAP.clone() {
+        if stringvec == vec {
+            return Some((vectorization, map));
+        }
+    }
+    return None;
+}
+
+// Reference Comparison: https://www.reddit.com/r/rust/comments/2r3wjk/is_there_way_to_compare_objects_by_address_in_rust/
+// Compares whether addresses of LLVMValueRefs are the same.
+// Not the contents of the Value Refs
+fn cmp_val_ref_address(a1: &llvm::LLVMValue, a2: &llvm::LLVMValue) -> bool {
+    a1 as *const _ == a2 as *const _
+}
+
+fn _cmp_typ(a1: &LLVMTypeRef, a2: &LLVMTypeRef) -> bool {
+    a1 as *const _ == a2 as *const _
 }
 
 /// Converts LLVMValueRef binop to equivalent VecLang Binop node
 unsafe fn choose_binop(bop: &LLVMValueRef, ids: [Id; 2]) -> VecLang {
-  match LLVMGetInstructionOpcode(*bop) {
-    LLVMFAdd => VecLang::Add(ids),
-    LLVMFMul => VecLang::Mul(ids),
-    LLVMFSub => VecLang::Minus(ids),
-    LLVMFDiv => VecLang::Div(ids),
-    _ => panic!("Choose_Binop: Opcode Match Error"),
-  }
+    match LLVMGetInstructionOpcode(*bop) {
+        LLVMFAdd => VecLang::Add(ids),
+        LLVMFMul => VecLang::Mul(ids),
+        LLVMFSub => VecLang::Minus(ids),
+        LLVMFDiv => VecLang::Div(ids),
+        _ => panic!("Choose_Binop: Opcode Match Error"),
+    }
 }
-
-// /// Convert the sqrt into a unique symbol, which maps to the sqet argument LLVMValueRef
-// /// And then Make sqrt point to that unique symbol.
-// /// On the other side, the symbol gets retranslted to the LLVMValueRef argument that came in
-// /// and then the sqrt takes the square root of it.
-// unsafe fn to_expr_sqrt(
-//   sqrt_ref: &LLVMValueRef,
-//   var_map: &mut VarMap,
-//   enode_vec: &mut Vec<VecLang>,
-// ) -> () {
-//   let symbol = Symbol::from(gen_symbol_name());
-//   enode_vec.push(VecLang::Symbol(symbol));
-//   let symbol_idx = enode_vec.len() - 1;
-//   var_map.insert(symbol, *sqrt_ref);
-//   enode_vec.push(VecLang::Sqrt([Id::from(symbol_idx)]));
-// }
-
-// /// Converts LLVMValueRef constant to a VecLang Num.
-// unsafe fn to_expr_constant(
-//   operand: &LLVMValueRef,
-//   vec: &mut Vec<VecLang>,
-//   ids: &mut [egg::Id; 2],
-//   id_index: usize,
-// ) -> () {
-//   let value = get_constant_float(*operand);
-//   vec.push(VecLang::Num(value as i32));
-//   ids[id_index] = Id::from(vec.len() - 1);
-// }
-
-// /// Converts LLVMValueRef GEP to a VecLang Symbol with variable name.
-// unsafe fn to_expr_var(
-//   var_operand: &LLVMValueRef,
-//   enode_vec: &mut Vec<VecLang>,
-//   ids: &mut [egg::Id; 2],
-//   id_index: usize,
-//   var_map: &mut VarMap,
-// ) -> () {
-//   let var_name = CStr::from_ptr(llvm_name(*var_operand)).to_str().unwrap();
-//   let symbol = Symbol::from(var_name);
-//   enode_vec.push(VecLang::Symbol(symbol));
-//   ids[id_index] = Id::from(enode_vec.len() - 1);
-//   (*var_map).insert(symbol, *var_operand);
-// }
-
-// /// Converts LLVMValueRef GEP to a VecLang Get and VecLang Symbol for array
-// /// and VecLang Symbol for offset.
-// unsafe fn to_expr_gep(
-//   gep_operand: &LLVMValueRef,
-//   ids: &mut [egg::Id; 2],
-//   id_index: usize,
-//   enode_vec: &mut Vec<VecLang>,
-//   gep_map: &mut GEPMap,
-// ) -> () {
-//   let array_var_name = CStr::from_ptr(llvm_name(*gep_operand)).to_str().unwrap();
-//   enode_vec.push(VecLang::Symbol(Symbol::from(array_var_name)));
-//   let array_var_idx = enode_vec.len() - 1;
-//   // --- get offsets for multidimensional arrays ----
-//   let num_gep_operands = LLVMGetNumOperands(*gep_operand);
-//   let mut indices = Vec::new();
-//   for operand_idx in 1..num_gep_operands {
-//     let array_offset = llvm_index(*gep_operand, operand_idx);
-//     indices.push(array_offset);
-//   }
-//   let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
-//   let offsets_symbol = Symbol::from(&offsets_string);
-//   enode_vec.push(VecLang::Symbol(offsets_symbol));
-//   let array_offset_idx = enode_vec.len() - 1;
-
-//   enode_vec.push(VecLang::Get([
-//     Id::from(array_var_idx),
-//     Id::from(array_offset_idx),
-//   ]));
-
-//   ids[id_index] = Id::from(enode_vec.len() - 1);
-
-//   let array_name_symbol = Symbol::from(array_var_name);
-//   gep_map.insert((array_name_symbol, offsets_symbol), *gep_operand);
-// }
-
-// /// Makes binary operators as "used", which means that no extract is needed
-// /// for these binary operators.
-// ///
-// /// For example:
-// /// x = (3 + z) + (2 + y)
-// /// will record 3 + z, 2 + y as used in the final addition (3 + z) + (2 + y)/
-// /// Only 1 extraction is needed (to assign to x's location). Not 3.
-// unsafe fn mark_used_bops(
-//   operand: &LLVMValueRef,
-//   ids: &mut [egg::Id; 2],
-//   id_index: usize,
-//   bop_map: &mut BopMap,
-//   used_bop_ids: &mut Vec<Id>,
-// ) -> bool {
-//   let mut changed = false;
-//   for (&prev_used_bop, &mut prev_used_id) in bop_map {
-//     if dfs_llvm_value_ref(*operand, prev_used_bop) {
-//       ids[id_index] = prev_used_id;
-//       used_bop_ids.push(prev_used_id);
-//       changed |= true;
-//     }
-//   }
-//   return changed;
-// }
-
-// /// Converts LLVMValueRef operand to corresponding VecLang node
-// unsafe fn to_expr_operand(
-//   operand: &LLVMValueRef,
-//   bop_map: &mut BopMap,
-//   ids: &mut [egg::Id; 2],
-//   id_index: usize,
-//   used_bop_ids: &mut Vec<Id>,
-//   enode_vec: &mut Vec<VecLang>,
-//   gep_map: &mut GEPMap,
-//   var_map: &mut VarMap,
-// ) -> () {
-//   let removed_bops = mark_used_bops(operand, ids, id_index, bop_map, used_bop_ids);
-//   if removed_bops {
-//     return ();
-//   }
-//   if bop_map.contains_key(&operand) {
-//     let used_id = *bop_map.get(&operand).expect("Expected key in map");
-//     ids[id_index] = used_id;
-//     used_bop_ids.push(used_id);
-//   } else if isa_bop(*operand) {
-//   } else if isa_constant(*operand) {
-//     to_expr_constant(&operand, enode_vec, ids, id_index);
-//   } else if isa_load(*operand) {
-//     let inner_operand = LLVMGetOperand(*operand, 0);
-//     if isa_gep(inner_operand) {
-//       to_expr_gep(&inner_operand, ids, id_index, enode_vec, gep_map);
-//     } else {
-//       // assume load of some temporary/global variable
-//       to_expr_var(operand, enode_vec, ids, id_index, var_map);
-//     }
-//   } else {
-//     panic!("Cannot handle LLVM IR Operand.")
-//   }
-// }
-
-// /// Pads a vector to be always the Vector Lane Width.
-// fn pad_vector(binop_vec: &Vec<Id>, enode_vec: &mut Vec<VecLang>) -> () {
-//   let width = config::vector_width();
-//   let mut length = binop_vec.len();
-//   let mut vec_indices = Vec::new();
-//   let mut idx = 0;
-//   while length > width {
-//     let mut width_vec = Vec::new();
-//     for _ in 0..width {
-//       width_vec.push(binop_vec[idx]);
-//       idx += 1;
-//       length -= 1;
-//     }
-//     enode_vec.push(VecLang::Vec(width_vec.into_boxed_slice()));
-//     vec_indices.push(enode_vec.len() - 1);
-//   }
-//   // wrap up extras at end
-//   let diff = width - length;
-//   let mut extras = Vec::new();
-//   for _ in 0..diff {
-//     enode_vec.push(VecLang::Num(0));
-//     extras.push(enode_vec.len() - 1);
-//   }
-//   let mut final_vec = Vec::new();
-//   let original_length = binop_vec.len();
-//   for i in idx..original_length {
-//     final_vec.push(binop_vec[i]);
-//   }
-//   for id in extras.iter() {
-//     final_vec.push(Id::from(*id));
-//   }
-//   enode_vec.push(VecLang::Vec(final_vec.into_boxed_slice()));
-//   vec_indices.push(enode_vec.len() - 1);
-//   // create concats
-//   let mut num_concats = vec_indices.len() - 1;
-//   let mut idx = 0;
-//   let mut prev_id = Id::from(vec_indices[idx]);
-//   idx += 1;
-//   while num_concats > 0 {
-//     let concat = VecLang::Concat([prev_id, Id::from(vec_indices[idx])]);
-//     enode_vec.push(concat);
-//     prev_id = Id::from(enode_vec.len() - 1);
-//     idx += 1;
-//     num_concats -= 1;
-//   }
-// }
-
-// /// Converts LLVMValueRef to a corresponding VecLang expression, as well as a GEPMap,
-// /// which maps each LLVM gep expression to a symbol representing the array name
-// /// and a symbol representing the array offset, a var map, which maps a symbol to the
-// /// LLVMValueRef representing the variable, and a ValueVec, which reprsents
-// /// the values we generate extract instructions on.
-// pub fn to_expr(
-//   bb_vec: &[LLVMValueRef],
-//   operand_types: &[i32],
-// ) -> (RecExpr<VecLang>, GEPMap, VarMap, ValueVec) {
-//   let (mut enode_vec, mut bops_vec, mut ops_to_replace, mut used_bop_ids) =
-//     (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-//   let (mut gep_map, mut var_map, mut bop_map) = (BTreeMap::new(), BTreeMap::new(), BTreeMap::new());
-//   let mut ids = [Id::from(0); 2];
-//   for (i, bop) in bb_vec.iter().enumerate() {
-//     unsafe {
-//       if operand_types[i] == BINARY_OPERATOR {
-//         // to_expr on left and then right operands
-//         to_expr_operand(
-//           &LLVMGetOperand(*bop, 0),
-//           &mut bop_map,
-//           &mut ids,
-//           0,
-//           &mut used_bop_ids,
-//           &mut enode_vec,
-//           &mut gep_map,
-//           &mut var_map,
-//         );
-//         to_expr_operand(
-//           &LLVMGetOperand(*bop, 1),
-//           &mut bop_map,
-//           &mut ids,
-//           1,
-//           &mut used_bop_ids,
-//           &mut enode_vec,
-//           &mut gep_map,
-//           &mut var_map,
-//         );
-//         // lhs bop rhs
-//         enode_vec.push(choose_binop(bop, ids));
-//       } else if operand_types[i] == SQRT_OPERATOR {
-//         // currently fails to generate correct code or optimize.
-//         // to_expr_sqrt(bop, &mut var_map, &mut enode_vec);
-//       }
-//     }
-//     // add in the binary/unary operator to the bops_vec list
-//     let id = Id::from(enode_vec.len() - 1);
-//     bops_vec.push(id);
-//     ops_to_replace.push((*bop, id));
-//     bop_map.insert(*bop, id);
-//     // remove binops that are used as part of another binop
-//     for used_id in used_bop_ids.iter() {
-//       if bops_vec.contains(used_id) {
-//         let index = bops_vec
-//           .iter()
-//           .position(|&_id| _id == *used_id)
-//           .expect("Require used_id in vector");
-//         bops_vec.remove(index);
-//       }
-//     }
-//   }
-//   // decompose bops_vec into width number of binops
-//   pad_vector(&bops_vec, &mut enode_vec);
-
-//   // remove binary ops that were used, and thus not the ones we want to replace directly
-//   let mut final_ops_to_replace = Vec::new();
-//   for (bop, id) in ops_to_replace.iter() {
-//     if !used_bop_ids.contains(id) {
-//       final_ops_to_replace.push(*bop);
-//     }
-//   }
-
-//   return (
-//     RecExpr::from(enode_vec),
-//     gep_map,
-//     var_map,
-//     final_ops_to_replace,
-//   );
-// }
 
 /// Translates VecLang binop expression node to the corresponding LLVMValueRef
 unsafe fn translate_binop(
-  enode: &VecLang,
-  left: LLVMValueRef,
-  right: LLVMValueRef,
-  builder: LLVMBuilderRef,
-  name: *const c_char,
+    enode: &VecLang,
+    left: LLVMValueRef,
+    right: LLVMValueRef,
+    builder: LLVMBuilderRef,
+    name: *const c_char,
 ) -> LLVMValueRef {
-  match enode {
-    VecLang::VecAdd(_) | VecLang::Add(_) => LLVMBuildFAdd(builder, left, right, name),
-    VecLang::VecMul(_) | VecLang::Mul(_) => LLVMBuildFMul(builder, left, right, name),
-    VecLang::VecMinus(_) | VecLang::Minus(_) => LLVMBuildFSub(builder, left, right, name),
-    VecLang::VecDiv(_) | VecLang::Div(_) => LLVMBuildFDiv(builder, left, right, name),
-    // use binary bitwise operators for or / and
-    VecLang::Or(_) => LLVMBuildOr(builder, left, right, name),
-    VecLang::And(_) => LLVMBuildAnd(builder, left, right, name),
-    VecLang::Lt(_) => LLVMBuildFCmp(builder, LLVMRealPredicate::LLVMRealOLT, left, right, name),
-    _ => panic!("Not a vector or scalar binop."),
-  }
+    match enode {
+        VecLang::VecAdd(_) | VecLang::Add(_) => LLVMBuildFAdd(builder, left, right, name),
+        VecLang::VecMul(_) | VecLang::Mul(_) => LLVMBuildFMul(builder, left, right, name),
+        VecLang::VecMinus(_) | VecLang::Minus(_) => LLVMBuildFSub(builder, left, right, name),
+        VecLang::VecDiv(_) | VecLang::Div(_) => LLVMBuildFDiv(builder, left, right, name),
+        // use binary bitwise operators for or / and
+        VecLang::Or(_) => LLVMBuildOr(builder, left, right, name),
+        VecLang::And(_) => LLVMBuildAnd(builder, left, right, name),
+        VecLang::Lt(_) => LLVMBuildFCmp(builder, LLVMRealPredicate::LLVMRealOLT, left, right, name),
+        _ => panic!("Not a vector or scalar binop."),
+    }
 }
 
 /// Translates VecLang unop expression node to the corresponding LLVMValueRef
 unsafe fn translate_unop(
-  enode: &VecLang,
-  n: LLVMValueRef,
-  builder: LLVMBuilderRef,
-  context: LLVMContextRef,
-  module: LLVMModuleRef,
-  name: *const c_char,
+    enode: &VecLang,
+    n: LLVMValueRef,
+    builder: LLVMBuilderRef,
+    context: LLVMContextRef,
+    module: LLVMModuleRef,
+    name: *const c_char,
 ) -> LLVMValueRef {
-  match enode {
-    VecLang::Sgn(_) => {
-      let one = LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64);
-      let param_types = [
-        LLVMFloatTypeInContext(context),
-        LLVMFloatTypeInContext(context),
-      ]
-      .as_mut_ptr();
-      let fn_type = LLVMFunctionType(LLVMFloatTypeInContext(context), param_types, 2, 0 as i32);
-      let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
-      let args = [one, n].as_mut_ptr();
-      LLVMBuildCall(builder, func, args, 2, name)
+    match enode {
+        VecLang::Sgn(_) => {
+            let one = LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64);
+            let param_types = [
+                LLVMFloatTypeInContext(context),
+                LLVMFloatTypeInContext(context),
+            ]
+            .as_mut_ptr();
+            let fn_type =
+                LLVMFunctionType(LLVMFloatTypeInContext(context), param_types, 2, 0 as i32);
+            let func =
+                LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
+            let args = [one, n].as_mut_ptr();
+            LLVMBuildCall(builder, func, args, 2, name)
+        }
+        VecLang::Sqrt(_) => {
+            let param_types = [LLVMFloatTypeInContext(context)].as_mut_ptr();
+            let fn_type =
+                LLVMFunctionType(LLVMFloatTypeInContext(context), param_types, 1, 0 as i32);
+            let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+            let args = [n].as_mut_ptr();
+            LLVMBuildCall(builder, func, args, 1, name)
+        }
+        VecLang::Neg(_) => LLVMBuildFNeg(builder, n, name),
+        _ => panic!("Not a scalar unop."),
     }
-    VecLang::Sqrt(_) => {
-      let param_types = [LLVMFloatTypeInContext(context)].as_mut_ptr();
-      let fn_type = LLVMFunctionType(LLVMFloatTypeInContext(context), param_types, 1, 0 as i32);
-      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
-      let args = [n].as_mut_ptr();
-      LLVMBuildCall(builder, func, args, 1, name)
-    }
-    VecLang::Neg(_) => LLVMBuildFNeg(builder, n, name),
-    _ => panic!("Not a scalar unop."),
-  }
 }
 
-/// translate_get converts a VecLang Get Node to the corresponding LLVM Ir array name and
-/// LLVM IR offset, as symbols.
-unsafe fn translate_get(get: &VecLang, enode_vec: &[VecLang]) -> (Symbol, Symbol) {
-  match get {
-    VecLang::Get([sym, i]) => match (&enode_vec[usize::from(*sym)], &enode_vec[usize::from(*i)]) {
-      (VecLang::Symbol(name), VecLang::Symbol(offset)) => {
-        return (*name, *offset);
+/// Calculate cost for any Egg expression.
+/// Uses a custom model that I developed, to see if an optimization should go through
+/// or not.
+pub fn calculate_cost() -> u32 {
+    return 0;
+}
+
+/// Struct representing load info, same as on C++ side
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct load_info_t {
+    pub load: LLVMValueRef,
+    pub base_id: i32,
+    pub offset: i32,
+}
+
+/// Value Numbering Metadata
+#[derive(Debug, Clone)]
+struct ValueNumberingState<'a> {
+    egg_nodes_vector: &'a [VecLang],
+}
+
+/// Value Numbering Mutable Metadata
+#[derive(Debug, Clone)]
+struct ValueNumberingMutableState {
+    node2value: HashMap<VecLang, u32>,
+    currvalue: u32,
+}
+
+
+unsafe fn value_number_args(op_name: String, args: &[Id], immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    let mut vec0 = vec![];
+    for arg in args.into_iter() {
+        let node = &immd.egg_nodes_vector[usize::from(*arg)].clone();
+        let vec = value_number_store_tree(node, immd, md);
+        vec0.extend(vec);
+    }
+    let mut final_vec1 = vec![op_name, "(".to_string()];
+    let final_vec2 = vec![")".to_string()];
+    final_vec1.extend(vec0);
+    final_vec1.extend(final_vec2);
+    return final_vec1;
+}
+
+unsafe fn value_number_boxed_args(op_name: String, args: &Box<[Id]>, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    let mut vec0 = vec![];
+    for arg in args.into_iter() {
+        let vec = value_number_store_tree(&immd.egg_nodes_vector[usize::from(*arg)], immd, md);
+        vec0.extend(vec);
+    }
+    let mut final_vec1 = vec![op_name, "(".to_string()];
+    let final_vec2 = vec![")".to_string()];
+    final_vec1.extend(vec0);
+    final_vec1.extend(final_vec2);
+    return final_vec1;
+}
+
+unsafe fn op_to_vec_string(op_name:String, val:i32) -> Vec<String> {
+    let str0 = op_name;
+    let str1 = "(";
+    let str2 = val.to_string();
+    let str3 = ")";
+    return vec![format!("{}{}{}{}", str0, str1, str2, str3).to_string()];
+}
+
+unsafe fn value_number_check_node(op_name: String, key: VecLang, _immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    if md.node2value.contains_key(&key) {
+        let val = *md.node2value.get(&key).expect("Key should exist");
+        return op_to_vec_string(op_name, val.try_into().unwrap());
+    } else {
+        let val = md.currvalue;
+        md.node2value.insert(key, md.currvalue);
+        md.currvalue += 1;
+        return op_to_vec_string(op_name, val.try_into().unwrap());
+    }
+}
+
+unsafe fn get_array_offset_or_base(egg_node: &VecLang) -> i32 {
+    match egg_node {
+        VecLang::Num(n) => *n,
+        _ => panic!("Array Offset or Base must be in a Num construct"),
+    }
+}
+
+unsafe fn load_to_tree(arg1: &Id, _arg2: &Id, arg3: &Id, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    let mut load_vec = vec![];
+    let node1 = &immd.egg_nodes_vector[usize::from(*arg1)].clone();
+    let vec1 = value_number_store_tree(node1, immd, md);
+    let node3 = &immd.egg_nodes_vector[usize::from(*arg3)].clone();
+    let array_offset = get_array_offset_or_base(node3);
+    load_vec.extend(vec1.clone());
+    load_vec.extend(vec1); // ignore base, repeat vec1
+    let final_vec2 = vec![(array_offset % vector_width() as i32).to_string()];
+    let final_vec3 = vec![")".to_string()]; 
+    load_vec.extend(final_vec2);
+    load_vec.extend(final_vec3);
+    return load_vec;
+}
+
+unsafe fn value_number_store_tree(egg_node: &VecLang, immd: &ValueNumberingState, md: &mut ValueNumberingMutableState) -> Vec<String> {
+    match egg_node {
+        VecLang::Symbol(..) => {
+          panic!("Symbol was found. Value Numbering does not handle symbol nodes.")
+        }
+        VecLang::Get(..) => {
+          panic!("Get was found. Value Numbering does not handle get nodes.")
+        }
+        VecLang::Gep(i) => return value_number_check_node(String::from("Gep"), VecLang::Gep(*i), immd, md),
+        VecLang::Load([a1, a2, a3]) => return load_to_tree(a1, a2, a3, immd, md),   // value_number_args(String::from("Load"), &[*a1, *a1, *a1], immd, md),
+        VecLang::Store(args) => return value_number_args(String::from("Store"), args, immd, md),
+        VecLang::Set(..) => {
+            panic!("Set was found. Value Numbering does not handle set nodes.")
+        }
+        VecLang::Ite(..) => panic!("Ite was found. Value Numbering does not handle ite nodes."),
+        VecLang::Or(..) => panic!("Or was found. Value Numbering does not handle or nodes."),
+        VecLang::And(..) => panic!("And was found. Value Numbering does not handle and nodes."),
+        VecLang::Lt(..) => panic!("Lt was found. Value Numbering does not handle lt nodes."),
+        VecLang::Sgn(..) => panic!("Sgn was found. Value Numbering does not handle sgn nodes. TODO: In the future, tis node will be handled alongside sqrt and neg scalar nodes."),
+        VecLang::VecSgn(..) => panic!("VecSgn was found. Value Numbering does not handle vecsgn nodes. TODO: In the future, this node will be handled alongside VecSqrt and VecNeg vector nodes."),
+        VecLang::Arg(a) => return value_number_check_node(String::from("Arg"), VecLang::Arg(*a), immd, md),
+        VecLang::Reg(r) => return value_number_check_node(String::from("Reg"), VecLang::Reg(*r), immd, md),
+        VecLang::Num(n) => return op_to_vec_string(String::from("Num"), *n),
+        VecLang::LitVec(boxed_ids) => return value_number_boxed_args(String::from("LitVec"), boxed_ids, immd, md),
+        VecLang::Vec(boxed_ids) => return value_number_boxed_args(String::from("Vec"), boxed_ids, immd, md),
+        VecLang::List(boxed_ids) => return value_number_boxed_args(String::from("List"), boxed_ids, immd, md),
+        VecLang::DataVec(boxed_ids) => return value_number_boxed_args(String::from("DataVec"), boxed_ids, immd, md),
+        VecLang::NoOptVec(boxed_ids) => return value_number_boxed_args(String::from("NoOptVec"), boxed_ids, immd, md),
+        VecLang::VecAdd(args) => return value_number_args(String::from("VecAdd"), args, immd, md),
+        VecLang::VecMinus(args) => return value_number_args(String::from("VecMinus"), args, immd, md),
+        VecLang::VecMul(args) => return value_number_args(String::from("VecMul"), args, immd, md),
+        VecLang::VecDiv(args) => return value_number_args(String::from("VecDiv"), args, immd, md),
+        VecLang::Add(args) => return value_number_args(String::from("Add"), args, immd, md),
+        VecLang::Minus(args) => return value_number_args(String::from("Minus"), args, immd, md),
+        VecLang::Mul(args) => return value_number_args(String::from("Mul"), args, immd, md),
+        VecLang::Div(args) => return value_number_args(String::from("Div"), args,immd, md),
+        VecLang::Concat(args) => return value_number_args(String::from("Concat"), args,immd, md),
+        VecLang::VecMAC(args) => return value_number_args(String::from("VecMac"), args, immd, md),
+    
+    
+        // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
+        // TODO: LLVM actually supports many more vector intrinsics, including
+        // vector sine/cosine instructions for floats.
+        VecLang::VecNeg(args) => return value_number_args(String::from("VecNeg"), args, immd, md),
+        VecLang::VecSqrt(args) => return value_number_args(String::from("VecSqrt"), args, immd, md),
+        // VecSgn compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
+        VecLang::VecSgn(args) => return value_number_args(String::from("VecSgn"), args, immd, md),
+        VecLang::Sgn(args) => return value_number_args(String::from("Sgn"), args, immd, md),
+        VecLang::Sqrt(args) => return value_number_args(String::from("Sqrt"), args, immd, md),
+        VecLang::Neg(args) => return value_number_args(String::from("Neg"), args, immd, md),
+        VecLang::VecLoad(args) => return value_number_args(String::from("VecLoad"), args, immd, md),
+        VecLang::VecStore(args) => return value_number_args(String::from("VecStore"), args,immd, md),
+        VecLang::AlignedConsecVecLoad(args) => return value_number_args(String::from("AlignedConsecVecLoad"), args, immd, md),
+        VecLang::Shuffle(args) => return value_number_args(String::from("Shuffle"), args, immd, md),
+        VecLang::Join(args) => return value_number_args(String::from("Join"), args, immd, md),
+        VecLang::VecTwo(boxed_ids) => return value_number_boxed_args(String::from("VecTwo"), boxed_ids, immd, md),
+        VecLang::AlignedConsecVecLoad2(args) => return value_number_args(String::from("AlignedConsecVecLoad2"), args, immd, md),
       }
-      _ => panic!("Match Error: Expects Pair of Symbol, Symbol."),
-    },
-    _ => panic!("Match Error in Translate Get: Expects Get Enode."),
-  }
 }
-
-// /// translate converts a VecLang expression to the corresponding LLVMValueRef.
-// unsafe fn translate(
-//   enode: &VecLang,
-//   vec: &[VecLang],
-//   gep_map: &GEPMap,
-//   var_map: &VarMap,
-//   builder: LLVMBuilderRef,
-//   module: LLVMModuleRef,
-// ) -> LLVMValueRef {
-//   match enode {
-//     VecLang::Symbol(s) => *var_map.get(s).expect("Var map lookup error"),
-//     VecLang::Num(n) => LLVMConstReal(LLVMFloatTypeInContext(context), *n as f64),
-//     VecLang::Get(..) => {
-//       let (array_name, array_offsets) = translate_get(enode, vec);
-//       let gep_value = gep_map
-//         .get(&(array_name, array_offsets))
-//         .expect("Symbol map lookup error");
-//       LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
-//     }
-//     VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
-//       let idvec = boxed_ids.to_vec();
-//       let idvec_len = idvec.len();
-//       let mut zeros = Vec::new();
-//       for _ in 0..idvec_len {
-//         zeros.push(LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64));
-//       }
-//       let zeros_ptr = zeros.as_mut_ptr();
-//       let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
-//       for (idx, &eggid) in idvec.iter().enumerate() {
-//         let elt = &vec[usize::from(eggid)];
-//         let elt_val = translate(elt, vec, gep_map, var_map, builder, module);
-//         vector = LLVMBuildInsertElement(
-//           builder,
-//           vector,
-//           elt_val,
-//           LLVMConstInt(LLVMIntTypeInContext(context, 32), idx as u64, 0),
-//           b"\0".as_ptr() as *const _,
-//         );
-//       }
-//       vector
-//     }
-//     VecLang::VecAdd([l, r])
-//     | VecLang::VecMinus([l, r])
-//     | VecLang::VecMul([l, r])
-//     | VecLang::VecDiv([l, r])
-//     | VecLang::Add([l, r])
-//     | VecLang::Minus([l, r])
-//     | VecLang::Mul([l, r])
-//     | VecLang::Div([l, r])
-//     | VecLang::Or([l, r])
-//     | VecLang::And([l, r])
-//     | VecLang::Lt([l, r]) => {
-//       let left = translate(
-//         &vec[usize::from(*l)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       let right = translate(
-//         &vec[usize::from(*r)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
-//     }
-//     VecLang::Concat([v1, v2]) => {
-//       let trans_v1 = translate(
-//         &vec[usize::from(*v1)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       let trans_v2 = translate(
-//         &vec[usize::from(*v2)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       // manually concatenate 2 vectors by using a LLVM shuffle operation.
-//       let v1_type = LLVMTypeOf(trans_v1);
-//       let v1_size = LLVMGetVectorSize(v1_type);
-//       let v2_type = LLVMTypeOf(trans_v2);
-//       let v2_size = LLVMGetVectorSize(v2_type);
-//       let size = v1_size + v2_size;
-//       let mut indices = Vec::new();
-//       for i in 0..size {
-//         indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
-//       }
-//       let mask = indices.as_mut_ptr();
-//       let mask_vector = LLVMConstVector(mask, size);
-//       LLVMBuildShuffleVector(
-//         builder,
-//         trans_v1,
-//         trans_v2,
-//         mask_vector,
-//         b"\0".as_ptr() as *const _,
-//       )
-//     }
-//     VecLang::VecMAC([acc, v1, v2]) => {
-//       let trans_acc = translate(
-//         &vec[usize::from(*acc)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       let trans_v1 = translate(
-//         &vec[usize::from(*v1)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       let trans_v2 = translate(
-//         &vec[usize::from(*v2)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       let vec_type = LLVMTypeOf(trans_acc);
-
-//       let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
-//       let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
-//       let func = LLVMAddFunction(module, b"llvm.fma.f32\0".as_ptr() as *const _, fn_type);
-//       let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
-//       LLVMBuildCall(builder, func, args, 3, b"\0".as_ptr() as *const _)
-//     }
-//     // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
-//     // TODO: LLVM actually supports many more vector intrinsics, including
-//     // vector sine/cosine instructions for floats.
-//     VecLang::VecNeg([v]) => {
-//       let neg_vector = translate(
-//         &vec[usize::from(*v)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       LLVMBuildFNeg(builder, neg_vector, b"\0".as_ptr() as *const _)
-//     }
-//     VecLang::VecSqrt([v]) => {
-//       let sqrt_vec = translate(
-//         &vec[usize::from(*v)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       let vec_type = LLVMTypeOf(sqrt_vec);
-//       let param_types = [vec_type].as_mut_ptr();
-//       let fn_type = LLVMFunctionType(vec_type, param_types, 1, 0 as i32);
-//       let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
-//       let args = [sqrt_vec].as_mut_ptr();
-//       LLVMBuildCall(builder, func, args, 1, b"\0".as_ptr() as *const _)
-//     }
-//     // compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
-//     VecLang::VecSgn([v]) => {
-//       let sgn_vec = translate(
-//         &vec[usize::from(*v)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       let vec_type = LLVMTypeOf(sgn_vec);
-//       let vec_size = LLVMGetVectorSize(vec_type);
-//       let mut ones = Vec::new();
-//       for _ in 0..vec_size {
-//         ones.push(LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64));
-//       }
-//       let ones_ptr = ones.as_mut_ptr();
-//       let ones_vector = LLVMConstVector(ones_ptr, vec_size);
-//       let param_types = [vec_type, vec_type].as_mut_ptr();
-//       let fn_type = LLVMFunctionType(vec_type, param_types, 2, 0 as i32);
-//       let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
-//       let args = [ones_vector, sgn_vec].as_mut_ptr();
-//       LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
-//     }
-//     VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) => {
-//       let number = translate(
-//         &vec[usize::from(*n)],
-//         vec,
-//         gep_map,
-//         var_map,
-//         builder,
-//         module,
-//       );
-//       translate_unop(enode, number, builder, module, b"\0".as_ptr() as *const _)
-//     }
-//     VecLang::Ite(..) => panic!("Ite is not handled."),
-//   }
-// }
-
-// /// Convert a Veclang `expr` to LLVM IR code in place, using an LLVM builder.
-// unsafe fn to_llvm(
-//   module: LLVMModuleRef,
-//   expr: RecExpr<VecLang>,
-//   gep_map: &GEPMap,
-//   var_map: &VarMap,
-//   ops_to_replace: &ValueVec,
-//   builder: LLVMBuilderRef,
-// ) -> () {
-//   let vec = expr.as_ref();
-//   let last = vec
-//     .last()
-//     .expect("No match for last element of vector of Egg Terms.");
-
-//   // create vectorized instructions.
-//   let vector = translate(last, vec, gep_map, var_map, builder, module);
-
-//   // for each binary operation that has been vectorized AND requires replacement
-//   // we extract the correct index from the vector and
-//   // determine the store to that binary op, copy it and move it after the extraction
-//   for (i, op) in ops_to_replace.iter().enumerate() {
-//     let index = LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0);
-//     let extracted_value =
-//       LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
-//     // figure out where the next store is located, after the binary operation to replace.
-//     let mut store_instr = *op;
-//     // assumes there is a store next: could segfault or loop forever if not.
-//     // WARNING: In particular, could infinitely loop under -02/-03 optimizations.
-//     while !isa_store(store_instr) {
-//       store_instr = LLVMGetNextInstruction(store_instr);
-//     }
-//     let cloned_store = LLVMInstructionClone(store_instr);
-//     LLVMSetOperand(cloned_store, 0, extracted_value);
-//     LLVMInsertIntoBuilder(builder, cloned_store);
-//     // erase stores -> this was affecting a load and then a store to the same
-//     // location in matrix multiply
-//     LLVMInstructionEraseFromParent(store_instr);
-//   }
-// }
 
 /// Main function to optimize: Takes in a basic block of instructions,
 /// optimizes it, and then translates it to LLVM IR code, in place.
 
-#[repr(C)]
-pub struct IntLLVMPair {
-  node_int: u32,
-  arg: LLVMValueRef,
-}
-
-#[repr(C)]
-pub struct LLVMPair {
-  original_value: LLVMValueRef,
-  new_value: LLVMValueRef,
-}
-
-#[repr(C)]
-pub struct VectorPointerSize {
-  llvm_pointer: *const LLVMPair,
-  llvm_pointer_size: size_t,
-}
-
 #[no_mangle]
 pub fn optimize(
-  module: LLVMModuleRef,
-  context: LLVMContextRef,
-  builder: LLVMBuilderRef,
-  bb: *const LLVMValueRef,
-  size: size_t,
-  past_instrs: *const LLVMPair,
-  past_size: size_t,
-) -> VectorPointerSize {
-  unsafe {
-    // llvm to egg
-    let llvm_instrs = from_raw_parts(bb, size);
-    let past_llvm_instrs = from_raw_parts(past_instrs, past_size);
-    let mut llvm_arg_pairs = Vec::new();
-    for instr_pair in past_llvm_instrs {
-      let new_instr_pair = LLVMPair {
-        original_value: instr_pair.original_value,
-        new_value: instr_pair.new_value,
-      };
-      llvm_arg_pairs.push(new_instr_pair);
+    module: LLVMModuleRef,
+    context: LLVMContextRef,
+    builder: LLVMBuilderRef,
+    chunk_instrs: *const LLVMValueRef,
+    chunk_size: size_t,
+    restricted_instrs: *const LLVMValueRef,
+    restricted_size: size_t,
+    load_info: *const load_info_t,
+    load_info_size: size_t,
+    run_egg: bool,
+    print_opt: bool,
+) -> bool {
+    unsafe {
+        // preprocessing of instructions
+        let chunk_llvm_instrs = from_raw_parts(chunk_instrs, chunk_size);
+        let restricted_llvm_instrs = from_raw_parts(restricted_instrs, restricted_size);
+        let load_info = from_raw_parts(load_info, load_info_size);
+
+        // llvm to egg
+        let (egg_expr, mut llvm2egg_metadata) = llvm_to_egg_main(
+            chunk_llvm_instrs,
+            restricted_llvm_instrs,
+            run_egg,
+            load_info,
+        );
+
+        // Bail if no egg Nodes to optimize
+        if egg_expr.as_ref().is_empty() {
+            eprintln!("No Egg Nodes in Optimization Vector");
+            return false;
+        }
+
+        let root_of_tree = egg_expr.as_ref().last().expect("There should be a root egg node");
+        let immd = &ValueNumberingState { egg_nodes_vector: egg_expr.as_ref() };
+        let md = &mut ValueNumberingMutableState { node2value: HashMap::new(), currvalue: 0 };
+        let value_numbered_tree = value_number_store_tree(root_of_tree, immd, md);
+        let veclang2val = &md.node2value;
+        let mut val2veclang = HashMap::new();
+        for (key, val) in veclang2val.iter() {
+            val2veclang.insert(val, key);
+        }
+        if print_opt {
+            eprintln!("This is the value tree");
+            eprintln!("{:?}", value_numbered_tree);
+        }
+        if let Some((vectorization, old_veclang2val)) = get_vectorization(value_numbered_tree.clone()) {
+            let mut old_val2veclang = HashMap::new();
+            for (old_k, old_v) in old_veclang2val.iter() {
+                old_val2veclang.insert(old_v, old_k);
+            }
+            let mut oldveclang2newveclang = HashMap::new();
+            for (old_val, old_veclang) in old_val2veclang.iter() {
+                if val2veclang.contains_key(old_val) {
+                    oldveclang2newveclang.insert((**old_veclang).clone(), (**val2veclang.get(old_val).expect("Key must exist")).clone());
+                }
+            }
+            llvm2egg_metadata.template_enode2actual_enode = oldveclang2newveclang;
+
+            if print_opt {
+                eprintln!("Current tree matches old tree: Using old vectorization. ");
+            }
+            // egg to llvm
+            egg_to_llvm_main(
+                vectorization,
+                &llvm2egg_metadata,
+                module,
+                context,
+                builder,
+                run_egg,
+            );
+
+            return true;
+        }
+
+        // optimization pass
+        if print_opt {
+            eprintln!("{}", egg_expr.pretty(10));
+        }
+        let mut best_egg_expr = egg_expr.clone();
+        if run_egg {
+            let pair = rules::run(&egg_expr, 180, true, !run_egg);
+            best_egg_expr = pair.1;
+        }
+        if print_opt {
+            eprintln!("{}", best_egg_expr.pretty(10));
+        }
+
+        VECTORIZATION_MAP.push((value_numbered_tree, best_egg_expr.clone(), veclang2val.clone()));
+        // build identity map
+        let mut oldveclang2newveclang = HashMap::new();
+        for (key, _) in veclang2val.iter() {
+            oldveclang2newveclang.insert((*key).clone(), (*key).clone());
+        }
+        llvm2egg_metadata.template_enode2actual_enode = oldveclang2newveclang;
+
+        // egg to llvm
+        egg_to_llvm_main(
+            best_egg_expr,
+            &llvm2egg_metadata,
+            module,
+            context,
+            builder,
+            run_egg,
+        );
+
+        return true;
     }
-    let mut node_to_arg = Vec::new();
-    let (expr, gep_map, store_map, symbol_map) =
-      llvm_to_egg(llvm_instrs, &mut llvm_arg_pairs, &mut node_to_arg);
-
-    // optimization pass
-    eprintln!("{}", expr.pretty(10));
-    let (_, best) = rules::run(&expr, 180, true, false);
-    eprintln!("{}", best.pretty(10));
-
-    // egg to llvm
-    egg_to_llvm(
-      best,
-      &gep_map,
-      &store_map,
-      &symbol_map,
-      &mut llvm_arg_pairs, // does this work properly?, IDK? Need to return mut value
-      &node_to_arg,
-      module,
-      context,
-      builder,
-    );
-
-    let mut final_llvm_arg_pairs = Vec::new();
-    for pair in llvm_arg_pairs {
-      final_llvm_arg_pairs.push(pair);
-    }
-
-    // https://stackoverflow.com/questions/39224904/how-to-expose-a-rust-vect-to-ffi
-    let mut llvm_arg_pairs_boxed_slice: Box<[LLVMPair]> = final_llvm_arg_pairs.into_boxed_slice();
-    let llvm_arg_pairs_array: *mut LLVMPair = llvm_arg_pairs_boxed_slice.as_mut_ptr();
-    let llvm_arg_pairs_array_len: usize = llvm_arg_pairs_boxed_slice.len();
-    mem::forget(llvm_arg_pairs_boxed_slice);
-
-    // TODO: FIX THIS
-    return VectorPointerSize {
-      llvm_pointer: llvm_arg_pairs_array,
-      llvm_pointer_size: llvm_arg_pairs_array_len,
-    };
-  }
 }
 
 // ------------ NEW CONVERSION FROM LLVM IR TO EGG EXPRESSIONS -------
 
-type StoreMap = BTreeMap<i32, LLVMValueRef>;
-// type gep_map = BTreeMap<VecLang, LLVMValueRef>;
-type IdMap = BTreeSet<Id>;
-type SymbolMap = BTreeMap<VecLang, LLVMValueRef>;
-
 enum LLVMOpType {
-  Argument,
-  Constant,
-  Store,
-  Load,
-  Gep,
-  Unop,
-  Bop,
-  Call,
-  FPTrunc,
-  SIToFP,
-  Bitcast,
-  Sqrt32,
-  Sqrt64,
-  FPExt,
+    Argument,
+    Constant,
+    FNeg,
+    FAdd,
+    FSub,
+    FMul,
+    FDiv,
+    Sqrt32,
+    // TODO: SGN signum
+    UnhandledLLVMOpCode,
+    Load,
+    Store,
 }
 
-// unsafe fn is_pow2(n: u32) -> bool {
-//   let mut pow = 1;
-//   while pow < n {
-//     pow *= 2;
-//   }
-//   return pow == n;
-// }
-
 unsafe fn get_pow2(n: u32) -> u32 {
-  let mut pow = 1;
-  while pow < n {
-    pow *= 2;
-  }
-  return pow;
+    let mut pow = 1;
+    while pow < n {
+        pow *= 2;
+    }
+    return pow;
+}
+
+fn is_pow2(n: u32) -> bool {
+    if n == 1 {
+        return true;
+    } else if n % 2 == 1 {
+        return false;
+    }
+    return is_pow2(n / 2);
 }
 
 /// New Pad Vector should round the number of elements up to a power of 2, and then recursive
-/// divide each into the lane width. Assumes lane width is also a power of 2 in size
+/// divide each into the lane width. Assumes lane width is also a power of 2 in size.
+/// Raises assertion error if width is not a power of 2
+/// If the vector has less than the width, we do not pad, and just append that vector to enodevect
 unsafe fn balanced_pad_vector<'a>(
-  binop_vec: &mut Vec<Id>,
-  enode_vec: &'a mut Vec<VecLang>,
+    binop_vec: &mut Vec<Id>,
+    enode_vec: &'a mut Vec<VecLang>,
 ) -> &'a mut Vec<VecLang> {
-  let width = config::vector_width();
-  let length = binop_vec.len();
-  let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
-  let diff = closest_pow2 - (length as u32);
-  for _ in 0..diff {
-    let zero = VecLang::Num(0);
-    enode_vec.push(zero);
-    let zero_idx = enode_vec.len() - 1;
-    binop_vec.push(Id::from(zero_idx));
-  }
-  return build_concat(width, binop_vec, enode_vec);
+    let width = config::vector_width();
+    assert!(is_pow2(width as u32));
+    let length = binop_vec.len();
+    assert!(
+        length > 0,
+        "There must be 1 or more operators to vectorize."
+    );
+    // Check vector less than width, and then return
+    if length < width {
+        enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
+        return enode_vec;
+    }
+    let closest_pow2 = get_pow2(cmp::max(length, width) as u32);
+    let diff = closest_pow2 - (length as u32);
+    for _ in 0..diff {
+        let zero = VecLang::Num(0);
+        enode_vec.push(zero);
+        let zero_idx = enode_vec.len() - 1;
+        binop_vec.push(Id::from(zero_idx));
+    }
+    return build_concat(width, binop_vec, enode_vec);
 }
 
+/// Recursively concatenate vectors together
 unsafe fn build_concat<'a>(
-  lane_width: usize,
-  binop_vec: &mut Vec<Id>,
-  enode_vec: &'a mut Vec<VecLang>,
+    lane_width: usize,
+    binop_vec: &mut Vec<Id>,
+    enode_vec: &'a mut Vec<VecLang>,
 ) -> &'a mut Vec<VecLang> {
-  if binop_vec.len() == lane_width {
-    enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
-    return enode_vec;
-  }
-  let num_binops = binop_vec.len();
-  let halfway = num_binops / 2;
-  let (mut left, mut right) = (Vec::new(), Vec::new());
-  for (i, b) in binop_vec.iter().enumerate() {
-    if i < halfway {
-      left.push(*b);
-    } else {
-      right.push(*b);
+    if binop_vec.len() == lane_width {
+        enode_vec.push(VecLang::Vec(binop_vec.clone().into_boxed_slice()));
+        return enode_vec;
     }
-  }
-  assert_eq!(left.len(), right.len());
-  assert_eq!(left.len() + right.len(), num_binops);
-  assert_eq!(left.len() % lane_width, 0);
-  assert_eq!(right.len() % lane_width, 0);
-  let enode_vec1 = build_concat(lane_width, &mut left, enode_vec);
-  let idx1 = enode_vec1.len() - 1;
-  let enode_vec2 = build_concat(lane_width, &mut right, enode_vec1);
-  let idx2 = enode_vec2.len() - 1;
-  enode_vec2.push(VecLang::Concat([Id::from(idx1), Id::from(idx2)]));
-  return enode_vec2;
+    let num_binops = binop_vec.len();
+    let halfway = num_binops / 2;
+    let (mut left, mut right) = (Vec::new(), Vec::new());
+    for (i, b) in binop_vec.iter().enumerate() {
+        if i < halfway {
+            left.push(*b);
+        } else {
+            right.push(*b);
+        }
+    }
+    assert_eq!(left.len(), right.len());
+    assert_eq!(left.len() + right.len(), num_binops);
+    assert_eq!(left.len() % lane_width, 0);
+    assert_eq!(right.len() % lane_width, 0);
+    let enode_vec1 = build_concat(lane_width, &mut left, enode_vec);
+    let idx1 = enode_vec1.len() - 1;
+    let enode_vec2 = build_concat(lane_width, &mut right, enode_vec1);
+    let idx2 = enode_vec2.len() - 1;
+    enode_vec2.push(VecLang::Concat([Id::from(idx1), Id::from(idx2)]));
+    return enode_vec2;
 }
 
 unsafe fn _llvm_print(inst: LLVMValueRef) -> () {
-  LLVMDumpValue(inst);
-  println!();
+    LLVMDumpValue(inst);
+    println!();
 }
 
 unsafe fn _llvm_recursive_print(inst: LLVMValueRef) -> () {
-  if isa_argument(inst) {
-    return LLVMDumpValue(inst);
-  } else if isa_constant(inst) {
-    return LLVMDumpValue(inst);
-  }
-  let num_ops = LLVMGetNumOperands(inst);
-  for i in 0..num_ops {
-    let operand = LLVMGetOperand(inst, i as u32);
-    _llvm_recursive_print(operand);
-    print!(" ");
-  }
-  println!();
-  LLVMDumpValue(inst);
-  println!();
-  return;
-}
-
-unsafe fn llvm_recursive_add(builder: LLVMBuilderRef, inst: LLVMValueRef) -> LLVMValueRef {
-  if isa_argument(inst) {
-    return inst;
-  } else if isa_constant(inst) {
-    return inst;
-  } else if isa_phi(inst) {
-    return inst;
-  } else if isa_alloca(inst) {
-    let cloned_inst = LLVMInstructionClone(inst);
-    LLVMInsertIntoBuilder(builder, cloned_inst);
-    return cloned_inst;
-  } else if isa_call(inst) {
-    let cloned_inst = LLVMInstructionClone(inst);
-    LLVMInsertIntoBuilder(builder, cloned_inst);
-    return cloned_inst;
-  }
-  let cloned_inst = LLVMInstructionClone(inst);
-  let num_ops = LLVMGetNumOperands(inst);
-  for i in 0..num_ops {
-    let operand = LLVMGetOperand(inst, i as u32);
-    let new_inst = llvm_recursive_add(builder, operand);
-    LLVMSetOperand(cloned_inst, i as u32, new_inst);
-  }
-  LLVMInsertIntoBuilder(builder, cloned_inst);
-  return cloned_inst;
-}
-
-unsafe fn match_llvm_op(expr: &LLVMValueRef) -> LLVMOpType {
-  if isa_bop(*expr) {
-    return LLVMOpType::Bop;
-  } else if isa_unop(*expr) {
-    return LLVMOpType::Unop;
-  } else if isa_constant(*expr) {
-    return LLVMOpType::Constant;
-  } else if isa_gep(*expr) {
-    return LLVMOpType::Gep;
-  } else if isa_load(*expr) {
-    return LLVMOpType::Load;
-  } else if isa_store(*expr) {
-    return LLVMOpType::Store;
-  } else if isa_argument(*expr) {
-    return LLVMOpType::Argument;
-  } else if isa_call(*expr) {
-    return LLVMOpType::Call;
-  } else if isa_fptrunc(*expr) {
-    return LLVMOpType::FPTrunc;
-  } else if isa_sitofp(*expr) {
-    return LLVMOpType::SIToFP;
-  } else if isa_bitcast(*expr) {
-    return LLVMOpType::Bitcast;
-  } else if isa_sqrt32(*expr) {
-    return LLVMOpType::Sqrt32;
-  } else if isa_sqrt64(*expr) {
-    return LLVMOpType::Sqrt64;
-  } else if isa_fpext(*expr) {
-    return LLVMOpType::FPExt;
-  } else {
-    LLVMDumpValue(*expr);
+    if isa_argument(inst) {
+        return LLVMDumpValue(inst);
+    } else if isa_constant(inst) {
+        return LLVMDumpValue(inst);
+    }
+    let num_ops = LLVMGetNumOperands(inst);
+    for i in 0..num_ops {
+        let operand = LLVMGetOperand(inst, i as u32);
+        _llvm_recursive_print(operand);
+        print!(" ");
+    }
     println!();
-    panic!("ref_to_egg: Unmatched case for LLVMValueRef {:?}", *expr);
-  }
+    LLVMDumpValue(inst);
+    println!();
+    return;
+}
+
+unsafe fn isa_fadd(llvm_instr: LLVMValueRef) -> bool {
+    match LLVMGetInstructionOpcode(llvm_instr) {
+        LLVMFAdd => true,
+        _ => false,
+    }
+}
+
+unsafe fn isa_fsub(llvm_instr: LLVMValueRef) -> bool {
+    match LLVMGetInstructionOpcode(llvm_instr) {
+        LLVMFSub => true,
+        _ => false,
+    }
+}
+
+unsafe fn isa_fmul(llvm_instr: LLVMValueRef) -> bool {
+    match LLVMGetInstructionOpcode(llvm_instr) {
+        LLVMFMul => true,
+        _ => false,
+    }
+}
+
+unsafe fn isa_fdiv(llvm_instr: LLVMValueRef) -> bool {
+    match LLVMGetInstructionOpcode(llvm_instr) {
+        LLVMFDiv => true,
+        _ => false,
+    }
+}
+
+unsafe fn isa_fneg(llvm_instr: LLVMValueRef) -> bool {
+    match LLVMGetInstructionOpcode(llvm_instr) {
+        LLVMFNeg => true,
+        _ => false,
+    }
+}
+
+unsafe fn isa_supported_binop(llvm_instr: LLVMValueRef) -> bool {
+    return isa_fadd(llvm_instr)
+        || isa_fmul(llvm_instr)
+        || isa_fdiv(llvm_instr)
+        || isa_fsub(llvm_instr);
+}
+
+unsafe fn isa_supported_unop(llvm_instr: LLVMValueRef) -> bool {
+    return isa_fneg(llvm_instr);
+}
+
+unsafe fn match_llvm_op(llvm_instr: &LLVMValueRef) -> LLVMOpType {
+    if isa_argument(*llvm_instr) {
+        return LLVMOpType::Argument;
+    } else if isa_fadd(*llvm_instr) {
+        return LLVMOpType::FAdd;
+    } else if isa_fsub(*llvm_instr) {
+        return LLVMOpType::FSub;
+    } else if isa_fmul(*llvm_instr) {
+        return LLVMOpType::FMul;
+    } else if isa_fdiv(*llvm_instr) {
+        return LLVMOpType::FDiv;
+    } else if isa_fneg(*llvm_instr) {
+        return LLVMOpType::FNeg;
+    } else if isa_constant(*llvm_instr) {
+        return LLVMOpType::Constant;
+    } else if isa_sqrt32(*llvm_instr) {
+        return LLVMOpType::Sqrt32;
+    } else if isa_load(*llvm_instr) {
+        return LLVMOpType::Load;
+    } else if isa_store(*llvm_instr) {
+        return LLVMOpType::Store;
+    } else {
+        return LLVMOpType::UnhandledLLVMOpCode;
+    }
 }
 
 unsafe fn choose_unop(unop: &LLVMValueRef, id: Id) -> VecLang {
-  match LLVMGetInstructionOpcode(*unop) {
-    LLVMFNeg => VecLang::Neg([id]),
-    _ => panic!("Choose_Unop: Opcode Match Error"),
-  }
+    match LLVMGetInstructionOpcode(*unop) {
+        LLVMFNeg => VecLang::Neg([id]),
+        _ => panic!("Choose_Unop: Opcode Match Error"),
+    }
 }
 
+/// LLVM2EggState Contains Egg to LLVM Translation Metadata
+#[derive(Debug, Clone)]
+struct LLVM2EggState {
+    llvm2reg: BTreeMap<LLVMValueRef, VecLang>,
+    llvm2arg: BTreeMap<LLVMValueRef, VecLang>,
+    get2gep: BTreeMap<u32, LLVMValueRef>,
+    instructions_in_chunk: BTreeSet<LLVMValueRef>,
+    restricted_instructions: BTreeSet<LLVMValueRef>,
+    prior_translated_instructions: BTreeSet<LLVMValueRef>,
+    start_instructions: Vec<LLVMValueRef>,
+    start_ids: Vec<Id>,
+    load_info: BTreeMap<LLVMValueRef, (i32, i32)>,
+    template_enode2actual_enode: HashMap<VecLang, VecLang>,
+}
+
+/// Translates LLVM Arg to an Egg Argument Node
 unsafe fn arg_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  _gep_map: &mut GEPMap,
-  _store_map: &mut StoreMap,
-  _id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
-  _node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let sym_name = gen_arg_name();
-  let symbol = VecLang::Symbol(Symbol::from(sym_name));
-  symbol_map.insert(symbol.clone(), expr);
-  enode_vec.push(symbol);
-  return (enode_vec, next_idx + 1);
+    llvm_instr: LLVMValueRef,
+    mut egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    assert!(isa_argument(llvm_instr));
+    let argument_idx = gen_arg_idx();
+    let argument_node = VecLang::Arg(argument_idx);
+    egg_nodes.push(argument_node.clone());
+    assert!(!translation_metadata.llvm2arg.contains_key(&llvm_instr));
+    translation_metadata
+        .llvm2arg
+        .insert(llvm_instr, argument_node);
+    return (egg_nodes, next_node_idx + 1);
 }
 
+/// Translates Supported Binop Instruction to an Egg Bunary Operator Node
+///
+/// Supported Binary Operators are: FAdd, FSub, FMul, FDiv
 unsafe fn bop_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let left = LLVMGetOperand(expr, 0);
-  let right = LLVMGetOperand(expr, 1);
-  let (v1, next_idx1) = ref_to_egg(
-    left,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  let (mut v2, next_idx2) = ref_to_egg(
-    right,
-    v1,
-    next_idx1,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  // let mut concat = [&v1[..], &v2[..]].concat(); // https://users.rust-lang.org/t/how-to-concatenate-two-vectors/8324/3
-  let ids = [
-    Id::from((next_idx1 - 1) as usize),
-    Id::from((next_idx2 - 1) as usize),
-  ];
-  v2.push(choose_binop(&expr, ids));
-  (v2, next_idx2 + 1)
+    llvm_instr: LLVMValueRef,
+    egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    assert!(isa_supported_binop(llvm_instr));
+    let left = LLVMGetOperand(llvm_instr, 0);
+    let right = LLVMGetOperand(llvm_instr, 1);
+    let (left_egg_nodes, left_next_idx) =
+        llvm_to_egg(left, egg_nodes, next_node_idx, translation_metadata);
+    let (mut right_egg_nodes, right_next_idx) =
+        llvm_to_egg(right, left_egg_nodes, left_next_idx, translation_metadata);
+    let ids = [
+        Id::from((left_next_idx - 1) as usize),
+        Id::from((right_next_idx - 1) as usize),
+    ];
+    right_egg_nodes.push(choose_binop(&llvm_instr, ids));
+    (right_egg_nodes, right_next_idx + 1)
 }
 
+/// Translates Supported Unop Instruction to an Egg Unary Operator Node
+///
+/// Supported Unary Operators are: FNeg
 unsafe fn unop_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let sub_expr = LLVMGetOperand(expr, 0);
-  let (mut v, next_idx1) = ref_to_egg(
-    sub_expr,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  let id = Id::from((next_idx1 - 1) as usize);
-  v.push(choose_unop(&expr, id));
-  (v, next_idx1 + 1)
+    llvm_instr: LLVMValueRef,
+    egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    assert!(isa_supported_unop(llvm_instr));
+    let neg_expr = LLVMGetOperand(llvm_instr, 0);
+    let (mut new_egg_nodes, new_next_idx) =
+        llvm_to_egg(neg_expr, egg_nodes, next_node_idx, translation_metadata);
+    let id = Id::from((new_next_idx - 1) as usize);
+    new_egg_nodes.push(choose_unop(&llvm_instr, id));
+    (new_egg_nodes, new_next_idx + 1)
 }
 
-unsafe fn gep_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  _store_map: &mut StoreMap,
-  _id_map: &mut IdMap,
-  _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
-  _node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  assert!(isa_argument(expr) || isa_gep(expr) || isa_load(expr));
-  // let mut enode_vec = Vec::new();
-  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
-  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
-
-  let num_gep_operands = LLVMGetNumOperands(expr);
-  let mut indices = Vec::new();
-  for operand_idx in 1..num_gep_operands {
-    let array_offset = llvm_index(expr, operand_idx);
-    indices.push(array_offset);
-  }
-  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
-  let offsets_symbol = Symbol::from(&offsets_string);
-  enode_vec.push(VecLang::Symbol(offsets_symbol));
-
-  let get_node = VecLang::Get([
-    Id::from((next_idx) as usize),
-    Id::from((next_idx + 1) as usize),
-  ]);
-  (*gep_map).insert(
-    (Symbol::from(array_name), Symbol::from(&offsets_string)),
-    expr,
-  );
-  enode_vec.push(get_node);
-
-  return (enode_vec, next_idx + 3);
+/// Translates Const Instruction to an Egg Number Node
+unsafe fn const_to_egg(
+    llvm_instr: LLVMValueRef,
+    mut egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    _translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    assert!(isa_constant(llvm_instr));
+    let value = get_constant_float(llvm_instr);
+    egg_nodes.push(VecLang::Num(value as i32));
+    (egg_nodes, next_node_idx + 1)
 }
 
-unsafe fn address_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  _store_map: &mut StoreMap,
-  _id_map: &mut IdMap,
-  _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
-  _node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
-  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
-
-  let num_gep_operands = LLVMGetNumOperands(expr);
-  let mut indices = Vec::new();
-  for operand_idx in 1..num_gep_operands {
-    let array_offset = llvm_index(expr, operand_idx);
-    indices.push(array_offset);
-  }
-  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
-  let offsets_symbol = Symbol::from(&offsets_string);
-  enode_vec.push(VecLang::Symbol(offsets_symbol));
-
-  let get_node = VecLang::Get([
-    Id::from((next_idx) as usize),
-    Id::from((next_idx + 1) as usize),
-  ]);
-  (*gep_map).insert(
-    (Symbol::from(array_name), Symbol::from(&offsets_string)),
-    expr,
-  );
-  enode_vec.push(get_node);
-
-  return (enode_vec, next_idx + 3);
+/// Translates Sqrt 32 Instruction to an Egg Square Root Node
+unsafe fn sqrt32_to_egg(
+    llvm_instr: LLVMValueRef,
+    egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    assert!(isa_sqrt32(llvm_instr));
+    let sqrt_operand = LLVMGetOperand(llvm_instr, 0);
+    let (mut new_enode_vec, new_next_node_idx) =
+        llvm_to_egg(sqrt_operand, egg_nodes, next_node_idx, translation_metadata);
+    let sqrt_node = VecLang::Sqrt([Id::from((new_next_node_idx - 1) as usize)]);
+    new_enode_vec.push(sqrt_node);
+    (new_enode_vec, new_next_node_idx + 1)
 }
 
-unsafe fn sitofp_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  _store_map: &mut StoreMap,
-  _id_map: &mut IdMap,
-  _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
-  _node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
-  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
-
-  let num_gep_operands = LLVMGetNumOperands(expr);
-  let mut indices = Vec::new();
-  for operand_idx in 1..num_gep_operands {
-    let array_offset = llvm_index(expr, operand_idx);
-    indices.push(array_offset);
-  }
-  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
-  let offsets_symbol = Symbol::from(&offsets_string);
-  enode_vec.push(VecLang::Symbol(offsets_symbol));
-
-  let get_node = VecLang::Get([
-    Id::from((next_idx) as usize),
-    Id::from((next_idx + 1) as usize),
-  ]);
-  (*gep_map).insert(
-    (Symbol::from(array_name), Symbol::from(&offsets_string)),
-    expr,
-  );
-  enode_vec.push(get_node);
-
-  return (enode_vec, next_idx + 3);
-}
-
+/// Translates a Load to an Egg Get Node
+///
+/// The translation of a load is a Get Node, which can then possibly be vectorized
+/// Adds the gep address of the load to the translation metadata so that it can
+/// be referenced when translating from Egg to LLVM
+///
+/// Fails if the llvm instruction under translation is not a load
 unsafe fn load_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let addr = LLVMGetOperand(expr, 0);
-  if isa_argument(addr) {
-    return load_arg_to_egg(
-      addr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    );
-  } else if isa_gep(addr) {
-    return gep_to_egg(
-      expr, // we pass the entire instruction and not just the address
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    );
-  } else {
-    return address_to_egg(
-      addr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    );
-  }
+    llvm_instr: LLVMValueRef,
+    mut egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    assert!(isa_load(llvm_instr));
+    let gep_id = gen_get_idx();
+    let gep_node = VecLang::Gep(gep_id);
+    egg_nodes.push(gep_node.clone());
+    let llvm_gep_instr = LLVMGetOperand(llvm_instr, 0);
+    // assert!(isa_gep(llvm_gep_instr) || isa_argument(llvm_gep_instr));
+    translation_metadata.get2gep.insert(gep_id, llvm_gep_instr);
+
+    let result = translation_metadata.load_info.get(&llvm_instr);
+    let (base_id, offset) = match result {
+        None => (-1, -1),
+        Some(n) => *n,
+    };
+    let base_node = VecLang::Num(base_id);
+    egg_nodes.push(base_node.clone());
+    let offset_node = VecLang::Num(offset);
+    egg_nodes.push(offset_node.clone());
+    let load_node = VecLang::Load([
+        Id::from(next_node_idx as usize),
+        Id::from((next_node_idx + 1) as usize),
+        Id::from((next_node_idx + 2) as usize),
+    ]);
+    egg_nodes.push(load_node.clone());
+    assert!(!translation_metadata.llvm2reg.contains_key(&llvm_instr));
+    translation_metadata.llvm2reg.insert(llvm_instr, load_node);
+    (egg_nodes, next_node_idx + 4)
 }
 
 unsafe fn store_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let data = LLVMGetOperand(expr, 0);
-  let addr = LLVMGetOperand(expr, 1); // expected to be a gep operator or addr in LLVM
-  let (vec, next_idx1) = ref_to_egg(
-    data,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  (*store_map).insert(next_idx1 - 1, addr);
-  (*id_map).insert(Id::from((next_idx1 - 1) as usize));
-  return (vec, next_idx1);
-}
-
-unsafe fn const_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  _gep_map: &mut GEPMap,
-  _store_map: &mut StoreMap,
-  _id_map: &mut IdMap,
-  _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
-  _node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  let value = get_constant_float(expr);
-  enode_vec.push(VecLang::Num(value as i32));
-  (enode_vec, next_idx + 1)
-}
-
-unsafe fn load_arg_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  _store_map: &mut StoreMap,
-  _id_map: &mut IdMap,
-  _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
-  _node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  assert!(isa_argument(expr) || isa_gep(expr));
-  let array_name = CStr::from_ptr(llvm_name(expr)).to_str().unwrap();
-  enode_vec.push(VecLang::Symbol(Symbol::from(array_name)));
-
-  let num_gep_operands = LLVMGetNumOperands(expr);
-  let mut indices = Vec::new();
-  for operand_idx in 1..num_gep_operands {
-    let array_offset = llvm_index(expr, operand_idx);
-    indices.push(array_offset);
-  }
-  let offsets_string: String = indices.into_iter().map(|i| i.to_string() + ",").collect();
-  let offsets_symbol = Symbol::from(&offsets_string);
-  enode_vec.push(VecLang::Symbol(offsets_symbol));
-
-  let get_node = VecLang::Get([
-    Id::from((next_idx) as usize),
-    Id::from((next_idx + 1) as usize),
-  ]);
-  (*gep_map).insert(
-    (Symbol::from(array_name), Symbol::from(&offsets_string)),
-    expr,
-  );
-  enode_vec.push(get_node);
-
-  return (enode_vec, next_idx + 3);
-}
-
-unsafe fn load_call_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  if isa_sqrt32(expr) {
-    return sqrt32_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
+    llvm_instr: LLVMValueRef,
+    egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    assert!(isa_store(llvm_instr));
+    let llvm_val_instr = LLVMGetOperand(llvm_instr, 0);
+    let llvm_gep_instr = LLVMGetOperand(llvm_instr, 1);
+    let (mut new_egg_nodes, new_next_idx) = llvm_to_egg(
+        llvm_val_instr,
+        egg_nodes,
+        next_node_idx,
+        translation_metadata,
     );
-  }
-  let call_sym_name = gen_call_name();
-  let call_sym = VecLang::Symbol(Symbol::from(call_sym_name));
-  symbol_map.insert(call_sym.clone(), expr);
-  enode_vec.push(call_sym);
-  return (enode_vec, next_idx + 1);
+
+    let gep_id = gen_get_idx();
+    let gep_node = VecLang::Gep(gep_id);
+    new_egg_nodes.push(gep_node.clone());
+    translation_metadata.get2gep.insert(gep_id, llvm_gep_instr);
+
+    let store_node = VecLang::Store([
+        Id::from((new_next_idx - 1) as usize), // reference to the recursive translation
+        Id::from(new_next_idx as usize),       // reference to a GEP node
+    ]);
+    new_egg_nodes.push(store_node.clone());
+    assert!(!translation_metadata.llvm2reg.contains_key(&llvm_instr));
+    translation_metadata.llvm2reg.insert(llvm_instr, store_node);
+
+    (new_egg_nodes, new_next_idx + 2) // Add 2 because we built a gep, then also a store node
 }
 
-unsafe fn fpext_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  assert!(isa_fpext(expr));
-  let operand = LLVMGetOperand(expr, 0);
-  return ref_to_egg(
-    operand,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
+/// Translates an Unhandled OpCode to an Egg Register.
+///
+/// This represents a blackbox computation that we bail on translating
+/// Assumes that the OpCode is actually a computation. If not, translation fails.
+unsafe fn unhandled_opcode_to_egg(
+    llvm_instr: LLVMValueRef,
+    mut egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    let register_idx = gen_reg_idx();
+    let register_node = VecLang::Reg(register_idx);
+    egg_nodes.push(register_node.clone());
+    assert!(!translation_metadata.llvm2reg.contains_key(&llvm_instr));
+    translation_metadata
+        .llvm2reg
+        .insert(llvm_instr, register_node);
+    (egg_nodes, next_node_idx + 1)
 }
 
-unsafe fn sqrt32_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  assert!(isa_sqrt32(expr));
-  let operand = LLVMGetOperand(expr, 0);
-  let (mut new_enode_vec, next_idx1) = ref_to_egg(
-    operand,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  let sqrt_node = VecLang::Sqrt([Id::from((next_idx1 - 1) as usize)]);
-  new_enode_vec.push(sqrt_node);
-  return (new_enode_vec, next_idx1 + 1);
-}
-
-unsafe fn sqrt64_to_egg(
-  expr: LLVMValueRef,
-  _enode_vec: Vec<VecLang>,
-  _next_idx: i32,
-  _gep_map: &mut GEPMap,
-  _store_map: &mut StoreMap,
-  _id_map: &mut IdMap,
-  _symbol_map: &mut SymbolMap,
-  _llvm_arg_pairs: &Vec<LLVMPair>,
-  _node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  assert!(isa_sqrt64(expr));
-  panic!("Currently, we do not handle calls to sqrt.f64 without fpext and fptrunc before and after!. This is the only 'context sensitive' instance in the dispatch matching. ")
-}
-
-unsafe fn fptrunc_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  assert!(isa_fptrunc(expr));
-  let operand = LLVMGetOperand(expr, 0);
-  if isa_sqrt64(operand) {
-    return sqrt64_to_egg(
-      operand,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    );
-  }
-  return ref_to_egg(
-    operand,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  // panic!("TODO: Currently, only square roots for f64 are supported after fptrunc. ");
-}
-
-unsafe fn bitcast_to_egg(
-  expr: LLVMValueRef,
-  enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  assert!(isa_bitcast(expr));
-  let operand = LLVMGetOperand(expr, 0);
-  let result = ref_to_egg(
-    operand,
-    enode_vec,
-    next_idx,
-    gep_map,
-    store_map,
-    id_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg,
-  );
-  return result;
-}
-
-unsafe fn ref_to_egg(
-  expr: LLVMValueRef,
-  mut enode_vec: Vec<VecLang>,
-  next_idx: i32,
-  gep_map: &mut GEPMap,
-  store_map: &mut StoreMap,
-  id_map: &mut IdMap,
-  symbol_map: &mut SymbolMap,
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (Vec<VecLang>, i32) {
-  for pair in llvm_arg_pairs {
-    if pair.original_value == expr {
-      // Here we create a new numbered variable node
-      let var_idx = gen_node_idx();
-      let var_idx_str = var_idx.to_string();
-      let special_var_node = VecLang::Symbol(Symbol::from(var_idx_str));
-      enode_vec.push(special_var_node);
-      let node_to_arg_pair = IntLLVMPair {
-        arg: expr,
-        node_int: var_idx,
-      };
-      node_to_arg.push(node_to_arg_pair);
-      return (enode_vec, next_idx + 1);
+/// Recursively Translate LLVM Instruction to Egg Nodes.
+///
+/// TODO: Take care of chunk boundaries: translation should never overreach a chunk
+/// TODO: May need to keep track of llvm instructions across chunks
+unsafe fn llvm_to_egg(
+    llvm_instr: LLVMValueRef,
+    mut egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    // Mark instruction as translated, as it will be after it goes through the code below
+    if !translation_metadata
+        .prior_translated_instructions
+        .contains(&llvm_instr)
+    {
+        translation_metadata
+            .prior_translated_instructions
+            .insert(llvm_instr);
     }
-  }
-  let (vec, next_idx) = match match_llvm_op(&expr) {
-    LLVMOpType::Bop => bop_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Unop => unop_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Constant => const_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Gep => gep_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Load => load_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Store => store_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Argument => arg_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Call => load_call_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::FPTrunc => fptrunc_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::FPExt => fpext_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::SIToFP => sitofp_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Bitcast => bitcast_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Sqrt32 => sqrt32_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-    LLVMOpType::Sqrt64 => sqrt64_to_egg(
-      expr,
-      enode_vec,
-      next_idx,
-      gep_map,
-      store_map,
-      id_map,
-      symbol_map,
-      llvm_arg_pairs,
-      node_to_arg,
-    ),
-  };
-  return (vec, next_idx);
-}
-
-unsafe fn llvm_to_egg<'a>(
-  bb_vec: &[LLVMValueRef],
-  llvm_arg_pairs: &Vec<LLVMPair>,
-  node_to_arg: &mut Vec<IntLLVMPair>,
-) -> (RecExpr<VecLang>, GEPMap, StoreMap, SymbolMap) {
-  let mut enode_vec = Vec::new();
-  let (mut gep_map, mut store_map, mut id_map, mut symbol_map) = (
-    BTreeMap::new(),
-    BTreeMap::new(),
-    BTreeSet::new(),
-    BTreeMap::new(),
-  );
-  let mut next_idx = 0;
-  for bop in bb_vec.iter() {
-    if isa_store(*bop) {
-      let (new_enode_vec, next_idx1) = ref_to_egg(
-        *bop,
-        enode_vec,
-        next_idx,
-        &mut gep_map,
-        &mut store_map,
-        &mut id_map,
-        &mut symbol_map,
-        llvm_arg_pairs,
-        node_to_arg,
-      );
-      next_idx = next_idx1;
-      enode_vec = new_enode_vec;
+    // If, on a different pass, the instruction was translated already, then
+    // just used the egg node representing the translation
+    if translation_metadata.llvm2reg.contains_key(&llvm_instr) {
+        let translated_egg_node = translation_metadata
+            .llvm2reg
+            .get(&llvm_instr)
+            .expect("Key must exist");
+        egg_nodes.push(translated_egg_node.clone());
+        return (egg_nodes, next_node_idx + 1);
     }
-  }
-  let mut final_vec = Vec::new();
-  for id in id_map.iter() {
-    final_vec.push(*id);
-  }
-  balanced_pad_vector(&mut final_vec, &mut enode_vec);
-
-  let rec_expr = RecExpr::from(enode_vec);
-  (rec_expr, gep_map, store_map, symbol_map)
+    // If the current llvm instruction is a "restricted" instruction, do not translate, but make it a register
+    if translation_metadata
+        .restricted_instructions
+        .contains(&llvm_instr)
+    {
+        return unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
+    }
+    // If the current llvm instruction is not in the current chunk, we must return a register
+    // The current llvm instruction must not be a arguments, because arguments will be outside every chunk
+    if !translation_metadata
+        .instructions_in_chunk
+        .contains(&llvm_instr)
+        && !isa_argument(llvm_instr)
+    {
+        return unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
+    }
+    // Recurse Backwards on the current instruction, translating its children,
+    // based on the opcode of the parent.
+    return match match_llvm_op(&llvm_instr) {
+        LLVMOpType::FAdd | LLVMOpType::FSub | LLVMOpType::FMul | LLVMOpType::FDiv => {
+            bop_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
+        }
+        LLVMOpType::FNeg => unop_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata),
+        LLVMOpType::Constant => {
+            const_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
+        }
+        LLVMOpType::Argument => {
+            arg_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
+        }
+        LLVMOpType::Sqrt32 => {
+            sqrt32_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
+        }
+        LLVMOpType::Load => load_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata),
+        LLVMOpType::Store => {
+            store_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
+        }
+        LLVMOpType::UnhandledLLVMOpCode => {
+            unhandled_opcode_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata)
+        }
+    };
 }
 
-unsafe fn translate_egg(
-  enode: &VecLang,
-  vec: &[VecLang],
-  gep_map: &GEPMap,
-  store_map: &StoreMap,
-  symbol_map: &SymbolMap,
-  llvm_arg_pairs: &mut Vec<LLVMPair>,
-  node_to_arg_pair: &Vec<IntLLVMPair>,
-  builder: LLVMBuilderRef,
-  context: LLVMContextRef,
-  module: LLVMModuleRef,
+unsafe fn start_translating_llvm_to_egg(
+    llvm_instr: LLVMValueRef,
+    egg_nodes: Vec<VecLang>,
+    next_node_idx: u32,
+    translation_metadata: &mut LLVM2EggState,
+) -> (Vec<VecLang>, u32) {
+    translation_metadata.start_instructions.push(llvm_instr);
+    let pair_result = llvm_to_egg(llvm_instr, egg_nodes, next_node_idx, translation_metadata);
+    translation_metadata
+        .start_ids
+        .push(Id::from((pair_result.1 - 1) as usize));
+    pair_result
+}
+
+unsafe fn can_start_translation_instr(llvm_instr: LLVMValueRef) -> bool {
+    return match match_llvm_op(&llvm_instr) {
+        LLVMOpType::Store => true,
+        LLVMOpType::FAdd
+        | LLVMOpType::FMul
+        | LLVMOpType::FDiv
+        | LLVMOpType::FSub
+        | LLVMOpType::FNeg
+        | LLVMOpType::Constant
+        | LLVMOpType::Sqrt32
+        | LLVMOpType::Load
+        | LLVMOpType::Argument
+        | LLVMOpType::UnhandledLLVMOpCode => false,
+    };
+}
+
+unsafe fn llvm_to_egg_main(
+    llvm_instrs_in_chunk: &[LLVMValueRef],
+    restricted_instrs: &[LLVMValueRef],
+    vectorize: bool,
+    load_info: &[load_info_t],
+    // TODO: feed this in as an argument llvm_instr2egg_node: BTreeMap<LLVMValueRef, VecLang>,
+) -> (RecExpr<VecLang>, LLVM2EggState) {
+    let mut egg_nodes: Vec<VecLang> = Vec::new();
+
+    // Map from (translated / opaque) llvm instructions to register egg graph nodes
+    let llvm_instr2reg_node: BTreeMap<LLVMValueRef, VecLang> = BTreeMap::new();
+    // Map from (translated) llvm instructions to argument egg graph nodes
+    let llvm_instr2arg_node: BTreeMap<LLVMValueRef, VecLang> = BTreeMap::new();
+
+    // Map from (translated) Egg get ID to an original LLVM get node
+    let getid2gep: BTreeMap<u32, LLVMValueRef> = BTreeMap::new();
+
+    // Ordered Vector of Starting LLVM instructions where translation began
+    let start_instructions: Vec<LLVMValueRef> = Vec::new();
+
+    // Ordered Set of Instructions in Chunk
+    let mut instructions_in_chunk: BTreeSet<LLVMValueRef> = BTreeSet::new();
+    for llvm_instr in llvm_instrs_in_chunk.iter() {
+        instructions_in_chunk.insert(*llvm_instr);
+    }
+
+    // Ordered Set of Ids
+    let start_ids: Vec<Id> = Vec::new();
+
+    // Ordered Set of Instructions NOT TO BE Translated, except as registers
+    let mut restricted_instrs_set: BTreeSet<LLVMValueRef> = BTreeSet::new();
+    for llvm_instr in restricted_instrs.iter() {
+        restricted_instrs_set.insert(*llvm_instr);
+    }
+
+    // Load Info map
+    let mut load_info_map: BTreeMap<LLVMValueRef, (i32, i32)> = BTreeMap::new();
+    for triple in load_info.iter() {
+        load_info_map.insert(triple.load, (triple.base_id, triple.offset));
+    }
+
+    // Invariant: every restricted instruction is in the chunk, using a pointer check
+    for restr_instr in restricted_instrs.iter() {
+        let mut found_match = false;
+        for instr in instructions_in_chunk.iter() {
+            if cmp_val_ref_address(&**restr_instr, &**instr) {
+                found_match = true;
+                break;
+            }
+        }
+        if found_match {
+            continue;
+        }
+    }
+    // Invariant: chunk instructions are not empty in size
+    assert!(!instructions_in_chunk.is_empty());
+
+    let prior_translated_instructions: BTreeSet<LLVMValueRef> = BTreeSet::new();
+
+    let template_enode2actual_enode = HashMap::new();
+
+    // State Variable To Hold Maps During Translation
+    let mut translation_metadata = LLVM2EggState {
+        llvm2reg: llvm_instr2reg_node,
+        llvm2arg: llvm_instr2arg_node,
+        get2gep: getid2gep,
+        instructions_in_chunk: instructions_in_chunk,
+        restricted_instructions: restricted_instrs_set,
+        prior_translated_instructions: prior_translated_instructions,
+        start_instructions: start_instructions,
+        start_ids: start_ids,
+        load_info: load_info_map,
+        template_enode2actual_enode: template_enode2actual_enode,
+    };
+
+    // Index of next node to translate
+    let mut next_node_idx: u32 = 0;
+
+    // for each final instruction, iterate backwards from that final instruction and translate to egg
+    for llvm_instr in llvm_instrs_in_chunk.iter() {
+        // only start translation back if it is a "translatable instruction" and it was not translated already
+        if can_start_translation_instr(*llvm_instr) // TODO: Need to DFS back from this instruction and make sure invariants for translation hold, e.g. no bitcasts somewhere down the translation tree.
+            && !translation_metadata
+                .prior_translated_instructions
+                .contains(&llvm_instr)
+        {
+            let (new_egg_nodes, new_next_node_idx) = start_translating_llvm_to_egg(
+                *llvm_instr,
+                egg_nodes,
+                next_node_idx,
+                &mut translation_metadata,
+            );
+            egg_nodes = new_egg_nodes;
+            next_node_idx = new_next_node_idx;
+        }
+    }
+
+    // For testing purposes: Handle no vectorization
+    if !vectorize {
+        let mut outer_vec_ids = Vec::new();
+        for id in translation_metadata.start_ids.iter() {
+            outer_vec_ids.push(*id);
+        }
+        egg_nodes.push(VecLang::NoOptVec(outer_vec_ids.clone().into_boxed_slice()));
+        let rec_expr = RecExpr::from(egg_nodes);
+        return (rec_expr, translation_metadata);
+    }
+
+    // Generate a padded vector
+    let mut outer_vec_ids = Vec::new();
+    for id in translation_metadata.start_ids.iter() {
+        outer_vec_ids.push(*id);
+    }
+    balanced_pad_vector(&mut outer_vec_ids, &mut egg_nodes);
+
+    let rec_expr = RecExpr::from(egg_nodes);
+
+    return (rec_expr, translation_metadata);
+}
+
+/// Egg2LLVMState represent the state needed to translate from Egg to LLVM
+struct Egg2LLVMState<'a> {
+    llvm2egg_metadata: LLVM2EggState,
+    egg_nodes_vector: &'a [VecLang],
+    prior_translated_nodes: BTreeSet<LLVMValueRef>,
+    builder: LLVMBuilderRef,
+    context: LLVMContextRef,
+    module: LLVMModuleRef,
+}
+
+/// Translates a Gep node to an ID that the node holds. This ID is matche dto
+/// a gep instruction in the get2gep map
+///
+/// Used in conjunction with Load to LLVM and VecLoad to LLVM
+unsafe fn gep_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Reg to LLVM expects egg node in template2actual map.");
+    let new_gep_id = match *egg_node {
+        VecLang::Gep(gep_id) => gep_id,
+        _ => {
+            println!("{:?}", *egg_node);
+            panic!("Non Gep nodes cannot be translated in gep_to_llvm.")
+        }
+    };
+    let gep_instr = *md
+        .llvm2egg_metadata
+        .get2gep
+        .get(&new_gep_id)
+        .expect("Value of gep1 id should exist in get2gep");
+    assert!(isa_floatptr(gep_instr));
+    gep_instr
+}
+
+/// Translates a Load Egg Node back to an LLVM Load INstruction
+///
+/// Assumes that every load is implicitly from a Float * / Single Level Float Pointer
+unsafe fn load_to_llvm(gep_id: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let gep_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
+    let new_load_instr = LLVMBuildLoad(md.builder, gep_instr, b"\0".as_ptr() as *const _);
+    return new_load_instr;
+}
+
+unsafe fn store_to_llvm(val_id: &Id, gep_id: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let llvm_val_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*val_id)], md);
+    let gep_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep_id)], md);
+    let new_store_instr = LLVMBuildStore(md.builder, llvm_val_instr, gep_instr);
+    return new_store_instr;
+}
+
+unsafe fn aligned_consec_loadvec_to_llvm(
+    gep1_id: &Id,
+    load_vector_width: u32,
+    md: &mut Egg2LLVMState,
 ) -> LLVMValueRef {
-  let instr = match enode {
-    VecLang::Symbol(symbol) => {
-      match symbol_map.get(enode) {
-        Some(llvm_instr) => *llvm_instr,
-        None => {
-          let mut matched = false;
-          let mut ret_value = LLVMBuildAdd(
-            builder,
-            LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64),
-            LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64),
-            b"nop\0".as_ptr() as *const _,
-          );
-          for node_arg_pair in node_to_arg_pair {
-            let llvm_node = node_arg_pair.arg;
-            let node_index = node_arg_pair.node_int;
-            let string_node_index = node_index.to_string();
-            if string_node_index.parse::<Symbol>().unwrap() == *symbol {
-              for llvm_pair in &mut *llvm_arg_pairs {
-                let original_llvm = llvm_pair.original_value;
-                let new_llvm = llvm_pair.new_value;
-                if original_llvm == llvm_node {
-                  matched = true;
-                  ret_value = new_llvm;
-                  break;
-                }
-              }
-            }
-            if matched {
-              break;
-            }
-          }
-          if matched {
-            ret_value
-          } else {
-            panic!("No Match in Node Arg Pair List.")
-          }
+    // New code to handle an aligned and consecutive vector load
+    let gep1_llvm_instr = egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(gep1_llvm_instr));
+    let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
+        md.builder,
+        gep1_llvm_instr,
+        LLVMPointerType(
+            LLVMVectorType(LLVMFloatTypeInContext(md.context), load_vector_width),
+            address_space,
+        ),
+        b"scalar-to-vector-type-bit-cast\0".as_ptr() as *const _,
+    );
+    let load = LLVMBuildLoad(
+        md.builder,
+        bitcase_scalar_to_vector_type,
+        b"vector-load\0".as_ptr() as *const _,
+    );
+    return load;
+}
+
+unsafe fn loadvec_to_llvm(
+    gep1_id: &Id,
+    gep2_id: &Id,
+    gep3_id: &Id,
+    gep4_id: &Id,
+    base_ids_vec: &Id,
+    offsets_id_vec: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    // Set Opaque Pointer ness
+    let mut base_data = get_shuf_vec_data(base_ids_vec, md);
+    let mut offsets_data = get_shuf_vec_data(offsets_id_vec, md);
+
+    base_data.dedup();
+    offsets_data.dedup();
+
+    let gep1_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+    let gep2_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep2_id)], md);
+    let gep3_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep3_id)], md);
+    let gep4_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep4_id)], md);
+
+    // special case: when all the bases and offsets are the same, do a shuffle, whcih can represent a splat. Splats are fast operations
+    // Build up shuf mask
+    if base_data.len() == 1 && offsets_data.len() == 1 {
+        let mut mask = Vec::new();
+        for _ in 0..4 {
+            mask.push(LLVMConstInt(
+                LLVMInt32TypeInContext(md.context),
+                0 as u64,
+                0 as i32,
+            ));
         }
-      }
-      // *symbol_map
-      // .get(enode)
-      // .expect("Symbol Should Exist in Symbol Map.")
-    }
-    VecLang::Num(n) => LLVMConstReal(LLVMFloatTypeInContext(context), *n as f64),
-    // VecLang::Num(n) => build_constant_float(*n as f64, context),
-    VecLang::Get(..) => {
-      let (array_name, array_offsets) = translate_get(enode, vec);
-      let gep_value = gep_map
-        .get(&(array_name, array_offsets))
-        .expect("Symbol map lookup error: Cannot Find GEP");
-      let load_value = if isa_load(*gep_value) {
-        let addr = LLVMGetOperand(*gep_value, 0);
-        let cloned_gep = LLVMInstructionClone(addr);
-        let new_gep = llvm_recursive_add(builder, cloned_gep);
-        let new_load = LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _);
-        let llvm_pair = LLVMPair {
-          original_value: *gep_value,
-          new_value: new_load,
-        };
-        llvm_arg_pairs.push(llvm_pair);
-        new_load
-      } else if isa_gep(*gep_value) {
-        let cloned_gep = LLVMInstructionClone(*gep_value);
-        let new_gep = llvm_recursive_add(builder, cloned_gep);
-        LLVMBuildLoad(builder, new_gep, b"\0".as_ptr() as *const _)
-      } else if isa_bitcast(*gep_value) {
-        // TODO: DO NOT REGERATE CALLS. THESE SHOULD BE CACHED!!. e.g. a CALLOC
-        let cloned_bitcast = LLVMInstructionClone(*gep_value);
-        let new_bitcast = llvm_recursive_add(builder, cloned_bitcast);
-        LLVMBuildLoad(builder, new_bitcast, b"\0".as_ptr() as *const _)
-      } else if isa_sitofp(*gep_value) {
-        let cloned_sitofp = LLVMInstructionClone(*gep_value);
-        let new_sitofp = llvm_recursive_add(builder, cloned_sitofp);
-        new_sitofp
-      } else {
-        LLVMBuildLoad(builder, *gep_value, b"\0".as_ptr() as *const _)
-      };
-      load_value
-    }
-    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
-      let idvec = boxed_ids.to_vec();
-      let idvec_len = idvec.len();
-      let mut zeros = Vec::new();
-      for _ in 0..idvec_len {
-        zeros.push(LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64));
-      }
-      let zeros_ptr = zeros.as_mut_ptr();
-      let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
-      for (idx, &eggid) in idvec.iter().enumerate() {
-        let elt = &vec[usize::from(eggid)];
-        let mut elt_val = translate_egg(
-          elt,
-          vec,
-          gep_map,
-          store_map,
-          symbol_map,
-          llvm_arg_pairs,
-          node_to_arg_pair,
-          builder,
-          context,
-          module,
+
+        let single_load = LLVMBuildLoad(
+            md.builder,
+            *gep1_llvm_instr,
+            b"splat-load\0".as_ptr() as *const _,
         );
-        // check if the elt is an int
-        if isa_integertype(elt_val) {
-          elt_val = LLVMBuildSIToFP(
-            builder,
-            elt_val,
-            LLVMFloatTypeInContext(context),
+
+        let mut zeros = Vec::new();
+        for _ in 0..4 {
+            zeros.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 0 as f64));
+        }
+        let zeros_ptr = zeros.as_mut_ptr();
+        let mut zero_vector = LLVMConstVector(zeros_ptr, 4);
+        for (idx, llvm_instr) in vec![single_load].iter().enumerate() {
+            // Construct the Vector
+            zero_vector = LLVMBuildInsertElement(
+                md.builder,
+                zero_vector,
+                *llvm_instr,
+                LLVMConstInt(LLVMIntTypeInContext(md.context, 32), idx as u64, 0),
+                b"\0".as_ptr() as *const _,
+            );
+        }
+
+        let shuf_mask = LLVMConstVector(mask.as_mut_ptr(), vector_width() as u32);
+        let shuffle_vec = LLVMBuildShuffleVector(
+            md.builder,
+            zero_vector,
+            zero_vector,
+            shuf_mask,
             b"\0".as_ptr() as *const _,
-          );
-        }
-        vector = LLVMBuildInsertElement(
-          builder,
-          vector,
-          elt_val,
-          LLVMConstInt(LLVMIntTypeInContext(context, 32), idx as u64, 0),
-          b"\0".as_ptr() as *const _,
         );
-      }
-      vector
+        return shuffle_vec;
     }
+
+    let vector_width = 4;
+    let floatptr_type = LLVMTypeOf(*gep1_llvm_instr);
+    let vec4ptr_type = LLVMVectorType(floatptr_type, vector_width);
+    let vec4f_type = LLVMVectorType(LLVMFloatTypeInContext(md.context), vector_width);
+    let vec4b_type = LLVMVectorType(LLVMInt1TypeInContext(md.context), vector_width);
+    let int_type = LLVMIntTypeInContext(md.context, 32);
+
+    // Parameter Types are:: vector of pointers, offset int, mask vector booleans and pass through vector
+    // Pasthru is poison according to LLVM
+    let param_types = [vec4ptr_type, int_type, vec4b_type, vec4f_type].as_mut_ptr();
+    // Output type is a 4 length vector
+    let fn_type = LLVMFunctionType(vec4f_type, param_types, 4, 0 as i32);
+    // Build the Vector Load Intrinsic
+    let func_name = &GATHER;
+    let llvm_masked_gather_func = get_func_llvm_value(&func_name);
+
+    let func = match llvm_masked_gather_func {
+        Some(value) => value,
+        None => {
+            let new_func = LLVMAddFunction(
+                md.module,
+                b"llvm.masked.gather.v4f32.v4p0f32\0".as_ptr() as *const _,
+                fn_type,
+            );
+            FUNC_NAME2LLVM_FUNC.push((&func_name, new_func));
+            new_func
+        }
+    };
+
+    // Build Arguments
+
+    let mut zeros = Vec::new();
+    for _ in 0..4 {
+        zeros.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 0 as f64));
+    }
+    let zeros_ptr = zeros.as_mut_ptr();
+    let zero_vector = LLVMConstVector(zeros_ptr, 4);
+
+    let pointer_to_int_value = LLVMBuildPtrToInt(
+        md.builder,
+        LLVMConstInt(LLVMIntTypeInContext(md.context, 32), 0 as u64, 0),
+        LLVMIntTypeInContext(md.context, 32),
+        b"pointer-to-int\0".as_ptr() as *const _,
+    );
+    let pointer_to_float_value = LLVMBuildBitCast(
+        md.builder,
+        pointer_to_int_value,
+        generate_opaque_pointer(LLVMFloatTypeInContext(md.context)),
+        b"pointer-to-float-bit-cast\0".as_ptr() as *const _,
+    );
+    let mut pointer_to_floats = Vec::new();
+    for _ in 0..4 {
+        pointer_to_floats.push(pointer_to_float_value);
+    }
+    let pointer_to_floats_ptr = pointer_to_floats.as_mut_ptr();
+    let mut pointer_vector = LLVMConstVector(pointer_to_floats_ptr, 4);
+
+    let llvm_ptrs = vec![
+        *gep1_llvm_instr,
+        *gep2_llvm_instr,
+        *gep3_llvm_instr,
+        *gep4_llvm_instr,
+    ];
+    for idx in 0..4 {
+        // Grow the Vector
+        pointer_vector = LLVMBuildInsertElement(
+            md.builder,
+            pointer_vector,
+            *llvm_ptrs.get(idx).expect("Index must be in vector"),
+            LLVMConstInt(LLVMIntTypeInContext(md.context, 32), idx as u64, 0),
+            b"\0".as_ptr() as *const _,
+        );
+    }
+
+    let offset = LLVMConstInt(LLVMIntTypeInContext(md.context, 32), 0 as u64, 0);
+
+    let mut mask_values = vec![
+        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
+        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
+        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
+        LLVMConstInt(LLVMIntTypeInContext(md.context, 1), 1 as u64, 0),
+    ];
+    let ptr_to_mask_values = mask_values.as_mut_ptr();
+    let mask_vector = LLVMConstVector(ptr_to_mask_values, 4);
+
+    let args = [pointer_vector, offset, mask_vector, zero_vector].as_mut_ptr();
+    LLVMBuildCall(md.builder, func, args, 4, b"\0".as_ptr() as *const _)
+}
+
+unsafe fn storevec_to_llvm(
+    val_vec_id: &Id,
+    gep1_id: &Id,
+    _gep2_id: &Id,
+    _gep3_id: &Id,
+    _gep4_id: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    // Recursively translate val_vec_id to an LLVM Vector Instr
+    let llvm_val_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*val_vec_id)], md);
+
+    let gep1_llvm_instr = &egg_to_llvm(&md.egg_nodes_vector[usize::from(*gep1_id)], md);
+
+    // New code to handle a vector store
+    // Currently, this is the only type of store that can be generated because stores are not split.
+    let address_space = LLVMGetPointerAddressSpace(LLVMTypeOf(*gep1_llvm_instr));
+    let bitcase_scalar_to_vector_type = LLVMBuildBitCast(
+        md.builder,
+        *gep1_llvm_instr,
+        LLVMPointerType(
+            LLVMVectorType(LLVMFloatTypeInContext(md.context), 4),
+            address_space,
+        ),
+        b"scalar-to-vector-type-bit-cast\0".as_ptr() as *const _,
+    );
+    let store = LLVMBuildStore(md.builder, llvm_val_vec, bitcase_scalar_to_vector_type);
+    return store;
+}
+
+unsafe fn arg_to_llvm(original_egg_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    // TODO: Make More Efficient with BTREEMAP?
+    let llvm2arg = &md.llvm2egg_metadata.llvm2arg;
+    let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Arg to LLVM expects egg node in template2actual map.");
+    for (llvm_instr, arg_node) in llvm2arg.iter() {
+        // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
+        if arg_node == egg_node {
+            assert!(isa_argument(*llvm_instr));
+            return *llvm_instr;
+        }
+    }
+    panic!(
+        "Expected a successful lookup in llvm2arg, but cannot find Argument Egg Node: {:?}.",
+        egg_node
+    );
+}
+
+unsafe fn reg_to_llvm(
+    original_egg_node: &VecLang,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    // TODO: Make More Efficient with BTREEMAP?
+    let llvm2reg = &md.llvm2egg_metadata.llvm2reg;
+    let egg_node = md.llvm2egg_metadata.template_enode2actual_enode.get(original_egg_node).expect("Reg to LLVM expects egg node in template2actual map.");
+    for (llvm_instr, reg_node) in llvm2reg.iter() {
+        // We can do a struct comparison rather than point comparison as arg node contents are indexed by a unique u32.
+        if reg_node == egg_node {
+            assert!(!isa_argument(*llvm_instr));
+            // do not clone an instruction translated earlier in the same chunk
+            if md
+                .prior_translated_nodes
+                .contains(&*llvm_instr)
+            {
+                return *llvm_instr;
+            }
+            // do not clone an instruction translated in a prior basic block / prior chunk
+            if !md
+                .llvm2egg_metadata
+                .instructions_in_chunk
+                .contains(&*llvm_instr)
+            {
+                return *llvm_instr;
+            }
+            let new_instr = LLVMInstructionClone(*llvm_instr);
+            LLVMInsertIntoBuilder(md.builder, new_instr);
+            md
+                .prior_translated_nodes
+                .insert(new_instr);
+            return new_instr;
+        }
+    }
+    panic!(
+        "Expected a successful lookup in llvm2reg, but cannot find Register Egg Node: {:?}.",
+        egg_node
+    );
+}
+
+unsafe fn num_to_llvm(n: &i32, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    LLVMConstReal(LLVMFloatTypeInContext(md.context), *n as f64)
+}
+
+unsafe fn vec_to_llvm(boxed_ids: &Box<[Id]>, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    // Convert the Boxed Ids to a Vector, and generate a vector of zeros
+    // Invariant: idvec must not be empty
+    let idvec = boxed_ids.to_vec();
+    let idvec_len = idvec.len();
+    assert!(
+        !idvec.is_empty(),
+        "Id Vec Cannot be empty when converting Vector to an LLVM Vector"
+    );
+    let mut zeros = Vec::new();
+    for _ in 0..idvec_len {
+        zeros.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 0 as f64));
+    }
+
+    // Convert the Vector of Zeros to a Mut PTr to construct an LLVM Zero Vector
+    // Invariant: zeros must not be empty
+    assert!(
+        !zeros.is_empty(),
+        "Zeros Vector Cannot be empty when converting Vector to an LLVM Vector"
+    );
+    let zeros_ptr = zeros.as_mut_ptr();
+    let mut vector = LLVMConstVector(zeros_ptr, idvec.len() as u32);
+    for (idx, &eggid) in idvec.iter().enumerate() {
+        let elt = &md.egg_nodes_vector[usize::from(eggid)];
+        let mut elt_val = egg_to_llvm(elt, md);
+        // TODO: Can We Eliminate this BitCast in the future??
+        // With the new formulation, will we ever have an integer type?
+        // Check if the elt is an int
+        if isa_integertype(elt_val) {
+            elt_val = LLVMBuildBitCast(
+                md.builder,
+                elt_val,
+                LLVMFloatTypeInContext(md.context),
+                b"\0".as_ptr() as *const _,
+            );
+        }
+
+        // Construct the Vector
+        vector = LLVMBuildInsertElement(
+            md.builder,
+            vector,
+            elt_val,
+            LLVMConstInt(LLVMIntTypeInContext(md.context, 32), idx as u64, 0),
+            b"\0".as_ptr() as *const _,
+        );
+    }
+    vector
+}
+
+unsafe fn nooptvector_to_llvm(boxed_ids: &Box<[Id]>, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    // Convert the Boxed Ids to a Vector, and generate a vector of zeros
+    // Invariant: idvec must not be empty
+    let idvec = boxed_ids.to_vec();
+    let mut elt_val = LLVMConstInt(LLVMIntTypeInContext(md.context, 32), 0 as u64, 0);
+    for eggid in idvec {
+        let elt = &md.egg_nodes_vector[usize::from(eggid)];
+        elt_val = egg_to_llvm(elt, md);
+    }
+    elt_val
+}
+
+// TODO: Segregate Vec and Scalar Binops?
+unsafe fn binop_to_llvm(
+    binop_node: &VecLang,
+    left_id: &Id,
+    right_id: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    let left = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_id)], md);
+    let right = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_id)], md);
+
+    // TODO: Can We Remove these Casts?
+    let left = if LLVMTypeOf(left) == LLVMIntTypeInContext(md.context, 32) {
+        LLVMBuildBitCast(
+            md.builder,
+            left,
+            LLVMFloatTypeInContext(md.context),
+            b"\0".as_ptr() as *const _,
+        )
+    } else {
+        left
+    };
+
+    // TODO: Can We Remove these Casts?
+    let right = if LLVMTypeOf(right) == LLVMIntTypeInContext(md.context, 32) {
+        LLVMBuildBitCast(
+            md.builder,
+            right,
+            LLVMFloatTypeInContext(md.context),
+            b"\0".as_ptr() as *const _,
+        )
+    } else {
+        right
+    };
+
+    // TODO: Can we eliminate these cases?
+    if isa_constfp(left)
+        && !isa_constaggregatezero(left)
+        && isa_constfp(right)
+        && !isa_constaggregatezero(right)
+    {
+        let mut loses_info = 1;
+        let nright = LLVMConstRealGetDouble(right, &mut loses_info);
+        let new_right = build_constant_float(nright, md.context);
+        let nleft = LLVMConstRealGetDouble(left, &mut loses_info);
+        let new_left = build_constant_float(nleft, md.context);
+        translate_binop(
+            binop_node,
+            new_left,
+            new_right,
+            md.builder,
+            b"\0".as_ptr() as *const _,
+        )
+    } else if isa_constfp(right) && !isa_constaggregatezero(right) {
+        let mut loses_info = 1;
+        let n = LLVMConstRealGetDouble(right, &mut loses_info);
+        let new_right = build_constant_float(n, md.context);
+        translate_binop(
+            binop_node,
+            left,
+            new_right,
+            md.builder,
+            b"\0".as_ptr() as *const _,
+        )
+    } else if isa_constfp(left) && !isa_constaggregatezero(left) {
+        let mut loses_info = 1;
+        let n = LLVMConstRealGetDouble(left, &mut loses_info);
+        let new_left = build_constant_float(n, md.context);
+        translate_binop(
+            binop_node,
+            new_left,
+            right,
+            md.builder,
+            b"\0".as_ptr() as *const _,
+        )
+    } else {
+        translate_binop(
+            binop_node,
+            left,
+            right,
+            md.builder,
+            b"\0".as_ptr() as *const _,
+        )
+    }
+}
+
+unsafe fn concat_to_llvm(
+    left_vector: &Id,
+    right_vector: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    let _ = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_vector)], md);
+    let trans_v2 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_vector)], md);
+    return trans_v2;
+}
+
+unsafe fn mac_to_llvm(
+    accumulator_vector: &Id,
+    left_prod_vector: &Id,
+    right_prod_vector: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    let trans_acc = egg_to_llvm(&md.egg_nodes_vector[usize::from(*accumulator_vector)], md);
+    let trans_v1 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_prod_vector)], md);
+    let trans_v2 = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_prod_vector)], md);
+    let vec_type = LLVMTypeOf(trans_acc);
+    let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
+    let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
+
+    let func_name = &FMA_NAME;
+    let llvm_fma_func = get_func_llvm_value(&func_name);
+
+    let func = match llvm_fma_func {
+        Some(value) => value,
+        None => {
+            let new_func =
+                LLVMAddFunction(md.module, b"llvm.fma.v4f32\0".as_ptr() as *const _, fn_type);
+            FUNC_NAME2LLVM_FUNC.push((&func_name, new_func));
+            new_func
+        }
+    };
+    let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
+    LLVMBuildCall(md.builder, func, args, 3, b"\0".as_ptr() as *const _)
+}
+
+unsafe fn scalar_unop_to_llvm(n: &Id, unop_node: &VecLang, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let mut number = egg_to_llvm(&md.egg_nodes_vector[usize::from(*n)], md);
+    if isa_integertype(number) {
+        number = LLVMBuildBitCast(
+            md.builder,
+            number,
+            LLVMFloatTypeInContext(md.context),
+            b"\0".as_ptr() as *const _,
+        );
+    }
+    translate_unop(
+        unop_node,
+        number,
+        md.builder,
+        md.context,
+        md.module,
+        b"\0".as_ptr() as *const _,
+    )
+}
+
+unsafe fn vecneg_to_llvm(vec: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let neg_vector = egg_to_llvm(&md.egg_nodes_vector[usize::from(*vec)], md);
+    LLVMBuildFNeg(md.builder, neg_vector, b"\0".as_ptr() as *const _)
+}
+
+unsafe fn vecsqrt_to_llvm(vec: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let sqrt_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*vec)], md);
+    let vec_type = LLVMTypeOf(sqrt_vec);
+    let param_types = [vec_type].as_mut_ptr();
+    let fn_type = LLVMFunctionType(vec_type, param_types, 1, 0 as i32);
+    let func = LLVMAddFunction(md.module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
+    let args = [sqrt_vec].as_mut_ptr();
+    LLVMBuildCall(md.builder, func, args, 1, b"\0".as_ptr() as *const _)
+}
+
+unsafe fn vecsgn_to_llvm(vec: &Id, md: &mut Egg2LLVMState) -> LLVMValueRef {
+    let sgn_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*vec)], md);
+    let vec_type = LLVMTypeOf(sgn_vec);
+    let vec_size = LLVMGetVectorSize(vec_type);
+    let mut ones = Vec::new();
+    for _ in 0..vec_size {
+        ones.push(LLVMConstReal(LLVMFloatTypeInContext(md.context), 1 as f64));
+    }
+    let ones_ptr = ones.as_mut_ptr();
+    let ones_vector = LLVMConstVector(ones_ptr, vec_size);
+    let param_types = [vec_type, vec_type].as_mut_ptr();
+    let fn_type = LLVMFunctionType(vec_type, param_types, 2, 0 as i32);
+    let func = LLVMAddFunction(
+        md.module,
+        b"llvm.copysign.f32\0".as_ptr() as *const _,
+        fn_type,
+    );
+    let args = [ones_vector, sgn_vec].as_mut_ptr();
+    LLVMBuildCall(md.builder, func, args, 2, b"\0".as_ptr() as *const _)
+}
+
+unsafe fn get_shuf_vec_data(shuf_vec_id: &Id, md: &mut Egg2LLVMState) -> Vec<i32> {
+    let mut results_vec = Vec::new();
+    let match_expr = &md.egg_nodes_vector[usize::from(*shuf_vec_id)];
+    match match_expr {
+        VecLang::DataVec(boxed_ids) => {
+            let idvec = boxed_ids.to_vec();
+            for eggid in idvec {
+                match &md.egg_nodes_vector[usize::from(eggid)] {
+                    VecLang::Num(n) => results_vec.push(*n),
+                    _ => panic!("Each element of a shuf vec needs to be a num"),
+                }
+            }
+        }
+        _ => {
+            println!("{:?}", match_expr);
+            panic!("Shuf Vec Id should point to a vector of numbers")
+        }
+    }
+    return results_vec;
+}
+
+/**
+ * Shuffle Node to an LLVM Shuffle Op
+ */
+unsafe fn shuffle_to_llvm(
+    data_vec_id: &Id,
+    shuf_vec_id: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    let data_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*data_vec_id)], md);
+    let shuf_data = get_shuf_vec_data(shuf_vec_id, md);
+
+    // Build up shuf mask
+    let mut mask = Vec::new();
+    for val in shuf_data {
+        mask.push(LLVMConstInt(
+            LLVMInt32TypeInContext(md.context),
+            val as u64,
+            0 as i32,
+        ));
+    }
+
+    let shuf_mask = LLVMConstVector(mask.as_mut_ptr(), vector_width() as u32);
+    LLVMBuildShuffleVector(
+        md.builder,
+        data_vec,
+        data_vec,
+        shuf_mask,
+        b"\0".as_ptr() as *const _,
+    )
+}
+
+unsafe fn join_to_llvm(
+    left_vec_id: &Id,
+    right_vec_id: &Id,
+    md: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    let left_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*left_vec_id)], md);
+    let right_vec = egg_to_llvm(&md.egg_nodes_vector[usize::from(*right_vec_id)], md);
+
+    // Build up shuf mask
+    let mut mask = Vec::new();
+    for i in 0..4 {
+        mask.push(LLVMConstInt(
+            LLVMInt32TypeInContext(md.context),
+            i as u64,
+            0 as i32,
+        ));
+    }
+    let shuf_mask = LLVMConstVector(mask.as_mut_ptr(), vector_width() as u32);
+
+    LLVMBuildShuffleVector(
+        md.builder,
+        left_vec,
+        right_vec,
+        shuf_mask,
+        b"\0".as_ptr() as *const _,
+    )
+}
+
+/**
+ * Vector representing No Optimization: Egg will not have modified the vector at all.
+ */
+unsafe fn nooptvec_to_llvm(boxed_ids: &Box<[Id]>, md: &mut Egg2LLVMState) -> () {
+    // Convert the Boxed Ids to a Vector, and generate a vector of zeros
+    // Invariant: idvec must not be empty
+    let idvec = boxed_ids.to_vec();
+    assert!(
+        !idvec.is_empty(),
+        "Id Vec Cannot be empty when converting Vector to an LLVM Vector"
+    );
+    for (i, &eggid) in idvec.iter().enumerate() {
+        let egg_node = &md.egg_nodes_vector[usize::from(eggid)];
+        let new_instr = egg_to_llvm(egg_node, md);
+        let old_instr = md
+            .llvm2egg_metadata
+            .start_instructions
+            .get(i)
+            .expect("Index Must Exist In Start Instructions");
+        LLVMReplaceAllUsesWith(*old_instr, new_instr);
+        LLVMInstructionEraseFromParent(*old_instr);
+    }
+}
+
+/// Egg To LLVM Dispatches translation of VecLanf Egg Nodes to LLVMValueRegs
+///
+/// Side Effect: Builds and Insert LLVM instructions
+unsafe fn egg_to_llvm(
+    egg_node: &VecLang,
+    translation_metadata: &mut Egg2LLVMState,
+) -> LLVMValueRef {
+    match egg_node {
+    VecLang::Symbol(..) => {
+      panic!("Symbol was found. Egg to LLVM Translation does not handle symbol nodes.")
+    }
+    VecLang::Get(..) => {
+      panic!("Get was found. Egg to LLVM Translation does not handle get nodes.")
+    }
+    VecLang::Gep(..) => {
+        gep_to_llvm(egg_node, translation_metadata)
+    }
+    VecLang::Load([gep_id, _, _]) => {
+        load_to_llvm(gep_id, translation_metadata)
+    }
+    VecLang::Store([val_id, gep_id]) => {
+        store_to_llvm(val_id, gep_id, translation_metadata)
+    }
+    VecLang::Set(..) => {
+        panic!("Set was found. Egg to LLVM Translation does not handle set nodes.")
+    }
+    VecLang::Ite(..) => panic!("Ite was found. Egg to LLVM Translation does not handle ite nodes."),
+    VecLang::Or(..) => panic!("Or was found. Egg to LLVM Translation does not handle or nodes."),
+    VecLang::And(..) => panic!("And was found. Egg to LLVM Translation does not handle and nodes."),
+    VecLang::Lt(..) => panic!("Lt was found. Egg to LLVM Translation does not handle lt nodes."),
+    VecLang::Sgn(..) => panic!("Sgn was found. Egg to LLVM Translation does not handle sgn nodes. TODO: In the future, tis node will be handled alongside sqrt and neg scalar nodes."),
+    VecLang::VecSgn(..) => panic!("VecSgn was found. Egg to LLVM Translation does not handle vecsgn nodes. TODO: In the future, this node will be handled alongside VecSqrt and VecNeg vector nodes."),
+    VecLang::Arg(_) =>  arg_to_llvm(egg_node, translation_metadata),
+    VecLang::Reg(_) =>  reg_to_llvm(egg_node, translation_metadata),
+    VecLang::Num(n) =>  num_to_llvm(n, translation_metadata),
+    VecLang::LitVec(boxed_ids) | VecLang::Vec(boxed_ids) | VecLang::List(boxed_ids) => {
+       vec_to_llvm(&*boxed_ids, translation_metadata)
+    }
+    VecLang::DataVec(_) => panic!("Cannot translate a datavec"),
+    VecLang::NoOptVec(boxed_ids) => nooptvector_to_llvm(boxed_ids, translation_metadata),
     VecLang::VecAdd([l, r])
     | VecLang::VecMinus([l, r])
     | VecLang::VecMul([l, r])
@@ -1821,364 +1775,208 @@ unsafe fn translate_egg(
     | VecLang::Add([l, r])
     | VecLang::Minus([l, r])
     | VecLang::Mul([l, r])
-    | VecLang::Div([l, r])
-    | VecLang::Or([l, r])
-    | VecLang::And([l, r])
-    | VecLang::Lt([l, r]) => {
-      let left = translate_egg(
-        &vec[usize::from(*l)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let right = translate_egg(
-        &vec[usize::from(*r)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let left = if LLVMTypeOf(left) == LLVMIntTypeInContext(context, 32) {
-        LLVMBuildBitCast(
-          builder,
-          left,
-          LLVMFloatTypeInContext(context),
-          b"\0".as_ptr() as *const _,
-        )
-      } else {
-        left
-      };
-      let right = if LLVMTypeOf(right) == LLVMIntTypeInContext(context, 32) {
-        LLVMBuildBitCast(
-          builder,
-          right,
-          LLVMFloatTypeInContext(context),
-          b"\0".as_ptr() as *const _,
-        )
-      } else {
-        right
-      };
-      if isa_constfp(left)
-        && !isa_constaggregatezero(left)
-        && isa_constfp(right)
-        && !isa_constaggregatezero(right)
-      {
-        let mut loses_info = 1;
-        let nright = LLVMConstRealGetDouble(right, &mut loses_info);
-        let new_right = build_constant_float(nright, context);
-        let nleft = LLVMConstRealGetDouble(left, &mut loses_info);
-        let new_left = build_constant_float(nleft, context);
-        translate_binop(
-          enode,
-          new_left,
-          new_right,
-          builder,
-          b"\0".as_ptr() as *const _,
-        )
-      } else if isa_constfp(right) && !isa_constaggregatezero(right) {
-        let mut loses_info = 1;
-        let n = LLVMConstRealGetDouble(right, &mut loses_info);
-        let new_right = build_constant_float(n, context);
-        translate_binop(enode, left, new_right, builder, b"\0".as_ptr() as *const _)
-      } else if isa_constfp(left) && !isa_constaggregatezero(left) {
-        let mut loses_info = 1;
-        let n = LLVMConstRealGetDouble(left, &mut loses_info);
-        let new_left = build_constant_float(n, context);
-        translate_binop(enode, new_left, right, builder, b"\0".as_ptr() as *const _)
-      } else {
-        translate_binop(enode, left, right, builder, b"\0".as_ptr() as *const _)
-      }
-    }
-    VecLang::Concat([v1, v2]) => {
-      let trans_v1 = translate_egg(
-        &vec[usize::from(*v1)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let mut trans_v2 = translate_egg(
-        &vec[usize::from(*v2)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      // it turns out all vectors need to be length power of 2
-      // if the 2 vectors are not the same size, double the length of the smaller vector by padding with 0's in it
-      // manually concatenate 2 vectors by using a LLVM shuffle operation.
-      let v1_type = LLVMTypeOf(trans_v1);
-      let v1_size = LLVMGetVectorSize(v1_type);
-      let v2_type = LLVMTypeOf(trans_v2);
-      let v2_size = LLVMGetVectorSize(v2_type);
+    | VecLang::Div([l, r]) =>  binop_to_llvm(egg_node, l, r, translation_metadata),
+    VecLang::Concat([v1, v2]) =>  concat_to_llvm(v1, v2, translation_metadata),
+    VecLang::VecMAC([acc, v1, v2]) =>  mac_to_llvm(acc, v1, v2, translation_metadata),
 
-      // HACKY FIX FOR NOW
-      // assume both v1 and v2 are pow of 2 size
-      // assume v2 size smaller or equal to v1 size
-      // assume v2 is 1/2 size of v1
-      if v1_size != v2_size {
-        // replicate v2 size
-        let mut zeros = Vec::new();
-        for _ in 0..v2_size {
-          zeros.push(LLVMConstReal(LLVMFloatTypeInContext(context), 0 as f64));
-        }
-        let zeros_ptr = zeros.as_mut_ptr();
-        let zeros_vector = LLVMConstVector(zeros_ptr, v2_size);
-        let size = 2 * v2_size;
-        let mut indices = Vec::new();
-        for i in 0..size {
-          indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
-        }
-        let mask = indices.as_mut_ptr();
-        let mask_vector = LLVMConstVector(mask, size);
-        trans_v2 = LLVMBuildShuffleVector(
-          builder,
-          trans_v2,
-          zeros_vector,
-          mask_vector,
-          b"\0".as_ptr() as *const _,
-        );
-      }
-      let size = v1_size + v2_size;
-      let mut indices = Vec::new();
-      for i in 0..size {
-        indices.push(LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0));
-      }
-      let mask = indices.as_mut_ptr();
-      let mask_vector = LLVMConstVector(mask, size);
-      LLVMBuildShuffleVector(
-        builder,
-        trans_v1,
-        trans_v2,
-        mask_vector,
-        b"\0".as_ptr() as *const _,
-      )
-    }
-    VecLang::VecMAC([acc, v1, v2]) => {
-      let trans_acc = translate_egg(
-        &vec[usize::from(*acc)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let trans_v1 = translate_egg(
-        &vec[usize::from(*v1)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let trans_v2 = translate_egg(
-        &vec[usize::from(*v2)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let vec_type = LLVMTypeOf(trans_acc);
-      let param_types = [vec_type, vec_type, vec_type].as_mut_ptr();
-      let fn_type = LLVMFunctionType(vec_type, param_types, 3, 0 as i32);
-      let func = LLVMAddFunction(module, b"llvm.fma.f32\0".as_ptr() as *const _, fn_type);
-      let args = [trans_v1, trans_v2, trans_acc].as_mut_ptr();
-      LLVMBuildCall(builder, func, args, 3, b"\0".as_ptr() as *const _)
-    }
+
     // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
     // TODO: LLVM actually supports many more vector intrinsics, including
     // vector sine/cosine instructions for floats.
-    VecLang::VecNeg([v]) => {
-      let neg_vector = translate_egg(
-        &vec[usize::from(*v)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      LLVMBuildFNeg(builder, neg_vector, b"\0".as_ptr() as *const _)
-    }
-    VecLang::VecSqrt([v]) => {
-      let sqrt_vec = translate_egg(
-        &vec[usize::from(*v)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let vec_type = LLVMTypeOf(sqrt_vec);
-      let param_types = [vec_type].as_mut_ptr();
-      let fn_type = LLVMFunctionType(vec_type, param_types, 1, 0 as i32);
-      let func = LLVMAddFunction(module, b"llvm.sqrt.f32\0".as_ptr() as *const _, fn_type);
-      let args = [sqrt_vec].as_mut_ptr();
-      LLVMBuildCall(builder, func, args, 1, b"\0".as_ptr() as *const _)
-    }
-    // compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
-    VecLang::VecSgn([v]) => {
-      let sgn_vec = translate_egg(
-        &vec[usize::from(*v)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      let vec_type = LLVMTypeOf(sgn_vec);
-      let vec_size = LLVMGetVectorSize(vec_type);
-      let mut ones = Vec::new();
-      for _ in 0..vec_size {
-        ones.push(LLVMConstReal(LLVMFloatTypeInContext(context), 1 as f64));
-      }
-      let ones_ptr = ones.as_mut_ptr();
-      let ones_vector = LLVMConstVector(ones_ptr, vec_size);
-      let param_types = [vec_type, vec_type].as_mut_ptr();
-      let fn_type = LLVMFunctionType(vec_type, param_types, 2, 0 as i32);
-      let func = LLVMAddFunction(module, b"llvm.copysign.f32\0".as_ptr() as *const _, fn_type);
-      let args = [ones_vector, sgn_vec].as_mut_ptr();
-      LLVMBuildCall(builder, func, args, 2, b"\0".as_ptr() as *const _)
-    }
-    VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) => {
-      let mut number = translate_egg(
-        &vec[usize::from(*n)],
-        vec,
-        gep_map,
-        store_map,
-        symbol_map,
-        llvm_arg_pairs,
-        node_to_arg_pair,
-        builder,
-        context,
-        module,
-      );
-      if isa_integertype(number) {
-        number = LLVMBuildSIToFP(
-          builder,
-          number,
-          LLVMFloatTypeInContext(context),
-          b"\0".as_ptr() as *const _,
-        )
-      }
-      translate_unop(
-        enode,
-        number,
-        builder,
-        context,
-        module,
-        b"\0".as_ptr() as *const _,
-      )
-    }
-    VecLang::Ite(..) => panic!("Ite is not handled."),
-  };
-  return instr;
+    VecLang::VecNeg([v]) =>  vecneg_to_llvm(v, translation_metadata),
+    VecLang::VecSqrt([v]) =>  vecsqrt_to_llvm(v, translation_metadata),
+    // VecSgn compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
+    VecLang::VecSgn([v]) =>  vecsgn_to_llvm(v, translation_metadata),
+    VecLang::Sgn([n]) | VecLang::Sqrt([n]) | VecLang::Neg([n]) =>  scalar_unop_to_llvm(n, egg_node, translation_metadata),
+    VecLang::VecLoad([gep1_id, gep2_id, gep3_id, gep4_id, base_ids_vec, offsets_id_vec]) => loadvec_to_llvm(gep1_id, gep2_id, gep3_id, gep4_id, base_ids_vec, offsets_id_vec, translation_metadata),
+    VecLang::VecStore([val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id]) => storevec_to_llvm(val_vec_id, gep1_id, gep2_id, gep3_id, gep4_id, translation_metadata),
+    VecLang::AlignedConsecVecLoad([gep_id]) => aligned_consec_loadvec_to_llvm(gep_id, 4, translation_metadata),
+    VecLang::Shuffle([data_vec_id, shuf_vec_id]) => shuffle_to_llvm(data_vec_id, shuf_vec_id, translation_metadata),
+    VecLang::Join([left, right]) => join_to_llvm(left, right, translation_metadata),
+    VecLang::VecTwo(boxed_ids) => vec_to_llvm(&*boxed_ids, translation_metadata),
+    VecLang::AlignedConsecVecLoad2([gep_id]) => aligned_consec_loadvec_to_llvm(gep_id, 2, translation_metadata),
+  }
 }
 
-unsafe fn egg_to_llvm(
-  expr: RecExpr<VecLang>,
-  gep_map: &GEPMap,
-  store_map: &StoreMap,
-  symbol_map: &SymbolMap,
-  llvm_arg_pairs: &mut Vec<LLVMPair>,
-  node_to_arg_pair: &Vec<IntLLVMPair>,
-  module: LLVMModuleRef,
-  context: LLVMContextRef,
-  builder: LLVMBuilderRef,
-) -> () {
-  // in fact this will look rather similar to translation from egg to llvm
-  // the major differece is how we reconstruct loads and stores
-  // whenever we encounter a get instruction, we retranslate as a gep and then a load
-  // whenever we encounter an operand that is within the store map, we immediately build a store too.
-  // This should maintain the translation
+// Function types for constructor anonymous functions
+type VecLangBoxedConstructor = fn(bool, Box<[Id]>) -> VecLang;
 
-  // Note: You must include all instructions in the basic block, up to the final store
-  // The builder mount location must be immediately at the beginning of the basic block to start writing instrucitons
-
-  // Walk the RecExpr and translate it in place to LLVM
-  let enode_vec = expr.as_ref();
-  let last_enode = enode_vec
-    .last()
-    .expect("No match for last element of vector of Egg Terms.");
-  let vector = translate_egg(
-    last_enode,
-    enode_vec,
-    gep_map,
-    store_map,
-    symbol_map,
-    llvm_arg_pairs,
-    node_to_arg_pair,
-    builder,
-    context,
-    module,
-  );
-
-  // Add in the Stores
-  for (i, (_, addr)) in store_map.iter().enumerate() {
-    let index = LLVMConstInt(LLVMIntTypeInContext(context, 32), i as u64, 0);
-    let mut extracted_value =
-      LLVMBuildExtractElement(builder, vector, index, b"\0".as_ptr() as *const _);
-    // check if the extracted type is an float and the address is a int ptr
-    if isa_floattype(extracted_value) && isa_intptr(*addr) {
-      extracted_value = LLVMBuildFPToSI(
-        builder,
-        extracted_value,
-        LLVMIntTypeInContext(context, 32),
-        b"\0".as_ptr() as *const _,
-      );
+// Canonicalize the Concat Constructor
+unsafe fn canonicalize_concat(
+    can_change_vector: bool,
+    vector_elements: Box<[Id]>,
+    old_egg_nodes: &[VecLang],
+) -> Vec<VecLang> {
+    let mut whole_vector = Vec::new();
+    for vec_elt in vector_elements.iter() {
+        // note the first argument is to can_change_vector, which is unlike any other constructor
+        let mut trans_val =
+            canonicalize_egg(can_change_vector, &old_egg_nodes[usize::from(*vec_elt)], old_egg_nodes);
+        whole_vector.append(&mut trans_val);
     }
-    if isa_argument(*addr) {
-      LLVMBuildStore(builder, extracted_value, *addr);
-    } else {
-      let cloned_addr = LLVMInstructionClone(*addr);
-      let new_addr = llvm_recursive_add(builder, cloned_addr);
-      // LLVMReplaceAllUsesWith(*addr, new_addr);
-      LLVMBuildStore(builder, extracted_value, new_addr);
+    // note specialization to concat constructor
+    whole_vector.push(VecLang::Concat(box2arr(vector_elements)));
+    whole_vector
+}
+
+unsafe fn canoncalize_ntuple(
+    can_change_vector: bool,
+    constructor: VecLangBoxedConstructor,
+    vector_elements: Box<[Id]>,
+    old_egg_nodes: &[VecLang],
+) -> Vec<VecLang> {
+    let mut whole_vector = Vec::new();
+    for vec_elt in vector_elements.iter() {
+        let mut trans_val =
+            canonicalize_egg(false, &old_egg_nodes[usize::from(*vec_elt)], old_egg_nodes);
+        whole_vector.append(&mut trans_val);
     }
+    whole_vector.push(constructor(can_change_vector, vector_elements));
+    whole_vector
+}
+
+// Solution to convert by:
+// https://stackoverflow.com/questions/29570607/is-there-a-good-way-to-convert-a-vect-to-an-array
+// https://stackoverflow.com/questions/35751927/how-to-convert-a-boxed-array-into-a-vec-in-rust
+unsafe fn box2arr<T, const N: usize>(b: Box<[T]>) -> [T; N] {
+    let v = b.into_vec();
+    v.try_into()
+        .unwrap_or_else(|v: Vec<T>| panic!("Expected a Vec of length {} but it was {}", N, v.len()))
+}
+
+/// Modify the Egg expression so that the first instance of a Vector operation is replaced by a NoOpVector expression node
+/// The reason is that in this version of Diospyros, stores and vecstores explictly mark where a store is to be done.
+/// The outermost vectors encountered will not store anything. Replacing them with NoOps will allow translation to occur properly.
+unsafe fn canonicalize_egg(
+    can_change_vector: bool,
+    curr_egg_node: &VecLang,
+    old_egg_nodes: &[VecLang],
+) -> Vec<VecLang> {
+    match curr_egg_node {
+    VecLang::NoOptVec(..) => panic!("No Opt Vector was found. Egg canonicalization does not handle No Opt Vector nodes at this location."),
+    VecLang::Symbol(..) => {
+      panic!("Symbol was found. Egg canonicalization does not handle symbol nodes.")
+    }
+    VecLang::Get(..) => {
+      panic!("Get was found. Egg canonicalization does not handle get nodes.")
+    }
+    VecLang::Gep(g) => vec![VecLang::Gep(*g)],
+    VecLang::Load(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Load(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Store(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Store(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Set(..) => {
+        panic!("Set was found. Egg canonicalization does not handle set nodes.")
+    }
+    VecLang::Ite(..) => panic!("Ite was found. Egg canonicalization does not handle ite nodes."),
+    VecLang::Or(..) => panic!("Or was found. Egg canonicalization does not handle or nodes."),
+    VecLang::And(..) => panic!("And was found. Egg canonicalization does not handle and nodes."),
+    VecLang::Lt(..) => panic!("Lt was found. Egg canonicalizationdoes not handle lt nodes."),
+    VecLang::Sgn(..) => panic!("Sgn was found. Egg canonicalization does not handle sgn nodes. TODO: In the future, tis node will be handled alongside sqrt and neg scalar nodes."),
+    VecLang::VecSgn(..) => panic!("VecSgn was found. Egg canonicalization does not handle vecsgn nodes. TODO: In the future, this node will be handled alongside VecSqrt and VecNeg vector nodes."),
+    VecLang::Arg(a) => vec![VecLang::Arg(*a)],
+    VecLang::Reg(r) =>  vec![VecLang::Reg(*r)],
+    VecLang::Num(n) =>  vec![VecLang::Num(*n)],
+    VecLang::List(_) => panic!("List was found. Egg canonicalization does not handle list nodes."),
+    VecLang::LitVec(args) => canoncalize_ntuple(can_change_vector, |can_change_vector, b| -> VecLang {if can_change_vector {VecLang::NoOptVec(b)} else {VecLang::LitVec(b)}}, args.clone(), old_egg_nodes),
+    VecLang::Vec(args) => canoncalize_ntuple(can_change_vector, |can_change_vector, b| -> VecLang {if can_change_vector {VecLang::NoOptVec(b)} else {VecLang::Vec(b)}}, args.clone(), old_egg_nodes),
+    VecLang::DataVec(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::DataVec(b)}, args.clone(), old_egg_nodes),
+    VecLang::VecAdd(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecAdd(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecMinus(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecMinus(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecMul(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecMul(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecDiv(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecDiv(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Add(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Add(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Minus(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Minus(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Mul(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Mul(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Div(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Div(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Concat(args) => canonicalize_concat(can_change_vector, Box::new(*args), old_egg_nodes),
+    VecLang::VecMAC(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecMAC(box2arr(b))}, Box::new(*args), old_egg_nodes),
+
+
+    // TODO: VecNeg, VecSqrt, VecSgn all have not been tested, need test cases.
+    // TODO: LLVM actually supports many more vector intrinsics, including
+    // vector sine/cosine instructions for floats.
+    VecLang::VecNeg(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecNeg(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecSqrt(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecSqrt(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    // VecSgn compliant with c++ LibMath copysign function, which differs with sgn at x = 0.
+    VecLang::VecSgn(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecSgn(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Sgn(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Sgn(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Sqrt(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Sqrt(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Neg(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Neg(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecLoad(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecLoad(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecStore(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecStore(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::AlignedConsecVecLoad(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::AlignedConsecVecLoad(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Shuffle(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Shuffle(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::Join(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::Join(box2arr(b))}, Box::new(*args), old_egg_nodes),
+    VecLang::VecTwo(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::VecTwo(b)}, args.clone(), old_egg_nodes),
+    VecLang::AlignedConsecVecLoad2(args) => canoncalize_ntuple(can_change_vector, |_, b| -> VecLang {VecLang::AlignedConsecVecLoad2(box2arr(b))}, Box::new(*args), old_egg_nodes),
   }
+}
+
+unsafe fn is_nooptvec(egg_expr: &VecLang) -> bool {
+    match egg_expr {
+        VecLang::NoOptVec(..) => true,
+        _ => false,
+    }
+}
+
+unsafe fn get_noopt_eggnodes(egg_expr: &VecLang) -> &Box<[Id]> {
+    match egg_expr {
+        VecLang::NoOptVec(boxed_ids) => boxed_ids,
+        _ => panic!("Not a NoOptVec!"),
+    }
+}
+
+// TODO: Add non-vectorized version as well!
+unsafe fn egg_to_llvm_main(
+    expr: RecExpr<VecLang>,
+    llvm2egg_metadata: &LLVM2EggState,
+    module: LLVMModuleRef,
+    context: LLVMContextRef,
+    builder: LLVMBuilderRef,
+    vectorize: bool,
+) -> () {
+    // Walk the RecExpr of Egg Nodes and translate it in place to LLVM
+    let egg_nodes = expr.as_ref();
+    let last_egg_node = egg_nodes
+        .last()
+        .expect("No match for last element of vector of Egg Terms.");
+
+    // Nodes converted to llvm already, not to be retranslated
+    let prior_translated_nodes: BTreeSet<LLVMValueRef> = BTreeSet::new();
+
+    // Regular translation from vectorization
+
+    assert!(!is_nooptvec(last_egg_node));
+
+    let canonicalized_egg_nodes = canonicalize_egg(true, last_egg_node, egg_nodes);
+    let canonicalized_last_node = canonicalized_egg_nodes
+        .last()
+        .expect("No match for last element of vector of Canonicalized Egg Terms.");
+
+    let mut translation_metadata = Egg2LLVMState {
+        egg_nodes_vector: &canonicalized_egg_nodes,
+        llvm2egg_metadata: llvm2egg_metadata.clone(),
+        prior_translated_nodes: prior_translated_nodes,
+        builder: builder,
+        context: context,
+        module: module,
+    };
+
+    // If vectorize was not true, we are finished, because nooptvectorize_to_llvm will generate the required code.
+    if !vectorize {
+        assert!(is_nooptvec(last_egg_node));
+        return nooptvec_to_llvm(get_noopt_eggnodes(last_egg_node), &mut translation_metadata);
+    }
+
+    // let llvm_vector =
+    egg_to_llvm(canonicalized_last_node, &mut translation_metadata);
+
+    // remove starting stores
+    let num_extractions = llvm2egg_metadata.start_instructions.len();
+    for i in (0..num_extractions).rev() {
+        let old_instr = llvm2egg_metadata
+            .start_instructions
+            .get(i)
+            .expect("Index should be in vector.");
+        LLVMInstructionEraseFromParent(*old_instr);
+    }
 }

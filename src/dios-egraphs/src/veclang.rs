@@ -4,6 +4,23 @@ define_language! {
     pub enum VecLang {
         Num(i32),
 
+        // Register points to other computation, denoted by a number
+        Reg(u32),
+
+        // Argument points to a argument, denoted by a number
+        Arg(u32),
+
+        Gep(u32),
+
+        // Load is a read of memory
+        // The FIRST subelement is the ID of the parent of this load
+        // The SECOND subelement is a ID of the base of the array where the load occurs
+        // The THIRD subelement is the offset from the base of the array. Offsets are in number of floats away from base.
+        "Load" = Load([Id; 3]),
+
+        // Store is a write to memory
+        "Store" = Store([Id; 2]),
+
         // Id is a key to identify EClasses within an EGraph, represents
         // children nodes
         "+" = Add([Id; 2]),
@@ -24,12 +41,20 @@ define_language! {
         "List" = List(Box<[Id]>),
 
         // Vectors have width elements
+        "VecTwo" = VecTwo(Box<[Id]>),
         "Vec" = Vec(Box<[Id]>),
+        "DataVec" = DataVec(Box<[Id]>),
+
+        // Vectors have width elements, not to be optimized (for testing purposes)
+        "NoOptVec" = NoOptVec(Box<[Id]>),
 
         // Vector with all literals
         "LitVec" = LitVec(Box<[Id]>),
 
         "Get" = Get([Id; 2]),
+
+        // Set is a modification of memory
+        "Set" = Set([Id; 3]),
 
         // Used for partitioning and recombining lists
         "Concat" = Concat([Id; 2]),
@@ -48,6 +73,20 @@ define_language! {
 
         // MAC takes 3 lists: acc, v1, v2
         "VecMAC" = VecMAC([Id; 3]),
+
+        "VecLoad" = VecLoad([Id; 6]),
+
+        "AlignedConsecVecLoad2" = AlignedConsecVecLoad2([Id; 1]),
+        "AlignedConsecVecLoad" = AlignedConsecVecLoad([Id; 1]),
+
+        "VecStore" = VecStore([Id; 5]),
+
+        "Shuffle" = Shuffle([Id; 2]),
+
+        "Join" = Join([Id; 2]),
+
+        // Info specific to register
+        // RegInfo(egg::Symbol),
 
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last.

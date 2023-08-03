@@ -2,62 +2,50 @@ ifeq ($(shell uname),Darwin)
     EXT := dylib
 	CLANG := /usr/local/opt/llvm/bin/clang
 	SETUP := bash set_up_mac.sh
-		LIB := src/lib.rs Cargo.toml .cargo/config
+	LIB := src/lib.rs Cargo.toml .cargo/config
 else
     EXT := so
 	CLANG = clang
 	SETUP := :
-		LIB := src/lib.rs Cargo.toml
+	LIB := src/lib.rs Cargo.toml
 endif
 
 .PHONY: target/debug/libllvmlib.$(EXT)
 
-run: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
-
-run-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -O2 -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
-
-run-out: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
-	./a.out
-
-run-out-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -O2 -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) $(test)
-	./a.out
-
-run-all: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	bash run_all.sh
-
-emit: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -emit-llvm -S -o - $(test)
-
-emit-o2: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -O2 -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) -emit-llvm -S -o - $(test)
-
-test-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
-	opt -S --inline --mem2reg --indvars --loop-simplify --loop-instsimplify --licm --loop-unroll --simplifycfg clang.ll -o opt.ll
-	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) opt.ll -o finish.ll
-	opt -S --adce finish.ll -o final.ll
-
 run-opt: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
-	$(CLANG) -emit-llvm -S -Xclang -disable-O0-optnone -o clang.ll $(test)
-	opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce clang.ll -o opt.ll
-	opt -S --cfl-steens-aa opt.ll -o aa.ll
-	$(CLANG) -emit-llvm -S -Xclang -load -Xclang target/debug/libllvmlib.$(EXT) aa.ll -o diospyros.ll
-	opt -S --adce --dse diospyros.ll -o dce.ll
-	$(CLANG) dce.ll
-	./a.out
+	@$(CLANG) -target arm64-apple-macos11 -mmacosx-version-min=11.0 -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
+	@opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
+	@opt -S -load=target/debug/libllvmlib.$(EXT) --basic-aa --lsmovement --dse --adce build/opt.ll -o build/aa.ll
+	@opt -S -load=target/debug/libllvmlib.$(EXT) --diospyros -opt -print=true build/aa.ll -o build/diospyros.ll
+	@opt -S --adce --dse --gvn build/diospyros.ll -o build/dce.ll
+	@$(CLANG) -target arm64-apple-macos11 -mmacosx-version-min=11.0 build/dce.ll -o build/final
+	@build/final
 
-test: set-up-mac runt.sh runt.toml target/debug/libllvmlib.$(EXT)
-	runt
+run-slp:
+	@$(CLANG) -target arm64-apple-macos11 -mmacosx-version-min=11.0 -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
+	@opt -S -always-inline --inline --mem2reg --scev-aa -simplifycfg --flattencfg --indvars -loops -loop-rotate --loop-simplify --loop-idiom --loop-instsimplify --licm --unroll-threshold=1000000 --loop-unroll --simplifycfg --instcombine --gvn  --mem2reg --dse --adce build/clang.ll -o build/opt.ll
+	@opt -S --slp-vectorizer  build/opt.ll -o build/slp.ll
+	@opt -S --adce --dse build/slp.ll -o build/dce.ll
+	@$(CLANG) -target arm64-apple-macos11 -mmacosx-version-min=11.0 -o0 build/dce.ll -o build/final
+	@build/final
+
+run-baseline:
+	@$(CLANG) -target arm64-apple-macos11 -mmacosx-version-min=11.0 -emit-llvm -S -Xclang -disable-O0-optnone -o build/clang.ll $(test)
+	@$(CLANG) -target arm64-apple-macos11 -mmacosx-version-min=11.0 -O3 -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -o build/final build/clang.ll
+	@build/final
+
+test: set-up-mac target/debug/libllvmlib.$(EXT) diospyros.cpp 
+	turnt c-tests/*.c
  
 target/debug/libllvmlib.$(EXT): $(LIB)
-	cargo build
+	@cargo build
 
 set-up-mac: 
-	$(SETUP)
- 
+	@$(SETUP)
+
 clean:
+	rm -r build/*
+ 
+clean-all:
 	rm -rf target
+	rm -r build/*

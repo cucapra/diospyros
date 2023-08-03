@@ -31,4 +31,16 @@ fn main() {
     }
     build_diospyros.flag("-fexceptions");
     build_diospyros.compile("libdiospass.a");
+
+    // Build the AddressRewriting C++ file.
+    let mut build_address_rewriting = cc::Build::new();
+    build_address_rewriting
+        .cpp(true)
+        .warnings(false) // LLVM headers have lots of spurious warnings.
+        .file("AddressRewriting.cpp");
+    for flag in cxxflags.split_ascii_whitespace() {
+        build_address_rewriting.flag(&flag);
+    }
+    build_address_rewriting.flag("-fexceptions");
+    build_address_rewriting.compile("libadrwpass.a");
 }
